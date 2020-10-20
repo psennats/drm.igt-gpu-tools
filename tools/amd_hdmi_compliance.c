@@ -440,11 +440,14 @@ static void set_force_yuv420(data_t *data, int force, int conn_id)
 static void set_max_bpc(data_t *data, int max_bpc, int conn_id)
 {
 	igt_display_t *display = &data->display;
+	igt_fb_t afb;
 
 	test_init(data, conn_id);
 
 	igt_info("Setting max bpc to %d on connector id %d\n",
 		 max_bpc, data->output->config.connector->connector_id);
+	igt_create_fb(data->fd, 128, 128, DRM_FORMAT_XRGB8888, 0, &afb);
+	igt_plane_set_fb(data->primary, &afb);
 	igt_output_set_prop_value(data->output, IGT_CONNECTOR_MAX_BPC, max_bpc);
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 
