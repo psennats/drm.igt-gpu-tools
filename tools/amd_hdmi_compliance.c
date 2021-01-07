@@ -23,6 +23,8 @@
 #include "igt.h"
 #include "igt_sysfs.h"
 #include <fcntl.h>
+#include <signal.h>
+#include <string.h>
 
 /* Common test data */
 typedef struct data {
@@ -34,6 +36,7 @@ typedef struct data {
 	igt_pipe_t *pipe;
 	enum pipe pipe_id;
 	bool use_virtual_connector;
+	int timeout_seconds;
 } data_t;
 
 /* Video modes indexed by VIC */
@@ -370,6 +373,12 @@ static drmModeModeInfo test_modes[] = {
 	},
 };
 
+static void signal_handler(int signo)
+{
+	if (signo == SIGALRM)
+		igt_info("Timeout and exit\n");
+}
+
 /* Common test setup. */
 static void test_init(data_t *data, int conn_id)
 {
@@ -402,6 +411,19 @@ static void test_init(data_t *data, int conn_id)
 
 	igt_output_set_pipe(data->output, data->pipe_id);
 
+	if (data->timeout_seconds > 0) {
+		struct sigaction sa;
+
+		memset(&sa, 0, sizeof(struct sigaction));
+		sa.sa_handler = signal_handler;
+		/* without SA_RESTART so getchar() is not restarted on signal */
+		sa.sa_flags = 0;
+
+		if (sigaction(SIGALRM, &sa, NULL))
+			igt_info("cannot set up timeout: %s\n", strerror(errno));
+		else
+			alarm(data->timeout_seconds);
+	}
 }
 
 /* Common test cleanup. */
@@ -412,8 +434,11 @@ static void test_fini(data_t *data)
 
 static void wait_for_keypress(void)
 {
-	while (getchar() != '\n')
-		;
+	int c;
+
+	do {
+		c = getchar();
+	} while (c != '\n' && c != EOF);
 }
 
 /* Write 0 or 1 to debugfs entry "force_yuv420_output" of connector */
@@ -478,7 +503,7 @@ static void test_vic_mode(data_t *data, int vic, int conn_id)
 	test_fini(data);
 }
 
-const char *optstr = "hvt:i:b:y:";
+const char *optstr = "hvt:i:b:y:e:";
 static void usage(const char *name)
 {
 	igt_info("Usage: %s options\n", name);
@@ -488,6 +513,7 @@ static void usage(const char *name)
 	igt_info("-i conn_id	Use connector by ID\n");
 	igt_info("-b max_bpc	Set \"max bpc\" connector property\n");
 	igt_info("-y 0|1	Write 0 or 1 to connector's debugfs force_yuv420_output\n");
+	igt_info("-e seconds    number of seconds to display test pattern and exit\n");
 	igt_info("NOTE: if -i is not specified, first connected HDMI connector will be used for -t, -b and -y\n");
 }
 
@@ -518,6 +544,9 @@ int main(int argc, char **argv)
 			break;
 		case 'y':
 			force_yuv_420 = atoi(optarg);
+			break;
+		case 'e':
+			data.timeout_seconds = atoi(optarg);
 			break;
 		default:
 		case 'h':
