@@ -5,6 +5,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <pciaccess.h>
 
@@ -380,4 +381,35 @@ void igt_sriov_bind_vf_drm_driver(int pf, unsigned int vf_num)
 void igt_sriov_unbind_vf_drm_driver(int pf, unsigned int vf_num)
 {
 	igt_assert(__igt_sriov_bind_vf_drm_driver(pf, vf_num, false));
+}
+
+/**
+ * igt_sriov_device_sysfs_open:
+ * @pf: PF device file descriptor
+ * @vf_num: VF number (1-based to identify single VF) or 0 for PF
+ *
+ * Open the sysfs directory corresponding to SR-IOV device.
+ *
+ * Returns:
+ * The SR-IOV device sysfs directory fd, -1 on failure.
+ */
+int igt_sriov_device_sysfs_open(int pf, unsigned int vf_num)
+{
+	char path[PATH_MAX];
+	int sysfs, fd;
+
+	sysfs = igt_sysfs_open(pf);
+	if (sysfs < 0)
+		return -1;
+
+	if (!vf_num)
+		snprintf(path, sizeof(path), "device");
+	else
+		/* vf_num is 1-based, but virtfn is 0-based */
+		snprintf(path, sizeof(path), "device/virtfn%u", vf_num - 1);
+
+	fd = openat(sysfs, path, O_DIRECTORY | O_RDONLY);
+	close(sysfs);
+
+	return fd;
 }
