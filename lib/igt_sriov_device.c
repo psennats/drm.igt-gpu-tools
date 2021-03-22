@@ -413,3 +413,54 @@ int igt_sriov_device_sysfs_open(int pf, unsigned int vf_num)
 
 	return fd;
 }
+
+/**
+ * igt_sriov_device_reset_exists:
+ * @pf: PF device file descriptor
+ * @vf_num: VF number (1-based to identify single VF) or 0 for PF
+ *
+ * Check if reset attribute exists for a given SR-IOV device.
+ *
+ * Returns:
+ * True if reset attribute exists, false otherwise.
+ */
+bool igt_sriov_device_reset_exists(int pf, unsigned int vf_num)
+{
+	int sysfs;
+	bool reset_exists;
+
+	sysfs = igt_sriov_device_sysfs_open(pf, vf_num);
+	if (sysfs < 0)
+		return false;
+
+	reset_exists = igt_sysfs_has_attr(sysfs, "reset");
+	close(sysfs);
+
+	return reset_exists;
+}
+
+/**
+ * igt_sriov_device_reset:
+ * @pf: PF device file descriptor
+ * @vf_num: VF number (1-based to identify single VF) or 0 for PF
+ *
+ * Trigger FLR on a given VF.
+ *
+ * Returns:
+ * True on success, false on failure.
+ */
+bool igt_sriov_device_reset(int pf, unsigned int vf_num)
+{
+	int sysfs;
+	bool ret;
+
+	sysfs = igt_sriov_device_sysfs_open(pf, vf_num);
+	if (sysfs < 0)
+		return false;
+
+	igt_debug("Initiating FLR on VF%d\n", vf_num);
+	ret = igt_sysfs_set(sysfs, "reset", "1");
+	close(sysfs);
+
+	return ret;
+}
