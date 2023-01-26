@@ -187,7 +187,7 @@ static void fillgtt(int fd, const intel_ctx_t *ctx, unsigned ring, int timeout)
 
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffer_count = 1;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 

@@ -366,7 +366,7 @@ static void exec_shared_gtt(int i915, const intel_ctx_cfg_t *cfg,
 	obj.handle = batch;
 	obj.offset += 8192; /* make sure we don't cause an eviction! */
 	execbuf.rsvd1 = ctx[1]->id;
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(i915))
 		execbuf.flags |= I915_EXEC_SECURE;
 	gem_execbuf(i915, &execbuf);
 
@@ -567,7 +567,7 @@ static void store_dword(int i915, uint64_t ahnd, const intel_ctx_t *ctx,
 	execbuf.buffers_ptr = to_user_pointer(obj + !cork);
 	execbuf.buffer_count = 2 + !!cork;
 	execbuf.flags = ring;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(i915))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 

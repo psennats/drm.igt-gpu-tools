@@ -187,7 +187,7 @@ static uint32_t __store_dword(int fd, uint64_t ahnd, const intel_ctx_t *ctx,
 	execbuf.buffers_ptr = to_user_pointer(obj + !cork);
 	execbuf.buffer_count = 2 + !!cork;
 	execbuf.flags = ring;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 
@@ -2342,7 +2342,7 @@ static void reorder_wide(int fd, const intel_ctx_cfg_t *cfg, unsigned ring)
 	execbuf.buffers_ptr = to_user_pointer(obj);
 	execbuf.buffer_count = ARRAY_SIZE(obj);
 	execbuf.flags = ring;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 
 	execbuf.flags |= I915_EXEC_FENCE_IN;

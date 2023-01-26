@@ -463,7 +463,7 @@ static void store_dword(int fd, uint32_t target,
 	execbuf.buffers_ptr = to_user_pointer(obj);
 	execbuf.buffer_count = ARRAY_SIZE(obj);
 	execbuf.flags = 0;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 
 	memset(obj, 0, sizeof(obj));
@@ -1446,7 +1446,7 @@ static void store_dword_rand(int i915, const intel_ctx_t *ctx,
 	exec.buffer_count = 2;
 	exec.buffers_ptr = to_user_pointer(obj);
 	exec.flags = engine;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(i915))
 		exec.flags |= I915_EXEC_SECURE;
 	exec.rsvd1 = ctx->id;
 

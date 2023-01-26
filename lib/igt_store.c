@@ -48,7 +48,7 @@ void igt_store_word(int fd, uint64_t ahnd, const intel_ctx_t *ctx,
 		execbuf.flags |= I915_EXEC_FENCE_IN;
 		execbuf.rsvd2 = fence;
 	}
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 
 	memset(obj, 0, sizeof(obj));

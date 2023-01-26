@@ -220,7 +220,7 @@ static void setup_execbuf(int fd, const intel_ctx_t *ctx,
 	execbuf->buffers_ptr = to_user_pointer(obj);
 	execbuf->flags = ring | I915_EXEC_NO_RELOC | I915_EXEC_HANDLE_LUT;
 
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf->flags |= I915_EXEC_SECURE;
 
 	execbuf->rsvd1 = ctx->id;

@@ -796,7 +796,7 @@ static void test_parallel(int i915, const intel_ctx_t *ctx,
 		batch[++i] = MI_BATCH_BUFFER_END;
 		gem_write(i915, obj[1].handle, 0, batch, sizeof(batch));
 
-		if (gen < 6)
+		if (gem_store_dword_needs_secure(i915))
 			execbuf.flags |= I915_EXEC_SECURE;
 
 		gem_execbuf(i915, &execbuf);
@@ -919,7 +919,7 @@ static void test_concurrent(int i915, const intel_ctx_t *ctx,
 	tmp_ctx = intel_ctx_create(i915, &ctx->cfg);
 	execbuf.rsvd1 = tmp_ctx->id;
 	execbuf.rsvd2 = spin->out_fence;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(i915))
 		execbuf.flags |= I915_EXEC_SECURE;
 
 	gem_execbuf(i915, &execbuf);

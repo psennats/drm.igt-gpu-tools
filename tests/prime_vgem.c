@@ -622,7 +622,7 @@ static void work(int i915, uint64_t ahnd, uint64_t scratch_offset, int dmabuf,
 	execbuf.buffers_ptr = (uintptr_t)obj;
 	execbuf.buffer_count = 2;
 	execbuf.flags = ring;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(i915))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 

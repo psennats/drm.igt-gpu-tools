@@ -147,7 +147,7 @@ static void *thread(void *data)
 	execbuf.flags = t->engine;
 	execbuf.flags |= I915_EXEC_HANDLE_LUT;
 	execbuf.flags |= I915_EXEC_NO_RELOC;
-	if (t->gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	if (t->flags & (CONTEXTS | FDS)) {
 		tmp_ctx = intel_ctx_create(fd, &t->ctx->cfg);

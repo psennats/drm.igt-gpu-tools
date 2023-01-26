@@ -405,7 +405,7 @@ static void whisper(int fd, const intel_ctx_t *ctx,
 			execbuf.buffer_count = 2;
 			execbuf.flags = I915_EXEC_HANDLE_LUT;
 			execbuf.flags |= I915_EXEC_NO_RELOC;
-			if (gen < 6)
+			if (gem_store_dword_needs_secure(fd))
 				execbuf.flags |= I915_EXEC_SECURE;
 
 			execbuf.rsvd1 = ctx->id;

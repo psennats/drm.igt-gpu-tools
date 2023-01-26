@@ -903,7 +903,7 @@ static void active(int fd, const intel_ctx_t *ctx, unsigned engine)
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffers_ptr = to_user_pointer(obj);
 	execbuf.buffer_count = 2;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 
@@ -1310,20 +1310,22 @@ static void concurrent_child(int i915, const intel_ctx_t *ctx,
 			     uint32_t *common, int num_common,
 			     int in, int out)
 {
-	const unsigned int gen = intel_gen(intel_get_drm_devid(i915));
 	int idx = flags_to_index(e);
 	uint64_t relocs = concurrent_relocs(i915, idx, CONCURRENT);
 	struct drm_i915_gem_exec_object2 obj[num_common + 2];
 	struct drm_i915_gem_execbuffer2 execbuf = {
 		.buffers_ptr = to_user_pointer(obj),
 		.buffer_count = ARRAY_SIZE(obj),
-		.flags = e->flags | I915_EXEC_HANDLE_LUT | (gen < 6 ? I915_EXEC_SECURE : 0),
+		.flags = e->flags | I915_EXEC_HANDLE_LUT,
 		.rsvd1 = ctx->id,
 	};
 	uint32_t *batch = &obj[num_common + 1].handle;
 	unsigned long count = 0;
 	uint32_t *x;
 	int err = 0;
+
+	if (gem_store_dword_needs_secure(i915))
+		execbuf.flags |= I915_EXEC_SECURE;
 
 	memset(obj, 0, sizeof(obj));
 	obj[0].handle = gem_create(i915, 64 * CONCURRENT * 4);

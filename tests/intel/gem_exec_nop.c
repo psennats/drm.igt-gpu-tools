@@ -165,7 +165,7 @@ static void poll_ring(int fd, const intel_ctx_t *ctx,
 	uint64_t elapsed;
 
 	flags = I915_EXEC_NO_RELOC;
-	if (gen == 4 || gen == 5)
+	if (gem_store_dword_needs_secure(fd))
 		flags |= I915_EXEC_SECURE;
 
 	igt_require(gem_class_can_store_dword(fd, e->class));
@@ -278,7 +278,7 @@ static void poll_sequential(int fd, const intel_ctx_t *ctx,
 	bool cached;
 
 	flags = I915_EXEC_NO_RELOC;
-	if (gen == 4 || gen == 5)
+	if (gem_store_dword_needs_secure(fd))
 		flags |= I915_EXEC_SECURE;
 
 	nengine = 0;

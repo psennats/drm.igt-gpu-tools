@@ -157,7 +157,7 @@ static void store_all(int i915)
 		batch[value] = nengine;
 
 		execbuf.flags = e->flags;
-		if (gen < 6)
+		if (gem_store_dword_needs_secure(i915))
 			execbuf.flags |= I915_EXEC_SECURE;
 		execbuf.flags |= I915_EXEC_NO_RELOC | I915_EXEC_HANDLE_LUT;
 		execbuf.rsvd1 = ctx->id;

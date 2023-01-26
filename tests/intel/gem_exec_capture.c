@@ -396,7 +396,7 @@ static void __capture1(int fd, int dir, uint64_t ahnd, const intel_ctx_t *ctx,
 	execbuf.buffers_ptr = (uintptr_t)obj;
 	execbuf.buffer_count = ARRAY_SIZE(obj);
 	execbuf.flags = e->flags;
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.flags |= I915_EXEC_FENCE_OUT;
 	execbuf.rsvd1 = ctx->id;
@@ -586,7 +586,7 @@ __captureN(int fd, int dir, uint64_t ahnd, const intel_ctx_t *ctx,
 	execbuf.buffers_ptr = (uintptr_t)obj;
 	execbuf.buffer_count = count + 2;
 	execbuf.flags = e->flags;
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.flags |= I915_EXEC_FENCE_OUT;
 	execbuf.rsvd1 = ctx->id;
@@ -968,12 +968,9 @@ igt_main
 	uint32_t region;
 
 	igt_fixture {
-		int gen;
-
 		fd = drm_open_driver(DRIVER_INTEL);
 
-		gen = intel_gen(intel_get_drm_devid(fd));
-		if (gen > 3 && gen < 6) /* ctg and ilk need secure batches */
+		if (gem_store_dword_needs_secure(fd))
 			igt_device_set_master(fd);
 
 		igt_require_gem(fd);

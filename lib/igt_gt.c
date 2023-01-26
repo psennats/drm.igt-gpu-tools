@@ -691,6 +691,27 @@ bool gem_can_store_dword(int fd, unsigned int engine)
 				gem_execbuf_flags_to_engine_class(engine));
 }
 
+/**
+ * gem_store_dword_needs_secure:
+ * @fd: open i915 drm file descriptor
+ *
+ * Returns:
+ * True if the MI_STORE_DWORD needs to be executed from a secure batch.
+ */
+bool gem_store_dword_needs_secure(int fd)
+{
+	const struct intel_device_info *info =
+		intel_get_device_info(intel_get_drm_devid(fd));
+
+	switch (info->graphics_ver) {
+	case 4:
+	case 5:
+		return true;
+	default:
+		return false;
+	}
+}
+
 const struct intel_execution_engine2 intel_execution_engines2[] = {
 	{ "rcs0", I915_ENGINE_CLASS_RENDER, 0, I915_EXEC_RENDER },
 	{ "bcs0", I915_ENGINE_CLASS_COPY, 0, I915_EXEC_BLT },

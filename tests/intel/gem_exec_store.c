@@ -84,7 +84,7 @@ static void store_dword(int fd, const intel_ctx_t *ctx,
 	execbuf.buffers_ptr = to_user_pointer(obj);
 	execbuf.buffer_count = 2;
 	execbuf.flags = e->flags;
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 
@@ -169,7 +169,7 @@ static void store_cachelines(int fd, const intel_ctx_t *ctx,
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffer_count = flags & PAGES ? NCACHELINES + 1 : 2;
 	execbuf.flags = e->flags;
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 
@@ -281,7 +281,7 @@ static void store_all(int fd, const intel_ctx_t *ctx)
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffers_ptr = to_user_pointer(obj);
 	execbuf.buffer_count = 2;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 
@@ -414,7 +414,7 @@ static void store_all(int fd, const intel_ctx_t *ctx)
 	free(reloc);
 }
 
-static int print_welcome(int fd)
+static void print_welcome(int fd)
 {
 	uint16_t devid = intel_get_drm_devid(fd);
 	const struct intel_device_info *info = intel_get_device_info(devid);
@@ -430,8 +430,6 @@ static int print_welcome(int fd)
 		err = -errno;
 	igt_info("GPU operation? %s [errno=%d]\n",
 		 err == 0 ? "yes" : "no", err);
-
-	return info->graphics_ver;
 }
 
 #define test_each_engine(T, i915, ctx, e)  \
@@ -446,12 +444,10 @@ igt_main
 	int fd;
 
 	igt_fixture {
-		int gen;
-
 		fd = drm_open_driver(DRIVER_INTEL);
 
-		gen = print_welcome(fd);
-		if (gen > 3 && gen < 6) /* ctg and ilk need secure batches */
+		print_welcome(fd);
+		if (gem_store_dword_needs_secure(fd))
 			igt_device_set_master(fd);
 
 		igt_require_gem(fd);

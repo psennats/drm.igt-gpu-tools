@@ -248,7 +248,7 @@ static void test_batch_first(int fd)
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffers_ptr = to_user_pointer(obj);
 	execbuf.buffer_count = ARRAY_SIZE(obj);
-	if (gen > 3 && gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 
 	/* Normal mode */

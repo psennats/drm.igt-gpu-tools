@@ -1668,7 +1668,7 @@ static void run(int fd, unsigned ring, int nchild, int timeout,
 		execbuf.buffers_ptr = to_user_pointer(obj);
 		execbuf.buffer_count = 3;
 		execbuf.flags = ring | (1 << 12);
-		if (gen < 6)
+		if (gem_store_dword_needs_secure(fd))
 			execbuf.flags |= I915_EXEC_SECURE;
 
 		obj[1].handle = gem_create(fd, 1024*64);
@@ -1915,7 +1915,7 @@ static void batch(int fd, unsigned ring, int nchild, int timeout,
 		execbuf.buffers_ptr = to_user_pointer(obj);
 		execbuf.buffer_count = 2;
 		execbuf.flags = ring | (1 << 12);
-		if (gen < 6)
+		if (gem_store_dword_needs_secure(fd))
 			execbuf.flags |= I915_EXEC_SECURE;
 
 		obj[1].handle = gem_create(fd, 64<<10);

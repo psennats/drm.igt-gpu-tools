@@ -712,7 +712,7 @@ static void test_noreloc(int fd, enum sleep sleep, unsigned flags)
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffers_ptr = to_user_pointer(object);
 	execbuf.buffer_count = 1;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	gem_execbuf(fd, &execbuf);
 	gem_close(fd, object[0].handle);
@@ -1072,7 +1072,7 @@ static void test_allocator_evict(int fd, const intel_ctx_t *ctx,
 
 	memset(&execbuf, 0, sizeof(execbuf));
 	execbuf.buffer_count = 1;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 

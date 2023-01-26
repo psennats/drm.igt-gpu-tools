@@ -217,7 +217,7 @@ emit_recursive_batch(igt_spin_t *spin,
 	} else if (opts->flags & IGT_SPIN_POLL_RUN) {
 		igt_assert(!opts->dependency);
 
-		if (gen == 4 || gen == 5) {
+		if (gem_store_dword_needs_secure(fd)) {
 			execbuf->flags |= I915_EXEC_SECURE;
 			igt_require(__igt_device_set_master(fd) == 0);
 		}

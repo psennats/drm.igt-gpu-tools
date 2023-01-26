@@ -720,7 +720,7 @@ store_ring(int fd, const intel_ctx_t *ctx, unsigned ring,
 		execbuf.flags = ied_flags(&ied, child);
 		execbuf.flags |= I915_EXEC_NO_RELOC;
 		execbuf.flags |= I915_EXEC_HANDLE_LUT;
-		if (gen < 6)
+		if (gem_store_dword_needs_secure(fd))
 			execbuf.flags |= I915_EXEC_SECURE;
 		execbuf.rsvd1 = ctx->id;
 
@@ -829,7 +829,7 @@ switch_ring(int fd, const intel_ctx_t *ctx, unsigned ring,
 			c->execbuf.flags = ied_flags(&ied, child);
 			c->execbuf.flags |= I915_EXEC_NO_RELOC;
 			c->execbuf.flags |= I915_EXEC_HANDLE_LUT;
-			if (gen < 6)
+			if (gem_store_dword_needs_secure(fd))
 				c->execbuf.flags |= I915_EXEC_SECURE;
 
 			c->ctx = intel_ctx_create(fd, &ctx->cfg);
@@ -997,7 +997,7 @@ __store_many(int fd, const intel_ctx_t *ctx, unsigned ring,
 	execbuf.flags = ring;
 	execbuf.flags |= I915_EXEC_NO_RELOC;
 	execbuf.flags |= I915_EXEC_HANDLE_LUT;
-	if (gen < 6)
+	if (gem_store_dword_needs_secure(fd))
 		execbuf.flags |= I915_EXEC_SECURE;
 	execbuf.rsvd1 = ctx->id;
 
@@ -1212,7 +1212,7 @@ store_all(int fd, const intel_ctx_t *ctx, int num_children, int timeout)
 		execbuf.buffers_ptr = to_user_pointer(object);
 		execbuf.flags |= I915_EXEC_NO_RELOC;
 		execbuf.flags |= I915_EXEC_HANDLE_LUT;
-		if (gen < 6)
+		if (gem_store_dword_needs_secure(fd))
 			execbuf.flags |= I915_EXEC_SECURE;
 		execbuf.rsvd1 = ctx->id;
 

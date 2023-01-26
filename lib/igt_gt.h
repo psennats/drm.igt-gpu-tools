@@ -76,6 +76,7 @@ unsigned intel_detect_and_clear_missed_interrupts(int fd);
 
 bool gem_can_store_dword(int fd, unsigned int engine);
 bool gem_class_can_store_dword(int fd, int class);
+bool gem_store_dword_needs_secure(int fd);
 
 extern const struct intel_execution_engine2 {
 	char name[16];
