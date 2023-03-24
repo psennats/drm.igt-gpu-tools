@@ -85,6 +85,21 @@ static inline void rapl_close(struct rapl *r)
 	r->fd = -1;
 }
 
+static uint64_t bat_get_energy(int fd)
+{
+	if (igt_sysfs_has_attr(fd, "energy_now")) {
+		/* uWh -> uJ */
+		return 3600 *
+			igt_sysfs_get_u64(fd, "energy_now");
+	} else {
+		/* uAh * uV -> uJ */
+		return 3600 *
+			igt_sysfs_get_u64(fd, "charge_now") *
+			igt_sysfs_get_u64(fd, "voltage_now") /
+			1000000;
+	}
+}
+
 /**
  * igt_power_open:
  * @fd : device fd
@@ -105,6 +120,7 @@ int igt_power_open(int fd, struct igt_power *p, const char *domain)
 	int i;
 
 	p->hwmon_fd = -1;
+	p->bat_fd = -1;
 	p->rapl.fd = -1;
 
 	if (fd >= 0 && is_intel_dgfx(fd)) {
@@ -142,6 +158,8 @@ void igt_power_get_energy(struct igt_power *power, struct power_sample *s)
 	if (power->hwmon_fd >= 0) {
 		if (igt_sysfs_has_attr(power->hwmon_fd, "energy1_input"))
 			s->energy = igt_sysfs_get_u64(power->hwmon_fd, "energy1_input");
+	} else if (power->bat_fd >= 0) {
+		s->energy = bat_get_energy(power->bat_fd);
 	} else if (power->rapl.fd >= 0) {
 		rapl_read(&power->rapl, s);
 	}
@@ -162,6 +180,8 @@ double igt_power_get_mJ(const struct igt_power *power,
 {
 	if (power->hwmon_fd >= 0)
 		return (p1->energy - p0->energy) * 1e-3;
+	else if (power->bat_fd >= 0)
+		return (p0->energy - p1->energy) * 1e-3; /* battery measures remaining energy */
 	else if (power->rapl.fd >= 0)
 		return ((p1->energy - p0->energy) *  power->rapl.scale) * 1e3;
 
@@ -209,7 +229,48 @@ void igt_power_close(struct igt_power *power)
 	if (power->hwmon_fd >= 0) {
 		close(power->hwmon_fd);
 		power->hwmon_fd = -1;
+	} else if (power->bat_fd >= 0) {
+		close(power->bat_fd);
+		power->bat_fd = -1;
 	} else if (power->rapl.fd >= 0) {
 		rapl_close(&power->rapl);
 	}
+}
+
+/**
+ * igt_power_bat_open:
+ * @igt_power : power struct
+ * @index: battery index
+ *
+ * opens the power_supply fd based on battery index
+ *
+ * Returns
+ * 0 on success, errno otherwise
+ */
+int igt_power_bat_open(struct igt_power *p, int index)
+{
+	char path[64];
+	int fd;
+
+	p->hwmon_fd = -1;
+	p->bat_fd = -1;
+	p->rapl.fd = -1;
+
+	snprintf(path, sizeof(path), "/sys/class/power_supply/BAT%d", index);
+
+	fd = open(path, O_RDONLY | O_DIRECTORY);
+	if (fd < 0)
+		return -errno;
+
+	if (!igt_sysfs_has_attr(fd, "energy_now") &&
+	    !(igt_sysfs_has_attr(fd, "charge_now") &&
+	      igt_sysfs_has_attr(fd, "voltage_now"))) {
+		close(fd);
+
+		return -EINVAL;
+	}
+
+	p->bat_fd = fd;
+
+	return 0;
 }

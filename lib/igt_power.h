@@ -42,14 +42,17 @@ struct power_sample {
 struct igt_power {
 	struct rapl rapl;
 	int hwmon_fd;
+	int bat_fd;
 };
 
 int igt_power_open(int i915, struct igt_power *p, const char *domain);
 void igt_power_close(struct igt_power *p);
 
+int igt_power_bat_open(struct igt_power *p, int index);
+
 static inline bool igt_power_valid(struct igt_power *p)
 {
-	return (p->rapl.fd >= 0) || (p->hwmon_fd >= 0);
+	return p->rapl.fd >= 0 || p->hwmon_fd >= 0 || p->bat_fd >= 0;
 }
 
 void igt_power_get_energy(struct igt_power *p, struct power_sample *s);
