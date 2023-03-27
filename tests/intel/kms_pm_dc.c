@@ -80,6 +80,10 @@
  * SUBTEST: deep-pkgc
  * Description: This test validates display engine entry to PKGC10 state for extended vblank
  * Functionality: pm_dc
+ *
+ * SUBTEST: dc5-retention-flops
+ * Description: This test validates display engine entry to DC5 state while PSR is active on Pipe B
+ * Functionality: pm_dc
  */
 
 /* DC State Flags */
@@ -121,6 +125,31 @@ typedef struct {
 
 static bool dc_state_wait_entry(int drm_fd, int dc_flag, int prev_dc_count);
 static void check_dc_counter(data_t *data, int dc_flag, uint32_t prev_dc_count);
+
+static void set_output_on_pipe_b(data_t *data)
+{
+	igt_display_t *display = &data->display;
+	igt_output_t *output;
+	enum pipe pipe;
+
+	for_each_pipe_with_valid_output(display, pipe, output) {
+		drmModeConnectorPtr c = output->config.connector;
+
+		/* DC5 with PIPE_B transaction */
+		if (pipe != PIPE_B)
+			continue;
+
+		if (c->connector_type != DRM_MODE_CONNECTOR_eDP)
+			continue;
+
+		igt_output_set_pipe(output, pipe);
+		if (!intel_pipe_output_combo_valid(display))
+			continue;
+
+		data->output = output;
+		data->mode = igt_output_get_mode(output);
+	}
+}
 
 static void setup_output(data_t *data)
 {
@@ -394,6 +423,19 @@ static void psr_dpms(data_t *data, int mode)
 
 		kmstest_set_connector_dpms(data->drm_fd, connector, mode);
 	}
+}
+
+static void test_dc5_retention_flops(data_t *data, int dc_flag)
+{
+	uint32_t dc_counter_before_psr;
+
+	require_dc_counter(data->debugfs_fd, dc_flag);
+	dc_counter_before_psr = read_dc_counter(data->debugfs_fd, dc_flag);
+	set_output_on_pipe_b(data);
+	setup_primary(data);
+	igt_assert(psr_wait_entry(data->debugfs_fd, data->op_psr_mode, NULL));
+	check_dc_counter(data, dc_flag, dc_counter_before_psr);
+	cleanup_dc_psr(data);
 }
 
 static void test_dc_state_psr(data_t *data, int dc_flag)
@@ -781,6 +823,19 @@ igt_main
 		     "while all connectors's DPMS property set to OFF");
 	igt_subtest("dc5-dpms") {
 		test_dc_state_dpms(&data, CHECK_DC5);
+	}
+
+	igt_describe("This test validates display engine entry to DC5 state "
+		     "while PSR is active on Pipe B");
+	igt_subtest("dc5-retention-flops") {
+		igt_require_f(intel_display_ver(data.devid) >= 30,
+			      "Test not supported on this platform.\n");
+		igt_require(psr_sink_support(data.drm_fd, data.debugfs_fd,
+					     PSR_MODE_1, NULL));
+		data.op_psr_mode = PSR_MODE_1;
+		psr_enable(data.drm_fd, data.debugfs_fd, data.op_psr_mode, NULL);
+		igt_require(!psr_disabled_check(data.debugfs_fd));
+		test_dc5_retention_flops(&data, CHECK_DC5);
 	}
 
 	igt_describe("This test validates negative scenario of DC5 display "
