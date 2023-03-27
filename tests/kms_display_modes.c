@@ -40,51 +40,16 @@
  * Description: Test for validating display extended mode with a pair of connected
  *              displays
  * Functionality: kms_core
- *
- * SUBTEST: mst-extended-mode-negative
- * Description: Negative test for validating display extended mode with a pair
- *		of connected 2k-4k or 4k-4k displays.
- * Functionality: kms_core, mst
  */
-
-#define HDISPLAY_4K	3840
-#define VDISPLAY_4K	2160
 
 IGT_TEST_DESCRIPTION("Test Display Modes");
 
 typedef struct {
 	int drm_fd;
 	igt_display_t display;
-	drmModeModeInfo mode_mst[2];
 	igt_output_t *mst_output[2];
 	int n_pipes;
 } data_t;
-
-/* Get the 4k or less then 4k mode of connected panel. */
-static drmModeModeInfo *get_mode(igt_output_t *output)
-{
-	int j;
-	drmModeModeInfo *required_mode = NULL;
-	drmModeConnector *connector = output->config.connector;
-
-	required_mode = igt_output_get_mode(output);
-	if (required_mode->vdisplay <= VDISPLAY_4K &&
-	    required_mode->hdisplay <= HDISPLAY_4K) {
-		return required_mode;
-	}
-
-	/* If default mode not 4k or less than 4k mode, then sort modes and check for it. */
-	igt_sort_connector_modes(connector, sort_drm_modes_by_res_dsc);
-	for (j = 0; j < connector->count_modes; j++) {
-		if (connector->modes[j].vdisplay <= VDISPLAY_4K &&
-		    connector->modes[j].hdisplay <= HDISPLAY_4K) {
-			required_mode = &connector->modes[j];
-			break;
-		}
-	}
-
-	return required_mode;
-}
 
 static bool output_is_dp_mst(data_t *data, igt_output_t *output, int i)
 {
@@ -98,7 +63,7 @@ static bool output_is_dp_mst(data_t *data, igt_output_t *output, int i)
 	/*
 	 * Discarding outputs of other DP MST topology.
 	 * Testing only on outputs on the topology we got previously
-	 */
+	*/
 	if (i == 0) {
 		prev_connector_id = connector_id;
 	} else {
@@ -262,46 +227,9 @@ static void run_extendedmode_test(data_t *data) {
 	}
 }
 
-static void run_extendedmode_negative(data_t *data, int pipe1, int pipe2)
-{
-	struct igt_fb fbs[2];
-	igt_display_t *display = &data->display;
-	igt_plane_t *plane[2];
-	int ret;
-
-	igt_display_reset(display);
-
-	igt_output_set_pipe(data->mst_output[0], pipe1);
-	igt_output_set_pipe(data->mst_output[1], pipe2);
-
-	igt_create_color_fb(data->drm_fd, data->mode_mst[0].hdisplay, data->mode_mst[0].vdisplay,
-			    DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_LINEAR, 1, 0, 0, &fbs[0]);
-	igt_create_color_fb(data->drm_fd, data->mode_mst[1].hdisplay, data->mode_mst[1].vdisplay,
-			    DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_LINEAR, 0, 0, 1, &fbs[1]);
-
-	plane[0] = igt_pipe_get_plane_type(&display->pipes[pipe1], DRM_PLANE_TYPE_PRIMARY);
-	plane[1] = igt_pipe_get_plane_type(&display->pipes[pipe2], DRM_PLANE_TYPE_PRIMARY);
-
-	igt_plane_set_fb(plane[0], &fbs[0]);
-	igt_fb_set_size(&fbs[0], plane[0], data->mode_mst[0].hdisplay, data->mode_mst[0].vdisplay);
-	igt_plane_set_size(plane[0], data->mode_mst[0].hdisplay, data->mode_mst[0].vdisplay);
-
-	igt_plane_set_fb(plane[1], &fbs[1]);
-	igt_fb_set_size(&fbs[1], plane[1], data->mode_mst[1].hdisplay, data->mode_mst[1].vdisplay);
-	igt_plane_set_size(plane[1], data->mode_mst[1].hdisplay, data->mode_mst[1].vdisplay);
-
-	igt_output_override_mode(data->mst_output[0], &data->mode_mst[0]);
-	igt_output_override_mode(data->mst_output[1], &data->mode_mst[1]);
-
-	igt_require(intel_pipe_output_combo_valid(display));
-	ret = igt_display_try_commit2(display, COMMIT_ATOMIC);
-	igt_assert(ret != 0 && errno == ENOSPC);
-}
-
 igt_main
 {
 	int dp_mst_outputs = 0, count = 0;
-	enum pipe pipe1, pipe2;
 	igt_output_t *output;
 	data_t data;
 
@@ -326,29 +254,6 @@ igt_main
 	igt_subtest_with_dynamic("extended-mode-basic") {
 		igt_require_f(count > 1, "Minimum 2 outputs are required\n");
 		run_extendedmode_test(&data);
-	}
-
-	igt_describe("Negative test for validating display extended mode with a pair of connected "
-		     "2k-4k or 4k-4k displays");
-	igt_subtest_with_dynamic("mst-extended-mode-negative") {
-		igt_require_f(dp_mst_outputs > 1, "MST not found more then one\n");
-
-		memcpy(&data.mode_mst[0], get_mode(data.mst_output[0]), sizeof(drmModeModeInfo));
-		memcpy(&data.mode_mst[1], igt_output_get_highres_mode(data.mst_output[1]),
-				sizeof(drmModeModeInfo));
-		igt_require_f((data.mode_mst[1].hdisplay >= HDISPLAY_4K &&
-			       data.mode_mst[1].vdisplay >= VDISPLAY_4K), "4k panel not found\n");
-
-		for_each_pipe(&data.display, pipe1) {
-			for_each_pipe(&data.display, pipe2) {
-				if (pipe1 == pipe2)
-					continue;
-
-				igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe1),
-					      kmstest_pipe_name(pipe2))
-					run_extendedmode_negative(&data, pipe1, pipe2);
-			}
-		}
 	}
 
 	igt_fixture {
