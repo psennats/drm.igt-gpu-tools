@@ -1494,7 +1494,7 @@ static unsigned int create_bb(struct w_step *w, int self)
 #define TIMESTAMP (base + 0x3a8)
 	const int use_64b = gen >= 8;
 	enum { START_TS, NOW_TS };
-	uint32_t *ptr, *cs, *jmp;
+	uint32_t *cs, *jmp;
 	unsigned int r = 0;
 
 	/* Loop until CTX_TIMESTAMP - initial > target ns */
@@ -1502,7 +1502,16 @@ static unsigned int create_bb(struct w_step *w, int self)
 	gem_set_domain(fd, w->bb_handle,
 		       I915_GEM_DOMAIN_WC, I915_GEM_DOMAIN_WC);
 
-	cs = ptr = gem_mmap__wc(fd, w->bb_handle, 0, w->bb_size, PROT_WRITE);
+	if (__gem_set_caching(fd, w->bb_handle, I915_CACHING_CACHED) == 0) {
+		cs = gem_mmap__cpu(fd, w->bb_handle,
+				   0, w->bb_size,
+				   PROT_READ | PROT_WRITE);
+	} else {
+		cs = gem_mmap__device_coherent(fd,
+					       w->bb_handle,
+					       0, w->bb_size,
+					       PROT_READ | PROT_WRITE);
+	}
 
 	/* Store initial 64b timestamp: start */
 	*cs++ = MI_LOAD_REGISTER_IMM(1) | MI_CS_MMIO_DST;
