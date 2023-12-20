@@ -589,7 +589,13 @@ void igt_get_fb_tile_size(int fd, uint64_t modifier, int fb_bpp,
 	}
 }
 
-static bool is_gen12_mc_ccs_modifier(uint64_t modifier)
+/**
+ * igt_fb_is_gen12_mc_ccs_modifier:
+ * @modifier: drm modifier
+ *
+ * This function returns true if @modifier supports media compression.
+ */
+bool igt_fb_is_gen12_mc_ccs_modifier(uint64_t modifier)
 {
 	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS ||
 		modifier == I915_FORMAT_MOD_4_TILED_DG2_MC_CCS ||
@@ -611,7 +617,7 @@ bool igt_fb_is_gen12_rc_ccs_cc_modifier(uint64_t modifier)
 
 static bool is_gen12_ccs_modifier(uint64_t modifier)
 {
-	return is_gen12_mc_ccs_modifier(modifier) ||
+	return igt_fb_is_gen12_mc_ccs_modifier(modifier) ||
 		igt_fb_is_gen12_rc_ccs_cc_modifier(modifier) ||
 		modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
 		modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS ||
@@ -2518,7 +2524,7 @@ static bool ccs_needs_enginecopy(const struct igt_fb *fb)
 	if (igt_fb_is_gen12_rc_ccs_cc_modifier(fb->modifier))
 		return true;
 
-	if (is_gen12_mc_ccs_modifier(fb->modifier))
+	if (igt_fb_is_gen12_mc_ccs_modifier(fb->modifier))
 		return true;
 
 	if (igt_fb_is_ccs_modifier(fb->modifier) &&
@@ -2652,7 +2658,7 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 		} else
 			igt_assert_eq(fb->strides[1] & 127, 0);
 
-		if (is_gen12_mc_ccs_modifier(fb->modifier))
+		if (igt_fb_is_gen12_mc_ccs_modifier(fb->modifier))
 			compression = I915_COMPRESSION_MEDIA;
 		else
 			compression = I915_COMPRESSION_RENDER;
@@ -2755,7 +2761,7 @@ static bool use_vebox_copy(const struct igt_fb *src_fb,
 			   const struct igt_fb *dst_fb)
 {
 
-	return is_gen12_mc_ccs_modifier(dst_fb->modifier) ||
+	return igt_fb_is_gen12_mc_ccs_modifier(dst_fb->modifier) ||
 	       igt_format_is_yuv(src_fb->drm_format) ||
 	       igt_format_is_yuv(dst_fb->drm_format);
 }
@@ -2830,7 +2836,7 @@ static struct blt_copy_object *allocate_and_initialize_blt(const struct igt_fb *
 		       intel_get_pat_idx_uc(fb->fd),
 		       blt_tile,
 		       igt_fb_is_ccs_modifier(fb->modifier) ? COMPRESSION_ENABLED : COMPRESSION_DISABLED,
-		       is_gen12_mc_ccs_modifier(fb->modifier) ? COMPRESSION_TYPE_MEDIA : COMPRESSION_TYPE_3D);
+		       igt_fb_is_gen12_mc_ccs_modifier(fb->modifier) ? COMPRESSION_TYPE_MEDIA : COMPRESSION_TYPE_3D);
 
 	blt_set_geom(blt, stride, 0, 0, fb->width, fb->plane_height[plane], 0, 0);
 	blt->plane_offset = fb->offsets[plane];
