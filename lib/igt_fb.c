@@ -612,7 +612,13 @@ static bool is_gen12_ccs_modifier(uint64_t modifier)
 		modifier == I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
 }
 
-static bool is_ccs_modifier(uint64_t modifier)
+/**
+ * igt_fb_is_ccs_modifier:
+ * @modifier: drm modifier
+ *
+ * This function returns true if @modifier supports compression.
+ */
+bool igt_fb_is_ccs_modifier(uint64_t modifier)
 {
 	return is_gen12_ccs_modifier(modifier) ||
 		modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
@@ -621,7 +627,8 @@ static bool is_ccs_modifier(uint64_t modifier)
 
 static bool is_ccs_plane(const struct igt_fb *fb, int plane)
 {
-	if (!is_ccs_modifier(fb->modifier) || HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
+	if (!igt_fb_is_ccs_modifier(fb->modifier) ||
+	    HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
 		return false;
 
 	return plane >= fb->num_planes / 2;
@@ -731,7 +738,8 @@ static int fb_num_planes(const struct igt_fb *fb)
 {
 	int num_planes = lookup_drm_format(fb->drm_format)->num_planes;
 
-	if (is_ccs_modifier(fb->modifier) && !HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
+	if (igt_fb_is_ccs_modifier(fb->modifier) &&
+	    !HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
 		num_planes *= 2;
 
 	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
@@ -2489,7 +2497,7 @@ static enum blt_tiling_type fb_tile_to_blt_tile(uint64_t tile)
 static bool fast_blit_ok(const struct igt_fb *fb)
 {
 	return blt_has_fast_copy(fb->fd) &&
-		!is_ccs_modifier(fb->modifier) &&
+		!igt_fb_is_ccs_modifier(fb->modifier) &&
 		blt_fast_copy_supports_tiling(fb->fd,
 					      fb_tile_to_blt_tile(fb->modifier));
 }
@@ -2509,7 +2517,7 @@ static bool ccs_needs_enginecopy(const struct igt_fb *fb)
 	if (is_gen12_mc_ccs_modifier(fb->modifier))
 		return true;
 
-	if (is_ccs_modifier(fb->modifier) &&
+	if (igt_fb_is_ccs_modifier(fb->modifier) &&
 	    !HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
 		return true;
 
@@ -2631,7 +2639,7 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 
 	igt_assert_eq(fb->offsets[0], 0);
 
-	if (is_ccs_modifier(fb->modifier)) {
+	if (igt_fb_is_ccs_modifier(fb->modifier)) {
 		igt_assert_eq(fb->strides[0] & 127, 0);
 
 		if (is_gen12_ccs_modifier(fb->modifier)) {
@@ -2675,7 +2683,7 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 	if (buf->format_is_yuv_semiplanar)
 		buf->yuv_semiplanar_bpp = yuv_semiplanar_bpp(fb->drm_format);
 
-	if (is_ccs_modifier(fb->modifier)) {
+	if (igt_fb_is_ccs_modifier(fb->modifier)) {
 		num_surfaces = fb->num_planes / (HAS_FLATCCS(intel_get_drm_devid(fb->fd)) ? 1 : 2);
 		for (i = 0; i < num_surfaces; i++)
 			init_buf_ccs(buf, i,
@@ -2817,7 +2825,7 @@ static struct blt_copy_object *allocate_and_initialize_blt(const struct igt_fb *
 		       intel_get_uc_mocs_index(fb->fd),
 		       intel_get_pat_idx_uc(fb->fd),
 		       blt_tile,
-		       is_ccs_modifier(fb->modifier) ? COMPRESSION_ENABLED : COMPRESSION_DISABLED,
+		       igt_fb_is_ccs_modifier(fb->modifier) ? COMPRESSION_ENABLED : COMPRESSION_DISABLED,
 		       is_gen12_mc_ccs_modifier(fb->modifier) ? COMPRESSION_TYPE_MEDIA : COMPRESSION_TYPE_3D);
 
 	blt_set_geom(blt, stride, 0, 0, fb->width, fb->plane_height[plane], 0, 0);
