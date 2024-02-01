@@ -24,7 +24,7 @@
 /**
  * TEST: kms rmfb
  * Category: Display
- * Description: This tests rmfb and close-fd behavior. In these casesthe
+ * Description: This tests rmfb and close-fd behavior. In these cases the
  *              framebuffers should be removed from the crtc.
  * Driver requirement: i915, xe
  * Functionality: kms_gem_interop
@@ -42,12 +42,13 @@
 
 /**
  * SUBTEST: close-fd
- * Description: RMFB is supposed to free the framebuffers from any and all planes
- *              so test this and make sure it works with fd close and reopen.
+ * Description: Kernel driver is supposed to free the framebuffers from any and all planes
+ *		when the fd is closed. Ensure that is the case by closing and re-opening
+ *		it.
  *
  * SUBTEST: rmfb-ioctl
- * Description: RMFB is supposed to free the framebuffers from any and all planes
- *              so test this and make sure it works.
+ * Description: Kernel driver is supposed to free the framebuffers from any and all planes
+ *              when DRM_IOCTL_MODE_RMFB ioctl is called. Ensure that is the case.
  */
 
 #ifndef DRM_CAP_CURSOR_WIDTH
@@ -57,7 +58,7 @@
 #define DRM_CAP_CURSOR_HEIGHT 0x9
 #endif
 
-IGT_TEST_DESCRIPTION("This tests rmfb and close-fd behavior. In these cases"
+IGT_TEST_DESCRIPTION("This tests rmfb and close-fd behavior. In these cases "
 		     "the framebuffers should be removed from the crtc.");
 
 struct rmfb_data {
@@ -198,11 +199,11 @@ igt_main
 		const char *name;
 		const char *description;
 	} tests[] = {
-		{ false, "rmfb-ioctl", "RMFB is supposed to free the framebuffers from any and all "
-				       "planes so test this and make sure it works."},
-		{ true, "close-fd", "RMFB is supposed to free the framebuffers from any and all "
-				    "planes so test this and make sure it works with fd close "
-				    "and reopen."},
+		{ false, "rmfb-ioctl", "Kernel driver is supposed to free the framebuffers from any and all planes "
+				       "when DRM_IOCTL_MODE_RMFB ioctl is called. Ensure that is the case." },
+		{ true, "close-fd", "Kernel driver is supposed to free the framebuffers from any and all planes "
+				    "when the fd is closed. Ensure that is the case by closing and re-opening "
+				    "it" },
 	};
 	struct rmfb_data data = {};
 	int i;
