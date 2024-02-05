@@ -1284,10 +1284,10 @@ static bool kunit_get_tests(struct igt_list_head *tests,
 	/*
 	 * To get a list of test cases provided by a kunit test module, ask the
 	 * generic kunit module to respond with SKIP result for each test found.
-	 * We could also use action=list kunit parameter to get the listing,
-	 * however, parsing a KTAP report -- something that we already can do
-	 * perfectly -- seems to be more safe than extracting a test case list
-	 * of unknown length from /dev/kmsg.
+	 * We could also try to use action=list kunit parameter to get the
+	 * listing, however, parsing a structured KTAP report -- something that
+	 * we already can do perfectly -- seems to be more safe than extracting
+	 * a free text list of unknown length from /dev/kmsg.
 	 */
 	if (igt_debug_on(!kunit_set_filtering(suite, "module=none", "skip")))
 		return false;
