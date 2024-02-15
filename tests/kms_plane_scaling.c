@@ -1080,8 +1080,8 @@ static void test_scaler_with_multi_pipe_plane(data_t *d)
 	igt_output_set_pipe(output1, pipe1);
 	igt_output_set_pipe(output2, pipe2);
 
-	igt_require(get_num_scalers(d->drm_fd, pipe1) >= 2);
-	igt_require(get_num_scalers(d->drm_fd, pipe2) >= 2);
+	igt_require(get_num_scalers(display, pipe1) >= 2);
+	igt_require(get_num_scalers(display, pipe2) >= 2);
 
 	plane[0] = igt_output_get_plane(output1, 0);
 	igt_require(plane[0]);
@@ -1169,7 +1169,7 @@ static void invalid_parameter_tests(data_t *d)
 		igt_output_set_pipe(output, pipe);
 		plane = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
 
-		igt_require(get_num_scalers(d->drm_fd, pipe) >= 1);
+		igt_require(get_num_scalers(&d->display, pipe) >= 1);
 
 		igt_create_fb(d->drm_fd, 256, 256,
 			      DRM_FORMAT_XRGB8888,
@@ -1346,7 +1346,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 					for_each_valid_output_on_pipe(&data.display, pipe, output) {
 						if (!pipe_output_combo_valid(&data.display, pipe, output))
 							continue;
-						if (get_num_scalers(data.drm_fd, pipe) < 1)
+						if (get_num_scalers(&data.display, pipe) < 1)
 							continue;
 
 						igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1370,7 +1370,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 					for_each_valid_output_on_pipe(&data.display, pipe, output) {
 						if (!pipe_output_combo_valid(&data.display, pipe, output))
 							continue;
-						if (get_num_scalers(data.drm_fd, pipe) < 1)
+						if (get_num_scalers(&data.display, pipe) < 1)
 							continue;
 
 						igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1394,7 +1394,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 					for_each_valid_output_on_pipe(&data.display, pipe, output) {
 						if (!pipe_output_combo_valid(&data.display, pipe, output))
 							continue;
-						if (get_num_scalers(data.drm_fd, pipe) < 1)
+						if (get_num_scalers(&data.display, pipe) < 1)
 							continue;
 
 						igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1417,7 +1417,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 				for_each_valid_output_on_pipe(&data.display, pipe, output) {
 					if (!pipe_output_combo_valid(&data.display, pipe, output))
 						continue;
-					if (get_num_scalers(data.drm_fd, pipe) < 1)
+					if (get_num_scalers(&data.display, pipe) < 1)
 						continue;
 
 					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1437,7 +1437,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 				for_each_valid_output_on_pipe(&data.display, pipe, output) {
 					if (!pipe_output_combo_valid(&data.display, pipe, output))
 						continue;
-					if (get_num_scalers(data.drm_fd, pipe) < 1)
+					if (get_num_scalers(&data.display, pipe) < 1)
 						continue;
 
 					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1457,7 +1457,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 				for_each_valid_output_on_pipe(&data.display, pipe, output) {
 					if (!pipe_output_combo_valid(&data.display, pipe, output))
 						continue;
-					if (get_num_scalers(data.drm_fd, pipe) < 1)
+					if (get_num_scalers(&data.display, pipe) < 1)
 						continue;
 
 					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1477,7 +1477,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 				for_each_valid_output_on_pipe(&data.display, pipe, output) {
 					if (!pipe_output_combo_valid(&data.display, pipe, output))
 						continue;
-					if (get_num_scalers(data.drm_fd, pipe) < 2)
+					if (get_num_scalers(&data.display, pipe) < 2)
 						continue;
 
 					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
@@ -1502,7 +1502,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 					for_each_valid_output_on_pipe(&data.display, pipe, output) {
 						drmModeModeInfo *mode = NULL;
 
-						if (get_num_scalers(data.drm_fd, pipe) < 1)
+						if (get_num_scalers(&data.display, pipe) < 1)
 							continue;
 						/*
 						 * Need to find mode with lowest vrefresh else
@@ -1527,7 +1527,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 			for_each_pipe_with_valid_output(&data.display, pipe, output) {
 				if (!pipe_output_combo_valid(&data.display, pipe, output))
 					continue;
-				if (get_num_scalers(data.drm_fd, pipe) < 1)
+				if (get_num_scalers(&data.display, pipe) < 1)
 						continue;
 
 				igt_dynamic_f("pipe-%s-%s-invalid-num-scalers",

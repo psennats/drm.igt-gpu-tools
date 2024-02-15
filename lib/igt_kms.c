@@ -6650,17 +6650,18 @@ int igt_get_dp_mst_connector_id(igt_output_t *output)
 
 /**
  * get_num_scalers:
- * @drm_fd: drm file descriptor
+ * @display: the display
  * @pipe: display pipe
  *
  * Returns: Number of scalers supported per pipe.
  */
-int get_num_scalers(int drm_fd, enum pipe pipe)
+int get_num_scalers(igt_display_t *display, enum pipe pipe)
 {
 	char buf[8120];
 	char *start_loc1, *start_loc2;
 	int dir, res;
 	int num_scalers = 0;
+	int drm_fd = display->drm_fd;
 	char dest[20] = ":pipe ";
 
 	strcat(dest, kmstest_pipe_name(pipe));
