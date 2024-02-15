@@ -6682,6 +6682,25 @@ int get_num_scalers(igt_display_t *display, enum pipe pipe)
 			igt_assert(start_loc2 = strstr(start_loc1, "num_scalers="));
 			igt_assert_eq(sscanf(start_loc2, "num_scalers=%d", &num_scalers), 1);
 		}
+	} else if (is_msm_device(drm_fd)) {
+		igt_plane_t *plane;
+
+		/*
+		 * msm devices have dma pipes (no csc, no scaling), rgb
+		 * pipes (no csc, has scaling), and vid pipes (has csc,
+		 * has scaling), but not all devices have rgb pipes.
+		 * We can use the # of pipes that support YUV formats
+		 * as a rough approximation of the # of scalars.. it may
+		 * undercount on some hw, but it will not overcount
+		 */
+		for_each_plane_on_pipe(display, pipe, plane) {
+			for (unsigned i = 0; i < plane->format_mod_count; i++) {
+				if (igt_format_is_yuv(plane->formats[i])) {
+					num_scalers++;
+					break;
+				}
+			}
+		}
 	}
 
 	return num_scalers;
