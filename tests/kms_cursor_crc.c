@@ -55,6 +55,10 @@
  * Description: Check random placement of a cursor with suspend.
  * Functionality: cursor, suspend
  *
+ * SUBTEST: cursor-size-hints
+ * Description: Check that sizes declared in SIZE_HINTS are accepted.
+ * Functionality: cursor
+ *
  * SUBTEST: cursor-%s
  * Description: %arg[1]
  *
@@ -817,6 +821,52 @@ static bool execution_constraint(enum pipe pipe)
 	return false;
 }
 
+static void test_size_hints(data_t *data)
+{
+	const struct drm_plane_size_hint *hints;
+	drmModePropertyBlobPtr blob;
+	uint64_t blob_id;
+	int count;
+
+	igt_require(igt_plane_has_prop(data->cursor, IGT_PLANE_SIZE_HINTS));
+
+	blob_id = igt_plane_get_prop(data->cursor, IGT_PLANE_SIZE_HINTS);
+	/*
+	 * blob_id==0 is reserved for potential future use, but the
+	 * meaning has not yet been defined so fail outright if we see it.
+	 */
+	igt_assert(blob_id);
+
+	blob = drmModeGetPropertyBlob(data->drm_fd, blob_id);
+	igt_assert(blob);
+
+	hints = blob->data;
+	count = blob->length / sizeof(hints[0]);
+	igt_assert_lt(0, count);
+
+	for (int i = 0; i < count; i++) {
+		int w = hints[i].width;
+		int h = hints[i].height;
+
+		igt_create_fb(data->drm_fd, w, h,
+			      DRM_FORMAT_ARGB8888,
+			      DRM_FORMAT_MOD_LINEAR,
+			      &data->fb);
+
+		/*
+		 * TODO
+		 * This only confirms the kernel accepts a cursor
+		 * of this size. Verify that the cusrsor also works
+		 * correctly, if not already covered by other subtests.
+		 */
+		igt_assert(cursor_size_supported(data, w, h));
+
+		igt_remove_fb(data->drm_fd, &data->fb);
+	}
+
+	drmModeFreePropertyBlob(blob);
+}
+
 static void run_size_tests(data_t *data, int w, int h)
 {
 	enum pipe pipe;
@@ -1010,6 +1060,25 @@ static void run_tests_on_pipe(data_t *data)
 
 	igt_fixture
 		igt_remove_fb(data->drm_fd, &data->fb);
+
+	igt_describe("Check that sizes declared in SIZE_HINTS are accepted.");
+	igt_subtest_with_dynamic("cursor-size-hints") {
+		for_each_pipe_with_single_output(&data->display, pipe, data->output) {
+			if (execution_constraint(pipe))
+				continue;
+
+			data->pipe = pipe;
+
+			if (!valid_pipe_output_combo(data))
+				continue;
+
+			igt_dynamic_f("pipe-%s-%s",
+				      kmstest_pipe_name(pipe),
+				      data->output->name)
+				run_test(data, test_size_hints,
+					 data->cursor_max_w, data->cursor_max_h);
+		}
+	}
 
 	for (cursor_size = 32; cursor_size <= 512; cursor_size *= 2) {
 		int w = cursor_size;
