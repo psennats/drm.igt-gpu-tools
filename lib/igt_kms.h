@@ -359,6 +359,7 @@ enum igt_atomic_plane_properties {
        IGT_PLANE_SCALING_FILTER,
        IGT_PLANE_HOTSPOT_X,
        IGT_PLANE_HOTSPOT_Y,
+       IGT_PLANE_SIZE_HINTS,
        IGT_NUM_PLANE_PROPS
 };
 
