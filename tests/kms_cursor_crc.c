@@ -676,7 +676,7 @@ static void test_cursor_opaque(data_t *data)
 	test_cursor_alpha(data);
 }
 
-static bool require_cursor_size(data_t *data, int w, int h)
+static bool cursor_size_supported(data_t *data, int w, int h)
 {
 	igt_fb_t primary_fb;
 	drmModeModeInfo *mode;
@@ -718,7 +718,7 @@ static bool require_cursor_size(data_t *data, int w, int h)
 	igt_remove_fb(data->drm_fd, &primary_fb);
 	igt_output_set_pipe(output, PIPE_NONE);
 
-	return !!ret;
+	return ret == 0;
 }
 
 static void run_test(data_t *data, void (*testfunc)(data_t *), int cursor_w, int cursor_h)
@@ -875,7 +875,7 @@ static void run_size_tests(data_t *data, int w, int h)
 				if (!valid_pipe_output_combo(data))
 					continue;
 
-				if (require_cursor_size(data, w, h)) {
+				if (!cursor_size_supported(data, w, h)) {
 					igt_info("Cursor size %dx%d not supported by driver\n", w, h);
 					continue;
 				}
