@@ -1333,7 +1333,6 @@ static bool kunit_get_tests(struct igt_list_head *tests,
 
 static void __igt_kunit(struct igt_ktest *tst,
 			const char *subtest,
-			const char *suite,
 			const char *opts,
 			const char *debugfs_path,
 			struct igt_list_head *tests,
@@ -1486,7 +1485,7 @@ void igt_kunit(const char *module_name, const char *suite, const char *opts)
 		    !kunit_get_tests(&tests, &tst, suite, opts, debugfs_path, &debugfs_dir, &ktap))
 			__igt_kunit_legacy(&tst, subtest, opts);
 		else
-			__igt_kunit(&tst, subtest, suite, opts, debugfs_path, &tests, &ktap);
+			__igt_kunit(&tst, subtest, opts, debugfs_path, &tests, &ktap);
 	}
 
 	igt_fixture {
