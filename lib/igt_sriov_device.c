@@ -19,23 +19,25 @@
  * igt_sriov_is_pf - Check if device is PF
  * @device: device file descriptor
  *
- * Determine if device is PF by checking existence of sriov_totalvfs file.
+ * Determines if a device is a Physical Function (PF) by verifying
+ * the presence of the sriov_totalvfs attribute and ensuring its
+ * read value is greater than zero.
  *
  * Return:
  * True if device is PF, false otherwise.
  */
 bool igt_sriov_is_pf(int device)
 {
+	uint32_t value = 0;
 	int sysfs;
-	bool ret;
 
 	sysfs = igt_sysfs_open(device);
 	igt_assert_fd(sysfs);
 
-	ret = igt_sysfs_has_attr(sysfs, "device/sriov_totalvfs");
+	__igt_sysfs_get_u32(sysfs, "device/sriov_totalvfs", &value);
 	close(sysfs);
 
-	return ret;
+	return value > 0;
 }
 
 static bool __pf_attr_get_u32(int pf, const char *attr, uint32_t *value)
