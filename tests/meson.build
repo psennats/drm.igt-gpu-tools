@@ -65,10 +65,6 @@ test_progs = [
 	'kms_vrr',
 	'kms_writeback',
 	'meta_test',
-	'panfrost_get_param',
-	'panfrost_gem_new',
-	'panfrost_prime',
-	'panfrost_submit',
 	'prime_udl',
 	'prime_vgem',
 	'sriov_basic',
@@ -460,6 +456,8 @@ if chamelium.found()
 endif
 
 subdir('amdgpu')
+
+subdir('panfrost')
 
 subdir('v3d')
 
