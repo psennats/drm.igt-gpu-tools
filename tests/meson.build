@@ -314,14 +314,6 @@ intel_xe_progs = [
 	'xe_sysfs_scheduler',
 ]
 
-msm_progs = [
-	'msm_mapping',
-	'msm_recovery',
-	'msm_shrink',
-	'msm_submit',
-	'msm_submitoverhead',
-]
-
 chamelium_progs = [
 	'kms_chamelium_audio',
 	'kms_chamelium_color',
@@ -424,15 +416,6 @@ foreach prog : intel_progs
 	endif
 endforeach
 
-foreach prog : msm_progs
-	test_executables += executable(prog, join_paths('msm', prog + '.c'),
-				       dependencies : test_deps,
-				       install_dir : libexecdir,
-				       install_rpath : libexecdir_rpathdir,
-				       install : true)
-	test_list += prog
-endforeach
-
 if chamelium.found()
 	foreach prog : chamelium_progs
 		testexe = executable(prog,
@@ -456,6 +439,8 @@ if chamelium.found()
 endif
 
 subdir('amdgpu')
+
+subdir('msm')
 
 subdir('panfrost')
 
