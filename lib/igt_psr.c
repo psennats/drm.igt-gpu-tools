@@ -57,8 +57,24 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 {
 	char debugfs_file[128] = {0};
 	char buf[PSR_STATUS_MAX_LEN];
-	const char *state = (mode == PSR_MODE_1 || mode == PR_MODE) ? "SRDENT" : "DEEP_SLEEP";
+	drmModeConnector *c;
+	const char *state;
 	int ret;
+
+	if (mode == PR_MODE || mode == PR_MODE_SEL_FETCH) {
+		igt_assert_f(output, "Output not given\n");
+		c = output->config.connector;
+	}
+
+	if ((mode == PR_MODE || mode == PR_MODE_SEL_FETCH) &&
+	    c && c->connector_type == DRM_MODE_CONNECTOR_eDP)
+		state = "SLEEP";
+	else if (mode == PSR_MODE_1 || mode == PR_MODE || mode == PR_MODE_SEL_FETCH)
+		state = "SRDENT";
+	else if (mode == PSR_MODE_2 || mode == PSR_MODE_2_SEL_FETCH)
+		state = "DEEP_SLEEP";
+	else
+		igt_assert_f(false, "Invalid psr mode\n");
 
 	SET_DEBUGFS_PATH(output, debugfs_file);
 	ret = igt_debugfs_simple_read(debugfs_fd, debugfs_file,
