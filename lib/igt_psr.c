@@ -163,30 +163,36 @@ static bool psr_set(int device, int debugfs_fd, int mode, igt_output_t *output)
 		 */
 		ret = psr_modparam_set(device, mode >= PSR_MODE_1);
 	} else {
-		const char *debug_val;
+		int debug_val = mode <= PSR_MODE_2_SEL_FETCH ? 0x40 : 0;
 
 		switch (mode) {
 		case PSR_MODE_1:
-			debug_val = "0x3";
-			break;
-		case PSR_MODE_2:
-			debug_val = "0x2";
-			break;
-		case PSR_MODE_2_SEL_FETCH:
-			debug_val = "0x4";
-			break;
 		case PR_MODE:
-			debug_val = "0x5";
-			break;
+			debug_val |= 0x3;
+				break;
+		case PSR_MODE_2:
+			debug_val |= 0x2;
+				break;
+		case PSR_MODE_2_SEL_FETCH:
 		case PR_MODE_SEL_FETCH:
-			debug_val = "0x6";
+			debug_val |= 0x4;
 			break;
 		default:
 			/* Disables PSR */
-			debug_val = "0x1";
+			debug_val = 0x1;
 		}
 
-		ret = psr_write(debugfs_fd, debug_val, output);
+		/* old debugfs interface doesn't recognize Panel Replay disable bit */
+		do {
+			char debug_str[8];
+
+			sprintf(debug_str, "0x%x", debug_val);
+			ret = psr_write(debugfs_fd, debug_str, output);
+			if (!(debug_val & 0x40))
+				break;
+
+			debug_val &= ~0x40;
+		} while (ret <= 0);
 		igt_require_f(ret > 0, "PSR2 SF feature not available\n");
 	}
 
