@@ -399,9 +399,9 @@ enum psr_mode psr_get_mode(int debugfs_fd, igt_output_t *output)
 		return PSR_DISABLED;
 	}
 
-	if (strstr(buf, "Panel Replay Enabled"))
+	if (strstr(buf, "Panel Replay enabled"))
 		return PR_MODE;
-	else if (strstr(buf, "Panel Replay Selective Update Enabled"))
+	else if (strstr(buf, "Panel Replay Selective Update enabled"))
 		return PR_MODE_SEL_FETCH;
 	else if (strstr(buf, "PSR2 selective fetch: enabled"))
 		return PSR_MODE_2_SEL_FETCH;
