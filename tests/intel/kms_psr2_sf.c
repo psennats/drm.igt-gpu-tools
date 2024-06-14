@@ -195,6 +195,10 @@ static bool set_sel_fetch_mode_for_output(data_t *data)
 	} else
 		igt_info("selective fetch not supported on output %s\n", data->output->name);
 
+	if (supported)
+		supported = psr_enable(data->drm_fd, data->debugfs_fd, data->psr_mode,
+				       data->output);
+
 	return supported;
 }
 
@@ -1052,11 +1056,6 @@ igt_main
 		    (intel_fbc_supported_on_chipset(data.drm_fd, data.pipe))) {
 			data.fbc_flag = true;
 		}
-
-		/* Test if PSR2 can be enabled */
-		igt_require_f(psr_enable(data.drm_fd,
-					 data.debugfs_fd, PSR_MODE_2_SEL_FETCH, NULL),
-			      "Error enabling PSR2\n");
 
 		data.damage_area_count = MAX_DAMAGE_AREAS;
 		data.primary_format = DRM_FORMAT_XRGB8888;
