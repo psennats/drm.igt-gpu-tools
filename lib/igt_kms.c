@@ -6376,6 +6376,7 @@ bool igt_check_bigjoiner_support(igt_display_t *display)
 	struct {
 		enum pipe idx;
 		drmModeModeInfo *mode;
+		igt_output_t *output;
 	} pipes[IGT_MAX_PIPES];
 	int max_dotclock;
 
@@ -6393,11 +6394,12 @@ bool igt_check_bigjoiner_support(igt_display_t *display)
 
 		pipes[pipes_in_use].idx = output->pending_pipe;
 		pipes[pipes_in_use].mode = igt_output_get_mode(output);
+		pipes[pipes_in_use].output = output;
 		pipes_in_use++;
 	}
 
 	if (!pipes_in_use) {
-		igt_debug("We must set at least one output to pipe.\n");
+		igt_info("We must set at least one output to pipe.\n");
 		return true;
 	}
 
@@ -6414,16 +6416,51 @@ bool igt_check_bigjoiner_support(igt_display_t *display)
 	 *  - current & previous crtcs are consecutive
 	 */
 	for (i = 0; i < pipes_in_use; i++) {
-		if ((igt_bigjoiner_possible(pipes[i].mode, max_dotclock) &&
-		     ((pipes[i].idx >= (total_pipes - 1)) ||
-		      (!display->pipes[pipes[i].idx + 1].enabled) ||
-		      ((i < (pipes_in_use - 1)) && (abs(pipes[i + 1].idx - pipes[i].idx) <= 1)))) ||
-		    ((i > 0) && igt_bigjoiner_possible(pipes[i - 1].mode, max_dotclock) &&
-		     ((!display->pipes[pipes[i - 1].idx + 1].enabled) ||
-		      (abs(pipes[i].idx - pipes[i - 1].idx) <= 1)))) {
-			igt_debug("Pipe/Output combo is not possible with selected mode(s).\n");
+		if (igt_bigjoiner_possible(pipes[i].mode, max_dotclock)) {
+			igt_info("pipe-%s-%s: (Max dot-clock: %d KHz)",
+				 kmstest_pipe_name(pipes[i].idx),
+				 igt_output_name(pipes[i].output),
+				 max_dotclock);
+			kmstest_dump_mode(pipes[i].mode);
 
-			return false;
+			if (pipes[i].idx >= (total_pipes - 1)) {
+				igt_info("pipe-%s: Last pipe couldn't be used as a Bigjoiner Primary.\n",
+					 kmstest_pipe_name(pipes[i].idx));
+				return false;
+			}
+
+			if (!display->pipes[pipes[i].idx + 1].enabled) {
+				igt_info("Consecutive pipe-%s: Fused-off, couldn't be used as a Bigjoiner Secondary.\n",
+					 kmstest_pipe_name(display->pipes[pipes[i].idx + 1].pipe));
+				return false;
+			}
+
+			if ((i < (pipes_in_use - 1)) &&
+			    (abs(pipes[i + 1].idx - pipes[i].idx) <= 1)) {
+				igt_info("Consecutive pipe-%s: Not free to use it as a Bigjoiner Secondary.\n",
+					 kmstest_pipe_name(pipes[i + 1].idx));
+				return false;
+			}
+		}
+
+		if ((i > 0) && igt_bigjoiner_possible(pipes[i - 1].mode, max_dotclock)) {
+			igt_info("pipe-%s-%s: (Max dot-clock: %d KHz)",
+				 kmstest_pipe_name(pipes[i - 1].idx),
+				 igt_output_name(pipes[i - 1].output),
+				 max_dotclock);
+			kmstest_dump_mode(pipes[i - 1].mode);
+
+			if (!display->pipes[pipes[i - 1].idx + 1].enabled) {
+				igt_info("Consecutive pipe-%s: Fused-off, couldn't be used as a Bigjoiner Secondary.\n",
+					 kmstest_pipe_name(display->pipes[pipes[i - 1].idx + 1].pipe));
+				return false;
+			}
+
+			if (abs(pipes[i].idx - pipes[i - 1].idx) <= 1) {
+				igt_info("Consecutive pipe-%s: Not free to use it as a Bigjoiner Secondary.\n",
+					 kmstest_pipe_name(pipes[i].idx));
+				return false;
+			}
 		}
 	}
 
