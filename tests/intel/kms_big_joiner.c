@@ -323,7 +323,7 @@ igt_main
 				data.big_joiner_output[data.big_joiner_output_count++] = output;
 				igt_output_override_mode(output, &mode);
 			} else {
-				if (igt_has_force_joiner_debugfs(data.drm_fd, output)) {
+				if (igt_has_force_joiner_debugfs(data.drm_fd, output->name)) {
 					force_joiner_supported = true;
 					data.non_big_joiner_output[data.non_big_joiner_output_count++] = output;
 				}

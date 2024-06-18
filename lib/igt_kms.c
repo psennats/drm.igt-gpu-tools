@@ -6325,15 +6325,17 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 }
 
 /**
+ * igt_has_force_joiner_debugfs
+ * @drmfd: A drm file descriptor
+ * @conn_name: Name of the connector
+ *
  * Checks if the force big joiner debugfs is available
  * for a specific connector.
  *
- * @drmfd: file descriptor of the DRM device.
- * @output: output to check.
  * Returns:
  *  true if the debugfs is available, false otherwise.
  */
-bool igt_has_force_joiner_debugfs(int drmfd, igt_output_t *output)
+bool igt_has_force_joiner_debugfs(int drmfd, char *conn_name)
 {
 	char buf[512];
 	int debugfs_fd, ret;
@@ -6346,12 +6348,14 @@ bool igt_has_force_joiner_debugfs(int drmfd, igt_output_t *output)
 	if (intel_display_ver(intel_get_drm_devid(drmfd)) < 13)
 		return false;
 
-	igt_assert_f(output->name, "Connector name cannot be NULL\n");
-	debugfs_fd = igt_debugfs_connector_dir(drmfd, output->name, O_RDONLY);
+	igt_assert_f(conn_name, "Connector name cannot be NULL\n");
+	debugfs_fd = igt_debugfs_connector_dir(drmfd, conn_name, O_RDONLY);
 	if (debugfs_fd < 0)
 		return false;
+
 	ret = igt_debugfs_simple_read(debugfs_fd, "i915_bigjoiner_force_enable", buf, sizeof(buf));
 	close(debugfs_fd);
+
 	return ret >= 0;
 }
 
