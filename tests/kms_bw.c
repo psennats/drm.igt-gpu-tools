@@ -48,6 +48,19 @@
  * @2560x1440p:       2560x1440 resolution
  * @3840x2160p:       3840x2160 resolution
  * @2160x1440p:       2160x1440 resolution
+ *
+ * SUBTEST: connected-linear-tiling-%d-displays-%s
+ * Description: bw test with %arg[2]
+ *
+ * arg[1].values: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+ *
+ * arg[2]:
+ *
+ * @1920x1080p:       1920x1080 resolution
+ * @2560x1440p:       2560x1440 resolution
+ * @3840x2160p:       3840x2160 resolution
+ * @2160x1440p:       2160x1440 resolution
+ *
  */
 
 /* Common test data. */
@@ -55,6 +68,7 @@ typedef struct data {
         igt_display_t display;
         igt_plane_t *primary[IGT_MAX_PIPES];
         igt_output_t *output[IGT_MAX_PIPES];
+	igt_output_t *connected_output[IGT_MAX_PIPES];
         igt_pipe_t *pipe[IGT_MAX_PIPES];
         igt_pipe_crc_t *pipe_crc[IGT_MAX_PIPES];
         drmModeModeInfo mode[IGT_MAX_PIPES];
@@ -62,6 +76,7 @@ typedef struct data {
         int w[IGT_MAX_PIPES];
         int h[IGT_MAX_PIPES];
         int fd;
+	int connected_outputs;
 } data_t;
 
 static drmModeModeInfo test_mode[] = {
@@ -103,11 +118,12 @@ static drmModeModeInfo test_mode[] = {
 
 };
 
-static void test_init(data_t *data)
+static void test_init(data_t *data, bool physical)
 {
 	igt_display_t *display = &data->display;
 	int i, max_pipes = display->n_pipes;
 	igt_output_t *output;
+	data->connected_outputs = 0;
 
 	for_each_pipe(display, i) {
 		data->pipe_id[i] = i;
@@ -120,16 +136,16 @@ static void test_init(data_t *data)
 	}
 
 	for (i = 0; i < display->n_outputs && i < max_pipes; i++) {
-		if (!data->pipe[i])
+		if (!data->pipe[i] && !physical)
 			continue;
 
 		output = &display->outputs[i];
-
 		data->output[i] = output;
 
 		/* Only allow physically connected displays for the tests. */
 		if (!igt_output_is_connected(output))
 			continue;
+		data->connected_output[data->connected_outputs++] = output;
 
 		igt_assert(kmstest_get_connector_default_mode(
 			data->fd, output->config.connector, &data->mode[i]));
@@ -173,7 +189,7 @@ static void force_output_mode(data_t *d, igt_output_t *output,
 	igt_output_override_mode(output, mode);
 }
 
-static void run_test_linear_tiling(data_t *data, int pipe, const drmModeModeInfo *mode) {
+static void run_test_linear_tiling(data_t *data, int pipe, const drmModeModeInfo *mode, bool physical) {
 	igt_display_t *display = &data->display;
 	igt_output_t *output;
 	struct igt_fb buffer[IGT_MAX_PIPES];
@@ -189,11 +205,14 @@ static void run_test_linear_tiling(data_t *data, int pipe, const drmModeModeInfo
 	igt_skip_on_f(pipe >= num_pipes,
                       "ASIC does not have %d pipes\n", pipe);
 
-	test_init(data);
+	test_init(data, physical);
+
+	igt_skip_on_f(physical && pipe >= data->connected_outputs,
+		      "Only %d connected need %d connected\n",data->connected_outputs, pipe+1);
 
 	/* create buffers */
 	for (i = 0; i <= pipe; i++) {
-		output = data->output[i];
+		output = physical ? data->connected_output[i] : data->output[i];
 		if (!output) {
 			continue;
 		}
@@ -208,6 +227,8 @@ static void run_test_linear_tiling(data_t *data, int pipe, const drmModeModeInfo
 		igt_output_set_pipe(output, i);
 
 		igt_plane_set_fb(data->primary[i], &buffer[i]);
+		igt_info("Assigning pipe %s to output %s with mode %s\n",
+			 kmstest_pipe_name(i), igt_output_name(output), mode->name);
 	}
 
 	ret = igt_display_try_commit_atomic(display,
@@ -219,7 +240,7 @@ static void run_test_linear_tiling(data_t *data, int pipe, const drmModeModeInfo
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 
 	for (i = 0; i <= pipe; i++) {
-		output = data->output[i];
+		output = physical ? data->connected_output[i] : data->output[i];
 		if (!output) {
 			continue;
 		}
@@ -230,7 +251,7 @@ static void run_test_linear_tiling(data_t *data, int pipe, const drmModeModeInfo
 	}
 
 	for (i = pipe; i >= 0; i--) {
-		output = data->output[i];
+		output = physical ? data->connected_output[i] : data->output[i];
 		if (!output)
 			continue;
 
@@ -265,9 +286,18 @@ igt_main
 		for (j = 0; j < ARRAY_SIZE(test_mode); j++) {
 			igt_subtest_f("linear-tiling-%d-displays-%s", i+1,
 			      test_mode[j].name)
-			run_test_linear_tiling(&data, i, &test_mode[j]);
+			run_test_linear_tiling(&data, i, &test_mode[j], false);
 		}
 	}
+
+        for (i = 0; i < IGT_MAX_PIPES; i++) {
+                for (j = 0; j < ARRAY_SIZE(test_mode); j++) {
+                        igt_subtest_f("connected-linear-tiling-%d-displays-%s", i+1,
+                              test_mode[j].name)
+                        run_test_linear_tiling(&data, i, &test_mode[j], true);
+                }
+        }
+
 
 	igt_fixture
 	{
