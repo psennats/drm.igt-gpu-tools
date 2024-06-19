@@ -25,6 +25,10 @@ static void intel_get_pat_idx(int fd, struct intel_pat_cache *pat)
 		pat->wb = 2;
 		pat->uc_comp = 12; /* Compressed + UC, XE2 and later */
 		pat->max_index = 31;
+
+		/* Wa_16023588340: CLOS3 entries at end of table are unusable */
+		if (intel_graphics_ver(dev_id) == IP_VER(20, 1))
+			pat->max_index -= 4;
 	} else if (IS_METEORLAKE(dev_id)) {
 		pat->uc = 2;
 		pat->wt = 1;
