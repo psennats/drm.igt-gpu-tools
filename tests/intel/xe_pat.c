@@ -929,6 +929,18 @@ const struct pat_index_entry xe2_pat_index_modes[] = {
 	{ NULL, 31, false, "c3-2way",     XE_COH_AT_LEAST_1WAY       },
 };
 
+const struct pat_index_entry bmg_g21_pat_index_modes[] = {
+	XE_COMMON_PAT_INDEX_MODES,
+
+	/* Too many, just pick some of the interesting ones */
+	{ NULL, 1,  false, "1way",        XE_COH_AT_LEAST_1WAY       },
+	{ NULL, 2,  false, "2way",        XE_COH_AT_LEAST_1WAY       },
+	{ NULL, 2,  false, "2way-cpu-wc", XE_COH_AT_LEAST_1WAY, true },
+	{ NULL, 5,  false, "uc-1way",     XE_COH_AT_LEAST_1WAY       },
+	{ NULL, 12, true,  "uc-comp",     XE_COH_NONE                },
+	{ NULL, 27, false, "c2-2way",     XE_COH_AT_LEAST_1WAY       },
+};
+
 /*
  * Depending on 2M/1G GTT pages we might trigger different PTE layouts for the
  * PAT bits, so make sure we test with and without huge-pages. Also ensure we
@@ -1169,8 +1181,13 @@ igt_main_args("V", NULL, help_str, opt_handler, NULL)
 	igt_subtest_with_dynamic("pat-index-xe2") {
 		igt_require(intel_get_device_info(dev_id)->graphics_ver >= 20);
 		igt_assert(HAS_FLATCCS(dev_id));
-		subtest_pat_index_modes_with_regions(fd, xe2_pat_index_modes,
-						     ARRAY_SIZE(xe2_pat_index_modes));
+
+		if (intel_graphics_ver(dev_id) == IP_VER(20, 1))
+			subtest_pat_index_modes_with_regions(fd, bmg_g21_pat_index_modes,
+							     ARRAY_SIZE(bmg_g21_pat_index_modes));
+		else
+			subtest_pat_index_modes_with_regions(fd, xe2_pat_index_modes,
+							     ARRAY_SIZE(xe2_pat_index_modes));
 	}
 
 	igt_subtest("display-vs-wb-transient")
