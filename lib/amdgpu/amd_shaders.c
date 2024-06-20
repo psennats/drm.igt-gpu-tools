@@ -314,6 +314,29 @@ int  amdgpu_dispatch_load_cs_shader(uint8_t *ptr, int cs_type, uint32_t version)
 		0xBF9F0000, 0xBF9F0000, 0xBF9F0000
 	};
 
+	static const uint32_t bufferclear_cs_shader_gfx12[] =
+	{
+		0xB0802009, 0xBF930006, 0x360000FF, 0x000003FF,
+		0x7E020205, 0x7E040206, 0x7E060207, 0xBF870004,
+		0xD6460004, 0x04010C75, 0x7E000204, 0xC401C07C,
+		0x80000000, 0x00000004, 0xBFB60003, 0xBFB00000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000
+	};
 	/**
 	 * shader main
 	 * asic(GFX11)
@@ -352,6 +375,29 @@ int  amdgpu_dispatch_load_cs_shader(uint8_t *ptr, int cs_type, uint32_t version)
 		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
 		0xBF9F0000, 0xBF9F0000
 	};
+	static const uint32_t buffercopy_cs_shader_gfx12[] =
+	{
+		0xB0802009, 0xBF930011, 0x360000FF, 0x000003FF,
+		0xBF870001, 0xD6460002, 0x04010C75, 0xC400C07C,
+		0x80000003, 0x00000002, 0xBFC00000, 0xC401C07C,
+		0x80000803, 0x00000002, 0xBFB60003, 0xBFB00000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000,
+		0xBF9F0000, 0xBF9F0000, 0xBF9F0000, 0xBF9F0000
+	};
 
 	uint32_t shader_size;
 	const uint32_t *shader;
@@ -367,6 +413,9 @@ int  amdgpu_dispatch_load_cs_shader(uint8_t *ptr, int cs_type, uint32_t version)
 			} else if (version == 11) {
 				shader = bufferclear_cs_shader_gfx11;
 				shader_size = sizeof(bufferclear_cs_shader_gfx11);
+			} else if (version == 12) {
+				shader = bufferclear_cs_shader_gfx12;
+				shader_size = sizeof(bufferclear_cs_shader_gfx12);
 			}
 			break;
 		case CS_BUFFERCOPY:
@@ -379,6 +428,9 @@ int  amdgpu_dispatch_load_cs_shader(uint8_t *ptr, int cs_type, uint32_t version)
 			} else if (version == 11) {
 				shader = buffercopy_cs_shader_gfx11;
 				shader_size = sizeof(buffercopy_cs_shader_gfx11);
+			} else if (version == 12) {
+				shader = buffercopy_cs_shader_gfx12;
+				shader_size = sizeof(buffercopy_cs_shader_gfx12);
 			}
 			break;
 		case CS_HANG:

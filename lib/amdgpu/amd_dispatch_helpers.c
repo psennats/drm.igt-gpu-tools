@@ -138,7 +138,7 @@ int amdgpu_dispatch_write2hw(struct amdgpu_cmd_base * base, uint64_t shader_addr
 	base->emit(base, shader_addr >> 8);
 	base->emit(base, shader_addr >> 40);
 	/* write sh regs */
-	if (version == 11) {
+	if ((version == 11) || (version == 12)) {
 		for (j = 0; j < bufferclear_cs_shader_registers_num_gfx11; j++) {
 			base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
 			/* - Gfx11ShRegBase */

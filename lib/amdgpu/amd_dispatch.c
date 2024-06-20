@@ -87,6 +87,8 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 		base_cmd->emit(base_cmd, 0x1104bfac);
 	else if (version == 11)
 		base_cmd->emit(base_cmd, 0x1003dfac);
+	else if (version == 12)
+		base_cmd->emit(base_cmd, 0x1203dfac);
 
 	/* Sets a range of pixel shader constants */
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
@@ -239,6 +241,8 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 		base_cmd->emit(base_cmd, 0x1104bfac);
 	else if (version == 11)
 		base_cmd->emit(base_cmd, 0x1003dfac);
+	else if (version == 12)
+		base_cmd->emit(base_cmd, 0x1203dfac);
 
 	/* Writes the UAV constant data to the SGPRs. */
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
@@ -252,6 +256,8 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 		base_cmd->emit(base_cmd, 0x1104bfac);
 	else if (version == 11)
 		base_cmd->emit(base_cmd, 0x1003dfac);
+	else if (version == 12)
+		base_cmd->emit(base_cmd, 0x1203dfac);
 
 	/* clear mmCOMPUTE_RESOURCE_LIMITS */
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
@@ -410,6 +416,8 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 		base_cmd->emit(base_cmd, 0x1104bfac);
 	else if (version == 11)
 		base_cmd->emit(base_cmd, 0x1003dfac);
+	else if (version == 12)
+		base_cmd->emit(base_cmd, 0x1203dfac);
 
 
 	/* Writes the UAV constant data to the SGPRs. */
@@ -422,6 +430,10 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 		base_cmd->emit(base_cmd, 0x74fac);
 	else if (version == 10)
 		base_cmd->emit(base_cmd, 0x1104bfac);
+	else if (version == 11)
+		base_cmd->emit(base_cmd, 0x1003dfac);
+	else if (version == 12)
+		base_cmd->emit(base_cmd, 0x1203dfac);
 
 
 	/* clear mmCOMPUTE_RESOURCE_LIMITS */
@@ -509,7 +521,7 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 		igt_info("SKIP ... as there's no ring for ip %d\n", ip_type);
 
 	version = info.hw_ip_version_major;
-	if (version != 9 && version != 10 && version != 11) {
+	if (version != 9 && version != 10 && version != 11 && version != 12) {
 		igt_info("SKIP ... unsupported gfx version %d\n", version);
 		return;
 	}
@@ -536,7 +548,7 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 		igt_info("SKIP ... as there's no graphics ring\n");
 
 	version = info.hw_ip_version_major;
-	if (version != 9 && version != 10 && version != 11) {
+	if (version != 9 && version != 10 && version != 11 && version != 12) {
 		igt_info("SKIP ... unsupported gfx version %d\n", version);
 		return;
 	}
