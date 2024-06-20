@@ -65,11 +65,6 @@ static const struct blt_cmd_info
 						 BLT_CMD_SUPPORTS_COMPRESSION);
 
 static const struct blt_cmd_info
-		xe2_xy_block_copy = BLT_INFO_EXT(XY_BLOCK_COPY, TILE_L_X_4_64,
-						 BLT_CMD_EXTENDED |
-						 BLT_CMD_SUPPORTS_COMPRESSION);
-
-static const struct blt_cmd_info
 		mtl_xy_block_copy = BLT_INFO_EXT(XY_BLOCK_COPY, TILE_L_X_4_64,
 						 BLT_CMD_EXTENDED);
 
@@ -183,7 +178,7 @@ const struct intel_cmds_info gen12_pvc_cmds_info = {
 const struct intel_cmds_info xe2_cmds_info  = {
 	.blt_cmds = {
 		[XY_FAST_COPY] = &dg2_xy_fast_copy,
-		[XY_BLOCK_COPY] = &xe2_xy_block_copy,
+		[XY_BLOCK_COPY] = &dg2_xy_block_copy,
 		[MEM_COPY] = &pvc_mem_copy,
 		[MEM_SET] = &pvc_mem_set,
 	},
