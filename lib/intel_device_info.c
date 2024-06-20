@@ -522,7 +522,8 @@ static const struct intel_device_info intel_battlemage_info = {
 	.has_4tile = true,
 	.has_flatccs = true,
 	.is_battlemage = true,
-	.codename = "battlemage"
+	.codename = "battlemage",
+	.cmds_info = &xe2_cmds_info,
 };
 
 static const struct pci_id_match intel_device_match[] = {
