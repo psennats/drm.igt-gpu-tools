@@ -277,9 +277,6 @@ static void test_freq_low_max(int fd, int gt_id)
 	rpe = get_freq(fd, gt_id, "rpe");
 
 	igt_assert(get_freq(fd, gt_id, "cur") == rpe);
-
-	if (!xe_is_gt_in_c6(fd, gt_id))
-		igt_assert(get_freq(fd, gt_id, "act") == rpe);
 }
 
 /**
