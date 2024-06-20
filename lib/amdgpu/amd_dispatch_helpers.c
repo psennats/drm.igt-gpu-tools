@@ -70,8 +70,20 @@
 		base->emit(base, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 		base->emit(base, 0x7b);
 		base->emit(base, 0x20);
+	} else if (version == 11) {
+		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
+		base->emit(base, 0x222);
+		base->emit(base, 0);
+		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
+		base->emit(base, 0x224);
+		base->emit(base, 0);
+		base->emit(base, 0);
+		base->emit(base, 0);
+		base->emit(base, 0);
+		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
+		base->emit(base, 0x22a);
+		base->emit(base, 0);
 	}
-
 	return base->cdw - i;
 }
 
@@ -85,27 +97,20 @@ int amdgpu_dispatch_write_cumask(struct amdgpu_cmd_base * base, uint32_t version
  		base->emit(base, 0x216);
  		base->emit(base, 0xffffffff);
  		base->emit(base, 0xffffffff);
- 	} else if(version == 10) {
+	} else if((version == 10) || (version == 11)) {
 		/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE1 - mmCOMPUTE_STATIC_THREAD_MGMT_SE0 */
  		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG_INDEX, 2));
  		base->emit(base, 0x30000216);
  		base->emit(base, 0xffffffff);
  		base->emit(base, 0xffffffff);
-		/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 */
- 		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG_INDEX, 2));
- 		base->emit(base, 0x30000219);
- 		base->emit(base, 0xffffffff);
- 		base->emit(base, 0xffffffff);
 	}
-
-
- 	/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 */
- 	base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 2));
+	/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 */
+	base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG_INDEX, 2));
  	base->emit(base, 0x219);
  	base->emit(base, 0xffffffff);
  	base->emit(base, 0xffffffff);
 
- 	return base->cdw - offset_prev;
+	return base->cdw - offset_prev;
  }
 
 
@@ -161,6 +166,11 @@ int amdgpu_dispatch_write2hw(struct amdgpu_cmd_base * base, uint64_t shader_addr
 		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
 		base->emit(base,0x228);
 		base->emit(base, 0 );
+	} else if (version == 11) {
+		/* mmCOMPUTE_PGM_RSRC3 */
+		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
+		base->emit(base,0x228);
+		base->emit(base, 0x3f0 );
 	}
 	return base->cdw - offset_prev;
 }

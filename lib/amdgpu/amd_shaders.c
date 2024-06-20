@@ -132,7 +132,6 @@ int amdgpu_dispatch_load_cs_shader_hang_slow(uint32_t *ptr, uint32_t family_id)
 	    0xd7460000, 0x04010c08, 0xe00c2000, 0x80000100,
 	    0xbf8c0f70, 0xe01ca000, 0x80010100, 0xbf810000
 	};
-
 	struct amdgpu_test_shader memcpy_cs_hang_slow_nv = {
 	        memcpy_cs_hang_slow_nv_codes,
 	        4,
@@ -140,7 +139,7 @@ int amdgpu_dispatch_load_cs_shader_hang_slow(uint32_t *ptr, uint32_t family_id)
 	        1
 	};
 	struct amdgpu_test_shader *shader;
-	int i, loop = 0x10000;
+	int i, loop = 0x100000;
 
 	switch (family_id) {
 		case AMDGPU_FAMILY_AI:

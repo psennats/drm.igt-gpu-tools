@@ -345,7 +345,7 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 	int r, r2;
 
 	int bo_dst_size = 0x4000000;
-	int bo_shader_size = 0x400000;
+	int bo_shader_size = 0x4000000;
 	int bo_cmd_size = 4096;
 
 	struct amdgpu_cs_request ibs_request = {0};
