@@ -740,6 +740,7 @@ test_seamless_virtual_rr_basic(data_t *data, enum pipe pipe, igt_output_t *outpu
 	uint32_t result;
 	unsigned int vrefresh;
 	uint64_t rate[] = {0};
+	uint32_t step_size;
 
 	igt_info("Use HIGH_RR Mode as default\n");
 	kmstest_dump_mode(&data->switch_modes[HIGH_RR_MODE]);
@@ -759,8 +760,14 @@ test_seamless_virtual_rr_basic(data_t *data, enum pipe pipe, igt_output_t *outpu
 		     "Refresh rate (%u Hz) %"PRIu64"ns: Target threshold not reached, result was %u%%\n",
 		     data->switch_modes[HIGH_RR_MODE].vrefresh, rate[0], result);
 
+	/*
+	 * Calculate step size by considering the no. of steps required to
+	 * reach Vmin to Vmax as 5.
+	 */
+	step_size = (data->range.max - data->range.min) / 5;
+
 	/* Switch to Virtual RR */
-	for (vrefresh = data->range.min + 10; vrefresh < data->range.max; vrefresh += 10) {
+	for (vrefresh = data->range.min + step_size; vrefresh < data->range.max; vrefresh += step_size) {
 		drmModeModeInfo virtual_mode = virtual_rr_vrr_range_mode(output, vrefresh);
 
 		igt_info("Requesting Virtual Mode with Refresh Rate (%u Hz): \n", vrefresh);
