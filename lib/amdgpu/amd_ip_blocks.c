@@ -16,7 +16,6 @@
 
 #include <amdgpu_drm.h>
 #include "amdgpu_asic_addr.h"
-#include "amd_family.h"
 #include "amd_gfx_v8_0.h"
 #include "ioctl_wrappers.h"
 
@@ -412,15 +411,9 @@ struct amdgpu_ip_block_version sdma_v3_x_ip_block = {
 	.funcs = &sdma_v3_x_ip_funcs
 };
 
-struct chip_info {
-	const char *name;
-	enum radeon_family family;
-	enum chip_class chip_class;
-	  amdgpu_device_handle dev;
-};
-
 /* we may improve later */
 struct amdgpu_ip_blocks_device amdgpu_ips;
+const struct chip_info  *g_pChip = NULL;
 struct chip_info g_chip;
 
 static int
@@ -617,6 +610,7 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 		{},
 	};
 	struct chip_info *info = &g_chip;
+	g_pChip = &g_chip;
 
 	switch (amdinfo->family_id) {
 	case AMDGPU_FAMILY_SI:

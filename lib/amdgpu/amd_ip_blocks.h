@@ -8,6 +8,7 @@
 #define AMD_IP_BLOCKS_H
 
 #include "amd_registers.h"
+#include "amd_family.h"
 
 #define MAX_CARDS_SUPPORTED 4
 
@@ -110,8 +111,15 @@ struct amdgpu_ip_blocks_device {
 	int			num_ip_blocks;
 };
 
-extern  struct amdgpu_ip_blocks_device amdgpu_ips;
+struct chip_info {
+	const char *name;
+	enum radeon_family family;
+	enum chip_class chip_class;
+	amdgpu_device_handle dev;
+};
 
+extern  struct amdgpu_ip_blocks_device amdgpu_ips;
+extern const struct chip_info  *g_pChip;
 int
 setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_info *amdinfo,
 		       amdgpu_device_handle device);
