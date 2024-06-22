@@ -9,10 +9,39 @@
 #include "lib/amdgpu/amd_ip_blocks.h"
 #include "lib/amdgpu/amd_memory.h"
 #include "lib/amdgpu/amd_cs_radv.h"
+#include "lib/amdgpu/amd_family.h"
 
 #define IB_SIZE	4096
 
+/**
+ * Check if gang tests are enabled based on GPU information.
+ *
+ * Gang tests are supported starting with Vega10.
+ * For generations Navi10 and Navi14, gang submit + reserved VMID doesn't work.
+ * This function mirrors the logic in the following amdgpu code:
+ *
+ * void amdgpu_vm_manager_init(struct amdgpu_device *adev) {
+ *     adev->vm_manager.concurrent_flush = !(adev->asic_type < CHIP_VEGA10 ||
+ *                                           adev->asic_type == CHIP_NAVI10 ||
+ *                                           adev->asic_type == CHIP_NAVI14);
+ * }
+ *
+ * @param gpu_info: Pointer to the structure containing GPU information.
+ * @return: True if gang tests are enabled, false otherwise.
+ */
+static bool is_gang_tests_enable(const struct chip_info *pChip)
+{
+	/* Concurrent flushes are supported only on Vega10 and newer,
+	 * excluding Navi10 and Navi14 due to known issues.
+	 */
+	if (pChip->family < CHIP_VEGA10 ||
+		pChip->family == CHIP_NAVI10 ||
+		pChip->family == CHIP_NAVI14) {
+		return false;
+	}
 
+	return true;
+}
 
 static void
 prepare_compute_cp_packet(amdgpu_device_handle device,
@@ -233,6 +262,7 @@ igt_main
 		igt_assert_eq(r, 0);
 		r = setup_amdgpu_ip_blocks(major, minor, &gpu_info, device);
 		igt_assert_eq(r, 0);
+		igt_skip_on(!is_gang_tests_enable(g_pChip));
 		asic_rings_readness(device, 1, arr_cap);
 
 	}
