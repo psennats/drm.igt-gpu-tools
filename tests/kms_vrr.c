@@ -229,16 +229,13 @@ low_rr_mode_with_same_res(igt_output_t *output, unsigned int vrr_min)
 	return mode;
 }
 
-static drmModeModeInfo
-virtual_rr_vrr_range_mode(igt_output_t *output, unsigned int virtual_refresh_rate)
+static void
+virtual_rr_vrr_range_mode(drmModeModeInfo *mode, float virtual_refresh_rate)
 {
-	drmModeModeInfo mode = *igt_output_get_mode(output);
-	uint64_t clock_hz = mode.clock * 1000;
+	uint64_t clock_hz = mode->clock * 1000;
 
-	mode.vtotal = clock_hz / (mode.htotal * virtual_refresh_rate);
-	mode.vrefresh = virtual_refresh_rate;
-
-	return mode;
+	mode->vtotal = clock_hz / (mode->htotal * virtual_refresh_rate);
+	mode->vrefresh = virtual_refresh_rate;
 }
 
 static bool
@@ -741,6 +738,7 @@ test_seamless_virtual_rr_basic(data_t *data, enum pipe pipe, igt_output_t *outpu
 	unsigned int vrefresh;
 	uint64_t rate[] = {0};
 	uint32_t step_size;
+	drmModeModeInfo virtual_mode;
 
 	igt_info("Use HIGH_RR Mode as default\n");
 	kmstest_dump_mode(&data->switch_modes[HIGH_RR_MODE]);
@@ -767,8 +765,10 @@ test_seamless_virtual_rr_basic(data_t *data, enum pipe pipe, igt_output_t *outpu
 	step_size = (data->range.max - data->range.min) / 5;
 
 	/* Switch to Virtual RR */
+	virtual_mode = *igt_output_get_mode(output);
+
 	for (vrefresh = data->range.min + step_size; vrefresh < data->range.max; vrefresh += step_size) {
-		drmModeModeInfo virtual_mode = virtual_rr_vrr_range_mode(output, vrefresh);
+		virtual_rr_vrr_range_mode(&virtual_mode, vrefresh);
 
 		igt_info("Requesting Virtual Mode with Refresh Rate (%u Hz): \n", vrefresh);
 		kmstest_dump_mode(&virtual_mode);
