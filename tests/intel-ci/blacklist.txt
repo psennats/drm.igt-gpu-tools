@@ -142,4 +142,7 @@ igt@device_reset@reset-bound
 igt@kms_bw@.*
 
 # Tests specific to (Display_ver > 14) are not applicable for i915
+igt@kms_ccs@.*-4-tiled-xe2-ccs
+igt@kms_frontbuffer_tracking@plane-fbc-rte
+igt@kms_pm_dc@deep-pkgc
 igt@kms_vrr@cmrr
