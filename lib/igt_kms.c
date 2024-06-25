@@ -1144,13 +1144,13 @@ void kmstest_dump_mode(drmModeModeInfo *mode)
 	const char *stereo = mode_stereo_name(mode);
 	const char *aspect = mode_picture_aspect_name(mode);
 
-	igt_info("  %s %d %d %d %d %d %d %d %d %d 0x%x 0x%x %d%s%s%s%s%s%s\n",
-		 mode->name, mode->vrefresh,
+	igt_info("  %s: %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x %s%s%s%s%s%s\n",
+		 mode->name, mode->vrefresh, mode->clock,
 		 mode->hdisplay, mode->hsync_start,
 		 mode->hsync_end, mode->htotal,
 		 mode->vdisplay, mode->vsync_start,
 		 mode->vsync_end, mode->vtotal,
-		 mode->flags, mode->type, mode->clock,
+		 mode->type, mode->flags,
 		 stereo ? " (3D:" : "",
 		 stereo ? stereo : "", stereo ? ")" : "",
 		 aspect ? " (PAR:" : "",
