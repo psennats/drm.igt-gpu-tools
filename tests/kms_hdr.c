@@ -266,11 +266,16 @@ static void test_bpc_switch(data_t *data, uint32_t flags)
 	for_each_connected_output(display, output) {
 		enum pipe pipe;
 
-		if (!has_max_bpc(output))
+		if (!has_max_bpc(output)) {
+			igt_info("%s: Doesn't support IGT_CONNECTOR_MAX_BPC.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
-		if (igt_get_output_max_bpc(data->fd, output->name) < 10)
+		if (igt_get_output_max_bpc(data->fd, output->name) < 10) {
+			igt_info("%s: Doesn't support 10 bpc.\n", igt_output_name(output));
 			continue;
+		}
 
 		for_each_pipe(display, pipe) {
 			igt_output_set_pipe(output, pipe);
@@ -283,6 +288,9 @@ static void test_bpc_switch(data_t *data, uint32_t flags)
 
 			if (is_intel_device(data->fd) &&
 			    !igt_max_bpc_constraint(display, pipe, output, 10)) {
+				igt_info("%s: No suitable mode found to use 10 bpc.\n",
+					 igt_output_name(output));
+
 				test_fini(data);
 				break;
 			}
@@ -629,18 +637,29 @@ static void test_hdr(data_t *data, uint32_t flags)
 		 * set MAX_BPC property to 10bpc prior to setting
 		 * HDR metadata property. Therefore, checking.
 		 */
-		if (!has_max_bpc(output) || !has_hdr(output))
+		if (!has_max_bpc(output) || !has_hdr(output)) {
+			igt_info("%s: Doesn't support IGT_CONNECTOR_MAX_BPC or IGT_CONNECTOR_HDR_OUTPUT_METADATA.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
 		/* For negative test, panel should be non-hdr. */
-		if ((flags & TEST_INVALID_HDR) && is_panel_hdr(data, output))
+		if ((flags & TEST_INVALID_HDR) && is_panel_hdr(data, output)) {
+			igt_info("%s: Can't run negative test on HDR panel.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
-		if ((flags & ~TEST_INVALID_HDR) && !is_panel_hdr(data, output))
+		if ((flags & ~TEST_INVALID_HDR) && !is_panel_hdr(data, output)) {
+			igt_info("%s: Can't run HDR tests on non-HDR panel.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
-		if (igt_get_output_max_bpc(data->fd, output->name) < 10)
+		if (igt_get_output_max_bpc(data->fd, output->name) < 10) {
+			igt_info("%s: Doesn't support 10 bpc.\n", igt_output_name(output));
 			continue;
+		}
 
 		for_each_pipe(display, pipe) {
 			igt_output_set_pipe(output, pipe);
@@ -653,6 +672,9 @@ static void test_hdr(data_t *data, uint32_t flags)
 
 			if (is_intel_device(data->fd) &&
 			    !igt_max_bpc_constraint(display, pipe, output, 10)) {
+				igt_info("%s: No suitable mode found to use 10 bpc.\n",
+					 igt_output_name(output));
+
 				test_fini(data);
 				break;
 			}
