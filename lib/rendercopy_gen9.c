@@ -1133,15 +1133,23 @@ void _gen9_render_op(struct intel_bb *ibb,
 
 	gen12_emit_aux_pgtable_state(ibb, aux_pgtable_state, true);
 
-	if (fast_clear) {
+	if (fast_clear || dst->cc.disable) {
 		for (int i = 0; i < 4; i++) {
 			intel_bb_out(ibb, MI_STORE_DWORD_IMM_GEN4);
 			intel_bb_emit_reloc(ibb, dst->handle,
 					    I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER,
                                             dst->cc.offset + i*sizeof(float),
 					    dst->addr.offset);
-			intel_bb_out(ibb, *(uint32_t*)&clear_color[i]);
-               }
+			if (fast_clear) {
+				intel_bb_out(ibb, *(uint32_t*)&clear_color[i]);
+			} else {
+				/*
+				 * Emit NaNs so it'll never match and thus prevent TGL/DG1
+				 * from doing "Fast clear optimization (FCV)" tricks.
+				 */
+				intel_bb_out(ibb, 0xffffffff);
+			}
+		}
        }
 
 

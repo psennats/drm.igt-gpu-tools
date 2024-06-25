@@ -965,6 +965,16 @@ void igt_calc_fb_size(struct igt_fb *fb)
 		size += calc_plane_size(fb, plane);
 	}
 
+	/*
+	 * We always need a clear color on TGL/DG1, make some extra
+	 * room for one it if it's not explicit in the modifier.
+	 *
+	 * TODO: probably better to allocate this as part of the
+	 * batch instead so the fb size doesn't need to change...
+	 */
+	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS)
+		size = ALIGN(size + 64, 64);
+
 	if (is_xe_device(fb->fd)) {
 		size = ALIGN(size, xe_get_default_alignment(fb->fd));
 		if (fb->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS)
@@ -2669,6 +2679,29 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 
 	if (fb->modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC)
 		buf->cc.offset = fb->offsets[1];
+
+	/*
+	 * TGL+ have a feature called "Fast Clear Optimization (FCV)"
+	 * which can perform automagic fast clears even when we didn't
+	 * ask the hardware to perform fast clears. This can happen
+	 * whenever the clear color matches the fragment output. If
+	 * no clear color is specified it appears that black output
+	 * can get automagically fast cleared.
+	 *
+	 * Apparently TGL[A0-C0] and DG1 have this feature always
+	 * enabled, ADL seems to have it permanently disabled, and
+	 * on DG2+ one can control it via 3DSTATE_3DMODE (default
+	 * being disabled).
+	 *
+	 * For the hardware that has this always enabled we'll try
+	 * to stop it from happening for non clear color modifiers
+	 * by always specifying a clear color which won't match
+	 * any valid fragment output (eg. all NaNs).
+	 */
+	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS) {
+		buf->cc.disable = true;
+		buf->cc.offset = fb->size - 64;
+	}
 
 	return buf;
 }

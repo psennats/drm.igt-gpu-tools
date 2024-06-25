@@ -38,6 +38,7 @@ struct intel_buf {
 	} ccs[2];
 	struct {
 		uint32_t offset;
+		bool disable;
 	} cc;
 	struct {
 		uint64_t offset;
