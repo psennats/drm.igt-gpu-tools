@@ -709,6 +709,7 @@ run_tests_for_pipe(data_t *data)
 
 igt_main
 {
+	int i;
 	data_t data = {};
 
 	igt_fixture {
@@ -730,6 +731,13 @@ igt_main
 
 		if (!data.port_count)
 			igt_skip("No ports connected\n");
+		/*
+		 * We don't cause any harm by plugging
+		 * discovered ports, just incase they are not plugged
+		 * we currently skip in test_setup
+		 */
+		for( i = 0; i < data.port_count; i++)
+			chamelium_plug(data.chamelium, data.ports[i]);
 
 		kmstest_set_vt_graphics_mode();
 	}
