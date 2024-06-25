@@ -1630,8 +1630,7 @@ static void create_fb(enum pixel_format pformat, int width, int height,
 		      enum tiling_type tiling, int plane, struct igt_fb *fb)
 {
 	uint32_t format;
-	uint64_t size, modifier;
-	unsigned int stride;
+	uint64_t modifier;
 
 	switch (pformat) {
 	case FORMAT_RGB888:
@@ -1665,13 +1664,7 @@ static void create_fb(enum pixel_format pformat, int width, int height,
 
 	igt_warn_on(plane == PLANE_CUR && tiling != TILING_LINEAR);
 
-	igt_calc_fb_size(drm.fd, width, height, format, modifier, &size,
-			 &stride);
-
-	igt_create_fb_with_bo_size(drm.fd, width, height, format, modifier,
-				   IGT_COLOR_YCBCR_BT709,
-				   IGT_COLOR_YCBCR_LIMITED_RANGE,
-				   fb, size, stride);
+	igt_create_fb(drm.fd, width, height, format, modifier, fb);
 }
 
 static uint32_t pick_color(struct igt_fb *fb, enum color ecolor)
