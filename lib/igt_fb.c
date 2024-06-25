@@ -596,15 +596,20 @@ static bool is_gen12_mc_ccs_modifier(uint64_t modifier)
 		modifier == I915_FORMAT_MOD_4_TILED_MTL_MC_CCS;
 }
 
+static bool is_gen12_rc_ccs_cc_modifier(uint64_t modifier)
+{
+	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
+		modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC ||
+		modifier == I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC;
+}
+
 static bool is_gen12_ccs_modifier(uint64_t modifier)
 {
 	return is_gen12_mc_ccs_modifier(modifier) ||
+		is_gen12_rc_ccs_cc_modifier(modifier) ||
 		modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
-		modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
 		modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS ||
-		modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC ||
-		modifier == I915_FORMAT_MOD_4_TILED_MTL_RC_CCS ||
-		modifier == I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC;
+		modifier == I915_FORMAT_MOD_4_TILED_MTL_RC_CCS;
 }
 
 static bool is_ccs_modifier(uint64_t modifier)
