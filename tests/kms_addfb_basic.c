@@ -294,19 +294,21 @@ static void invalid_tests(int fd)
 	igt_describe("Check if addfb2 with a system memory gem object "
 		     "fails correctly if device requires local memory framebuffers");
 	igt_subtest("invalid-smem-bo-on-discrete") {
-		uint32_t handle, stride;
-		uint64_t size;
+		struct igt_fb fb;
+		uint32_t handle;
 
 		igt_require_intel(fd);
-		igt_calc_fb_size(fd, f.width, f.height,
-				DRM_FORMAT_XRGB8888, 0, &size, &stride);
+		igt_init_fb(&fb, fd, f.width, f.height,
+			    DRM_FORMAT_XRGB8888, 0,
+			    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+		igt_calc_fb_size(&fb);
 
 		if (is_i915_device(fd)) {
 			igt_require(gem_has_lmem(fd));
-			handle = gem_create_in_memory_regions(fd, size, REGION_SMEM);
+			handle = gem_create_in_memory_regions(fd, fb.size, REGION_SMEM);
 		} else {
 			igt_require(xe_has_vram(fd));
-			handle = xe_bo_create(fd, 0, size, system_memory(fd), 0);
+			handle = xe_bo_create(fd, 0, fb.size, system_memory(fd), 0);
 		}
 
 		f.handles[0] = handle;

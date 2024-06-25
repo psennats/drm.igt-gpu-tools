@@ -149,8 +149,16 @@ static void prepare_scratch(int exporter_fd, struct dumb_bo *scratch,
 		ptr = kmstest_dumb_map_buffer(exporter_fd, scratch->handle,
 					      scratch->size, PROT_WRITE);
 	} else {
-		igt_calc_fb_size(exporter_fd, mode->hdisplay, mode->vdisplay, DRM_FORMAT_XRGB8888,
-				 DRM_FORMAT_MOD_LINEAR, &scratch->size, &scratch->pitch);
+		struct igt_fb fb;
+
+		igt_init_fb(&fb, exporter_fd, mode->hdisplay, mode->vdisplay,
+			    DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_LINEAR,
+			    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+		igt_calc_fb_size(&fb);
+
+		scratch->size = fb.size;
+		scratch->pitch = fb.strides[0];
+
 		if (gem_has_lmem(exporter_fd))
 			scratch->handle = gem_create_in_memory_regions(exporter_fd, scratch->size,
 								       REGION_LMEM(0), REGION_SMEM);

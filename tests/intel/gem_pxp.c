@@ -1154,9 +1154,7 @@ static void setup_protected_fb(int i915, int width, int height, igt_fb_t *fb, ui
 
 	igt_init_fb(fb, i915, width, height, DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_NONE,
 		    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
-
-	igt_calc_fb_size(i915, width, height, DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_NONE,
-			 &fb->size, &fb->strides[0]);
+	igt_calc_fb_size(fb);
 
 	err = create_bo_ext(i915, fb->size, true, &(fb->gem_handle));
 	igt_assert_eq(err, 0);

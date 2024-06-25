@@ -936,7 +936,15 @@ static unsigned int get_plane_alignment(struct igt_fb *fb, int color_plane)
 	return alignment;
 }
 
-static uint64_t calc_fb_size(struct igt_fb *fb)
+/**
+ * igt_calc_fb_size:
+ * @fb: the framebuffer
+ *
+ * This function calculates the framebuffer size/strides/offsets/etc.
+ * appropriately. The framebuffer needs to be sufficiently initialized
+ * beforehand eg. with igt_init_fb().
+ */
+void igt_calc_fb_size(struct igt_fb *fb)
 {
 	uint64_t size = 0;
 	int plane;
@@ -963,36 +971,9 @@ static uint64_t calc_fb_size(struct igt_fb *fb)
 			size = ALIGN(size, SZ_64K);
 	}
 
-	return size;
-}
-
-/**
- * igt_calc_fb_size:
- * @fd: the DRM file descriptor
- * @width: width of the framebuffer in pixels
- * @height: height of the framebuffer in pixels
- * @format: drm fourcc pixel format code
- * @modifier: tiling layout of the framebuffer (as framebuffer modifier)
- * @size_ret: returned size for the framebuffer
- * @stride_ret: returned stride for the framebuffer
- *
- * This function returns valid stride and size values for a framebuffer with the
- * specified parameters.
- */
-void igt_calc_fb_size(int fd, int width, int height, uint32_t drm_format, uint64_t modifier,
-		      uint64_t *size_ret, unsigned *stride_ret)
-{
-	struct igt_fb fb;
-
-	igt_init_fb(&fb, fd, width, height, drm_format, modifier,
-		    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
-
-	fb.size = calc_fb_size(&fb);
-
-	if (size_ret)
-		*size_ret = fb.size;
-	if (stride_ret)
-		*stride_ret = fb.strides[0];
+	/* Respect the size requested by the caller. */
+	if (fb->size == 0)
+		fb->size = size;
 }
 
 /**
@@ -1179,7 +1160,6 @@ static int create_bo_for_fb(struct igt_fb *fb, bool prefer_sysmem)
 	unsigned *strides = &fb->strides[0];
 	bool device_bo = false;
 	int fd = fb->fd;
-	uint64_t size;
 
 	/*
 	 * The current dumb buffer allocation API doesn't really allow to
@@ -1194,11 +1174,7 @@ static int create_bo_for_fb(struct igt_fb *fb, bool prefer_sysmem)
 		device_bo = true;
 
 	/* Sets offets and stride if necessary. */
-	size = calc_fb_size(fb);
-
-	/* Respect the size requested by the caller. */
-	if (fb->size == 0)
-		fb->size = size;
+	igt_calc_fb_size(fb);
 
 	if (device_bo) {
 		fb->is_dumb = false;

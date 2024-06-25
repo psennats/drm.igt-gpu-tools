@@ -336,8 +336,7 @@ static bool size_ok(data_t *data, uint64_t size)
 static void max_fb_size(data_t *data, int *width, int *height,
 			uint32_t format, uint64_t modifier)
 {
-	unsigned int stride;
-	uint64_t size;
+	struct igt_fb fb;
 	int i = 0;
 
 	/* max fence stride is only 8k bytes on gen3 */
@@ -345,17 +344,19 @@ static void max_fb_size(data_t *data, int *width, int *height,
 	    format == DRM_FORMAT_XRGB8888)
 		*width = min(*width, 8192 / 4);
 
-	igt_calc_fb_size(data->drm_fd, *width, *height,
-			 format, modifier, &size, &stride);
+	igt_init_fb(&fb, data->drm_fd, *width, *height, format, modifier,
+		    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+	igt_calc_fb_size(&fb);
 
-	while (!size_ok(data, size)) {
+	while (!size_ok(data, fb.size)) {
 		if (i++ & 1)
 			*width >>= 1;
 		else
 			*height >>= 1;
 
-		igt_calc_fb_size(data->drm_fd, *width, *height,
-				 format, modifier, &size, &stride);
+		igt_init_fb(&fb, data->drm_fd, *width, *height, format, modifier,
+			    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+		igt_calc_fb_size(&fb);
 	}
 
 	igt_info("Max usable framebuffer size for format "IGT_FORMAT_FMT" / modifier 0x%"PRIx64": %dx%d\n",
@@ -840,11 +841,9 @@ static int rmfb(int fd, uint32_t id)
 static void
 test_addfb(data_t *data)
 {
-	uint64_t size;
+	struct igt_fb fb;
 	uint32_t fb_id;
 	uint32_t bo;
-	uint32_t offsets[4] = {};
-	uint32_t strides[4] = {};
 	uint32_t format;
 	int ret;
 
@@ -861,29 +860,29 @@ test_addfb(data_t *data)
 	igt_require(igt_display_has_format_mod(&data->display,
 					       format, data->modifier));
 
-	igt_calc_fb_size(data->drm_fd,
-			 data->max_fb_width,
-			 data->max_fb_height,
-			 format, data->modifier,
-			 &size, &strides[0]);
+	igt_init_fb(&fb, data->drm_fd,
+		    data->max_fb_width, data->max_fb_height,
+		    format, data->modifier,
+		    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+	igt_calc_fb_size(&fb);
 
 	if (is_i915_device(data->drm_fd))
-		bo = gem_buffer_create_fb_obj(data->drm_fd, size);
+		bo = gem_buffer_create_fb_obj(data->drm_fd, fb.size);
 	else
 		bo = xe_bo_create(data->drm_fd, 0,
-				  ALIGN(size, xe_get_default_alignment(data->drm_fd)),
+				  ALIGN(fb.size, xe_get_default_alignment(data->drm_fd)),
 				  vram_if_possible(data->drm_fd, 0), 0);
 	igt_require(bo);
 
 	if (is_i915_device(data->drm_fd) && intel_display_ver(data->devid) < 4)
 		gem_set_tiling(data->drm_fd, bo,
-			       igt_fb_mod_to_tiling(data->modifier), strides[0]);
+			       igt_fb_mod_to_tiling(data->modifier), fb.strides[0]);
 
 	ret = __kms_addfb(data->drm_fd, bo,
 			  data->max_fb_width,
 			  data->max_fb_height,
 			  format, data->modifier,
-			  strides, offsets, 1,
+			  fb.strides, fb.offsets, fb.num_planes,
 			  DRM_MODE_FB_MODIFIERS, &fb_id);
 	igt_assert_eq(ret, 0);
 

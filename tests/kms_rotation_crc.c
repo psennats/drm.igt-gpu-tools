@@ -1091,8 +1091,8 @@ static void test_plane_rotation_exhaust_fences(data_t *data,
 	int fd = data->gfx_fd;
 	drmModeModeInfo *mode;
 	struct igt_fb fb[MAX_FENCES+1] = {};
-	uint64_t size;
-	unsigned int stride, w, h;
+	struct igt_fb tmp_fb;
+	unsigned int w, h;
 	uint64_t total_aperture_size, total_fbs_size;
 	int i;
 
@@ -1106,13 +1106,15 @@ static void test_plane_rotation_exhaust_fences(data_t *data,
 	w = mode->hdisplay;
 	h = mode->vdisplay;
 
-	igt_calc_fb_size(fd, w, h, format, modifier, &size, &stride);
+	igt_init_fb(&tmp_fb, fd, w, h, format, modifier,
+		    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
+	igt_calc_fb_size(&tmp_fb);
 
 	/*
 	 * Make sure there is atleast 90% of the available GTT space left
 	 * for creating (MAX_FENCES+1) framebuffers.
 	 */
-	total_fbs_size = size * (MAX_FENCES + 1);
+	total_fbs_size = tmp_fb.size * (MAX_FENCES + 1);
 	total_aperture_size = gem_available_aperture_size(fd);
 	igt_require(total_fbs_size < total_aperture_size * 0.9);
 
