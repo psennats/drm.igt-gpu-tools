@@ -2503,6 +2503,9 @@ static bool block_copy_ok(const struct igt_fb *fb)
 
 static bool ccs_needs_enginecopy(const struct igt_fb *fb)
 {
+	if (is_gen12_rc_ccs_cc_modifier(fb->modifier))
+		return true;
+
 	if (is_gen12_mc_ccs_modifier(fb->modifier))
 		return true;
 
