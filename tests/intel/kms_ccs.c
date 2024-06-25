@@ -324,7 +324,7 @@ static void check_ccs_cc_plane(int drm_fd, igt_fb_t *fb, int plane, const float 
 		uint32_t d;
 	} *cc_p;
 	void *map;
-	uint32_t native_color;
+	uint32_t native_color = 0;
 
 	if (is_i915_device(drm_fd)) {
 		gem_set_domain(drm_fd, fb->gem_handle, I915_GEM_DOMAIN_CPU, 0);
@@ -339,10 +339,22 @@ static void check_ccs_cc_plane(int drm_fd, igt_fb_t *fb, int plane, const float 
 		   cc_color[2] == cc_p[2].f &&
 		   cc_color[3] == cc_p[3].f);
 
-	native_color = (uint8_t)(cc_color[3] * 0xff) << 24 |
-		       (uint8_t)(cc_color[0] * 0xff) << 16 |
-		       (uint8_t)(cc_color[1] * 0xff) << 8 |
-		       (uint8_t)(cc_color[2] * 0xff);
+	switch (fb->drm_format) {
+	case DRM_FORMAT_XRGB8888:
+		native_color = (uint32_t)(cc_color[3] * 0xff) << 24 |
+			(uint32_t)(cc_color[0] * 0xff) << 16 |
+			(uint32_t)(cc_color[1] * 0xff) << 8 |
+			(uint32_t)(cc_color[2] * 0xff);
+		break;
+	case DRM_FORMAT_XRGB2101010:
+		native_color = (uint32_t)(cc_color[3] * 0x3) << 30 |
+			(uint32_t)(cc_color[0] * 0x3ff) << 20 |
+			(uint32_t)(cc_color[1] * 0x3ff) << 10 |
+			(uint32_t)(cc_color[2] * 0x3ff);
+		break;
+	default:
+		break;
+	}
 
 	igt_assert_eq_u32(native_color, cc_p[4].d);
 
