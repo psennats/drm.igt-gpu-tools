@@ -188,32 +188,7 @@ static struct intel_buf *init_buf(data_t *data,
 				  const struct igt_fb *fb,
 				  const char *buf_name)
 {
-	struct intel_buf *buf;
-	enum intel_driver driver = buf_ops_get_driver(data->bops);
-	uint32_t name, handle, tiling, width, height, bpp, size;
-	uint64_t region = driver == INTEL_DRIVER_XE ?
-				vram_if_possible(data->drm_fd, 0) : -1;
-
-	igt_assert_eq(fb->offsets[0], 0);
-
-	tiling = igt_fb_mod_to_tiling(fb->modifier);
-	bpp = fb->plane_bpp[0];
-	size = fb->size;
-	width = fb->strides[0] / (bpp / 8);
-	height = fb->height;
-
-	name = gem_flink(data->drm_fd, fb->gem_handle);
-	handle = gem_open(data->drm_fd, name);
-	buf = intel_buf_create_full(data->bops, handle, width, height,
-				    bpp, 0, tiling, 0, size, 0,
-				    region,
-				    intel_get_pat_idx_uc(data->drm_fd),
-				    DEFAULT_MOCS_INDEX);
-
-	intel_buf_set_name(buf, buf_name);
-	intel_buf_set_ownership(buf, true);
-
-	return buf;
+	return igt_fb_create_intel_buf(data->drm_fd, data->bops, fb, buf_name);
 }
 
 static void fini_buf(struct intel_buf *buf)
