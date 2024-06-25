@@ -274,7 +274,7 @@ static void test_bpc_switch(data_t *data, uint32_t flags)
 
 		for_each_pipe(display, pipe) {
 			igt_output_set_pipe(output, pipe);
-			if (intel_pipe_output_combo_valid(display)) {
+			if (!intel_pipe_output_combo_valid(display)) {
 				igt_output_set_pipe(output, PIPE_NONE);
 				continue;
 			}
