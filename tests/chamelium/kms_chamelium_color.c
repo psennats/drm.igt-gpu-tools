@@ -468,6 +468,19 @@ static int test_setup(data_t *data, enum pipe p)
 
 	data->primary = igt_pipe_get_plane_type(pipe, DRM_PLANE_TYPE_PRIMARY);
 
+	/*
+	 * Prefer to run this test on HDMI connector if its connected, since on DP we
+	 * sometimes face DP FSM issue
+	 */
+        for_each_valid_output_on_pipe(&data->display, p, data->output) {
+                for (i = 0; i < data->port_count; i++) {
+                        if ((data->output->config.connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+			    data->output->config.connector->connector_type == DRM_MODE_CONNECTOR_HDMIB) &&
+			    strcmp(data->output->name, chamelium_port_get_name(data->ports[i])) == 0)
+                                return i;
+                }
+        }
+
 	for_each_valid_output_on_pipe(&data->display, p, data->output) {
 		for (i = 0; i < data->port_count; i++) {
 			if (strcmp(data->output->name,
