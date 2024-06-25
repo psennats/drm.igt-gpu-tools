@@ -53,6 +53,19 @@ bool selective_fetch_check(int debugfs_fd, igt_output_t *output)
 	return strstr(buf, "PSR2 selective fetch: enabled");
 }
 
+/*
+ * Checks if Early Transport is enabled in PSR status by reading the debugfs.
+ */
+bool early_transport_check(int debugfs_fd)
+{
+	char buf[PSR_STATUS_MAX_LEN];
+
+	igt_debugfs_simple_read(debugfs_fd, "i915_edp_psr_status", buf,
+				sizeof(buf));
+
+	return strstr(buf, "enabled (Early Transport)");
+}
+
 static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *output)
 {
 	char debugfs_file[128] = {0};
@@ -269,10 +282,15 @@ bool psr_sink_support(int device, int debugfs_fd, enum psr_mode mode, igt_output
 		       strstr(buf, "Sink support: yes [0x04]") ||
 		       (strstr(line, "PSR = yes") &&
 		       (strstr(line, "[0x03]") || strstr(line, "[0x04]")));
+	case PSR_MODE_2_ET:
+		return strstr(buf, "Sink support: yes [0x04]") ||
+		       (strstr(line, "PSR = yes") && strstr(line, "[0x04]"));
 	case PR_MODE:
 		return strstr(line, "Panel Replay = yes");
 	case PR_MODE_SEL_FETCH:
 		return strstr(line, "Panel Replay = yes, Panel Replay Selective Update = yes");
+	case PR_MODE_SEL_FETCH_ET:
+		return strstr(line, "Panel Replay Selective Update = yes (Early Transport)");
 	default:
 		igt_assert_f(false, "Invalid psr mode\n");
 		return false;
