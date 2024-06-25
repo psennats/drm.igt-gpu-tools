@@ -229,7 +229,10 @@ gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
 	if (buf->compression == I915_COMPRESSION_MEDIA)
 		ss->ss7.tgl.media_compression = 1;
 	else if (buf->compression == I915_COMPRESSION_RENDER) {
-		ss->ss6.aux_mode = 0x5; /* AUX_CCS_E */
+		if (AT_LEAST_GEN(ibb->devid, 20))
+			ss->ss6.aux_mode = 0x0; /* AUX_NONE, unified compression */
+		else
+			ss->ss6.aux_mode = 0x5; /* AUX_CCS_E */
 
 		if (buf->ccs[0].stride) {
 
