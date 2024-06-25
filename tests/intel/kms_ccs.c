@@ -35,6 +35,7 @@
  */
 
 #include "igt.h"
+#include "igt_halffloat.h"
 
 #include "i915/gem_create.h"
 #include "intel_pat.h"
@@ -200,6 +201,7 @@ static const uint32_t formats[] = {
 	DRM_FORMAT_XYUV8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_P012,
@@ -324,7 +326,8 @@ static void check_ccs_cc_plane(int drm_fd, igt_fb_t *fb, int plane, const float 
 		uint32_t d;
 	} *cc_p;
 	void *map;
-	uint32_t native_color = 0;
+	uint32_t native_color[2] = {};
+	uint16_t half[4];
 
 	if (is_i915_device(drm_fd)) {
 		gem_set_domain(drm_fd, fb->gem_handle, I915_GEM_DOMAIN_CPU, 0);
@@ -341,25 +344,32 @@ static void check_ccs_cc_plane(int drm_fd, igt_fb_t *fb, int plane, const float 
 
 	switch (fb->drm_format) {
 	case DRM_FORMAT_XRGB8888:
-		native_color = (uint32_t)(cc_color[3] * 0xff) << 24 |
+		native_color[0] = (uint32_t)(cc_color[3] * 0xff) << 24 |
 			(uint32_t)(cc_color[0] * 0xff) << 16 |
 			(uint32_t)(cc_color[1] * 0xff) << 8 |
 			(uint32_t)(cc_color[2] * 0xff);
 		break;
 	case DRM_FORMAT_XRGB2101010:
-		native_color = (uint32_t)(cc_color[3] * 0x3) << 30 |
+		native_color[0] = (uint32_t)(cc_color[3] * 0x3) << 30 |
 			(uint32_t)(cc_color[0] * 0x3ff) << 20 |
 			(uint32_t)(cc_color[1] * 0x3ff) << 10 |
 			(uint32_t)(cc_color[2] * 0x3ff);
+		break;
+	case DRM_FORMAT_XBGR16161616F:
+		igt_float_to_half(cc_color, half, 4);
+
+		native_color[1] = (uint64_t)half[3] << 16 | (uint64_t)half[2];
+		native_color[0] = (uint64_t)half[1] << 16 | (uint64_t)half[0];
 		break;
 	default:
 		break;
 	}
 
-	igt_assert_eq_u32(native_color, cc_p[4].d);
+	igt_assert_eq_u32(native_color[0], cc_p[4].d);
+	igt_assert_eq_u32(native_color[1], cc_p[5].d);
 
 	igt_assert_eq(0, gem_munmap(map, fb->size));
-};
+}
 
 static void check_all_ccs_planes(int drm_fd, igt_fb_t *fb, const float *cc_color, bool check_cc_plane)
 {
@@ -854,7 +864,8 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 
 	if (igt_fb_is_gen12_rc_ccs_cc_modifier(data->ccs_modifier) &&
 	    data->format != DRM_FORMAT_XRGB8888 &&
-	    data->format != DRM_FORMAT_XRGB2101010)
+	    data->format != DRM_FORMAT_XRGB2101010 &&
+	    data->format != DRM_FORMAT_XBGR16161616F)
 		return false;
 
 	/* VEBOX just hangs with an actual 10bpc format */
