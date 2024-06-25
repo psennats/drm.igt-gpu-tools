@@ -847,9 +847,18 @@ static void fill_data_ext(struct gen12_block_copy_data_ext *dext,
 	dext->dw21.src_array_index = ext->src.array_index;
 }
 
-static void dump_bb_cmd(struct gen12_block_copy_data *data)
+static void dump_bb_cmd(struct gen12_block_copy_data *data, unsigned int ip_ver)
 {
 	uint32_t *cmd = (uint32_t *) data;
+	int src_mocs_idx, dst_mocs_idx;
+
+	if (ip_ver >= IP_VER(20, 0)) {
+		src_mocs_idx = data->dw08_xe2.src_mocs_index;
+		dst_mocs_idx = data->dw01_xe2.dst_mocs_index;
+	} else {
+		src_mocs_idx = data->dw08.src_mocs_index;
+		dst_mocs_idx = data->dw01.dst_mocs_index;
+	}
 
 	igt_info("details:\n");
 	igt_info(" dw00: [%08x] <client: 0x%x, opcode: 0x%x, color depth: %d, "
@@ -860,7 +869,7 @@ static void dump_bb_cmd(struct gen12_block_copy_data *data)
 	igt_info(" dw01: [%08x] dst <pitch: %d, aux: %d, mocs_idx: %d, compr: %d, "
 		 "tiling: %d, ctrl surf type: %d>\n",
 		 cmd[1], data->dw01.dst_pitch, data->dw01.dst_aux_mode,
-		 data->dw01.dst_mocs_index, data->dw01.dst_compression,
+		 dst_mocs_idx, data->dw01.dst_compression,
 		 data->dw01.dst_tiling, data->dw01.dst_ctrl_surface_type);
 	igt_info(" dw02: [%08x] dst geom <x1: %d, y1: %d>\n",
 		 cmd[2], data->dw02.dst_x1, data->dw02.dst_y1);
@@ -878,7 +887,7 @@ static void dump_bb_cmd(struct gen12_block_copy_data *data)
 	igt_info(" dw08: [%08x] src <pitch: %d, aux: %d, mocs_idx: %d, compr: %d, "
 		 "tiling: %d, ctrl surf type: %d>\n",
 		 cmd[8], data->dw08.src_pitch, data->dw08.src_aux_mode,
-		 data->dw08.src_mocs_index, data->dw08.src_compression,
+		 src_mocs_idx, data->dw08.src_compression,
 		 data->dw08.src_tiling, data->dw08.src_ctrl_surface_type);
 	igt_info(" dw09: [%08x] src offset lo (0x%x)\n",
 		 cmd[9], data->dw09.src_address_lo);
@@ -1034,7 +1043,7 @@ uint64_t emit_blt_block_copy(int fd,
 			 ", bb offset: %" PRIx64 "\n",
 			 src_offset, dst_offset, bb_offset);
 
-		dump_bb_cmd(&data);
+		dump_bb_cmd(&data, ip_ver);
 		if (ext)
 			dump_bb_ext(&dext);
 	}
