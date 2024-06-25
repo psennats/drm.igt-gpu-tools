@@ -249,7 +249,7 @@ gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
 			ss->ss11.aux_base_addr_hi = (address + buf->ccs[0].offset) >> 32;
 		}
 
-		if (fast_clear || (buf->cc.offset && !HAS_FLATCCS(ibb->devid))) {
+		if (buf->cc.offset) {
 			igt_assert(buf->compression == I915_COMPRESSION_RENDER);
 
 			ss->ss10.clearvalue_addr_enable = 1;
