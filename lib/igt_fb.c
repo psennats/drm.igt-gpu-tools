@@ -2501,17 +2501,29 @@ static bool block_copy_ok(const struct igt_fb *fb)
 					       fb_tile_to_blt_tile(fb->modifier));
 }
 
+static bool ccs_needs_enginecopy(const struct igt_fb *fb)
+{
+	if (is_gen12_mc_ccs_modifier(fb->modifier))
+		return true;
+
+	if (is_ccs_modifier(fb->modifier) &&
+	    !HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
+		return true;
+
+	return false;
+}
+
 static bool blitter_ok(const struct igt_fb *fb)
 {
 	if (!is_intel_device(fb->fd))
 		return false;
 
-	if ((!HAS_FLATCCS(intel_get_drm_devid(fb->fd)) &&
-	    is_ccs_modifier(fb->modifier)) ||
-	    is_gen12_mc_ccs_modifier(fb->modifier) ||
-	    (!blt_uses_extended_block_copy(fb->fd) &&
+	if (ccs_needs_enginecopy(fb))
+		return false;
+
+	if (!blt_uses_extended_block_copy(fb->fd) &&
 	    fb->modifier == I915_FORMAT_MOD_X_TILED &&
-	    is_xe_device(fb->fd)))
+	    is_xe_device(fb->fd))
 		return false;
 
 	if (is_xe_device(fb->fd))
@@ -2551,10 +2563,11 @@ static bool use_enginecopy(const struct igt_fb *fb)
 	if (blitter_ok(fb))
 		return false;
 
+	if (ccs_needs_enginecopy(fb))
+		return true;
+
 	return fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
-	       fb->modifier == I915_FORMAT_MOD_X_TILED ||
-	       (!HAS_FLATCCS(intel_get_drm_devid(fb->fd)) && is_ccs_modifier(fb->modifier)) ||
-	       is_gen12_mc_ccs_modifier(fb->modifier);
+		fb->modifier == I915_FORMAT_MOD_X_TILED;
 }
 
 static bool use_blitter(const struct igt_fb *fb)
