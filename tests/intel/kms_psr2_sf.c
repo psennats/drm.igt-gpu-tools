@@ -168,6 +168,7 @@ typedef struct {
 	igt_plane_t *test_plane;
 	bool big_fb_test;
 	bool fbc_flag;
+	bool et_flag;
 	cairo_t *cr;
 	uint32_t screen_changes;
 	int cur_x, cur_y;
@@ -184,11 +185,24 @@ static bool set_sel_fetch_mode_for_output(data_t *data)
 {
 	bool supported = false;
 
+	data->et_flag = false;
+
 	if (psr_sink_support(data->drm_fd, data->debugfs_fd,
-						 PR_MODE_SEL_FETCH, data->output)) {
+						 PR_MODE_SEL_FETCH_ET, data->output)) {
 		supported = true;
 		data->psr_mode = PR_MODE_SEL_FETCH;
+		data->et_flag = true;
 	} else if (psr_sink_support(data->drm_fd, data->debugfs_fd,
+							PR_MODE_SEL_FETCH, data->output)) {
+		supported = true;
+		data->psr_mode = PR_MODE_SEL_FETCH;
+		data->et_flag = true;
+	} else if (psr_sink_support(data->drm_fd, data->debugfs_fd,
+							PSR_MODE_2_ET, data->output)) {
+		supported = true;
+		data->psr_mode = PSR_MODE_2;
+		data->et_flag = true;
+	} else	if (psr_sink_support(data->drm_fd, data->debugfs_fd,
 							  PSR_MODE_2, data->output)) {
 		supported = true;
 		data->psr_mode = PSR_MODE_2;
@@ -920,6 +934,10 @@ static void run(data_t *data)
 		igt_assert_f(intel_fbc_wait_until_enabled(data->drm_fd,
 							  data->pipe),
 							  "FBC still disabled\n");
+
+	if (data->et_flag)
+		igt_assert_f(early_transport_check(data->debugfs_fd),
+			     "Early Trasport Disbaled\n");
 
 	data->screen_changes = 0;
 
