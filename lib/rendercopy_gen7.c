@@ -57,21 +57,13 @@ gen7_bind_buf(struct intel_bb *ibb,
 	      const struct intel_buf *buf,
 	      int is_dst)
 {
-	uint32_t format, *ss;
+	uint32_t *ss;
 	uint32_t write_domain, read_domain;
 	uint64_t address;
 
 	igt_assert_lte(buf->surface[0].stride, 256*1024);
 	igt_assert_lte(intel_buf_width(buf), 16384);
 	igt_assert_lte(intel_buf_height(buf), 16384);
-
-	switch (buf->bpp) {
-		case 8: format = SURFACEFORMAT_R8_UNORM; break;
-		case 16: format = SURFACEFORMAT_R8G8_UNORM; break;
-		case 32: format = SURFACEFORMAT_B8G8R8A8_UNORM; break;
-		case 64: format = SURFACEFORMAT_R16G16B16A16_FLOAT; break;
-		default: igt_assert(0);
-	}
 
 	if (is_dst) {
 		write_domain = read_domain = I915_GEM_DOMAIN_RENDER;
@@ -84,7 +76,7 @@ gen7_bind_buf(struct intel_bb *ibb,
 
 	ss[0] = (SURFACE_2D << GEN7_SURFACE_TYPE_SHIFT |
 		 gen7_tiling_bits(buf->tiling) |
-		format << GEN7_SURFACE_FORMAT_SHIFT);
+		 gen4_surface_format(buf->bpp) << GEN7_SURFACE_FORMAT_SHIFT);
 
 	address = intel_bb_offset_reloc_with_delta(ibb, buf->handle,
 						   read_domain, write_domain,

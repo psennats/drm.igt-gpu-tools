@@ -186,4 +186,20 @@
 #define SURFACE_MIPMAPLAYOUT_BELOW	0
 #define SURFACE_MIPMAPLAYOUT_RIGHT	1
 
+static inline uint32_t gen4_surface_format(int bpp)
+{
+	switch (bpp) {
+	case 8:
+		return SURFACEFORMAT_R8_UNORM;
+	case 16:
+		return SURFACEFORMAT_R8G8_UNORM;
+	case 32:
+		return SURFACEFORMAT_B8G8R8A8_UNORM;
+	case 64:
+		return SURFACEFORMAT_R16G16B16A16_FLOAT;
+	default:
+		return 0;
+	}
+}
+
 #endif

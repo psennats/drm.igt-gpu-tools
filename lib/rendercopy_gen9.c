@@ -168,13 +168,7 @@ gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
 	ss = intel_bb_ptr_align(ibb, 64);
 
 	ss->ss0.surface_type = SURFACE_2D;
-	switch (buf->bpp) {
-		case 8: ss->ss0.surface_format = SURFACEFORMAT_R8_UNORM; break;
-		case 16: ss->ss0.surface_format = SURFACEFORMAT_R8G8_UNORM; break;
-		case 32: ss->ss0.surface_format = SURFACEFORMAT_B8G8R8A8_UNORM; break;
-		case 64: ss->ss0.surface_format = SURFACEFORMAT_R16G16B16A16_FLOAT; break;
-		default: igt_assert(0);
-	}
+	ss->ss0.surface_format = gen4_surface_format(buf->bpp);
 	ss->ss0.vertical_alignment = 1; /* align 4 */
 	ss->ss0.horizontal_alignment = 1; /* align 4 or HALIGN_32 on display ver >= 13*/
 
