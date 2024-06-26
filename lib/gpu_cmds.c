@@ -566,13 +566,13 @@ gen8_emit_state_base_address(struct intel_bb *ibb)
 	/* general state buffer size */
 	intel_bb_out(ibb, 0xfffff000 | 1);
 	/* dynamic state buffer size */
-	intel_bb_out(ibb, 1 << 12 | 1);
+	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);
 	/* indirect object buffer size */
 	intel_bb_out(ibb, 0xfffff000 | 1);
 	/* instruction buffer size, must set modify enable bit, otherwise it may
 	 * result in GPU hang
 	 */
-	intel_bb_out(ibb, 1 << 12 | 1);
+	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);
 }
 
 void
@@ -610,13 +610,13 @@ gen9_emit_state_base_address(struct intel_bb *ibb)
 	/* general state buffer size */
 	intel_bb_out(ibb, 0xfffff000 | 1);
 	/* dynamic state buffer size */
-	intel_bb_out(ibb, 1 << 12 | 1);
+	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);
 	/* indirect object buffer size */
 	intel_bb_out(ibb, 0xfffff000 | 1);
 	/* intruction buffer size, must set modify enable bit, otherwise it may
 	 * result in GPU hang
 	 */
-	intel_bb_out(ibb, 1 << 12 | 1);
+	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);
 
 	/* Bindless surface state base address */
 	intel_bb_out(ibb, 0 | BASE_ADDRESS_MODIFY);
@@ -1026,14 +1026,14 @@ xehp_emit_state_base_address(struct intel_bb *ibb)
 	/* general state buffer size */
 	intel_bb_out(ibb, 0xfffff000 | 1);                          //dw12
 	/* dynamic state buffer size */
-	intel_bb_out(ibb, 1 << 12 | 1);                             //dw13
+	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);           //dw13
 	/* indirect object buffer size */
 	if (intel_graphics_ver(ibb->devid) >= IP_VER(20, 0))	    //dw14
 		intel_bb_out(ibb, 0);
 	else
 		intel_bb_out(ibb, 0xfffff000 | 1);
 	/* intruction buffer size */
-	intel_bb_out(ibb, 1 << 12 | 1);                             //dw15
+	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);           //dw15
 
 	/* Bindless surface state base address */
 	intel_bb_out(ibb, 0 | BASE_ADDRESS_MODIFY);                 //dw16
