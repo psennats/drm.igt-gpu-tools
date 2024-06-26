@@ -2684,6 +2684,18 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 				    DEFAULT_MOCS_INDEX);
 	intel_buf_set_name(buf, name);
 
+	/* only really needed for proper CCS handling */
+	switch (fb->drm_format) {
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_XRGB2101010:
+		buf->depth = 30;
+		break;
+	default:
+		break;
+	}
+
 	/* Make sure we close handle on destroy path */
 	intel_buf_set_ownership(buf, true);
 
