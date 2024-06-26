@@ -623,6 +623,8 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 		/* mei_gsc uses an i915 aux dev and the other mei mods depend on it */
 		"mei_pxp",
 		"mei_hdcp",
+		/* mei_gsc_proxy should be unloaded before mei_gsc */
+		"mei_gsc_proxy",
 		"mei_gsc",
 		NULL,
 	};
