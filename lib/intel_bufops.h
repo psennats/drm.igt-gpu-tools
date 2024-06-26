@@ -21,7 +21,7 @@ struct intel_buf {
 	uint32_t width;
 	uint32_t height;
 	uint32_t tiling;
-	uint32_t bpp;
+	uint32_t bpp, depth;
 	uint32_t compression;
 	uint32_t swizzle_mode;
 	uint32_t yuv_semiplanar_bpp;

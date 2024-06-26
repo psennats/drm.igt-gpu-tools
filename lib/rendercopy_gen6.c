@@ -79,7 +79,7 @@ gen6_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst)
 
 	ss = intel_bb_ptr_align(ibb, 32);
 	ss->ss0.surface_type = SURFACE_2D;
-	ss->ss0.surface_format = gen4_surface_format(buf->bpp);
+	ss->ss0.surface_format = gen4_surface_format(buf->bpp, buf->depth);
 	ss->ss0.data_return_format = SURFACERETURNFORMAT_FLOAT32;
 	ss->ss0.color_blend = 1;
 

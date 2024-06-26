@@ -186,7 +186,7 @@
 #define SURFACE_MIPMAPLAYOUT_BELOW	0
 #define SURFACE_MIPMAPLAYOUT_RIGHT	1
 
-static inline uint32_t gen4_surface_format(int bpp)
+static inline uint32_t gen4_surface_format(int bpp, int depth)
 {
 	switch (bpp) {
 	case 8:
@@ -194,7 +194,11 @@ static inline uint32_t gen4_surface_format(int bpp)
 	case 16:
 		return SURFACEFORMAT_R8G8_UNORM;
 	case 32:
-		return SURFACEFORMAT_B8G8R8A8_UNORM;
+		/* only needed for proper CCS handling */
+		if (depth == 30)
+			return SURFACEFORMAT_B10G10R10A2_UNORM;
+		else
+			return SURFACEFORMAT_B8G8R8A8_UNORM;
 	case 64:
 		return SURFACEFORMAT_R16G16B16A16_FLOAT;
 	default:

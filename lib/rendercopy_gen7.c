@@ -76,7 +76,7 @@ gen7_bind_buf(struct intel_bb *ibb,
 
 	ss[0] = (SURFACE_2D << GEN7_SURFACE_TYPE_SHIFT |
 		 gen7_tiling_bits(buf->tiling) |
-		 gen4_surface_format(buf->bpp) << GEN7_SURFACE_FORMAT_SHIFT);
+		 gen4_surface_format(buf->bpp, buf->depth) << GEN7_SURFACE_FORMAT_SHIFT);
 
 	address = intel_bb_offset_reloc_with_delta(ibb, buf->handle,
 						   read_domain, write_domain,
