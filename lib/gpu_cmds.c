@@ -1032,7 +1032,7 @@ xehp_emit_state_base_address(struct intel_bb *ibb)
 		intel_bb_out(ibb, 0);
 	else
 		intel_bb_out(ibb, 0xfffff000 | 1);
-	/* intruction buffer size */
+	/* instruction buffer size */
 	intel_bb_out(ibb, ALIGN(ibb->size, 1 << 12) | 1);           //dw15
 
 	/* Bindless surface state base address */
