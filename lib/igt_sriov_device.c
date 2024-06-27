@@ -297,26 +297,58 @@ bool igt_sriov_is_vf_drm_driver_probed(int pf, unsigned int vf_num)
 	return ret;
 }
 
+/*
+ * __igt_sriov_get_vf_pci_slot_alloc:
+ * @pf_sysfs: sysfs directory file descriptor
+ * @vf_num: VF number (1-based)
+ *
+ * Resolve symbolic link from virtfnX to obtain the PCI slot address.
+ * Returns a dynamically allocated string containing the PCI slot address,
+ * or NULL if the link cannot be resolved.
+ * The caller is responsible for freeing the returned memory.
+ */
+static char *__igt_sriov_get_vf_pci_slot_alloc(int pf_sysfs, unsigned int vf_num)
+{
+	char dir_path[PATH_MAX];
+	char path[PATH_MAX];
+	char *pci_slot_addr;
+	int len;
+
+	/* Adjust for 0-based index as vf_num is 1-based */
+	if (vf_num)
+		snprintf(dir_path, sizeof(dir_path), "device/virtfn%u",
+			 vf_num - 1);
+	else
+		snprintf(dir_path, sizeof(dir_path), "device");
+
+	len = readlinkat(pf_sysfs, dir_path, path, sizeof(path));
+	if (len <= 0)
+		return NULL;
+
+	path[len] = '\0';
+	pci_slot_addr = strrchr(path, '/') + 1;
+
+	return pci_slot_addr ? strdup(pci_slot_addr) : NULL;
+}
+
 static bool __igt_sriov_bind_vf_drm_driver(int pf, unsigned int vf_num, bool bind)
 {
-	struct pci_device *pci_dev;
-	char pci_slot[14];
+	char *pci_slot;
 	int sysfs;
 	bool ret;
 
 	igt_assert(vf_num > 0);
 
-	pci_dev = __igt_device_get_pci_device(pf, vf_num);
-	igt_assert_f(pci_dev, "No PCI device for given VF number: %d\n", vf_num);
-	sprintf(pci_slot, "%04x:%02x:%02x.%x",
-		pci_dev->domain_16, pci_dev->bus, pci_dev->dev, pci_dev->func);
-
 	sysfs = igt_sysfs_open(pf);
 	igt_assert_fd(sysfs);
+
+	pci_slot = __igt_sriov_get_vf_pci_slot_alloc(sysfs, vf_num);
+	igt_assert(pci_slot);
 
 	igt_debug("vf_num: %u, pci_slot: %s\n", vf_num, pci_slot);
 	ret = igt_sysfs_set(sysfs, bind ? "device/driver/bind" : "device/driver/unbind", pci_slot);
 
+	free(pci_slot);
 	close(sysfs);
 
 	return ret;
