@@ -357,6 +357,11 @@ else
 	vmwgfx_rpathdir = ''
 endif
 
+build_testplan = get_option('testplan')
+build_sphinx = get_option('sphinx')
+
+subdir('scripts')
+
 subdir('lib')
 if build_tests
 	subdir('tests')
@@ -364,9 +369,6 @@ else
 	xe_test_config = ''
 endif
 build_info += 'Build tests: @0@'.format(build_tests)
-
-build_testplan = get_option('testplan')
-build_sphinx = get_option('sphinx')
 
 subdir('benchmarks')
 subdir('tools')
@@ -376,7 +378,6 @@ if libdrm_intel.found()
 endif
 subdir('overlay')
 subdir('man')
-subdir('scripts')
 subdir('docs')
 
 message('Build options')
