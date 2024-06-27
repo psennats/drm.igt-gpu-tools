@@ -651,10 +651,10 @@ gen7_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
 	intel_bb_out(ibb, 0);
 }
 
-void
-gen8_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
-		    uint32_t urb_entries, uint32_t urb_size,
-		    uint32_t curbe_size)
+static void
+__gen8_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
+		      uint32_t urb_entries, uint32_t urb_size,
+		      uint32_t curbe_size, bool legacy_mode)
 {
 	intel_bb_out(ibb, GEN7_MEDIA_VFE_STATE | (9 - 2));
 
@@ -662,8 +662,8 @@ gen8_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
 	intel_bb_out(ibb, 0);
 	intel_bb_out(ibb, 0);
 
-	/* number of threads & urb entries */
-	intel_bb_out(ibb, threads << 16 | urb_entries << 8);
+	/* number of threads & urb entries & eu fusion */
+	intel_bb_out(ibb, threads << 16 | urb_entries << 8 | legacy_mode << 6);
 
 	intel_bb_out(ibb, 0);
 
@@ -674,6 +674,25 @@ gen8_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
 	intel_bb_out(ibb, 0);
 	intel_bb_out(ibb, 0);
 	intel_bb_out(ibb, 0);
+}
+
+/**
+ * gen8_emit_vfe_state:
+ * @ibb: batchbuffer
+ * @threads: maximum number of threads
+ * @urb_entries: number of URB entries
+ * @urb_size: URB entry allocation size
+ * @curbe_size: CURBE allocation size
+ *
+ * Emits instruction MEDIA_VFE_STATE for Gen8+ which sets Video Front End (VFE)
+ * state.
+ */
+void gen8_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
+			 uint32_t urb_entries, uint32_t urb_size,
+			 uint32_t curbe_size)
+{
+	__gen8_emit_vfe_state(ibb, threads, urb_entries, urb_size, curbe_size,
+			      false);
 }
 
 void
@@ -862,6 +881,27 @@ gen7_emit_media_objects(struct intel_bb *ibb,
 	for (i = 0; i < width / 16; i++)
 		for (j = 0; j < height / 16; j++)
 			gen_emit_media_object(ibb, x + i * 16, y + j * 16);
+}
+
+/**
+ * xelp_emit_vfe_state:
+ * @ibb: pointer to intel_bb
+ * @threads: maximum number of threads
+ * @urb_entries: number of URB entries
+ * @urb_size: URB entry allocation size
+ * @curbe_size: CURBE allocation size
+ * @legacy_mode: if set, threads are dispatched individually (legacy mode),
+ *     otherwise they are dispatched in sets(fused EU mode)
+ *
+ * Emits instruction MEDIA_VFE_STATE for XeLP which sets Video Front End (VFE)
+ * state.
+ */
+void xelp_emit_vfe_state(struct intel_bb *ibb, uint32_t threads,
+			 uint32_t urb_entries, uint32_t urb_size,
+			 uint32_t curbe_size, bool legacy_mode)
+{
+	__gen8_emit_vfe_state(ibb, threads, urb_entries, urb_size,
+			      curbe_size, legacy_mode);
 }
 
 /*
