@@ -91,11 +91,12 @@ gen6_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst)
 	ss->ss0.data_return_format = SURFACERETURNFORMAT_FLOAT32;
 	ss->ss0.color_blend = 1;
 
-	address = intel_bb_offset_reloc(ibb, buf->handle,
-					read_domain, write_domain,
-					intel_bb_offset(ibb) + 4,
-					buf->addr.offset);
-	ss->ss1.base_addr = (uint32_t) address;
+	address = intel_bb_offset_reloc_with_delta(ibb, buf->handle,
+						   read_domain, write_domain,
+						   buf->surface[0].offset,
+						   intel_bb_offset(ibb) + 4,
+						   buf->addr.offset);
+	ss->ss1.base_addr = address + buf->surface[0].offset;
 
 	ss->ss2.height = intel_buf_height(buf) - 1;
 	ss->ss2.width  = intel_buf_width(buf) - 1;

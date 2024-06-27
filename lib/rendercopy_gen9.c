@@ -210,12 +210,13 @@ gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
 	if (intel_buf_pxp(buf))
 		ss->ss1.pxp = 1;
 
-	address = intel_bb_offset_reloc(ibb, buf->handle,
-					read_domain, write_domain,
-					intel_bb_offset(ibb) + 4 * 8,
-					buf->addr.offset);
-	ss->ss8.base_addr = address;
-	ss->ss9.base_addr_hi = address >> 32;
+	address = intel_bb_offset_reloc_with_delta(ibb, buf->handle,
+						   read_domain, write_domain,
+						   buf->surface[0].offset,
+						   intel_bb_offset(ibb) + 4 * 8,
+						   buf->addr.offset);
+	ss->ss8.base_addr = (address + buf->surface[0].offset);
+	ss->ss9.base_addr_hi = (address + buf->surface[0].offset) >> 32;
 
 	ss->ss2.height = intel_buf_height(buf) - 1;
 	ss->ss2.width  = intel_buf_width(buf) - 1;

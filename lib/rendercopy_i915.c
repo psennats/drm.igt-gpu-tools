@@ -112,7 +112,8 @@ void gen3_render_copyfunc(struct intel_bb *ibb,
 		intel_bb_out(ibb, (1 << TEX_COUNT) - 1);
 		intel_bb_emit_reloc(ibb, src->handle,
 				    I915_GEM_DOMAIN_SAMPLER, 0,
-				    0, src->addr.offset);
+				    src->surface[0].offset,
+				    src->addr.offset);
 		intel_bb_out(ibb, format_bits | tiling_bits |
 			     (intel_buf_height(src) - 1) << MS3_HEIGHT_SHIFT |
 			     (intel_buf_width(src) - 1) << MS3_WIDTH_SHIFT);
@@ -155,7 +156,8 @@ void gen3_render_copyfunc(struct intel_bb *ibb,
 			     BUF_3D_PITCH(dst->surface[0].stride));
 		intel_bb_emit_reloc(ibb, dst->handle,
 				    I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER,
-				    0, dst->addr.offset);
+				    dst->surface[0].offset,
+				    dst->addr.offset);
 
 		intel_bb_out(ibb, _3DSTATE_DST_BUF_VARS_CMD);
 		intel_bb_out(ibb, format_bits |

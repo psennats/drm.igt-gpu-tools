@@ -158,8 +158,10 @@ static void gen2_emit_target(struct intel_bb *ibb,
 	intel_bb_out(ibb, _3DSTATE_BUF_INFO_CMD);
 	intel_bb_out(ibb, BUF_3D_ID_COLOR_BACK | tiling |
 		     BUF_3D_PITCH(dst->surface[0].stride));
-	intel_bb_emit_reloc(ibb, dst->handle, I915_GEM_DOMAIN_RENDER,
-			    I915_GEM_DOMAIN_RENDER, 0, dst->addr.offset);
+	intel_bb_emit_reloc(ibb, dst->handle,
+			    I915_GEM_DOMAIN_RENDER, I915_GEM_DOMAIN_RENDER,
+			    dst->surface[0].offset,
+			    dst->addr.offset);
 
 	intel_bb_out(ibb, _3DSTATE_DST_BUF_VARS_CMD);
 	intel_bb_out(ibb, format |
@@ -199,7 +201,9 @@ static void gen2_emit_texture(struct intel_bb *ibb,
 		tiling |= TM0S1_TILE_WALK;
 
 	intel_bb_out(ibb, _3DSTATE_LOAD_STATE_IMMEDIATE_2 | LOAD_TEXTURE_MAP(unit) | 4);
-	intel_bb_emit_reloc(ibb, src->handle, I915_GEM_DOMAIN_SAMPLER, 0, 0,
+	intel_bb_emit_reloc(ibb, src->handle,
+			    I915_GEM_DOMAIN_SAMPLER, 0,
+			    src->surface[0].offset,
 			    src->addr.offset);
 	intel_bb_out(ibb, (intel_buf_height(src) - 1) << TM0S1_HEIGHT_SHIFT |
 		     (intel_buf_width(src) - 1) << TM0S1_WIDTH_SHIFT |
