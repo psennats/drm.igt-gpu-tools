@@ -380,6 +380,7 @@ install_headers(
 xe_oa_files = [
   'igt_list.c',
   'xe/xe_oa.c',
+  'xe/xe_oa_data_reader.c',
 ]
 
 xe_oa_hardware = [
@@ -453,6 +454,8 @@ install_headers(
   'igt_list.h',
   'intel_chipset.h',
   'xe/xe_oa.h',
+  'xe/xe_oa_data.h',
+  'xe/xe_oa_data_reader.h',
   subdir : 'xe-oa'
 )
 
