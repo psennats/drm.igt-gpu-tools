@@ -995,6 +995,58 @@ test_query_uc_fw_version_huc(int fd)
 	test_query_uc_fw_version(fd, XE_QUERY_UC_TYPE_HUC);
 }
 
+/**
+ * SUBTEST: query-oa-units
+ * Description: Display fields for OA unit query
+ *
+ * SUBTEST: multigpu-query-oa-units
+ * Description: Display fields for OA unit query for all GPU devices
+ * Sub-category: MultiGPU
+ */
+static void test_query_oa_units(int fd)
+{
+	struct drm_xe_query_oa_units *qoa;
+	struct drm_xe_device_query query = {
+		.extensions = 0,
+		.query = DRM_XE_DEVICE_QUERY_OA_UNITS,
+		.size = 0,
+		.data = 0,
+	};
+	struct drm_xe_oa_unit *oau;
+	int i, j;
+	u8 *poau;
+
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	qoa = malloc(query.size);
+	igt_assert(qoa);
+
+	query.data = to_user_pointer(qoa);
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	igt_info("num_oa_units %d\n", qoa->num_oa_units);
+
+	poau = (u8 *)&qoa->oa_units[0];
+	for (i = 0; i < qoa->num_oa_units; i++) {
+		oau = (struct drm_xe_oa_unit *)poau;
+
+		igt_info("-------------------------------\n");
+		igt_info("oa_unit %d\n", i);
+		igt_info("-------------------------------\n");
+		igt_info("oa_unit_id %d\n", oau->oa_unit_id);
+		igt_info("oa_unit_type %d\n", oau->oa_unit_type);
+		igt_info("capabilities %#llx\n", oau->capabilities);
+		igt_info("oa_timestamp_freq %lld\n", oau->oa_timestamp_freq);
+		igt_info("num_engines %lld\n", oau->num_engines);
+		igt_info("Engines:");
+		for (j = 0; j < oau->num_engines; j++)
+			igt_info(" (%d, %d)", oau->eci[j].engine_class,
+				 oau->eci[j].engine_instance);
+		igt_info("\n");
+		poau += sizeof(*oau) + j * sizeof(oau->eci[0]);
+	}
+}
+
 igt_main
 {
 	const struct {
@@ -1011,6 +1063,7 @@ igt_main
 		{ "query-cs-cycles", test_query_engine_cycles },
 		{ "query-uc-fw-version-guc", test_query_uc_fw_version_guc },
 		{ "query-uc-fw-version-huc", test_query_uc_fw_version_huc },
+		{ "query-oa-units", test_query_oa_units },
 		{ "query-invalid-cs-cycles", test_engine_cycles_invalid },
 		{ "query-invalid-query", test_query_invalid_query },
 		{ "query-invalid-size", test_query_invalid_size },
