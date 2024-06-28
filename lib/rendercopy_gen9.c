@@ -346,6 +346,95 @@ gen8_fill_ps(struct intel_bb *ibb,
 	return intel_bb_copy_data(ibb, kernel, size, 64);
 }
 
+static void fast_clear_scale(const struct intel_buf *buf,
+			     int *x_scale, int *y_scale)
+{
+	switch (buf->tiling) {
+	case I915_TILING_4:
+		*x_scale = 1024 * 8 / buf->bpp;
+		*y_scale = 16;
+		break;
+	case I915_TILING_64:
+		switch (buf->bpp) {
+		case 8:
+			*x_scale = 128;
+			*y_scale = 128;
+			break;
+		case 16:
+			*x_scale = 128;
+			*y_scale = 64;
+			break;
+		case 32:
+			*x_scale = 64;
+			*y_scale = 64;
+			break;
+		case 64:
+			*x_scale = 64;
+			*y_scale = 32;
+			break;
+		case 128:
+			*x_scale = 32;
+			*y_scale = 32;
+			break;
+		}
+		break;
+	case I915_TILING_Y:
+		*x_scale = 256 * 8 / buf->bpp;
+		*y_scale = 16;
+		break;
+	case I915_TILING_Yf:
+		switch (buf->bpp) {
+		case 8:
+			*x_scale = 128;
+			*y_scale = 32;
+			break;
+		case 16:
+			*x_scale = 128;
+			*y_scale = 16;
+			break;
+		case 32:
+			*x_scale = 64;
+			*y_scale = 16;
+			break;
+		case 64:
+			*x_scale = 64;
+			*y_scale = 8;
+			break;
+		case 128:
+			*x_scale = 32;
+			*y_scale = 8;
+			break;
+		}
+		break;
+	case I915_TILING_Ys:
+		switch (buf->bpp) {
+		case 8:
+			*x_scale = 64;
+			*y_scale = 64;
+			break;
+		case 16:
+			*x_scale = 64;
+			*y_scale = 32;
+			break;
+		case 32:
+			*x_scale = 32;
+			*y_scale = 32;
+			break;
+		case 64:
+			*x_scale = 32;
+			*y_scale = 16;
+			break;
+		case 128:
+			*x_scale = 16;
+			*y_scale = 16;
+			break;
+		}
+		break;
+	default:
+		igt_assert(0);
+	}
+}
+
 /*
  * gen7_fill_vertex_buffer_data populate vertex buffer with data.
  *
@@ -360,6 +449,7 @@ static uint32_t
 gen7_fill_vertex_buffer_data(struct intel_bb *ibb,
 			     const struct intel_buf *src,
 			     uint32_t src_x, uint32_t src_y,
+			     const struct intel_buf *dst,
 			     uint32_t dst_x, uint32_t dst_y,
 			     uint32_t width, uint32_t height)
 {
@@ -384,17 +474,21 @@ gen7_fill_vertex_buffer_data(struct intel_bb *ibb,
 		emit_vertex_normalized(ibb, src_x, intel_buf_width(src));
 		emit_vertex_normalized(ibb, src_y, intel_buf_height(src));
 	} else {
-		emit_vertex_2s(ibb, DIV_ROUND_UP(dst_x + width, 64), DIV_ROUND_UP(dst_y + height, 16));
+		int x_scale, y_scale;
+
+		fast_clear_scale(dst, &x_scale, &y_scale);
+
+		emit_vertex_2s(ibb, DIV_ROUND_UP(dst_x + width, x_scale), DIV_ROUND_UP(dst_y + height, y_scale));
 
 		emit_vertex_normalized(ibb, 0, 0);
 		emit_vertex_normalized(ibb, 0, 0);
 
-		emit_vertex_2s(ibb, dst_x/64, DIV_ROUND_UP(dst_y + height, 16));
+		emit_vertex_2s(ibb, dst_x/x_scale, DIV_ROUND_UP(dst_y + height, y_scale));
 
 		emit_vertex_normalized(ibb, 0, 0);
 		emit_vertex_normalized(ibb, 0, 0);
 
-		emit_vertex_2s(ibb, dst_x/64, dst_y/16);
+		emit_vertex_2s(ibb, dst_x/x_scale, dst_y/y_scale);
 
 		emit_vertex_normalized(ibb, 0, 0);
 		emit_vertex_normalized(ibb, 0, 0);
@@ -1108,9 +1202,8 @@ void _gen9_render_op(struct intel_bb *ibb,
 	ps_binding_table  = gen8_bind_surfaces(ibb, src, dst);
 	ps_sampler_state  = gen8_create_sampler(ibb);
 	ps_kernel_off = gen8_fill_ps(ibb, ps_kernel, ps_kernel_size);
-	vertex_buffer = gen7_fill_vertex_buffer_data(ibb, src,
-						     src_x, src_y,
-						     dst_x, dst_y,
+	vertex_buffer = gen7_fill_vertex_buffer_data(ibb, src, src_x, src_y,
+						     dst, dst_x, dst_y,
 						     width, height);
 	cc.cc_state = gen6_create_cc_state(ibb);
 	cc.blend_state = gen8_create_blend_state(ibb);
