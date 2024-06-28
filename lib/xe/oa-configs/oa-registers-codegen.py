@@ -22,7 +22,7 @@ def generate_register_configs(set):
         'OA': 'b_counter_regs',
     }
 
-    c("void %s_%s_add_registers(struct intel_perf *perf, struct intel_perf_metric_set *metric_set)" %
+    c("void %s_%s_add_registers(struct intel_xe_perf *perf, struct intel_xe_perf_metric_set *metric_set)" %
       (set.gen.chipset, set.underscore_name))
     c("{")
     c.indent(4)
@@ -39,7 +39,7 @@ def generate_register_configs(set):
 
         c("{")
         c.indent(4)
-        c("static const struct intel_perf_register_prog _%s[] = {" % t)
+        c("static const struct intel_xe_perf_register_prog _%s[] = {" % t)
         c.indent(4)
         for register in register_config.findall('register'):
             c("{ .reg = %s, .val = %s }," %
@@ -95,11 +95,11 @@ def main():
     h("#ifndef %s" % header_define)
     h("#define %s" % header_define)
     h("\n")
-    h("struct intel_perf;")
-    h("struct intel_perf_metric_set;")
+    h("struct intel_xe_perf;")
+    h("struct intel_xe_perf_metric_set;")
     h("\n")
     for set in gen.sets:
-        h("void %s_%s_add_registers(struct intel_perf *perf, struct intel_perf_metric_set *metric_set);" %
+        h("void %s_%s_add_registers(struct intel_xe_perf *perf, struct intel_xe_perf_metric_set *metric_set);" %
           (gen.chipset, set.underscore_name))
     h("\n")
     h("#endif /* %s */" % header_define)

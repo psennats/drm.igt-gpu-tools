@@ -46,9 +46,9 @@ def output_counter_read(gen, set, counter):
     read_eq = counter.get('equation')
 
     c(ret_ctype)
-    c(counter.read_sym + "(const struct intel_perf *perf,\n")
+    c(counter.read_sym + "(const struct intel_xe_perf *perf,\n")
     c.indent(len(counter.read_sym) + 1)
-    c("const struct intel_perf_metric_set *metric_set,\n")
+    c("const struct intel_xe_perf_metric_set *metric_set,\n")
     c("uint64_t *accumulator)\n")
     c.outdent(len(counter.read_sym) + 1)
 
@@ -75,9 +75,9 @@ def output_counter_read_definition(gen, set, counter):
         read_eq = counter.get('equation')
 
         h(ret_ctype)
-        h(counter.read_sym + "(const struct intel_perf *perf,\n")
+        h(counter.read_sym + "(const struct intel_xe_perf *perf,\n")
         h.indent(len(counter.read_sym) + 1)
-        h("const struct intel_perf_metric_set *metric_set,\n")
+        h("const struct intel_xe_perf_metric_set *metric_set,\n")
         h("uint64_t *accumulator);\n")
         h.outdent(len(counter.read_sym) + 1)
 
@@ -100,9 +100,9 @@ def output_counter_max(gen, set, counter):
     ret_ctype = data_type_to_ctype(ret_type)
 
     c(ret_ctype)
-    c(counter.max_sym + "(const struct intel_perf *perf,\n")
+    c(counter.max_sym + "(const struct intel_xe_perf *perf,\n")
     c.indent(len(counter.max_sym) + 1)
-    c("const struct intel_perf_metric_set *metric_set,\n")
+    c("const struct intel_xe_perf_metric_set *metric_set,\n")
     c("uint64_t *accumulator)\n")
     c.outdent(len(counter.max_sym) + 1)
 
@@ -135,9 +135,9 @@ def output_counter_max_definition(gen, set, counter):
 
         h(ret_ctype)
 
-        h(counter.max_sym + "(const struct intel_perf *perf,")
+        h(counter.max_sym + "(const struct intel_xe_perf *perf,")
         h.indent(len(counter.max_sym) + 1)
-        h("const struct intel_perf_metric_set *metric_set,")
+        h("const struct intel_xe_perf_metric_set *metric_set,")
         h("uint64_t *accumulator);")
         h.outdent(len(counter.max_sym) + 1)
         h("\n")
@@ -163,16 +163,16 @@ def generate_equations(args, gens):
         #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
         double
-        percentage_max_callback_float(const struct intel_perf *perf,
-                                      const struct intel_perf_metric_set *metric_set,
+        percentage_max_callback_float(const struct intel_xe_perf *perf,
+                                      const struct intel_xe_perf_metric_set *metric_set,
                                       uint64_t *accumulator)
         {
            return 100;
         }
 
         uint64_t
-        percentage_max_callback_uint64(const struct intel_perf *perf,
-                                       const struct intel_perf_metric_set *metric_set,
+        percentage_max_callback_uint64(const struct intel_xe_perf *perf,
+                                       const struct intel_xe_perf_metric_set *metric_set,
                                        uint64_t *accumulator)
         {
            return 100;
@@ -196,16 +196,16 @@ def generate_equations(args, gens):
         #include <stdint.h>
         #include <stdbool.h>
 
-        struct intel_perf;
-        struct intel_perf_metric_set;
+        struct intel_xe_perf;
+        struct intel_xe_perf_metric_set;
 
         double
-        percentage_max_callback_float(const struct intel_perf *perf,
-                                      const struct intel_perf_metric_set *metric_set,
+        percentage_max_callback_float(const struct intel_xe_perf *perf,
+                                      const struct intel_xe_perf_metric_set *metric_set,
                                       uint64_t *accumulator);
         uint64_t
-        percentage_max_callback_uint64(const struct intel_perf *perf,
-                                       const struct intel_perf_metric_set *metric_set,
+        percentage_max_callback_uint64(const struct intel_xe_perf *perf,
+                                       const struct intel_xe_perf_metric_set *metric_set,
                                        uint64_t *accumulator);
 
         """ % (header_define, header_define)))

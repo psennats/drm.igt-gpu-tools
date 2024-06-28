@@ -28,7 +28,7 @@ def availability_func_name(set, counter):
 def output_availability_funcs(set, counter):
     availability = counter.get('availability')
     if availability:
-        c("static bool " + availability_func_name(set, counter) + "(const struct intel_perf *perf) {")
+        c("static bool " + availability_func_name(set, counter) + "(const struct intel_xe_perf *perf) {")
         c.indent(4)
         set.gen.output_availability(set, availability, counter.get('name'))
         c.indent(4)
@@ -60,9 +60,9 @@ def output_counter_report(set, counter):
     c(".name = \"{0}\",\n".format(counter.get('name')))
     c(".symbol_name = \"{0}\",\n".format(counter.get('symbol_name')))
     c(".desc = \"{0}\",\n".format(counter.get('description')))
-    c(".type = INTEL_PERF_LOGICAL_COUNTER_TYPE_{0},\n".format(semantic_type_uc))
-    c(".storage = INTEL_PERF_LOGICAL_COUNTER_STORAGE_{0},\n".format(data_type_uc))
-    c(".unit = INTEL_PERF_LOGICAL_COUNTER_UNIT_{0},\n".format(output_units(counter.get('units'))))
+    c(".type = INTEL_XE_PERF_LOGICAL_COUNTER_TYPE_{0},\n".format(semantic_type_uc))
+    c(".storage = INTEL_XE_PERF_LOGICAL_COUNTER_STORAGE_{0},\n".format(data_type_uc))
+    c(".unit = INTEL_XE_PERF_LOGICAL_COUNTER_UNIT_{0},\n".format(output_units(counter.get('units'))))
     c(".read_{0} = {1},\n".format(data_type, set.read_funcs["$" + counter.get('symbol_name')]))
     c(".max_{0} = {1},\n".format(data_type, set.max_funcs["$" + counter.get('symbol_name')]))
     c(".group = \"{0}\",\n".format(counter.get('mdapi_group')))
@@ -98,18 +98,18 @@ def generate_metric_sets(args, gen):
           output_availability_funcs(set, counter)
 
         c("\nstatic void\n")
-        c(gen.chipset + "_add_" + set.underscore_name + "_metric_set(struct intel_perf *perf)")
+        c(gen.chipset + "_add_" + set.underscore_name + "_metric_set(struct intel_xe_perf *perf)")
         c("{\n")
         c.indent(4)
 
-        c("struct intel_perf_metric_set *metric_set;\n")
-        c("struct intel_perf_logical_counter *counter;\n\n")
+        c("struct intel_xe_perf_metric_set *metric_set;\n")
+        c("struct intel_xe_perf_logical_counter *counter;\n\n")
 
         c("metric_set = calloc(1, sizeof(*metric_set));\n")
         c("metric_set->name = \"" + set.name + "\";\n")
         c("metric_set->symbol_name = \"" + set.symbol_name + "\";\n")
         c("metric_set->hw_config_guid = \"" + set.hw_config_guid + "\";\n")
-        c("metric_set->counters = calloc({0}, sizeof(struct intel_perf_logical_counter));\n".format(str(len(counters))))
+        c("metric_set->counters = calloc({0}, sizeof(struct intel_xe_perf_logical_counter));\n".format(str(len(counters))))
         c("metric_set->n_counters = 0;\n")
         c("metric_set->perf_oa_metrics_set = 0; // determined at runtime\n")
 
@@ -167,12 +167,12 @@ def generate_metric_sets(args, gen):
 
         c("%s_%s_add_registers(perf, metric_set);" % (gen.chipset, set.underscore_name))
 
-        c("intel_perf_add_metric_set(perf, metric_set);");
+        c("intel_xe_perf_add_metric_set(perf, metric_set);");
         c("\n")
 
         c("{")
         c.indent(4)
-        c("static const struct intel_perf_logical_counter _counters[] = {")
+        c("static const struct intel_xe_perf_logical_counter _counters[] = {")
         c.indent(4)
 
         for counter in counters:
@@ -190,7 +190,7 @@ def generate_metric_sets(args, gen):
         c("counter = &metric_set->counters[metric_set->n_counters++];")
         c("*counter = _counters[i];")
         c("counter->metric_set = metric_set;")
-        c("intel_perf_add_logical_counter(perf, counter, counter->group);")
+        c("intel_xe_perf_add_logical_counter(perf, counter, counter->group);")
         c.outdent(4)
         c("}")
         c.outdent(4)
@@ -201,7 +201,7 @@ def generate_metric_sets(args, gen):
         c("}\n")
 
     c("\nvoid")
-    c("intel_perf_load_metrics_" + gen.chipset + "(struct intel_perf *perf)")
+    c("intel_xe_perf_load_metrics_" + gen.chipset + "(struct intel_xe_perf *perf)")
     c("{")
     c.indent(4)
 
@@ -256,7 +256,7 @@ def main():
         """ % (header_define, header_define)))
 
     # Print out all set registration functions for each generation.
-    h("void intel_perf_load_metrics_" + gen.chipset + "(struct intel_perf *perf);\n\n")
+    h("void intel_xe_perf_load_metrics_" + gen.chipset + "(struct intel_xe_perf *perf);\n\n")
 
     h(textwrap.dedent("""\
         #endif /* %s */

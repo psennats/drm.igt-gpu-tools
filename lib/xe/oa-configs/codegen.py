@@ -340,13 +340,13 @@ class Gen:
             return set.read_funcs[name] + "(perf, metric_set, accumulator)"
         m = re.search('\$GtSlice([0-9]+)$', name)
         if m:
-            return 'intel_perf_devinfo_slice_available(&perf->devinfo, {0})'.format(m.group(1))
+            return 'intel_xe_perf_devinfo_slice_available(&perf->devinfo, {0})'.format(m.group(1))
         m = re.search('\$GtSlice([0-9]+)DualSubslice([0-9]+)$', name)
         if m:
-            return 'intel_perf_devinfo_subslice_available(&perf->devinfo, {0}, {1})'.format(m.group(1), m.group(2))
+            return 'intel_xe_perf_devinfo_subslice_available(&perf->devinfo, {0}, {1})'.format(m.group(1), m.group(2))
         m = re.search('\$GtSlice([0-9]+)XeCore([0-9]+)$', name)
         if m:
-            return 'intel_perf_devinfo_subslice_available(&perf->devinfo, {0}, {1})'.format(m.group(1), m.group(2))
+            return 'intel_xe_perf_devinfo_subslice_available(&perf->devinfo, {0}, {1})'.format(m.group(1), m.group(2))
         return None
 
     def output_rpn_equation_code(self, set, counter, equation):
