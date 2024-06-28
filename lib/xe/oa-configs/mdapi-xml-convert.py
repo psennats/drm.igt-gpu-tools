@@ -149,6 +149,21 @@ mtl_chipset_oam_samedia_params = {
     }
 }
 
+# FIXME: everything except oa_report_size is incorrect here
+xe2_chipset_params = {
+    'a_offset': 16,
+    'b_offset': 192,
+    'c_offset': 224,
+    'oa_report_size': 576,
+    'config_reg_blacklist': {
+        0x2364, # OACTXID
+    },
+    'register_offsets': {
+        0x1b0: 'PERFCNT 0',
+        0x1b8: 'PERFCNT 1',
+    }
+}
+
 hsw_chipset_oa_formats = {
     '256B_GENERIC_NOA16': hsw_chipset_params,
 }
@@ -165,6 +180,10 @@ mtl_chipset_oa_formats = {
     '256B_GENERIC_NOA16': xehpsdv_chipset_params,
     '192B_MPEC8LL_NOA16': mtl_chipset_oam_samedia_ll_params,
     '128B_MPEC8_NOA16': mtl_chipset_oam_samedia_params,
+}
+
+xe2_chipset_oa_formats = {
+    '256B_GENERIC_NOA16': xe2_chipset_params,
 }
 
 chipsets = {
@@ -185,9 +204,12 @@ chipsets = {
     'ADL': gen8_11_chipset_oa_formats,
     'ACM': xehpsdv_chipset_oa_formats,
     'MTL': mtl_chipset_oa_formats,
+    'LNL': xe2_chipset_oa_formats,
 }
 
 xehp_plus = ( 'ACM', 'MTL' )
+
+xe2_plus = ( 'LNL' )
 
 register_types = { 'OA', 'NOA', 'FLEX', 'PM' }
 
@@ -352,6 +374,9 @@ def read_token_to_rpn_read_oag(chipset, token, raw_offsets, oa_format):
                 return "C " + str(idx - 48) + " READ"
             else:
                 return "{0} READ".format(read_value(chipset, offset, oa_format))
+        elif chipset in xe2_plus:
+            # FIXME: skip all metrics to retain just the registers
+                return "GPU_TIME 0 READ"
         else:
             # For Gen8+ the array of accumulated counters is
             # assumed to start with a GPU_TIME then GPU_CLOCK,
