@@ -114,6 +114,27 @@ static struct drm_xe_query_mem_regions *xe_query_mem_regions_new(int fd)
 	return mem_regions;
 }
 
+static struct drm_xe_query_oa_units *xe_query_oa_units_new(int fd)
+{
+	struct drm_xe_query_oa_units *oa_units;
+	struct drm_xe_device_query query = {
+		.extensions = 0,
+		.query = DRM_XE_DEVICE_QUERY_OA_UNITS,
+		.size = 0,
+		.data = 0,
+	};
+
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	oa_units = malloc(query.size);
+	igt_assert(oa_units);
+
+	query.data = to_user_pointer(oa_units);
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	return oa_units;
+}
+
 static uint64_t native_region_for_gt(const struct drm_xe_query_gt_list *gt_list, int gt)
 {
 	uint64_t region;
@@ -251,6 +272,7 @@ struct xe_device *xe_device_get(int fd)
 	xe_dev->memory_regions = __memory_regions(xe_dev->gt_list);
 	xe_dev->engines = xe_query_engines(fd);
 	xe_dev->mem_regions = xe_query_mem_regions_new(fd);
+	xe_dev->oa_units = xe_query_oa_units_new(fd);
 	xe_dev->vram_size = calloc(xe_dev->gt_list->num_gt, sizeof(*xe_dev->vram_size));
 	xe_dev->visible_vram_size = calloc(xe_dev->gt_list->num_gt, sizeof(*xe_dev->visible_vram_size));
 	for (int gt = 0; gt < xe_dev->gt_list->num_gt; gt++) {
@@ -524,6 +546,22 @@ uint32_t xe_min_page_size(int fd, uint64_t region)
  * Returns xe configuration of xe device @fd.
  */
 xe_dev_FN(xe_config, config, struct drm_xe_query_config *);
+
+/**
+ * xe_gt_list:
+ * @fd: xe device fd
+ *
+ * Returns query gts of xe device @fd.
+ */
+xe_dev_FN(xe_gt_list, gt_list, struct drm_xe_query_gt_list *);
+
+/**
+ * xe_oa_units:
+ * @fd: xe device fd
+ *
+ * Returns query gts of xe device @fd.
+ */
+xe_dev_FN(xe_oa_units, oa_units, struct drm_xe_query_oa_units *);
 
 /**
  * xe_number_engine:

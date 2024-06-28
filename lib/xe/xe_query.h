@@ -38,6 +38,9 @@ struct xe_device {
 	/** @mem_regions: regions memory information and usage */
 	struct drm_xe_query_mem_regions *mem_regions;
 
+	/** @oa_units: information about OA units */
+	struct drm_xe_query_oa_units *oa_units;
+
 	/** @vram_size: array of vram sizes for all gt_list */
 	uint64_t *vram_size;
 
@@ -85,6 +88,8 @@ const char *xe_region_name(uint64_t region);
 uint16_t xe_region_class(int fd, uint64_t region);
 uint32_t xe_min_page_size(int fd, uint64_t region);
 struct drm_xe_query_config *xe_config(int fd);
+struct drm_xe_query_gt_list *xe_gt_list(int fd);
+struct drm_xe_query_oa_units *xe_oa_units(int fd);
 unsigned int xe_number_engines(int fd);
 bool xe_has_vram(int fd);
 uint64_t xe_vram_size(int fd, int gt);

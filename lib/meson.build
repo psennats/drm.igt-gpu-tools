@@ -377,6 +377,85 @@ install_headers(
   subdir : 'i915-perf'
 )
 
+xe_oa_files = [
+  'igt_list.c',
+  'xe/xe_oa.c',
+]
+
+xe_oa_hardware = [
+  'tglgt1', 'tglgt2',
+  'dg1',
+  'rkl',
+  'adl',
+  'acmgt1', 'acmgt2', 'acmgt3',
+  'mtlgt2', 'mtlgt3',
+  'lnl',
+]
+
+xe_xml_files = []
+foreach hw : xe_oa_hardware
+  xe_xml_files += files('xe/oa-configs/oa-@0@.xml'.format(hw))
+endforeach
+
+xe_oa_files += custom_target(
+  'xe-oa-equations',
+  input : [ 'xe/oa-configs/oa-equations-codegen.py' ] + xe_xml_files,
+  output : [ 'xe_oa_equations.c', 'xe_oa_equations.h' ],
+  command : [
+    python3, '@INPUT0@',
+    '--code', '@OUTPUT0@',
+    '--header', '@OUTPUT1@',
+    xe_xml_files,
+  ])
+
+foreach hw : xe_oa_hardware
+  xe_oa_files += custom_target(
+    'xe-oa-registers-@0@'.format(hw),
+    input : [ 'xe/oa-configs/oa-registers-codegen.py',
+              'xe/oa-configs/oa-@0@.xml'.format(hw) ],
+    output : [ 'xe_oa_registers_@0@.c'.format(hw),
+               'xe_oa_registers_@0@.h'.format(hw), ],
+    command : [
+      python3, '@INPUT0@',
+      '--code', '@OUTPUT0@',
+      '--header', '@OUTPUT1@',
+      '--xml-file', '@INPUT1@'
+    ])
+  xe_oa_files += custom_target(
+    'xe-oa-metrics-@0@'.format(hw),
+    input : [ 'xe/oa-configs/oa-metricset-codegen.py',
+              'xe/oa-configs/oa-@0@.xml'.format(hw) ],
+    output : [ 'xe_oa_metrics_@0@.c'.format(hw),
+               'xe_oa_metrics_@0@.h'.format(hw), ],
+    command : [
+      python3, '@INPUT0@',
+      '--code', '@OUTPUT0@',
+      '--header', '@OUTPUT1@',
+      '--equations-include', 'xe_oa_equations.h',
+      '--registers-include', 'xe_oa_registers_@0@.h'.format(hw),
+      '--xml-file', '@INPUT1@',
+    ])
+endforeach
+
+lib_igt_xe_oa_build = shared_library(
+  'xe_oa',
+  xe_oa_files,
+  dependencies: [lib_igt_chipset,lib_igt,pciaccess],
+  include_directories : inc,
+  install: true,
+  soversion: '1.5')
+
+lib_igt_xe_oa = declare_dependency(
+  link_with : lib_igt_xe_oa_build,
+  include_directories : inc)
+
+install_headers(
+  'igt_list.h',
+  'intel_chipset.h',
+  'xe/xe_oa.h',
+  subdir : 'xe-oa'
+)
+
 pkgconf = configuration_data()
 
 pkgconf.set('prefix', get_option('prefix'))
@@ -384,10 +463,17 @@ pkgconf.set('exec_prefix', '${prefix}')
 pkgconf.set('libdir', '${prefix}/@0@'.format(get_option('libdir')))
 pkgconf.set('includedir', '${prefix}/@0@'.format(get_option('includedir')))
 pkgconf.set('i915_perf_version', '1.5.1')
+pkgconf.set('xe_oa_version', '1.0.0')
 
 configure_file(
   input : 'i915-perf.pc.in',
   output : 'i915-perf.pc',
+  configuration : pkgconf,
+  install_dir : pkgconfigdir)
+
+configure_file(
+  input : 'xe-oa.pc.in',
+  output : 'xe-oa.pc',
   configuration : pkgconf,
   install_dir : pkgconfigdir)
 
