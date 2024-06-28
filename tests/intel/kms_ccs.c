@@ -280,13 +280,6 @@ create_fb_prepare_add(int drm_fd, int width, int height,
 	addfb_init(fb, f);
 }
 
-static bool is_ccs_cc_modifier(uint64_t modifier)
-{
-	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
-	       modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC ||
-	       modifier == I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC;
-}
-
 /*
  * The CCS planes of compressed framebuffers contain non-zero bytes if the
  * engine compressed effectively the framebuffer. The actual encoding of these
@@ -754,7 +747,7 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 		srand(data->seed);
 		fill_fb_random(data->drm_fd, fb);
 	} else {
-		bool do_fast_clear = is_ccs_cc_modifier(data->ccs_modifier);
+		bool do_fast_clear = igt_fb_is_gen12_rc_ccs_cc_modifier(data->ccs_modifier);
 		bool do_solid_fill = do_fast_clear || data->plane;
 		int c = !!data->plane;
 
@@ -847,7 +840,7 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 				      data->ccs_modifier))
 		return false;
 
-	if (is_ccs_cc_modifier(data->ccs_modifier) &&
+	if (igt_fb_is_gen12_rc_ccs_cc_modifier(data->ccs_modifier) &&
 	    data->format != DRM_FORMAT_XRGB8888 &&
 	    data->format != DRM_FORMAT_XRGB2101010)
 		return false;
