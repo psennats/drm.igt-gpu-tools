@@ -149,12 +149,10 @@ mtl_chipset_oam_samedia_params = {
     }
 }
 
-# FIXME: everything except oa_report_size is incorrect here
-xe2_chipset_params = {
-    'a_offset': 16,
-    'b_offset': 192,
-    'c_offset': 224,
+xe2_chipset_params_pec = {
+    'pec_offset': 32,
     'oa_report_size': 576,
+    # TODO: Not sure about the configs below
     'config_reg_blacklist': {
         0x2364, # OACTXID
     },
@@ -183,7 +181,11 @@ mtl_chipset_oa_formats = {
 }
 
 xe2_chipset_oa_formats = {
-    '256B_GENERIC_NOA16': xe2_chipset_params,
+    '576B_PEC64LL': xe2_chipset_params_pec,
+    # We only care about 576B_PEC64LL metrics in Xe2, entries below is just to
+    # surpress warnings
+    '256B_GENERIC_NOA16': xehpsdv_chipset_params,
+    '128B_MPEC8_NOA16': mtl_chipset_oam_samedia_params,
 }
 
 chipsets = {
@@ -208,8 +210,6 @@ chipsets = {
 }
 
 xehp_plus = ( 'ACM', 'MTL' )
-
-xe2_plus = ( 'LNL' )
 
 register_types = { 'OA', 'NOA', 'FLEX', 'PM' }
 
@@ -298,6 +298,46 @@ def read_token_to_rpn_read_oam(chipset, token, raw_offsets, oa_format):
 
     assert 0
 
+def read_token_to_rpn_read_pec(chipset, token, raw_offsets, oa_format):
+    width, offset_str = token.split('@')
+    offset = int(offset_str, 16)
+
+    if width != 'qw':
+        assert 0
+
+    if raw_offsets:
+        pec_offset = chipsets[chipset][oa_format]['pec_offset']
+
+        if offset < pec_offset:
+            if offset == 8:
+                return "GPU_TIME 0 READ"
+            elif offset == 24:
+                return "GPU_CLOCK 0 READ"
+            else:
+                assert 0
+        else:
+            pec_cnt_offset = int((offset - pec_offset) / 8)
+
+            return "PEC " + str(pec_cnt_offset) + " READ"
+    else:
+        # Location in the accumulated deltas
+        idx = int(offset / 8)
+
+        if idx == 0:
+            return "GPU_TIME 0 READ"
+        elif idx == 1:
+            return "GPU_CLOCK 0 READ"
+        else:
+            idx = idx - 2;
+            pec_cnt_offset = str(idx)
+            pec_high_low_text = "low"
+            if (offset % 8) > 0:
+               pec_high_low_text = "high"
+
+            return "PEC " + pec_cnt_offset + " READ"
+
+    assert 0
+
 def read_token_to_rpn_read_oag(chipset, token, raw_offsets, oa_format):
     width, offset_str = token.split('@')
 
@@ -374,9 +414,6 @@ def read_token_to_rpn_read_oag(chipset, token, raw_offsets, oa_format):
                 return "C " + str(idx - 48) + " READ"
             else:
                 return "{0} READ".format(read_value(chipset, offset, oa_format))
-        elif chipset in xe2_plus:
-            # FIXME: skip all metrics to retain just the registers
-                return "GPU_TIME 0 READ"
         else:
             # For Gen8+ the array of accumulated counters is
             # assumed to start with a GPU_TIME then GPU_CLOCK,
@@ -404,6 +441,9 @@ def read_token_to_rpn_read(chipset, token, raw_offsets, oa_format):
 
     if oa_format in ['192B_MPEC8LL_NOA16', '128B_MPEC8_NOA16']:
         return read_token_to_rpn_read_oam(chipset, token, raw_offsets, oa_format)
+
+    if oa_format in ['576B_PEC64LL']:
+        return read_token_to_rpn_read_pec(chipset, token, raw_offsets, oa_format)
 
     assert 0
 
@@ -905,6 +945,8 @@ for arg in args.xml:
                 mdapi_counter.set('NormalizationEquation', '$GpuCoreClocks 1000000000 UMUL $GpuTime UDIV')
                 #mdapi_counter.set('DeltaReportReadEquation', '$GpuCoreClocks $GpuTime UDIV')
 
+            if mdapi_counter.get('SymbolName') == "ResultUncertainty":
+                continue
 
             symbol_name = oa_registry.Registry.sanitize_symbol_name(mdapi_counter.get('SymbolName'))
 
@@ -992,11 +1034,15 @@ for arg in args.xml:
             # XXX: As a special case, we override the raw and delta report
             # equations for the GpuTime counters, which seem inconsistent
             if mdapi_counter.get('SymbolName') == "GpuTime":
-                mdapi_counter.set('DeltaReportReadEquation', "qw@0x0 1000000000 UMUL $GpuTimestampFrequency UDIV")
-                if chipset == 'MTL' and oa_format != '256B_GENERIC_NOA16':
-                    mdapi_counter.set('SnapshotReportReadEquation', "qw@0x08 1000000000 UMUL $GpuTimestampFrequency UDIV")
+                if oa_format == '576B_PEC64LL':
+                   mdapi_counter.set('DeltaReportReadEquation', "qw@0x0 1000000000 UMUL $GpuTimestampFrequency UDIV")
+                   mdapi_counter.set('SnapshotReportReadEquation', "qw@0x08 1000000000 UMUL $GpuTimestampFrequency UDIV")
                 else:
-                    mdapi_counter.set('SnapshotReportReadEquation', "dw@0x04 1000000000 UMUL $GpuTimestampFrequency UDIV")
+                   mdapi_counter.set('DeltaReportReadEquation', "qw@0x0 1000000000 UMUL $GpuTimestampFrequency UDIV")
+                   if chipset == 'MTL' and oa_format != '256B_GENERIC_NOA16':
+                      mdapi_counter.set('SnapshotReportReadEquation', "qw@0x08 1000000000 UMUL $GpuTimestampFrequency UDIV")
+                   else:
+                      mdapi_counter.set('SnapshotReportReadEquation', "dw@0x04 1000000000 UMUL $GpuTimestampFrequency UDIV")
 
             availability = fixup_equation(mdapi_counter.get('AvailabilityEquation'))
             if availability == "":

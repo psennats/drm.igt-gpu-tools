@@ -128,6 +128,7 @@ class Set:
         return self.xml.find(path)
 
 
+#TODO add SqidiTotalCount, L3BankTotalCount, L3NodeTotalCount
 hw_vars_mapping = {
     "$EuCoresTotalCount": { 'c': "perf->devinfo.n_eus", 'desc': "The total number of execution units" },
     "$EuSlicesTotalCount": { 'c': "perf->devinfo.n_eu_slices" },
@@ -159,6 +160,10 @@ hw_vars_mapping = {
     "$GpuMaxFrequency": { 'c': "perf->devinfo.gt_max_freq" },
     "$SkuRevisionId": { 'c': "perf->devinfo.revision" },
     "$QueryMode": { 'c': "perf->devinfo.query_mode" },
+
+    "$ComputeEngineTotalCount": { 'c': "perf->devinfo.n_eus", 'desc': "The total number of execution units" },
+
+    "$CopyEngineTotalCount": { 'c': "perf->devinfo.n_eus", 'desc': "The total number of execution units" },
 }
 
 def is_hw_var(name):

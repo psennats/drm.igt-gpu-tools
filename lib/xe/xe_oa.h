@@ -275,6 +275,7 @@ struct intel_xe_perf_metric_set {
 	int b_offset;
 	int c_offset;
 	int perfcnt_offset;
+	int pec_offset;
 
 	const struct intel_xe_perf_register_prog *b_counter_regs;
 	uint32_t n_b_counter_regs;
