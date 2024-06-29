@@ -946,6 +946,24 @@ static int test_ccs(data_t *data)
 	return valid_tests;
 }
 
+static bool skip_plane(data_t *data, igt_plane_t *plane)
+{
+	int index = plane->index;
+
+	if (intel_display_ver(intel_get_drm_devid(data->drm_fd)) < 11)
+		return false;
+
+	/*
+	 * Test 1 HDR plane, 1 SDR UV plane, 1 SDR Y plane.
+	 *
+	 * Kernel registers planes in the hardware Z order:
+	 * 0,1,2 HDR planes
+	 * 3,4 SDR UV planes
+	 * 5,6 SDR Y planes
+	 */
+	return index != 0 && index != 3 && index != 5;
+}
+
 static void test_output(data_t *data, const int testnum)
 {
 	uint16_t dev_id;
@@ -996,6 +1014,9 @@ static void test_output(data_t *data, const int testnum)
 						igt_display_require_output_on_pipe(&data->display, data->pipe);
 
 						for_each_plane_on_pipe(&data->display, data->pipe, data->plane) {
+							if (skip_plane(data, data->plane))
+								continue;
+
 							for (int j = 0; j < ARRAY_SIZE(formats); j++) {
 								data->format = formats[j];
 								valid_tests += test_ccs(data);
