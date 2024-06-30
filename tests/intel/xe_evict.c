@@ -485,10 +485,14 @@ static unsigned int working_set(uint64_t vram_size, uint64_t system_size,
 
 	/*
 	 * All bos must fit in, say 4 / 5 of memory to be sure.
-	 * Assume no swap-space available.
+	 * Assume no swap-space available. Subtract one bo per thread
+	 * for an active eviction.
 	 */
 	total_size = ((vram_size - 1) / bo_size + system_size * 4 / 5 / bo_size) /
-		num_threads;
+		num_threads - 1;
+
+	igt_debug("num_threads: %d bo_size : %lu total_size : %lu\n", num_threads,
+		  bo_size, total_size);
 
 	if (set_size > total_size)
 		set_size = total_size;
@@ -743,13 +747,13 @@ igt_main
 			MIXED_THREADS | THREADED },
 		{ "mixed-many-threads-small", 3, 16, 128, 1, 128,
 			THREADED },
-		{ "threads-large", 2, 2, 4, 3, 8,
+		{ "threads-large", 2, 2, 16, 3, 32,
 			THREADED },
-		{ "cm-threads-large", 2, 2, 4, 3, 8,
+		{ "cm-threads-large", 2, 2, 16, 3, 32,
 			COMPUTE_THREAD | THREADED },
-		{ "mixed-threads-large", 2, 2, 4, 3, 8,
+		{ "mixed-threads-large", 2, 2, 16, 3, 32,
 			MIXED_THREADS | THREADED },
-		{ "mixed-many-threads-large", 3, 2, 4, 3, 8,
+		{ "mixed-many-threads-large", 3, 2, 16, 3, 32,
 			THREADED },
 		{ "threads-small-multi-vm", 2, 16, 128, 1, 128,
 			MULTI_VM | THREADED },
@@ -757,11 +761,11 @@ igt_main
 			COMPUTE_THREAD | MULTI_VM | THREADED },
 		{ "mixed-threads-small-multi-vm", 2, 16, 128, 1, 128,
 			MIXED_THREADS | MULTI_VM | THREADED },
-		{ "threads-large-multi-vm", 2, 2, 4, 3, 8,
+		{ "threads-large-multi-vm", 2, 2, 16, 3, 32,
 			MULTI_VM | THREADED },
-		{ "cm-threads-large-multi-vm", 2, 2, 4, 3, 8,
+		{ "cm-threads-large-multi-vm", 2, 2, 16, 3, 32,
 			COMPUTE_THREAD | MULTI_VM | THREADED },
-		{ "mixed-threads-large-multi-vm", 2, 2, 4, 3, 8,
+		{ "mixed-threads-large-multi-vm", 2, 2, 16, 3, 32,
 			MIXED_THREADS | MULTI_VM | THREADED },
 		{ "beng-threads-small", 2, 16, 128, 1, 128,
 			THREADED | BIND_EXEC_QUEUE },
@@ -771,13 +775,13 @@ igt_main
 			MIXED_THREADS | THREADED | BIND_EXEC_QUEUE },
 		{ "beng-mixed-many-threads-small", 3, 16, 128, 1, 128,
 			THREADED | BIND_EXEC_QUEUE },
-		{ "beng-threads-large", 2, 2, 4, 3, 8,
+		{ "beng-threads-large", 2, 2, 16, 3, 32,
 			THREADED | BIND_EXEC_QUEUE },
-		{ "beng-cm-threads-large", 2, 2, 4, 3, 8,
+		{ "beng-cm-threads-large", 2, 2, 16, 3, 32,
 			COMPUTE_THREAD | THREADED | BIND_EXEC_QUEUE },
-		{ "beng-mixed-threads-large", 2, 2, 4, 3, 8,
+		{ "beng-mixed-threads-large", 2, 2, 16, 3, 32,
 			MIXED_THREADS | THREADED | BIND_EXEC_QUEUE },
-		{ "beng-mixed-many-threads-large", 3, 2, 4, 3, 8,
+		{ "beng-mixed-many-threads-large", 3, 2, 16, 3, 32,
 			THREADED | BIND_EXEC_QUEUE },
 		{ "beng-threads-small-multi-vm", 2, 16, 128, 1, 128,
 			MULTI_VM | THREADED | BIND_EXEC_QUEUE },
@@ -785,11 +789,11 @@ igt_main
 			COMPUTE_THREAD | MULTI_VM | THREADED | BIND_EXEC_QUEUE },
 		{ "beng-mixed-threads-small-multi-vm", 2, 16, 128, 1, 128,
 			MIXED_THREADS | MULTI_VM | THREADED | BIND_EXEC_QUEUE },
-		{ "beng-threads-large-multi-vm", 2, 2, 4, 3, 8,
+		{ "beng-threads-large-multi-vm", 2, 2, 16, 3, 32,
 			MULTI_VM | THREADED | BIND_EXEC_QUEUE },
-		{ "beng-cm-threads-large-multi-vm", 2, 2, 4, 3, 8,
+		{ "beng-cm-threads-large-multi-vm", 2, 2, 16, 3, 32,
 			COMPUTE_THREAD | MULTI_VM | THREADED | BIND_EXEC_QUEUE },
-		{ "beng-mixed-threads-large-multi-vm", 2, 2, 4, 3, 8,
+		{ "beng-mixed-threads-large-multi-vm", 2, 2, 16, 3, 32,
 			MIXED_THREADS | MULTI_VM | THREADED | BIND_EXEC_QUEUE },
 		{ NULL },
 	};
@@ -825,6 +829,7 @@ igt_main
 					     1, s->flags);
 
 			igt_debug("Max working set %d n_execs %d\n", ws, s->n_execs);
+			igt_skip_on_f(!ws, "System memory size is too small.\n");
 			test_evict(fd, hwe, s->n_exec_queues,
 				   min(ws, s->n_execs), bo_size,
 				   s->flags, NULL);
@@ -838,6 +843,7 @@ igt_main
 					     1, s->flags);
 
 			igt_debug("Max working set %d n_execs %d\n", ws, s->n_execs);
+			igt_skip_on_f(!ws, "System memory size is too small.\n");
 			test_evict_cm(fd, hwe, s->n_exec_queues,
 				      min(ws, s->n_execs), bo_size,
 				      s->flags, NULL);
@@ -851,6 +857,7 @@ igt_main
 					     s->n_threads, s->flags);
 
 			igt_debug("Max working set %d n_execs %d\n", ws, s->n_execs);
+			igt_skip_on_f(!ws, "System memory size is too small.\n");
 			threads(fd, hwe, s->n_threads, s->n_exec_queues,
 				min(ws, s->n_execs), bo_size, s->flags);
 		}
