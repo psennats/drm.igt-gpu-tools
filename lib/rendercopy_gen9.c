@@ -149,6 +149,8 @@ static const uint32_t xe2_render_copy[][4] = {
 static uint32_t lnl_compression_format(const struct intel_buf *buf)
 {
 	switch (buf->bpp) {
+	case 64:
+		return 0x7; /* CMF_R16_G16_B16_A16 */
 	case 32:
 		if (buf->depth == 30)
 			return 0x3; /* CMF_R10_G10_B10_A2 */
@@ -163,6 +165,8 @@ static uint32_t lnl_compression_format(const struct intel_buf *buf)
 static uint32_t dg2_compression_format(const struct intel_buf *buf)
 {
 	switch (buf->bpp) {
+	case 64:
+		return 0x5;
 	case 32:
 		if (buf->depth == 30)
 			return 0xc;
