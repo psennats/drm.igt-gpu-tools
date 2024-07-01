@@ -2906,12 +2906,6 @@ static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb,
 	}
 }
 
-#define BLT_TARGET_RC(x) (x.compression == COMPRESSION_ENABLED && \
-			  x.compression_type == COMPRESSION_TYPE_3D)
-
-#define BLT_TARGET_MC(x) (x.compression == COMPRESSION_ENABLED && \
-			  x.compression_type == COMPRESSION_TYPE_MEDIA)
-
 const struct {
 	uint32_t format;
 	enum blt_compression_type type;
@@ -2937,25 +2931,14 @@ static uint32_t get_compression_return_value(uint32_t format,
 	return 0; // This line is to avoid compilation warnings, it will not be reached.
 }
 
-static uint32_t blt_compression_format(struct blt_copy_data *blt,
+static uint32_t blt_compression_format(const struct blt_copy_object *obj,
 				       const struct igt_fb *fb)
 {
-	if (blt->src.compression == COMPRESSION_DISABLED &&
-	    blt->dst.compression == COMPRESSION_DISABLED)
+	if (obj->compression == COMPRESSION_DISABLED)
 		return 0;
 
-	if (BLT_TARGET_RC(blt->src) || BLT_TARGET_RC(blt->dst))
-		return get_compression_return_value(igt_reduce_format(fb->drm_format),
-						    COMPRESSION_TYPE_3D);
-
-	if (BLT_TARGET_MC(blt->src))
-		return get_compression_return_value(igt_reduce_format(fb->drm_format),
-						    COMPRESSION_TYPE_MEDIA);
-
-	if (BLT_TARGET_MC(blt->dst))
-		igt_assert_f(0, "Destination compression not supported on mc ccs\n");
-
-	igt_assert_f(0, "unknown compression\n");
+	return get_compression_return_value(igt_reduce_format(fb->drm_format),
+					    obj->compression_type);
 }
 
 static void setup_context_and_memory_region(const struct igt_fb *fb, uint32_t *ctx,
@@ -3030,6 +3013,10 @@ static void do_block_copy(const struct igt_fb *src_fb,
 
 	igt_assert(src && dst);
 
+	igt_assert_f(blt.dst.compression == COMPRESSION_DISABLED ||
+		     blt.dst.compression_type !=  COMPRESSION_TYPE_MEDIA,
+		     "Destination compression not supported on mc ccs\n");
+
 	blt_copy_init(src_fb->fd, &blt);
 	blt.color_depth = blt_get_bpp(src_fb, i);
 	blt_set_copy_object(&blt.src, src);
@@ -3037,12 +3024,12 @@ static void do_block_copy(const struct igt_fb *src_fb,
 
 	if (blt_uses_extended_block_copy(src_fb->fd)) {
 		blt_set_object_ext(&ext.src,
-				   blt_compression_format(&blt, src_fb),
+				   blt_compression_format(&blt.src, src_fb),
 				   src_fb->plane_width[i], src_fb->plane_height[i],
 				   SURFACE_TYPE_2D);
 
 		blt_set_object_ext(&ext.dst,
-				   blt_compression_format(&blt, dst_fb),
+				   blt_compression_format(&blt.dst, dst_fb),
 				   dst_fb->plane_width[i], dst_fb->plane_height[i],
 				   SURFACE_TYPE_2D);
 		pext = &ext;
