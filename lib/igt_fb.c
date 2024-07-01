@@ -2911,6 +2911,7 @@ const struct {
 	enum blt_compression_type type;
 	uint32_t return_value;
 } compression_mappings[] = {
+	{ DRM_FORMAT_XRGB16161616F, COMPRESSION_TYPE_3D, 0x5 },
 	{ DRM_FORMAT_XRGB2101010, COMPRESSION_TYPE_3D, 0xc },
 	{ DRM_FORMAT_XRGB8888, COMPRESSION_TYPE_3D, 0x8 },
 	{ DRM_FORMAT_XRGB8888, COMPRESSION_TYPE_MEDIA, 8 },
