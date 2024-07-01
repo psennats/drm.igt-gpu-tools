@@ -150,7 +150,10 @@ static uint32_t lnl_compression_format(const struct intel_buf *buf)
 {
 	switch (buf->bpp) {
 	case 32:
-		return 0x2; /* CMF_R8_G8_B8_A8 */
+		if (buf->depth == 30)
+			return 0x3; /* CMF_R10_G10_B10_A2 */
+		else
+			return 0x2; /* CMF_R8_G8_B8_A8 */
 	default:
 		igt_assert(0);
 		return 0;
@@ -161,7 +164,10 @@ static uint32_t dg2_compression_format(const struct intel_buf *buf)
 {
 	switch (buf->bpp) {
 	case 32:
-		return 0x8;
+		if (buf->depth == 30)
+			return 0xc;
+		else
+			return 0x8;
 	default:
 		igt_assert(0);
 		return 0;
