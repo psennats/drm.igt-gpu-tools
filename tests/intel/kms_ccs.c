@@ -845,6 +845,11 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 	    data->format != DRM_FORMAT_XRGB2101010)
 		return false;
 
+	/* VEBOX just hangs with an actual 10bpc format */
+	if (igt_fb_is_gen12_mc_ccs_modifier(data->ccs_modifier) &&
+	    data->format == DRM_FORMAT_XRGB2101010)
+		return false;
+
 	if ((fb_flags & FB_MISALIGN_AUX_STRIDE) ||
 	    (fb_flags & FB_SMALL_AUX_STRIDE))
 		fb_width = max(fb_width, 1536);
