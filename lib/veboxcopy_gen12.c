@@ -29,6 +29,7 @@
 #define YCRCB_NORMAL	0
 #define PLANAR_420_8	4
 #define PACKED_444A_8	5
+#define R10G10B10A2_UNORM	7
 #define R8G8B8A8_UNORM	8
 #define PACKED_444_16	9
 #define PLANAR_420_16	12
@@ -168,6 +169,8 @@ static uint32_t compression_format(int format, struct intel_buf *buf)
 	switch (format) {
 	case R16G16B16A16:
 		return 0x1;
+	case R10G10B10A2_UNORM:
+		return 0xe;
 	case R8G8B8A8_UNORM:
 		return 0xa;
 	case PLANAR_420_8:
@@ -343,6 +346,15 @@ void gen12_vebox_copyfunc(struct intel_bb *ibb,
 		break;
 	case 32:
 		igt_assert(!src->format_is_yuv_semiplanar);
+		/*
+		 * R10G10B10A2_UNORM is not usable.
+		 *
+		 * Bspec says: "Valid format only for when IECP is enabled
+		 * and in output state only. Not supported in  HSB mode."
+		 *
+		 * VEBOX hangs if you try use it.
+		 */
+		igt_assert(src->depth != 30);
 		format = src->format_is_yuv ? PACKED_444A_8 :
 					      R8G8B8A8_UNORM;
 		break;
