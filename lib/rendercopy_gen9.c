@@ -146,6 +146,28 @@ static const uint32_t xe2_render_copy[][4] = {
 	{ 0x8010c031, 0x00000004, 0x58000c24, 0x00c40000 },
 };
 
+static uint32_t lnl_compression_format(const struct intel_buf *buf)
+{
+	switch (buf->bpp) {
+	case 32:
+		return 0x2; /* CMF_R8_G8_B8_A8 */
+	default:
+		igt_assert(0);
+		return 0;
+	}
+}
+
+static uint32_t dg2_compression_format(const struct intel_buf *buf)
+{
+	switch (buf->bpp) {
+	case 32:
+		return 0x8;
+	default:
+		igt_assert(0);
+		return 0;
+	}
+}
+
 /* Mostly copy+paste from gen6, except height, width, pitch moved */
 static uint32_t
 gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
@@ -272,21 +294,10 @@ gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
 			ss->ss7.dg2.disable_support_for_multi_gpu_partial_writes = 1;
 			ss->ss7.dg2.disable_support_for_multi_gpu_atomics = 1;
 
-			if (AT_LEAST_GEN(ibb->devid, 20)) {
-				/*
-				 * For Xe2+ R8G8B8A8 best compression ratio is
-				 * achieved with compression format = '2'
-				 */
-				ss->ss12.lnl.compression_format = 2;
-			} else {
-				/*
-				 * For now here is coming only 32bpp rgb format
-				 * which is marked below as B8G8R8X8_UNORM = '8'
-				 * If here ever arrive other formats below need to be
-				 * fixed to take that into account.
-				 */
-				ss->ss12.dg2.compression_format = 8;
-			}
+			if (AT_LEAST_GEN(ibb->devid, 20))
+				ss->ss12.lnl.compression_format = lnl_compression_format(buf);
+			else
+				ss->ss12.dg2.compression_format = dg2_compression_format(buf);
 		}
 	}
 
