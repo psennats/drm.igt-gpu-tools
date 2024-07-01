@@ -2911,23 +2911,22 @@ static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb)
 			  x.compression_type == COMPRESSION_TYPE_MEDIA)
 
 const struct {
-	uint32_t key;
+	uint32_t format;
 	enum blt_compression_type type;
 	uint32_t return_value;
 } compression_mappings[] = {
-	{ CD_32bit, COMPRESSION_TYPE_3D, 8 },
+	{ DRM_FORMAT_XRGB8888, COMPRESSION_TYPE_3D, 0x8 },
 	{ DRM_FORMAT_XRGB8888, COMPRESSION_TYPE_MEDIA, 8 },
 	{ DRM_FORMAT_XYUV8888, COMPRESSION_TYPE_MEDIA, 9 },
 	{ DRM_FORMAT_NV12, COMPRESSION_TYPE_MEDIA, 9 },
 	{ DRM_FORMAT_P010, COMPRESSION_TYPE_MEDIA, 8 },
-	{ DRM_FORMAT_P012, COMPRESSION_TYPE_MEDIA, 8 },
-	{ DRM_FORMAT_P016, COMPRESSION_TYPE_MEDIA, 8 },
 };
 
-static uint32_t get_compression_return_value(uint32_t key, enum  blt_compression_type type)
+static uint32_t get_compression_return_value(uint32_t format,
+					     enum  blt_compression_type type)
 {
 	for (int i = 0; i < ARRAY_SIZE(compression_mappings); i++) {
-		if (compression_mappings[i].key == key &&
+		if (compression_mappings[i].format == format &&
 		    compression_mappings[i].type == type) {
 			return compression_mappings[i].return_value;
 		}
@@ -2944,11 +2943,11 @@ static uint32_t blt_compression_format(struct blt_copy_data *blt,
 		return 0;
 
 	if (BLT_TARGET_RC(blt->src) || BLT_TARGET_RC(blt->dst))
-		return get_compression_return_value(blt->color_depth,
+		return get_compression_return_value(igt_reduce_format(fb->drm_format),
 						    COMPRESSION_TYPE_3D);
 
 	if (BLT_TARGET_MC(blt->src))
-		return get_compression_return_value(fb->drm_format,
+		return get_compression_return_value(igt_reduce_format(fb->drm_format),
 						    COMPRESSION_TYPE_MEDIA);
 
 	if (BLT_TARGET_MC(blt->dst))
