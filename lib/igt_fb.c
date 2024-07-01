@@ -3055,19 +3055,18 @@ static void blitcopy(const struct igt_fb *dst_fb,
 	const intel_ctx_t *ictx = NULL;
 	intel_ctx_t *xe_ctx = NULL;
 	struct intel_execution_engine2 *e;
-	/* To ignore CC plane */
-	uint32_t src_cc = src_fb->modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC ? 1 : 0;
-	uint32_t dst_cc = dst_fb->modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC ? 1 : 0;
 	bool is_xe = is_xe_device(dst_fb->fd);
 
 	igt_assert_eq(dst_fb->fd, src_fb->fd);
-	igt_assert_eq(dst_fb->num_planes - dst_cc, src_fb->num_planes - src_cc);
+	igt_assert_eq(dst_fb->num_planes, src_fb->num_planes);
+	igt_assert(!igt_fb_is_gen12_rc_ccs_cc_modifier(src_fb->modifier));
+	igt_assert(!igt_fb_is_gen12_rc_ccs_cc_modifier(dst_fb->modifier));
 
 	setup_context_and_memory_region(dst_fb, &ctx, &ahnd, &mem_region,
 					&vm, &bb, &bb_size, &ictx,
 					&exec_queue, &xe_ctx);
 
-	for (int i = 0; i < dst_fb->num_planes - dst_cc; i++) {
+	for (int i = 0; i < dst_fb->num_planes; i++) {
 		igt_assert_eq(dst_fb->plane_bpp[i], src_fb->plane_bpp[i]);
 		igt_assert_eq(dst_fb->plane_width[i], src_fb->plane_width[i]);
 		igt_assert_eq(dst_fb->plane_height[i], src_fb->plane_height[i]);
