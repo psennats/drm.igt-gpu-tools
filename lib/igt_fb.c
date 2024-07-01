@@ -2908,23 +2908,29 @@ static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb,
 
 const struct {
 	uint32_t format;
+	int color_plane;
 	enum blt_compression_type type;
 	uint32_t return_value;
 } compression_mappings[] = {
-	{ DRM_FORMAT_XRGB16161616F, COMPRESSION_TYPE_3D, 0x5 },
-	{ DRM_FORMAT_XRGB2101010, COMPRESSION_TYPE_3D, 0xc },
-	{ DRM_FORMAT_XRGB8888, COMPRESSION_TYPE_3D, 0x8 },
-	{ DRM_FORMAT_XRGB8888, COMPRESSION_TYPE_MEDIA, 8 },
-	{ DRM_FORMAT_XYUV8888, COMPRESSION_TYPE_MEDIA, 9 },
-	{ DRM_FORMAT_NV12, COMPRESSION_TYPE_MEDIA, 9 },
-	{ DRM_FORMAT_P010, COMPRESSION_TYPE_MEDIA, 8 },
+	{ DRM_FORMAT_XRGB16161616F, 0, COMPRESSION_TYPE_3D, 0x5 }, /* R16G16B16A16_FLOAT */
+	{ DRM_FORMAT_XRGB2101010, 0, COMPRESSION_TYPE_3D, 0xc }, /* B10G10R10A2_UNORM */
+	{ DRM_FORMAT_XRGB8888, 0, COMPRESSION_TYPE_3D, 0x8 }, /* B8G8R8A8_UNORM */
+
+	/* FIXME why doesn't 0x8/B8G8R8A8_UNORM work here? */
+	{ DRM_FORMAT_XYUV8888, 0, COMPRESSION_TYPE_MEDIA, 0x18 }, /* R8_UNORM */
+
+	{ DRM_FORMAT_NV12, 0, COMPRESSION_TYPE_MEDIA, 0x18 }, /* R8_UNORM */
+	{ DRM_FORMAT_NV12, 1, COMPRESSION_TYPE_MEDIA, 0xa },  /* R8G8_UNORM */
+	{ DRM_FORMAT_P010, 0, COMPRESSION_TYPE_MEDIA, 0x14 }, /* R16_UNORM */
+	{ DRM_FORMAT_P010, 1, COMPRESSION_TYPE_MEDIA, 0x6 },  /* R16G16_UNORM */
 };
 
-static uint32_t get_compression_return_value(uint32_t format,
+static uint32_t get_compression_return_value(uint32_t format, int color_plane,
 					     enum  blt_compression_type type)
 {
 	for (int i = 0; i < ARRAY_SIZE(compression_mappings); i++) {
 		if (compression_mappings[i].format == format &&
+		    compression_mappings[i].color_plane == color_plane &&
 		    compression_mappings[i].type == type) {
 			return compression_mappings[i].return_value;
 		}
@@ -2934,13 +2940,13 @@ static uint32_t get_compression_return_value(uint32_t format,
 }
 
 static uint32_t blt_compression_format(const struct blt_copy_object *obj,
-				       const struct igt_fb *fb)
+				       const struct igt_fb *fb, int color_plane)
 {
 	if (obj->compression == COMPRESSION_DISABLED)
 		return 0;
 
 	return get_compression_return_value(igt_reduce_format(fb->drm_format),
-					    obj->compression_type);
+					    color_plane, obj->compression_type);
 }
 
 static void setup_context_and_memory_region(const struct igt_fb *fb, uint32_t *ctx,
@@ -3026,12 +3032,12 @@ static void do_block_copy(const struct igt_fb *src_fb,
 
 	if (blt_uses_extended_block_copy(src_fb->fd)) {
 		blt_set_object_ext(&ext.src,
-				   blt_compression_format(&blt.src, src_fb),
+				   blt_compression_format(&blt.src, src_fb, i),
 				   src_fb->plane_width[i], src_fb->plane_height[i],
 				   SURFACE_TYPE_2D);
 
 		blt_set_object_ext(&ext.dst,
-				   blt_compression_format(&blt.dst, dst_fb),
+				   blt_compression_format(&blt.dst, dst_fb, i),
 				   dst_fb->plane_width[i], dst_fb->plane_height[i],
 				   SURFACE_TYPE_2D);
 		pext = &ext;
