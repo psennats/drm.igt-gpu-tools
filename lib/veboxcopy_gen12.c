@@ -32,6 +32,7 @@
 #define R8G8B8A8_UNORM	8
 #define PACKED_444_16	9
 #define PLANAR_420_16	12
+#define R16G16B16A16	13
 
 struct vebox_surface_state {
 	struct {
@@ -165,6 +166,8 @@ static uint32_t compression_format(int format, struct intel_buf *buf)
 		return 0;
 
 	switch (format) {
+	case R16G16B16A16:
+		return 0x1;
 	case R8G8B8A8_UNORM:
 		return 0xa;
 	case PLANAR_420_8:
@@ -344,8 +347,9 @@ void gen12_vebox_copyfunc(struct intel_bb *ibb,
 					      R8G8B8A8_UNORM;
 		break;
 	case 64:
-		igt_assert(!src->format_is_yuv_semiplanar && src->format_is_yuv);
-		format = PACKED_444_16;
+		igt_assert(!src->format_is_yuv_semiplanar);
+		format = src->format_is_yuv ? PACKED_444_16 :
+					      R16G16B16A16;
 		break;
 	default:
 		igt_assert_f(0, "Unsupported bpp: %u\n", src->bpp);
