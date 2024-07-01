@@ -1012,6 +1012,11 @@ static bool skip_format_mod(data_t *data,
 	    modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
 		return true;
 
+	/* VEBOX just hangs with an actual 10bpc format */
+	if (igt_fb_is_gen12_mc_ccs_modifier(modifier) &&
+	    igt_reduce_format(format) == DRM_FORMAT_XRGB2101010)
+		return true;
+
 	/* test each format "class" only once in non-extended tests */
 	if (!data->extended && modifier != DRM_FORMAT_MOD_LINEAR) {
 		struct format_mod rf = {
