@@ -2838,7 +2838,8 @@ static struct blt_copy_object *allocate_and_initialize_blt(const struct igt_fb *
 		       igt_fb_is_ccs_modifier(fb->modifier) ? COMPRESSION_ENABLED : COMPRESSION_DISABLED,
 		       igt_fb_is_gen12_mc_ccs_modifier(fb->modifier) ? COMPRESSION_TYPE_MEDIA : COMPRESSION_TYPE_3D);
 
-	blt_set_geom(blt, stride, 0, 0, fb->width, fb->plane_height[plane], 0, 0);
+	blt_set_geom(blt, stride, 0, 0,
+		     fb->plane_width[plane], fb->plane_height[plane], 0, 0);
 	blt->plane_offset = fb->offsets[plane];
 
 	return blt;
@@ -2884,9 +2885,10 @@ static struct blt_copy_object *blt_fb_init(const struct igt_fb *fb,
 	return blt;
 }
 
-static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb)
+static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb,
+					int color_plane)
 {
-	switch (fb->plane_bpp[0]) {
+	switch (fb->plane_bpp[color_plane]) {
 	case 8:
 		return CD_8bit;
 	case 16:
@@ -3029,19 +3031,19 @@ static void do_block_copy(const struct igt_fb *src_fb,
 	igt_assert(src && dst);
 
 	blt_copy_init(src_fb->fd, &blt);
-	blt.color_depth = blt_get_bpp(src_fb);
+	blt.color_depth = blt_get_bpp(src_fb, i);
 	blt_set_copy_object(&blt.src, src);
 	blt_set_copy_object(&blt.dst, dst);
 
 	if (blt_uses_extended_block_copy(src_fb->fd)) {
 		blt_set_object_ext(&ext.src,
 				   blt_compression_format(&blt, src_fb),
-				   src_fb->width, src_fb->height,
+				   src_fb->plane_width[i], src_fb->plane_height[i],
 				   SURFACE_TYPE_2D);
 
 		blt_set_object_ext(&ext.dst,
 				   blt_compression_format(&blt, dst_fb),
-				   dst_fb->width, dst_fb->height,
+				   dst_fb->plane_width[i], dst_fb->plane_height[i],
 				   SURFACE_TYPE_2D);
 		pext = &ext;
 	}
