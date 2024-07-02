@@ -1003,6 +1003,31 @@ static void check_allowed_plane_size_64x64(data_t *data, igt_plane_t *plane,
 	igt_remove_fb(data->drm_fd, &test_fb);
 }
 
+static bool skip_format_mod(data_t *data,
+			    uint32_t format, uint64_t modifier,
+			    struct igt_vec *tested_formats)
+{
+	/* igt doesn't know how to sw generate UBWC: */
+	if (is_msm_device(data->drm_fd) &&
+	    modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
+		return true;
+
+	/* test each format "class" only once in non-extended tests */
+	if (!data->extended && modifier != DRM_FORMAT_MOD_LINEAR) {
+		struct format_mod rf = {
+			.format = igt_reduce_format(format),
+			.modifier = modifier,
+		};
+
+		if (igt_vec_index(tested_formats, &rf) >= 0)
+			return true;
+
+		igt_vec_push(tested_formats, &rf);
+	}
+
+	return false;
+}
+
 static bool test_format_plane(data_t *data, enum pipe pipe,
 			      igt_output_t *output, igt_plane_t *plane, igt_fb_t *primary_fb)
 {
@@ -1076,33 +1101,18 @@ static bool test_format_plane(data_t *data, enum pipe pipe,
 			.modifier = plane->modifiers[i],
 		};
 
-		/* igt doesn't know how to sw generate UBWC: */
-		if (is_msm_device(data->drm_fd) &&
-		    f.modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
-			continue;
-
 		if (f.format == ref.format &&
 		    f.modifier == ref.modifier)
 			continue;
 
-		/* test each format "class" only once in non-extended tests */
-		if (!data->extended && f.modifier != DRM_FORMAT_MOD_LINEAR) {
-			struct format_mod rf = {
-				.format = igt_reduce_format(f.format),
-				.modifier = f.modifier,
-			};
-
-			if (igt_vec_index(&tested_formats, &rf) >= 0) {
-				igt_debug("Skipping format " IGT_FORMAT_FMT " / modifier "
-					IGT_MODIFIER_FMT " on %s.%u\n",
-					IGT_FORMAT_ARGS(f.format),
-					IGT_MODIFIER_ARGS(f.modifier),
-					kmstest_pipe_name(pipe),
-					plane->index);
-				continue;
-			}
-
-			igt_vec_push(&tested_formats, &rf);
+		if (skip_format_mod(data, f.format, f.modifier, &tested_formats)) {
+			igt_debug("Skipping format " IGT_FORMAT_FMT " / modifier "
+				  IGT_MODIFIER_FMT " on %s.%u\n",
+				  IGT_FORMAT_ARGS(f.format),
+				  IGT_MODIFIER_ARGS(f.modifier),
+				  kmstest_pipe_name(pipe),
+				  plane->index);
+			continue;
 		}
 
 		if (f.format == DRM_FORMAT_C8) {
