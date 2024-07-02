@@ -30,6 +30,7 @@
 #include <string.h>
 #include <signal.h>
 #include <glib.h>
+#include <libudev.h>
 
 /**
  * SECTION:lsgpu
@@ -77,12 +78,14 @@ enum {
 	OPT_LIST_VENDORS   = 'v',
 	OPT_LIST_FILTERS   = 'l',
 	OPT_DEVICE         = 'd',
-	OPT_HELP           = 'h'
+	OPT_HELP           = 'h',
+	OPT_PCISCAN        = 'P',
 };
 
 static bool g_show_vendors;
 static bool g_list_filters;
 static bool g_help;
+static bool g_pciscan;
 static char *igt_device;
 
 static const char *usage_str =
@@ -92,6 +95,7 @@ static const char *usage_str =
 	"  -c, --codename              Print codename instead pretty device name\n"
 	"  -s, --print-simple          Print simple (legacy) device details\n"
 	"  -p, --print-details         Print devices with details\n"
+	"  -P, --pci-scan              Print pci display devices\n"
 	"  -v, --list-vendors          List recognized vendors\n"
 	"  -l, --list-filter-types     List registered device filters types\n"
 	"  -d, --device filter         Device filter, can be given multiple times\n"
@@ -158,6 +162,85 @@ static char *get_device_from_rc(void)
 	return rc_device;
 }
 
+static int pciscan(void)
+{
+	struct udev *udev;
+	struct udev_enumerate *enumerate;
+	struct udev_list_entry *devices, *dev_list_entry;
+	struct igt_device_card card;
+	char pcistr[10];
+	int ret;
+
+	udev = udev_new();
+	igt_assert(udev);
+
+	enumerate = udev_enumerate_new(udev);
+	igt_assert(enumerate);
+
+	printf("Scanning pci subsystem\n");
+	printf("----------------------\n");
+	ret = udev_enumerate_add_match_subsystem(enumerate, "pci");
+	igt_assert(!ret);
+
+	ret = udev_enumerate_add_match_property(enumerate, "PCI_CLASS", "30000");
+	igt_assert(!ret);
+	ret = udev_enumerate_add_match_property(enumerate, "PCI_CLASS", "38000");
+	igt_assert(!ret);
+
+	ret = udev_enumerate_scan_devices(enumerate);
+	igt_assert(!ret);
+
+	devices = udev_enumerate_get_list_entry(enumerate);
+	if (!devices) {
+		printf("No pci devices with class 0x30000|0x38000 found\n");
+		goto out;
+	}
+
+	udev_list_entry_foreach(dev_list_entry, devices) {
+		const char *path;
+		struct udev_device *udev_dev;
+		struct udev_list_entry *entry;
+		char *codename;
+
+		path = udev_list_entry_get_name(dev_list_entry);
+		udev_dev = udev_device_new_from_syspath(udev, path);
+		printf("[%s]\n", path);
+
+		strcpy(card.pci_slot_name, "-");
+		entry = udev_device_get_properties_list_entry(udev_dev);
+		while (entry) {
+			const char *name = udev_list_entry_get_name(entry);
+			const char *value = udev_list_entry_get_value(entry);
+
+			entry = udev_list_entry_get_next(entry);
+			if (!strcmp(name, "ID_VENDOR_FROM_DATABASE"))
+				printf("  vendor [db]: %s\n", value);
+			else if (!strcmp(name, "ID_MODEL_FROM_DATABASE"))
+				printf("  model  [db]: %s\n", value);
+			else if (!strcmp(name, "DRIVER"))
+				printf("  driver     : %s\n", value);
+			else if (!strcmp(name, "PCI_ID"))
+				igt_assert_eq(sscanf(value, "%hx:%hx",
+						     &card.pci_vendor, &card.pci_device), 2);
+		}
+		snprintf(pcistr, sizeof(pcistr), "%04x:%04x",
+			 card.pci_vendor, card.pci_device);
+		printf("  pci id     : %s\n", pcistr);
+		codename = igt_device_get_pretty_name(&card, false);
+		if (strcmp(pcistr, codename))
+			printf("  codename   : %s\n", codename);
+		free(codename);
+
+		udev_device_unref(udev_dev);
+	}
+
+out:
+	udev_enumerate_unref(enumerate);
+	udev_unref(udev);
+
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	static struct option long_options[] = {
@@ -168,6 +251,7 @@ int main(int argc, char *argv[])
 		{"codename",          no_argument,       NULL, OPT_CODENAME},
 		{"print-simple",      no_argument,       NULL, OPT_PRINT_SIMPLE},
 		{"print-detail",      no_argument,       NULL, OPT_PRINT_DETAIL},
+		{"pci-scan",          no_argument,       NULL, OPT_PCISCAN},
 		{"list-vendors",      no_argument,       NULL, OPT_LIST_VENDORS},
 		{"list-filter-types", no_argument,       NULL, OPT_LIST_FILTERS},
 		{"device",            required_argument, NULL, OPT_DEVICE},
@@ -180,7 +264,7 @@ int main(int argc, char *argv[])
 			.type = IGT_PRINT_USER,
 	};
 
-	while ((c = getopt_long(argc, argv, "ncspvld:h",
+	while ((c = getopt_long(argc, argv, "ncspvld:hP",
 				long_options, &index)) != -1) {
 		switch(c) {
 
@@ -208,6 +292,9 @@ int main(int argc, char *argv[])
 		case OPT_HELP:
 			g_help = true;
 			break;
+		case OPT_PCISCAN:
+			g_pciscan = true;
+			break;
 		case 0:
 			fmt.option = IGT_PRINT_DRM;
 			break;
@@ -219,6 +306,9 @@ int main(int argc, char *argv[])
 			break;
 		}
 	}
+
+	if (g_pciscan)
+		return pciscan();
 
 	if (g_help) {
 		printf("%s\n", usage_str);
