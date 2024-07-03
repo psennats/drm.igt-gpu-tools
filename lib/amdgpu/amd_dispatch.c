@@ -70,7 +70,7 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 	amdgpu_dispatch_write_cumask(base_cmd, version);
 
 	/* Writes shader state to HW */
-	amdgpu_dispatch_write2hw(base_cmd, mc_address_shader, version);
+	amdgpu_dispatch_write2hw(base_cmd, mc_address_shader, version, 0);
 
 	/* Write constant data */
 	/* Writes the UAV constant data to the SGPRs. */
@@ -162,7 +162,7 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 void
 amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 			    uint32_t ip_type, uint32_t ring, uint32_t version,
-			    int hang)
+			    enum shader_error_type hang)
 {
 	amdgpu_context_handle context_handle;
 	amdgpu_bo_handle bo_src, bo_dst, bo_shader, bo_cmd, resources[4];
@@ -202,7 +202,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	igt_assert_eq(r, 0);
 	memset(ptr_shader, 0, bo_shader_size);
 
-	cs_type = hang ? CS_HANG : CS_BUFFERCOPY;
+	cs_type = hang == BACKEND_SE_GC_SHADER_INVALID_SHADER ? CS_HANG : CS_BUFFERCOPY;
 	r = amdgpu_dispatch_load_cs_shader(ptr_shader, cs_type, version);
 	igt_assert_eq(r, 0);
 
@@ -217,22 +217,28 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 					&bo_dst, (void **)&ptr_dst,
 					&mc_address_dst, &va_dst);
 	igt_assert_eq(r, 0);
-
 	///TODO helper function for this bloc
 	amdgpu_dispatch_init(ip_type, base_cmd,  version);
 	/*  Issue commands to set cu mask used in current dispatch */
 	amdgpu_dispatch_write_cumask(base_cmd, version);
+
+	if (hang == BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR)
+		mc_address_shader = 0;
 	/* Writes shader state to HW */
-	amdgpu_dispatch_write2hw(base_cmd, mc_address_shader, version);
+	amdgpu_dispatch_write2hw(base_cmd, mc_address_shader, version, hang);
 	memset(ptr_src, 0x55, bo_dst_size);
 
 	/* Write constant data */
 	/* Writes the texture resource constants data to the SGPRs */
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
 	base_cmd->emit(base_cmd, 0x240);
-	base_cmd->emit(base_cmd, mc_address_src);
-
-	base_cmd->emit(base_cmd, (mc_address_src >> 32) | 0x100000);
+	if (hang == BACKEND_SE_GC_SHADER_INVALID_USER_DATA) {
+		base_cmd->emit(base_cmd, mc_address_src);
+		base_cmd->emit(base_cmd, 0);
+	} else {
+		base_cmd->emit(base_cmd, mc_address_src);
+		base_cmd->emit(base_cmd, (mc_address_src >> 32) | 0x100000);
+	}
 
 	base_cmd->emit(base_cmd, 0x400);
 	if (version == 9)
@@ -247,8 +253,13 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	/* Writes the UAV constant data to the SGPRs. */
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
 	base_cmd->emit(base_cmd, 0x244);
-	base_cmd->emit(base_cmd, mc_address_dst);
-	base_cmd->emit(base_cmd, (mc_address_dst >> 32) | 0x100000);
+	if (hang == BACKEND_SE_GC_SHADER_INVALID_USER_DATA) {
+		base_cmd->emit(base_cmd, mc_address_src);
+		base_cmd->emit(base_cmd, 0);
+	} else {
+		base_cmd->emit(base_cmd, mc_address_src);
+		base_cmd->emit(base_cmd, (mc_address_src >> 32) | 0x100000);
+	}
 	base_cmd->emit(base_cmd, 0x400);
 	if (version == 9)
 		base_cmd->emit(base_cmd, 0x74fac);
@@ -401,7 +412,7 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 	amdgpu_dispatch_write_cumask(base_cmd, version);
 
 	/* Writes shader state to HW */
-	amdgpu_dispatch_write2hw(base_cmd, mc_address_shader, version);
+	amdgpu_dispatch_write2hw(base_cmd, mc_address_shader, version, 0);
 
 	/* Write constant data */
 	/* Writes the texture resource constants data to the SGPRs */
@@ -536,7 +547,7 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 	}
 }
 
-void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type, int hang)
+void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type, enum shader_error_type hang)
 {
 	int r;
 	struct drm_amdgpu_info_hw_ip info;
