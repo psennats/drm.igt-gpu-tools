@@ -47,15 +47,16 @@ Chamelium V2 Documentation
 --------------------------
 
 Documentation about the Chamelium is made available by Google through the
-ChromiumOS projet wiki: https://www.chromium.org/chromium-os/testing/chamelium
+ChromiumOS projet wiki:
+https://www.chromium.org/chromium-os/developer-library/guides/hardware-schematics/chamelium/
 
 Setting up Chamelium V2
 -----------------------
 
 Instructions from the ChromiumOS wiki detail how to setup the Chamelium:
-https://www.chromium.org/chromium-os/testing/chamelium#TOC-Setting-up-Chamelium
+https://www.chromium.org/chromium-os/developer-library/guides/hardware-schematics/chamelium/#setting-up-chamelium
 
-The should be followed up until the "Setup your Linux host, DUT and the FPGA"
+It should be followed up until the "Setup your Linux host, DUT and the FPGA"
 section. At this point, IGT has to be configured to connect to the Chamelium.
 
 It may be necessary to give the Chamelium a static IP address, depending on
