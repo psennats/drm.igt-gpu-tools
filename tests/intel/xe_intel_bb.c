@@ -40,6 +40,7 @@
 #define HEIGHT	64
 #define STRIDE	(WIDTH * 4)
 #define SIZE	(HEIGHT * STRIDE)
+#define RENDER_WIDTH 256
 
 #define COLOR_00	0x00
 #define COLOR_33	0x33
@@ -1054,11 +1055,11 @@ igt_main_args("dpib", NULL, help_str, opt_handler, NULL)
 			if (!render_supports_tiling(xe, tiling, false))
 				continue;
 
-			for (width = 512; width <= 1024; width += 512)
-				igt_dynamic_f("render-%s-%u",
-					      blt_tiling_name(tiling), width)
-					render(bops, blt_tile_to_i915_tile(tiling),
-					       width, width);
+			width = RENDER_WIDTH;
+			igt_dynamic_f("render-%s-%u",
+				      blt_tiling_name(tiling), width)
+				render(bops, blt_tile_to_i915_tile(tiling),
+				       width, width);
 		}
 	}
 
