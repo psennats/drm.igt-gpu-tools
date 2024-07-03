@@ -22,8 +22,8 @@
  * Feature: SMI, core
  * Test category: SysMan
  *
- * SUBTEST: basic
- * Description: Check if basic fdinfo content is present
+ * SUBTEST: basic-memory
+ * Description: Check if basic fdinfo content is present for memory
  *
  * SUBTEST: drm-total-resident
  * Description: Create and compare total and resident memory consumption by client
@@ -259,7 +259,7 @@ static void test_total_resident(int xe)
 	xe_vm_destroy(xe, vm);
 }
 
-static void basic(int xe)
+static void basic_memory(int xe)
 {
 	struct drm_xe_mem_region *memregion;
 	uint64_t memreg = all_memory_regions(xe), region;
@@ -299,9 +299,9 @@ igt_main
 		igt_require(igt_parse_drm_fdinfo(xe, &info, NULL, 0, NULL, 0));
 	}
 
-	igt_describe("Check if basic fdinfo content is present");
-	igt_subtest("basic")
-		basic(xe);
+	igt_describe("Check if basic fdinfo content is present for memory");
+	igt_subtest("basic-memory")
+		basic_memory(xe);
 
 	igt_describe("Create and compare total and resident memory consumption by client");
 	igt_subtest("drm-total-resident")
