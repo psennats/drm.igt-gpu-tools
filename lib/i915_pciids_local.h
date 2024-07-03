@@ -31,6 +31,24 @@
 	INTEL_MTL_P_GT3_IDS(MACRO__, ## __VA_ARGS__)
 #endif
 
+#ifndef INTEL_ARL_GT1_IDS
+#define INTEL_ARL_GT1_IDS(MACRO__, ...) \
+	MACRO__(0x7D41, ## __VA_ARGS__), \
+	MACRO__(0x7D67, ## __VA_ARGS__)
+#endif
+
+#ifndef INTEL_ARL_GT2_IDS
+#define INTEL_ARL_GT2_IDS(MACRO__, ...) \
+	MACRO__(0x7D51, ## __VA_ARGS__), \
+	MACRO__(0x7DD1, ## __VA_ARGS__)
+#endif
+
+#ifndef INTEL_ARL_IDS
+#define INTEL_ARL_IDS(MACRO__, ...) \
+	INTEL_ARL_GT1_IDS(MACRO__, ## __VA_ARGS__), \
+	INTEL_ARL_GT2_IDS(MACRO__, ## __VA_ARGS__)
+#endif
+
 /* PVC */
 #ifndef INTEL_PVC_IDS
 #define INTEL_PVC_IDS(MACRO__, ...) \

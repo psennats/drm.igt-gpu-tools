@@ -230,6 +230,34 @@ is_mtl_gt3(const struct intel_perf_devinfo *devinfo)
 	return false;
 }
 
+static bool
+is_arl_gt1(const struct intel_perf_devinfo *devinfo)
+{
+	static const uint32_t devids[] = {
+		INTEL_ARL_GT1_IDS(ID),
+	};
+	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
+		if (devids[i] == devinfo->devid)
+			return true;
+	}
+
+	return false;
+}
+
+static bool
+is_arl_gt2(const struct intel_perf_devinfo *devinfo)
+{
+	static const uint32_t devids[] = {
+		INTEL_ARL_GT2_IDS(ID),
+	};
+	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
+		if (devids[i] == devinfo->devid)
+			return true;
+	}
+
+	return false;
+}
+
 struct intel_perf *
 intel_perf_for_devinfo(uint32_t device_id,
 		       uint32_t revision,
@@ -431,6 +459,10 @@ intel_perf_for_devinfo(uint32_t device_id,
 		if (is_mtl_gt2(&perf->devinfo))
 			intel_perf_load_metrics_mtlgt2(perf);
 		else if (is_mtl_gt3(&perf->devinfo))
+			intel_perf_load_metrics_mtlgt3(perf);
+		else if (is_arl_gt1(&perf->devinfo))
+			intel_perf_load_metrics_mtlgt2(perf);
+		else if (is_arl_gt2(&perf->devinfo))
 			intel_perf_load_metrics_mtlgt3(perf);
 		else
 			return unsupported_i915_perf_platform(perf);
