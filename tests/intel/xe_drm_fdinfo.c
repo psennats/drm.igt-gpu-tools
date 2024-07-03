@@ -14,16 +14,19 @@
 #include "xe/xe_spin.h"
 /**
  * TEST: xe drm fdinfo
- * Description: Read and verify drm client memory consumption using fdinfo
+ * Description: Read and verify drm client memory consumption and engine utilization using fdinfo
  * Category: Core
  * Mega feature: General Core features
  * Sub-category: driver
- * Functionality: Per client memory statistics
+ * Functionality: Per client memory and engine utilization statistics
  * Feature: SMI, core
  * Test category: SysMan
  *
  * SUBTEST: basic-memory
  * Description: Check if basic fdinfo content is present for memory
+ *
+ * SUBTEST: basic-engine-utilization
+ * Description: Check if basic fdinfo content is present for engine utilization
  *
  * SUBTEST: drm-total-resident
  * Description: Create and compare total and resident memory consumption by client
@@ -35,9 +38,17 @@
  * Description: Create and compare active memory consumption by client
  */
 
-IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption using fdinfo");
+IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine utilization using fdinfo");
 
 #define BO_SIZE (65536)
+
+static const char *engine_map[] = {
+	"rcs",
+	"bcs",
+	"vcs",
+	"vecs",
+	"ccs",
+};
 
 /* Subtests */
 static void test_active(int fd, struct drm_xe_engine *engine)
@@ -287,6 +298,18 @@ static void basic_memory(int xe)
 	}
 }
 
+static void basic_engine_utilization(int xe)
+{
+	struct drm_client_fdinfo info = { };
+	unsigned int ret;
+
+	ret = igt_parse_drm_fdinfo(xe, &info, engine_map,
+				   ARRAY_SIZE(engine_map), NULL, 0);
+	igt_assert_f(ret != 0, "failed with err:%d\n", errno);
+	igt_assert(!strcmp(info.driver, "xe"));
+	igt_require(info.num_engines);
+}
+
 igt_main
 {
 	int xe;
@@ -302,6 +325,10 @@ igt_main
 	igt_describe("Check if basic fdinfo content is present for memory");
 	igt_subtest("basic-memory")
 		basic_memory(xe);
+
+	igt_describe("Check if basic fdinfo content is present for engine utilization");
+	igt_subtest("basic-engine-utilization")
+		basic_engine_utilization(xe);
 
 	igt_describe("Create and compare total and resident memory consumption by client");
 	igt_subtest("drm-total-resident")
