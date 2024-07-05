@@ -448,6 +448,10 @@ static bool is_on_blacklist(const char *what)
 	if (what == NULL)
 		return false;
 
+	/* Skip attributes in subdirectories */
+	if (strchr(what, '/') != NULL)
+		return true;
+
 	while ((key = keys[i++])) {
 		if (strcmp(key, what) == 0)
 			return true;
