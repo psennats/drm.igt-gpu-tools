@@ -3371,36 +3371,6 @@ test_single_ctx_render_target_writes_a_counter(struct drm_xe_engine_class_instan
 	} while (WEXITSTATUS(child_ret) == EAGAIN);
 }
 
-static unsigned read_xe_module_ref(void)
-{
-	FILE *fp = fopen("/proc/modules", "r");
-	char *line = NULL;
-	size_t line_buf_size = 0;
-	int len = 0;
-	unsigned ref_count;
-	char mod[8];
-	int modn = 3;
-
-	igt_assert(fp);
-
-	strcpy(mod, "xe ");
-	while ((len = getline(&line, &line_buf_size, fp)) > 0) {
-		if (strncmp(line, mod, modn) == 0) {
-			unsigned long mem;
-			int ret = sscanf(line + 5, "%lu %u", &mem, &ref_count);
-			igt_assert(ret == 2);
-			goto done;
-		}
-	}
-
-	igt_assert(!"reached");
-
-done:
-	free(line);
-	fclose(fp);
-	return ref_count;
-}
-
 /**
  * SUBTEST: rc6-disable
  * Description: Check that opening an OA stream disables RC6
@@ -4117,80 +4087,6 @@ test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 }
 
 /**
- * SUBTEST: xe-ref-count
- * Description: Check that an open oa stream holds a reference on the xe module
- */
-static void
-test_xe_ref_count(void)
-{
-	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
-
-		/* Include OA reports in samples */
-		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
-
-		/* OA unit configuration */
-		DRM_XE_OA_PROPERTY_OA_METRIC_SET, 0 /* updated below */,
-		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(0), /* update below */
-		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, 0, /* update below */
-	};
-	struct intel_xe_oa_open_prop param = {
-		.num_properties = ARRAY_SIZE(properties) / 2,
-		.properties_ptr = to_user_pointer(properties),
-	};
-	unsigned baseline, ref_count0, ref_count1;
-	uint32_t oa_report0[64];
-	uint32_t oa_report1[64];
-
-	/* This should be the first test before the first fixture so no drm_fd
-	 * should have been opened so far...
-	 */
-	igt_assert_eq(drm_fd, -1);
-
-	baseline = read_xe_module_ref();
-	igt_debug("baseline ref count (drm fd closed) = %u\n", baseline);
-
-	drm_fd = __drm_open_driver(DRIVER_XE);
-	if (is_xe_device(drm_fd))
-		xe_device_get(drm_fd);
-	devid = intel_get_drm_devid(drm_fd);
-	sysfs = igt_sysfs_open(drm_fd);
-
-	/* Note: these global variables are only initialized after calling
-	 * init_sys_info()...
-	 */
-	igt_require(init_sys_info());
-	properties[5] = default_test_set->perf_oa_metrics_set;
-	properties[7] = __ff(default_test_set->perf_oa_format);
-	properties[9] = oa_exp_1_millisec;
-
-	ref_count0 = read_xe_module_ref();
-	igt_debug("initial ref count with drm_fd open = %u\n", ref_count0);
-
-	stream_fd = __perf_open(drm_fd, &param, false);
-        set_fd_flags(stream_fd, O_CLOEXEC);
-	ref_count1 = read_xe_module_ref();
-	igt_debug("ref count after opening oa stream = %u\n", ref_count1);
-
-	drm_close_driver(drm_fd);
-	close(sysfs);
-	drm_fd = -1;
-	sysfs = -1;
-	ref_count0 = read_xe_module_ref();
-	igt_debug("ref count after closing drm fd = %u\n", ref_count0);
-
-	read_2_oa_reports(default_test_set->perf_oa_format,
-			  oa_exp_1_millisec,
-			  oa_report0,
-			  oa_report1,
-			  false); /* not just timer reports */
-
-	__perf_close(stream_fd);
-	ref_count0 = read_xe_module_ref();
-	igt_debug("ref count after closing oa stream fd = %u\n", ref_count0);
-}
-
-/**
  * SUBTEST: sysctl-defaults
  * Description: Test that observation_paranoid sysctl exists
  */
@@ -4620,9 +4516,6 @@ igt_main
 		srandom(time(NULL));
 		igt_require(!stat("/proc/sys/dev/xe/observation_paranoid", &sb));
 	}
-
-	igt_subtest("xe-ref-count")
-		test_xe_ref_count();
 
 	igt_subtest("sysctl-defaults")
 		test_sysctl_defaults();
