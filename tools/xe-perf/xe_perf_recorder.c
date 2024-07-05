@@ -443,7 +443,7 @@ perf_open(struct recording_context *ctx)
 		.properties_ptr = to_user_pointer(properties),
 	};
 
-	stream_fd = intel_xe_perf_ioctl(ctx->drm_fd, DRM_XE_PERF_OP_STREAM_OPEN, &param);
+	stream_fd = intel_xe_perf_ioctl(ctx->drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &param);
 	if (stream_fd < 0) {
 		errno = 0;
 		goto exit;
@@ -541,7 +541,7 @@ static int get_stream_status(int perf_fd, u32 *oa_status)
 	struct drm_xe_oa_stream_status status;
 	int ret;
 
-	ret = perf_ioctl(perf_fd, DRM_XE_PERF_IOCTL_STATUS, &status);
+	ret = perf_ioctl(perf_fd, DRM_XE_OBSERVATION_IOCTL_STATUS, &status);
 	if (ret)
 		return ret;
 

@@ -688,7 +688,7 @@ load_metric_set_config(struct intel_xe_perf_metric_set *metric_set, int drm_fd)
 	memcpy(regs, metric_set->flex_regs, 2 * metric_set->n_flex_regs * sizeof(u32));
 	regs += 2 * metric_set->n_flex_regs * sizeof(u32);
 
-	ret = intel_xe_perf_ioctl(drm_fd, DRM_XE_PERF_OP_ADD_CONFIG, &config);
+	ret = intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config);
 	if (ret >= 0)
 		metric_set->perf_oa_metrics_set = ret;
 
@@ -1042,31 +1042,31 @@ static void xe_oa_prop_to_ext(struct intel_xe_oa_open_prop *properties,
 		ext[j].base.next_extension = to_user_pointer(&ext[j + 1]);
 }
 
-int intel_xe_perf_ioctl(int fd, enum drm_xe_perf_op op, void *arg)
+int intel_xe_perf_ioctl(int fd, enum drm_xe_observation_op op, void *arg)
 {
 #define XE_OA_MAX_SET_PROPERTIES 16
 
 	struct drm_xe_ext_set_property ext[XE_OA_MAX_SET_PROPERTIES] = {};
 
 	/* Chain the PERF layer struct */
-	struct drm_xe_perf_param p = {
+	struct drm_xe_observation_param p = {
 		.extensions = 0,
-		.perf_type = DRM_XE_PERF_TYPE_OA,
-		.perf_op = op,
-		.param = to_user_pointer((op == DRM_XE_PERF_OP_STREAM_OPEN) ? ext : arg),
+		.observation_type = DRM_XE_OBSERVATION_TYPE_OA,
+		.observation_op = op,
+		.param = to_user_pointer((op == DRM_XE_OBSERVATION_OP_STREAM_OPEN) ? ext : arg),
 	};
 
-	if (op == DRM_XE_PERF_OP_STREAM_OPEN) {
+	if (op == DRM_XE_OBSERVATION_OP_STREAM_OPEN) {
 		struct intel_xe_oa_open_prop *oprop = (struct intel_xe_oa_open_prop *)arg;
 
 		igt_assert_lte(oprop->num_properties, XE_OA_MAX_SET_PROPERTIES);
 		xe_oa_prop_to_ext(oprop, ext);
 	}
 
-	return igt_ioctl(fd, DRM_IOCTL_XE_PERF, &p);
+	return igt_ioctl(fd, DRM_IOCTL_XE_OBSERVATION, &p);
 }
 
-void intel_xe_perf_ioctl_err(int fd, enum drm_xe_perf_op op, void *arg, int err)
+void intel_xe_perf_ioctl_err(int fd, enum drm_xe_observation_op op, void *arg, int err)
 {
 	igt_assert_eq(intel_xe_perf_ioctl(fd, op, arg), -1);
 	igt_assert_eq(errno, err);

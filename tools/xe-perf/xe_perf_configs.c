@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 			continue;
 
 		if (purge) {
-			if (intel_xe_perf_ioctl(drm_fd, DRM_XE_PERF_OP_REMOVE_CONFIG, &metric_id) == 0)
+			if (intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &metric_id) == 0)
 				fprintf(stdout, "\tRemoved config %s id=%03" PRIu64 " name=%s\n",
 					entry->d_name, metric_id, metric_name(perf, entry->d_name));
 			else
