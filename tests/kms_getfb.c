@@ -161,6 +161,9 @@ static void get_ccs_fb(int fd, struct drm_mode_fb_cmd2 *ret)
 	igt_require(has_addfb2_iface(fd));
 	devid = intel_get_drm_devid(fd);
 
+	igt_require_f(intel_graphics_ver(devid) < IP_VER(20, 0),
+		      "No ccs modifiers on Xe2\n");
+
 	if (HAS_FLATCCS(devid)) {
 		add.modifier[0] = I915_FORMAT_MOD_4_TILED_DG2_RC_CCS;
 		add.pitches[0] = ALIGN(add.width * 4, 4 * 512);
