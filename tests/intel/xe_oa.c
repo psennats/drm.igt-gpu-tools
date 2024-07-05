@@ -534,6 +534,12 @@ write_u64_file(const char *path, uint64_t val)
 	fclose(f);
 }
 
+static bool
+try_sysfs_read_u64(const char *path, uint64_t *val)
+{
+	return igt_sysfs_scanf(sysfs, path, "%"PRIu64, val) == 1;
+}
+
 static unsigned long rc6_residency_ms(void)
 {
 	unsigned long value;
@@ -3484,6 +3490,321 @@ test_stress_open_close(const struct drm_xe_engine_class_instance *hwe)
 	load_helper_fini();
 }
 
+static int __xe_oa_add_config(int fd, struct drm_xe_oa_config *config)
+{
+	int ret = intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, config);
+	if (ret < 0)
+		ret = -errno;
+	return ret;
+}
+
+static int xe_oa_add_config(int fd, struct drm_xe_oa_config *config)
+{
+	int config_id = __xe_oa_add_config(fd, config);
+
+	igt_debug("config_id=%i\n", config_id);
+	igt_assert(config_id > 0);
+
+	return config_id;
+}
+
+static void xe_oa_remove_config(int fd, uint64_t config_id)
+{
+	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
+}
+
+static bool has_xe_oa_userspace_config(int fd)
+{
+	uint64_t config = 0;
+	int ret = intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config);
+	igt_assert_eq(ret, -1);
+
+	igt_debug("errno=%i\n", errno);
+
+	return errno != EINVAL;
+}
+
+#define SAMPLE_MUX_REG (intel_graphics_ver(devid) >= IP_VER(20, 0) ?	\
+			0x13000 /* PES* */ : 0x9888 /* NOA_WRITE */)
+
+/**
+ * SUBTEST: invalid-create-userspace-config
+ * Description: Test invalid configs are rejected
+ */
+static void
+test_invalid_create_userspace_config(void)
+{
+	struct drm_xe_oa_config config;
+	const char *uuid = "01234567-0123-0123-0123-0123456789ab";
+	const char *invalid_uuid = "blablabla-wrong";
+	uint32_t mux_regs[] = { SAMPLE_MUX_REG, 0x0 };
+	uint32_t invalid_mux_regs[] = { 0x12345678 /* invalid register */, 0x0 };
+
+	igt_require(has_xe_oa_userspace_config(drm_fd));
+
+	memset(&config, 0, sizeof(config));
+
+	/* invalid uuid */
+	strncpy(config.uuid, invalid_uuid, sizeof(config.uuid));
+	config.n_regs = 1;
+	config.regs_ptr = to_user_pointer(mux_regs);
+
+	igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EINVAL);
+
+	/* invalid mux_regs */
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+	config.n_regs = 1;
+	config.regs_ptr = to_user_pointer(invalid_mux_regs);
+
+	igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EINVAL);
+
+	/* empty config */
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+	config.n_regs = 0;
+	config.regs_ptr = to_user_pointer(mux_regs);
+
+	igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EINVAL);
+
+	/* empty config with null pointer */
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+	config.n_regs = 1;
+	config.regs_ptr = to_user_pointer(NULL);
+
+	igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EINVAL);
+
+	/* invalid pointer */
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+	config.n_regs = 42;
+	config.regs_ptr = to_user_pointer((void *) 0xDEADBEEF);
+
+	igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EFAULT);
+}
+
+/**
+ * SUBTEST: invalid-remove-userspace-config
+ * Description: Test invalid remove configs are rejected
+ */
+static void
+test_invalid_remove_userspace_config(void)
+{
+	struct drm_xe_oa_config config;
+	const char *uuid = "01234567-0123-0123-0123-0123456789ab";
+	uint32_t mux_regs[] = { SAMPLE_MUX_REG, 0x0 };
+	uint64_t config_id, wrong_config_id = 999999999;
+	char path[512];
+
+	igt_require(has_xe_oa_userspace_config(drm_fd));
+
+	snprintf(path, sizeof(path), "metrics/%s/id", uuid);
+
+	/* Destroy previous configuration if present */
+	if (try_sysfs_read_u64(path, &config_id))
+		xe_oa_remove_config(drm_fd, config_id);
+
+	memset(&config, 0, sizeof(config));
+
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+
+	config.n_regs = 1;
+	config.regs_ptr = to_user_pointer(mux_regs);
+
+	config_id = xe_oa_add_config(drm_fd, &config);
+
+	/* Removing configs without permissions should fail. */
+	igt_fork(child, 1) {
+		igt_drop_root();
+
+		intel_xe_perf_ioctl_err(drm_fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id, EACCES);
+	}
+	igt_waitchildren();
+
+	/* Removing invalid config ID should fail. */
+	intel_xe_perf_ioctl_err(drm_fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &wrong_config_id, ENOENT);
+
+	xe_oa_remove_config(drm_fd, config_id);
+}
+
+/**
+ * SUBTEST: create-destroy-userspace-config
+ * Description: Test add/remove OA configs
+ */
+static void
+test_create_destroy_userspace_config(void)
+{
+	struct drm_xe_oa_config config;
+	const char *uuid = "01234567-0123-0123-0123-0123456789ab";
+	uint32_t mux_regs[] = { SAMPLE_MUX_REG, 0x0 };
+	uint32_t regs[100];
+	int i;
+	uint64_t config_id;
+	uint64_t properties[] = {
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, 0, /* Filled later */
+
+		/* OA unit configuration */
+		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
+		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(default_test_set->perf_oa_format),
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exp_1_millisec,
+		DRM_XE_OA_PROPERTY_OA_DISABLED, true,
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET
+	};
+	struct intel_xe_oa_open_prop param = {
+		.num_properties = ARRAY_SIZE(properties) / 2,
+		.properties_ptr = to_user_pointer(properties),
+	};
+	char path[512];
+
+	igt_require(has_xe_oa_userspace_config(drm_fd));
+
+	snprintf(path, sizeof(path), "metrics/%s/id", uuid);
+
+	/* Destroy previous configuration if present */
+	if (try_sysfs_read_u64(path, &config_id))
+		xe_oa_remove_config(drm_fd, config_id);
+
+	memset(&config, 0, sizeof(config));
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+
+	regs[0] = mux_regs[0];
+	regs[1] = mux_regs[1];
+	/* Flex EU counters */
+	for (i = 1; i < ARRAY_SIZE(regs) / 2; i++) {
+		regs[i * 2] = 0xe458; /* EU_PERF_CNTL0 */
+		regs[i * 2 + 1] = 0x0;
+	}
+	config.regs_ptr = to_user_pointer(regs);
+	config.n_regs = ARRAY_SIZE(regs) / 2;
+
+	/* Creating configs without permissions shouldn't work. */
+	igt_fork(child, 1) {
+		igt_drop_root();
+
+		igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EACCES);
+	}
+	igt_waitchildren();
+
+	/* Create a new config */
+	config_id = xe_oa_add_config(drm_fd, &config);
+
+	/* Verify that adding the another config with the same uuid fails. */
+	igt_assert_eq(__xe_oa_add_config(drm_fd, &config), -EADDRINUSE);
+
+	/* Try to use the new config */
+	properties[3] = config_id;
+	stream_fd = __perf_open(drm_fd, &param, false);
+
+	/* Verify that destroying the config doesn't yield any error. */
+	xe_oa_remove_config(drm_fd, config_id);
+
+	/* Read the config to verify shouldn't raise any issue. */
+	config_id = xe_oa_add_config(drm_fd, &config);
+
+	__perf_close(stream_fd);
+
+	xe_oa_remove_config(drm_fd, config_id);
+}
+
+/**
+ * SUBTEST: whitelisted-registers-userspace-config
+ * Description: Test that an OA config constructed using whitelisted register works
+ */
+/* Registers required by userspace. This list should be maintained by
+ * the OA configs developers and agreed upon with kernel developers as
+ * some of the registers have bits used by the kernel (for workarounds
+ * for instance) and other bits that need to be set by the OA configs.
+ */
+static void
+test_whitelisted_registers_userspace_config(void)
+{
+	struct drm_xe_oa_config config;
+	const char *uuid = "01234567-0123-0123-0123-0123456789ab";
+	uint32_t regs[600];
+	uint32_t i;
+	uint32_t oa_start_trig1, oa_start_trig8;
+	uint32_t oa_report_trig1, oa_report_trig8;
+	uint64_t config_id;
+	char path[512];
+	int ret;
+	const uint32_t flex[] = {
+		0xe458,
+		0xe558,
+		0xe658,
+		0xe758,
+		0xe45c,
+		0xe55c,
+		0xe65c
+	};
+
+	igt_require(has_xe_oa_userspace_config(drm_fd));
+
+	snprintf(path, sizeof(path), "metrics/%s/id", uuid);
+
+	if (try_sysfs_read_u64(path, &config_id))
+		xe_oa_remove_config(drm_fd, config_id);
+
+	memset(&config, 0, sizeof(config));
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+
+	oa_start_trig1 = 0xd900;
+	oa_start_trig8 = 0xd91c;
+	oa_report_trig1 = 0xd920;
+	oa_report_trig8 = 0xd93c;
+
+	/* b_counters_regs: OASTARTTRIG[1-8] */
+	for (i = oa_start_trig1; i <= oa_start_trig8; i += 4) {
+		regs[config.n_regs * 2] = i;
+		regs[config.n_regs * 2 + 1] = 0;
+		config.n_regs++;
+	}
+	/* b_counters_regs: OAREPORTTRIG[1-8] */
+	for (i = oa_report_trig1; i <= oa_report_trig8; i += 4) {
+		regs[config.n_regs * 2] = i;
+		regs[config.n_regs * 2 + 1] = 0;
+		config.n_regs++;
+	}
+
+	/* Flex EU registers, only from Gen8+. */
+	for (i = 0; i < ARRAY_SIZE(flex); i++) {
+		regs[config.n_regs * 2] = flex[i];
+		regs[config.n_regs * 2 + 1] = 0;
+		config.n_regs++;
+	}
+
+	/* Mux registers (too many of them, just checking bounds) */
+	/* NOA_WRITE */
+	regs[config.n_regs * 2] = SAMPLE_MUX_REG;
+	regs[config.n_regs * 2 + 1] = 0;
+	config.n_regs++;
+
+	/* NOA_CONFIG */
+	/* Prior to Xe2 */
+	if (intel_graphics_ver(devid) < IP_VER(20, 0)) {
+		regs[config.n_regs * 2] = 0xD04;
+		regs[config.n_regs * 2 + 1] = 0;
+		config.n_regs++;
+		regs[config.n_regs * 2] = 0xD2C;
+		regs[config.n_regs * 2 + 1] = 0;
+		config.n_regs++;
+	}
+	/* Prior to MTLx */
+	if (intel_graphics_ver(devid) < IP_VER(12, 70)) {
+		/* WAIT_FOR_RC6_EXIT */
+		regs[config.n_regs * 2] = 0x20CC;
+		regs[config.n_regs * 2 + 1] = 0;
+		config.n_regs++;
+	}
+
+	config.regs_ptr = (uintptr_t) regs;
+
+	/* Create a new config */
+	ret = intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config);
+	igt_assert(ret > 0); /* Config 0 should be used by the kernel */
+	config_id = ret;
+
+	xe_oa_remove_config(drm_fd, config_id);
+}
+
 /**
  * SUBTEST: xe-ref-count
  * Description: Check that an open oa stream holds a reference on the xe module
@@ -3893,6 +4214,18 @@ igt_main
 		__for_one_hwe_in_oag(hwe)
 			test_stress_open_close(hwe);
 	}
+
+	igt_subtest("invalid-create-userspace-config")
+		test_invalid_create_userspace_config();
+
+	igt_subtest("invalid-remove-userspace-config")
+		test_invalid_remove_userspace_config();
+
+	igt_subtest("create-destroy-userspace-config")
+		test_create_destroy_userspace_config();
+
+	igt_subtest("whitelisted-registers-userspace-config")
+		test_whitelisted_registers_userspace_config();
 
 	igt_fixture {
 		/* leave sysctl options in their default state... */
