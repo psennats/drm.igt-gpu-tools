@@ -19,7 +19,7 @@ extern "C" {
 #define _DIV_ROUND_UP(a, b)  (((a) + (b) - 1) / (b))
 
 #define INTEL_XE_DEVICE_MAX_SLICES           (8)
-#define INTEL_XE_DEVICE_MAX_SUBSLICES        (32)
+#define INTEL_XE_DEVICE_MAX_SUBSLICES        (64) /* Maximum on XE_PVC */
 #define INTEL_XE_DEVICE_MAX_EUS_PER_SUBSLICE (16) /* Maximum on gfx12 */
 
 enum intel_xe_oa_format_name {

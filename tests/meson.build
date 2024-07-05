@@ -301,6 +301,7 @@ intel_xe_progs = [
 	'xe_mmap',
 	'xe_module_load',
 	'xe_noexec_ping_pong',
+	'xe_oa',
 	'xe_pat',
 	'xe_peer2peer',
 	'xe_pm',
@@ -367,6 +368,7 @@ extra_dependencies = {
 	'perf': [ lib_igt_i915_perf ],
 	'perf_pmu':  [ lib_igt_perf ],
 	'sw_sync': [ libatomic ],
+	'xe_oa': [ lib_igt_xe_oa ],
 }
 
 test_executables = []
