@@ -36,6 +36,7 @@
 #include "xe_oa_metrics_acmgt3.h"
 #include "xe_oa_metrics_mtlgt2.h"
 #include "xe_oa_metrics_mtlgt3.h"
+#include "xe_oa_metrics_pvc.h"
 #include "xe_oa_metrics_lnl.h"
 
 static struct intel_xe_perf_logical_counter_group *
@@ -296,6 +297,9 @@ intel_xe_perf_for_devinfo(uint32_t device_id,
 			intel_xe_perf_load_metrics_acmgt3(perf);
 		else
 			return unsupported_xe_oa_platform(perf);
+	} else if (devinfo->is_pontevecchio) {
+		perf->devinfo.eu_threads_count = 8;
+		intel_xe_perf_load_metrics_pvc(perf);
 	} else if (intel_graphics_ver(device_id) >= IP_VER(20, 0)) {
 		intel_xe_perf_load_metrics_lnl(perf);
 	} else {
