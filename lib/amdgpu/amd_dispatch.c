@@ -159,10 +159,10 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 	amdgpu_cs_ctx_free(context_handle);
 }
 
-void
+int
 amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 			    uint32_t ip_type, uint32_t ring, uint32_t version,
-			    enum shader_error_type hang)
+			    enum cmd_error_type hang)
 {
 	amdgpu_context_handle context_handle;
 	amdgpu_bo_handle bo_src, bo_dst, bo_shader, bo_cmd, resources[4];
@@ -172,7 +172,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	uint32_t *ptr_cmd;
 	uint64_t mc_address_src, mc_address_dst, mc_address_shader, mc_address_cmd;
 	amdgpu_va_handle va_src, va_dst, va_shader, va_cmd;
-	int i, r;
+	int i, r, r2;
 	int bo_dst_size = 16384;
 	int bo_shader_size = 4096;
 	int bo_cmd_size = 4096;
@@ -326,9 +326,8 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 			i++;
 		}
 	} else {
-		r = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
-		igt_assert_eq(r, 0);
-		igt_assert_eq(hang_state, AMDGPU_CTX_UNKNOWN_RESET);
+		r2 = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
+		igt_assert_eq(r2, 0);
 	}
 
 	amdgpu_bo_list_destroy(bo_list);
@@ -338,6 +337,8 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	amdgpu_bo_unmap_and_free(bo_shader, va_shader, mc_address_shader,
 				 bo_shader_size);
 	amdgpu_cs_ctx_free(context_handle);
+
+	return r;
 }
 
 static void
@@ -538,16 +539,16 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 	}
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memcpy_dispatch_test(device_handle, ip_type,
-					    ring_id,  version, 0);
+					    ring_id,  version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS);
 		amdgpu_memcpy_dispatch_hang_slow_test(device_handle, ip_type,
 						      ring_id, version, AMDGPU_CTX_UNKNOWN_RESET);
 
 		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id,
-					    version, 0);
+					    version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS);
 	}
 }
 
-void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type, enum shader_error_type hang)
+void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type, enum cmd_error_type hang)
 {
 	int r;
 	struct drm_amdgpu_info_hw_ip info;

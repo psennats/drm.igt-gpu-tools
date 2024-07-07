@@ -185,6 +185,51 @@ gfx_ring_write_linear(const struct amdgpu_ip_funcs *func,
 }
 
 static int
+gfx_ring_bad_write_linear(const struct amdgpu_ip_funcs *func,
+		      const struct amdgpu_ring_context *ring_context,
+		      uint32_t *pm4_dw, unsigned int cmd_error)
+{
+	uint32_t i, j;
+
+	i = 0;
+	j = 0;
+
+	 /* Invalid opcode are different for different asics,
+	  * But the range applies to all asics.
+	  * 0xcb-0xcf, 0xd2-0xef, 0xf1-0xfb
+	  */
+	if (cmd_error == CMD_STREAM_EXEC_INVALID_OPCODE)
+		ring_context->pm4[i++] = PACKET3(0xf2, 2 +  ring_context->write_length);
+	else if (cmd_error == CMD_STREAM_EXEC_INVALID_PACKET_LENGTH)
+		ring_context->pm4[i++] = PACKET3(PACKET3_WRITE_DATA, (ring_context->write_length - 2));
+	else
+		ring_context->pm4[i++] = PACKET3(PACKET3_WRITE_DATA, 2 +  ring_context->write_length);
+
+	if (cmd_error == CMD_STREAM_TRANS_BAD_REG_ADDRESS) {
+		ring_context->pm4[i++] =  WRITE_DATA_DST_SEL(0);
+		ring_context->pm4[i++] = lower_32_bits(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR);
+		ring_context->pm4[i++] = upper_32_bits(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR);
+	} else if (cmd_error == CMD_STREAM_TRANS_BAD_MEM_ADDRESS) {
+		ring_context->pm4[i++] = WRITE_DATA_DST_SEL(5) | WR_CONFIRM;
+		ring_context->pm4[i++] = lower_32_bits(0xdeadbee0);
+		ring_context->pm4[i++] = upper_32_bits(0xdeadbee0);
+	} else if (cmd_error == CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC) {
+		ring_context->pm4[i++] = WRITE_DATA_DST_SEL(1);
+		ring_context->pm4[i++] = lower_32_bits(0xdeadbee0);
+		ring_context->pm4[i++] = upper_32_bits(0xdeadbee0);
+	} else {
+		ring_context->pm4[i++] = WRITE_DATA_DST_SEL(5) | WR_CONFIRM;
+		ring_context->pm4[i++] = lower_32_bits(ring_context->bo_mc);
+		ring_context->pm4[i++] = upper_32_bits(ring_context->bo_mc);
+	}
+
+	while (j++ < ring_context->write_length)
+		ring_context->pm4[i++] = func->deadbeaf;
+	*pm4_dw = i;
+	return i;
+}
+
+static int
 gfx_ring_atomic(const struct amdgpu_ip_funcs *func,
 		      const struct amdgpu_ring_context *ring_context,
 		      uint32_t *pm4_dw)
@@ -362,6 +407,7 @@ static struct amdgpu_ip_funcs gfx_v8_x_ip_funcs = {
 	.deadbeaf = 0xdeadbeaf,
 	.pattern = 0xaaaaaaaa,
 	.write_linear = gfx_ring_write_linear,
+	.bad_write_linear = gfx_ring_bad_write_linear,
 	.write_linear_atomic = gfx_ring_atomic,
 	.const_fill = gfx_ring_const_fill,
 	.copy_linear = gfx_ring_copy_linear,
@@ -413,7 +459,7 @@ struct amdgpu_ip_block_version sdma_v3_x_ip_block = {
 
 /* we may improve later */
 struct amdgpu_ip_blocks_device amdgpu_ips;
-const struct chip_info  *g_pChip = NULL;
+const struct chip_info  *g_pChip;
 struct chip_info g_chip;
 
 static int
@@ -610,6 +656,7 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 		{},
 	};
 	struct chip_info *info = &g_chip;
+
 	g_pChip = &g_chip;
 
 	switch (amdinfo->family_id) {

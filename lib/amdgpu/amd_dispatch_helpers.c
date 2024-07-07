@@ -1,26 +1,8 @@
-/* SPDX-License-Identifier: MIT
- * Copyright 2014 Advanced Micro Devices, Inc.
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright 2024 Advanced Micro Devices, Inc.
  * Copyright 2022 Advanced Micro Devices, Inc.
- *  *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- *
+ * Copyright 2014 Advanced Micro Devices, Inc.
  */
 
 #include "amd_dispatch_helpers.h"
@@ -29,7 +11,8 @@
 #include "amd_ip_blocks.h"
 #include "igt.h"
 
- int amdgpu_dispatch_init(uint32_t ip_type, struct amdgpu_cmd_base * base, uint32_t version)
+int
+amdgpu_dispatch_init(uint32_t ip_type, struct amdgpu_cmd_base *base, uint32_t version)
 {
 	int i = base->cdw;
 
@@ -87,34 +70,36 @@
 	return base->cdw - i;
 }
 
-int amdgpu_dispatch_write_cumask(struct amdgpu_cmd_base * base, uint32_t version)
- {
- 	int offset_prev = base->cdw;
- 	if (version == 9) {
- 	/*  Issue commands to set cu mask used in current dispatch */
- 	/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE1 - mmCOMPUTE_STATIC_THREAD_MGMT_SE0 */
- 		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 2));
- 		base->emit(base, 0x216);
- 		base->emit(base, 0xffffffff);
- 		base->emit(base, 0xffffffff);
-	} else if((version == 10) || (version == 11)) {
+int
+amdgpu_dispatch_write_cumask(struct amdgpu_cmd_base *base, uint32_t version)
+{
+	int offset_prev = base->cdw;
+
+	if (version == 9) {
+	/*  Issue commands to set cu mask used in current dispatch */
+	/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE1 - mmCOMPUTE_STATIC_THREAD_MGMT_SE0 */
+		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 2));
+		base->emit(base, 0x216);
+		base->emit(base, 0xffffffff);
+		base->emit(base, 0xffffffff);
+	} else if ((version == 10) || (version == 11)) {
 		/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE1 - mmCOMPUTE_STATIC_THREAD_MGMT_SE0 */
- 		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG_INDEX, 2));
- 		base->emit(base, 0x30000216);
- 		base->emit(base, 0xffffffff);
- 		base->emit(base, 0xffffffff);
+		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG_INDEX, 2));
+		base->emit(base, 0x30000216);
+		base->emit(base, 0xffffffff);
+		base->emit(base, 0xffffffff);
 	}
 	/* set mmCOMPUTE_STATIC_THREAD_MGMT_SE3 - mmCOMPUTE_STATIC_THREAD_MGMT_SE2 */
 	base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG_INDEX, 2));
- 	base->emit(base, 0x219);
- 	base->emit(base, 0xffffffff);
- 	base->emit(base, 0xffffffff);
+	base->emit(base, 0x219);
+	base->emit(base, 0xffffffff);
+	base->emit(base, 0xffffffff);
 
 	return base->cdw - offset_prev;
- }
+}
 
 
-int amdgpu_dispatch_write2hw(struct amdgpu_cmd_base * base, uint64_t shader_addr, uint32_t version, enum shader_error_type hang)
+int amdgpu_dispatch_write2hw(struct amdgpu_cmd_base *base, uint64_t shader_addr, uint32_t version, enum  cmd_error_type hang)
 {
 	static const uint32_t bufferclear_cs_shader_registers_gfx9[][2] = {
 		{0x2e12, 0x000C0041},	//{ mmCOMPUTE_PGM_RSRC1,	0x000C0041 },
@@ -157,18 +142,18 @@ int amdgpu_dispatch_write2hw(struct amdgpu_cmd_base * base, uint64_t shader_addr
 			base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
 			if (hang == BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING) {
 				/* - Gfx11ShRegBase */
-				base->emit(base,bufferclear_cs_shader_invalid_registers[j][0] - 0x2c00);
-				if (bufferclear_cs_shader_invalid_registers[j][0] ==0x2E12)
+				base->emit(base, bufferclear_cs_shader_invalid_registers[j][0] - 0x2c00);
+				if (bufferclear_cs_shader_invalid_registers[j][0] == 0x2E12)
 					bufferclear_cs_shader_invalid_registers[j][1] &= ~(1<<29);
 
-				base->emit(base,bufferclear_cs_shader_invalid_registers[j][1]);
+				base->emit(base, bufferclear_cs_shader_invalid_registers[j][1]);
 			} else {
 				/* - Gfx11ShRegBase */
-				base->emit(base,bufferclear_cs_shader_registers_gfx11[j][0] - 0x2c00);
-				if (bufferclear_cs_shader_registers_gfx11[j][0] ==0x2E12)
+				base->emit(base, bufferclear_cs_shader_registers_gfx11[j][0] - 0x2c00);
+				if (bufferclear_cs_shader_registers_gfx11[j][0] == 0x2E12)
 					bufferclear_cs_shader_registers_gfx11[j][1] &= ~(1<<29);
 
-				base->emit(base,bufferclear_cs_shader_registers_gfx11[j][1]);
+				base->emit(base, bufferclear_cs_shader_registers_gfx11[j][1]);
 			}
 		}
 	} else {
@@ -179,21 +164,21 @@ int amdgpu_dispatch_write2hw(struct amdgpu_cmd_base * base, uint64_t shader_addr
 				base->emit(base, bufferclear_cs_shader_invalid_registers[j][0] - 0x2c00);
 				base->emit(base, bufferclear_cs_shader_invalid_registers[j][1]);
 			} else {
-				base->emit(base,bufferclear_cs_shader_registers_gfx9[j][0] - 0x2c00);
-				base->emit(base,bufferclear_cs_shader_registers_gfx9[j][1]);
+				base->emit(base, bufferclear_cs_shader_registers_gfx9[j][0] - 0x2c00);
+				base->emit(base, bufferclear_cs_shader_registers_gfx9[j][1]);
 			}
 		}
 	}
 	if (version == 10) {
 		/* mmCOMPUTE_PGM_RSRC3 */
 		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
-		base->emit(base,0x228);
-		base->emit(base, 0 );
+		base->emit(base, 0x228);
+		base->emit(base, 0);
 	} else if (version == 11) {
 		/* mmCOMPUTE_PGM_RSRC3 */
 		base->emit(base, PACKET3_COMPUTE(PKT3_SET_SH_REG, 1));
-		base->emit(base,0x228);
-		base->emit(base, 0x3f0 );
+		base->emit(base, 0x228);
+		base->emit(base, 0x3f0);
 	}
 	return base->cdw - offset_prev;
 }

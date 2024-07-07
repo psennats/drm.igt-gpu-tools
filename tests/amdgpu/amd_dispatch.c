@@ -32,7 +32,7 @@ amdgpu_dispatch_hang_gfx(amdgpu_device_handle device_handle)
 }
 
 static void
-amdgpu_dispatch_hang_compute(amdgpu_device_handle device_handle, enum shader_error_type error)
+amdgpu_dispatch_hang_compute(amdgpu_device_handle device_handle, enum cmd_error_type error)
 {
 	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, error);
 }

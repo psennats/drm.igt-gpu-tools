@@ -28,7 +28,7 @@
 
 #include "amd_ip_blocks.h"
 
-void amdgpu_test_exec_cs_helper(amdgpu_device_handle device,
+int amdgpu_test_exec_cs_helper(amdgpu_device_handle device,
 				unsigned int ip_type, struct amdgpu_ring_context *ring_context,
 				int expect);
 

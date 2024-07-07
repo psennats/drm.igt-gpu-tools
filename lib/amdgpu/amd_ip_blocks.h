@@ -7,6 +7,8 @@
 #ifndef AMD_IP_BLOCKS_H
 #define AMD_IP_BLOCKS_H
 
+#include <amdgpu_drm.h>
+
 #include "amd_registers.h"
 #include "amd_family.h"
 
@@ -25,6 +27,22 @@ enum amd_ip_block_type {
 	AMD_IP_VCN_JPEG,
 	AMD_IP_VPE,
 	AMD_IP_MAX,
+};
+
+enum  cmd_error_type {
+	CMD_STREAM_EXEC_SUCCESS,
+	CMD_STREAM_EXEC_INVALID_OPCODE,
+	CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
+	CMD_STREAM_EXEC_INVALID_PACKET_EOP_QUEUE,
+	CMD_STREAM_TRANS_BAD_REG_ADDRESS,
+	CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
+	CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,
+
+	BACKEND_SE_GC_SHADER_EXEC_SUCCESS,
+	BACKEND_SE_GC_SHADER_INVALID_SHADER,
+	BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR,    /* COMPUTE_PGM */
+	BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING, /* COMPUTE_PGM_RSRC */
+	BACKEND_SE_GC_SHADER_INVALID_USER_DATA /* COMPUTE_USER_DATA */
 };
 
 /* aux struct to hold misc parameters for convenience to maintain */
@@ -84,6 +102,8 @@ struct amdgpu_ip_funcs {
 	uint32_t	pattern;
 	/* functions */
 	int (*write_linear)(const struct amdgpu_ip_funcs *func, const struct amdgpu_ring_context *context, uint32_t *pm4_dw);
+	int (*bad_write_linear)(const struct amdgpu_ip_funcs *func, const struct amdgpu_ring_context *context,
+				uint32_t *pm4_dw, unsigned int cmd_error);
 	int (*write_linear_atomic)(const struct amdgpu_ip_funcs *func, const struct amdgpu_ring_context *context, uint32_t *pm4_dw);
 	int (*const_fill)(const struct amdgpu_ip_funcs *func, const struct amdgpu_ring_context *context, uint32_t *pm4_dw);
 	int (*copy_linear)(const struct amdgpu_ip_funcs *func, const struct amdgpu_ring_context *context, uint32_t *pm4_dw);

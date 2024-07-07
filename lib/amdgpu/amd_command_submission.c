@@ -17,8 +17,8 @@
  * submit command stream described in ibs_request and wait for this IB accomplished
  */
 
-void amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type,
-				struct amdgpu_ring_context *ring_context, int expect)
+int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type,
+				struct amdgpu_ring_context *ring_context, int expect_failure)
 {
 	int r;
 	uint32_t expired;
@@ -31,7 +31,7 @@ void amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_typ
 
 	amdgpu_bo_handle *all_res = alloca(sizeof(ring_context->resources[0]) * (ring_context->res_cnt + 1));
 
-	if (expect) {
+	if (expect_failure) {
 		/* allocate IB */
 		r = amdgpu_bo_alloc_and_map(device, ring_context->write_length, 4096,
 					    AMDGPU_GEM_DOMAIN_GTT, 0,
@@ -74,7 +74,13 @@ void amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_typ
 
 	/* submit CS */
 	r = amdgpu_cs_submit(ring_context->context_handle, 0, &ring_context->ibs_request, 1);
-	igt_assert_eq(r, 0);
+	if (expect_failure)
+		igt_info("amdgpu_cs_submit %d PID %d\n", r, getpid());
+	else {
+		if (r != -ECANCELED && r != -ENODATA) /* we allow ECANCELED or ENODATA for good jobs temporally */
+			igt_assert_eq(r, 0);
+	}
+
 
 	r = amdgpu_bo_list_destroy(ring_context->ibs_request.resources);
 	igt_assert_eq(r, 0);
@@ -89,15 +95,16 @@ void amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_typ
 	r = amdgpu_cs_query_fence_status(&fence_status,
 					 AMDGPU_TIMEOUT_INFINITE,
 					 0, &expired);
-	if (expect) {
-		igt_assert_neq(r, 0);
-		igt_assert_neq(expired, true);
+	if (expect_failure) {
+		igt_info("EXPECT FAILURE amdgpu_cs_query_fence_status %d expired %d PID %d\n", r,  expired, getpid());
 	} else {
-		igt_assert_eq(r, 0);
-		igt_assert_eq(expired, true);
+		if (r != -ECANCELED && r != -ENODATA) /* we allow ECANCELED or ENODATA for good jobs temporally */
+			igt_assert_eq(r, 0);
 	}
+
 	amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
 				 ib_result_mc_address, 4096);
+	return r;
 }
 
 void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,

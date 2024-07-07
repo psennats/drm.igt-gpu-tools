@@ -12,7 +12,6 @@
 #include <signal.h>
 #include "amd_memory.h"
 #include "amd_deadlock_helpers.h"
-#include "amd_ip_blocks.h"
 #include "lib/amdgpu/amd_command_submission.h"
 
 #define MAX_JOB_COUNT 200
@@ -171,83 +170,50 @@ amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int ip_ty
 }
 
 void
-bad_access_helper(amdgpu_device_handle device_handle, int reg_access, unsigned int ip_type)
+bad_access_helper(amdgpu_device_handle device_handle, unsigned int cmd_error, unsigned int ip_type)
 {
-	amdgpu_context_handle context_handle;
-	amdgpu_bo_handle ib_result_handle;
-	void *ib_result_cpu;
-	uint64_t ib_result_mc_address;
-	struct amdgpu_cs_request ibs_request;
-	struct amdgpu_cs_ib_info ib_info;
-	struct amdgpu_cs_fence fence_status;
-	uint32_t expired;
-	const unsigned int bo_cmd_size = 4096;
-	const unsigned int alignment = 4096;
+
+	const struct amdgpu_ip_block_version *ip_block = NULL;
+	const int write_length = 128;
+	const int pm4_dw = 256;
+
+	struct amdgpu_ring_context *ring_context;
 	int r;
-	amdgpu_bo_list_handle bo_list;
-	amdgpu_va_handle va_handle;
-	struct amdgpu_cmd_base *base_cmd;
 
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+	ring_context = calloc(1, sizeof(*ring_context));
+	igt_assert(ring_context);
+	r = amdgpu_cs_ctx_create(device_handle, &ring_context->context_handle);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_bo_alloc_and_map_raw(device_handle, bo_cmd_size, alignment,
-									AMDGPU_GEM_DOMAIN_GTT, 0, 0,
-									&ib_result_handle, &ib_result_cpu,
-									&ib_result_mc_address, &va_handle);
+	/* setup parameters */
+	ring_context->write_length =  write_length;
+	ring_context->pm4 = calloc(pm4_dw, sizeof(*ring_context->pm4));
+	ring_context->pm4_size = pm4_dw;
+	ring_context->res_cnt = 1;
+	ring_context->ring_id = 0;
+	igt_assert(ring_context->pm4);
+	ip_block = get_ip_block(device_handle, ip_type);
+	r = amdgpu_bo_alloc_and_map(device_handle,
+				    ring_context->write_length * sizeof(uint32_t),
+				    4096, AMDGPU_GEM_DOMAIN_GTT,
+					AMDGPU_GEM_CREATE_CPU_GTT_USWC, &ring_context->bo,
+				    (void **)&ring_context->bo_cpu,
+				    &ring_context->bo_mc,
+				    &ring_context->va_handle);
 	igt_assert_eq(r, 0);
-	base_cmd = get_cmd_base();
-	base_cmd->attach_buf(base_cmd, ib_result_cpu, bo_cmd_size);
 
-	r = amdgpu_get_bo_list(device_handle, ib_result_handle, NULL, &bo_list);
-	igt_assert_eq(r, 0);
+	memset((void *)ring_context->bo_cpu, 0, ring_context->write_length * sizeof(uint32_t));
+	ring_context->resources[0] = ring_context->bo;
 
-	base_cmd->emit(base_cmd, PACKET3(PACKET3_WRITE_DATA, 3));
-	base_cmd->emit(base_cmd, (reg_access ? WRITE_DATA_DST_SEL(0) :
-										   WRITE_DATA_DST_SEL(5)) | WR_CONFIRM);
+	ip_block->funcs->bad_write_linear(ip_block->funcs, ring_context, &ring_context->pm4_dw, cmd_error);
 
-	base_cmd->emit(base_cmd, reg_access ? mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR :
-					0xdeadbee0);
-	base_cmd->emit(base_cmd, 0);
-	base_cmd->emit(base_cmd, 0xdeadbeef);
-	base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP, 16 - base_cmd->cdw);
+	amdgpu_test_exec_cs_helper(device_handle, ip_block->type, ring_context,
+			cmd_error == CMD_STREAM_EXEC_SUCCESS ? 0 : 1);
 
-	memset(&ib_info, 0, sizeof(struct amdgpu_cs_ib_info));
-	ib_info.ib_mc_address = ib_result_mc_address;
-	ib_info.size = base_cmd->cdw;
-
-	memset(&ibs_request, 0, sizeof(struct amdgpu_cs_request));
-	ibs_request.ip_type = ip_type;
-	ibs_request.ring = 0;
-	ibs_request.number_of_ibs = 1;
-	ibs_request.ibs = &ib_info;
-	ibs_request.resources = bo_list;
-	ibs_request.fence_info.handle = NULL;
-
-	r = amdgpu_cs_submit(context_handle, 0, &ibs_request, 1);
-	/* see kernel change */
-	/* https://lists.freedesktop.org/archives/amd-gfx/2023-May/092770.html */
-	if (r != 0 && r != -ECANCELED && r != -ETIME)
-		igt_assert(0);
-
-
-	memset(&fence_status, 0, sizeof(struct amdgpu_cs_fence));
-	fence_status.context = context_handle;
-	fence_status.ip_type = ip_type;
-	fence_status.ip_instance = 0;
-	fence_status.ring = 0;
-	fence_status.fence = ibs_request.seq_no;
-
-	r = amdgpu_cs_query_fence_status(&fence_status,
-			AMDGPU_TIMEOUT_INFINITE, 0, &expired);
-	if (r != 0 && r != -ECANCELED && r != -ETIME)
-		igt_assert(0);
-
-	amdgpu_bo_list_destroy(bo_list);
-	amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
-					 ib_result_mc_address, 4096);
-	free_cmd_base(base_cmd);
-	amdgpu_cs_ctx_free(context_handle);
+	amdgpu_bo_unmap_and_free(ring_context->bo, ring_context->va_handle, ring_context->bo_mc,
+				 ring_context->write_length * sizeof(uint32_t));
+	free(ring_context->pm4);
+	free(ring_context);
 }
 
 #define MAX_DMABUF_COUNT 0x20000
