@@ -769,6 +769,10 @@ igt_main
 			test_mocs_suspend_resume(device, s->state);
 	}
 
+	igt_fixture {
+		igt_install_exit_handler(close_fw_handle);
+	}
+
 	for (const struct d_state *d = d_states; d->name; d++) {
 		igt_subtest_f("%s-basic", d->name) {
 			igt_assert(setup_d3(device, d->state));
@@ -823,24 +827,18 @@ igt_main
 		}
 	}
 
-	igt_subtest_group {
-		igt_fixture {
-			igt_install_exit_handler(close_fw_handle);
-		}
+	igt_describe("Validate whether card is limited to d3hot,"
+		     "if vram used > vram threshold");
+	igt_subtest("vram-d3cold-threshold") {
+		orig_threshold = get_vram_d3cold_threshold(sysfs_fd);
+		igt_install_exit_handler(vram_d3cold_threshold_restore);
+		test_vram_d3cold_threshold(device, sysfs_fd);
+	}
 
-		igt_describe("Validate whether card is limited to d3hot,"
-			     "if vram used > vram threshold");
-		igt_subtest("vram-d3cold-threshold") {
-			orig_threshold = get_vram_d3cold_threshold(sysfs_fd);
-			igt_install_exit_handler(vram_d3cold_threshold_restore);
-			test_vram_d3cold_threshold(device, sysfs_fd);
-		}
-
-		igt_subtest("mocs-rpm") {
-			dpms_on_off(device, DRM_MODE_DPMS_OFF);
-			test_mocs_suspend_resume(device, NO_SUSPEND);
-			dpms_on_off(device, DRM_MODE_DPMS_ON);
-		}
+	igt_subtest("mocs-rpm") {
+		dpms_on_off(device, DRM_MODE_DPMS_OFF);
+		test_mocs_suspend_resume(device, NO_SUSPEND);
+		dpms_on_off(device, DRM_MODE_DPMS_ON);
 	}
 
 	igt_fixture {
