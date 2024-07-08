@@ -611,27 +611,27 @@ static void test_mmap(device_t device, uint32_t placement, uint32_t flags,
 }
 
 /**
- * SUBTEST: mocs-rpm
- * Description:
- *     Validate mocs register contents over suspend resume
- *
- * Functionality: mocs registers
- * Run type: FULL
- */
-/**
  * SUBTEST: %s-mocs
- * Description: test checks for mocs state before and after %arg[1] state
- * Functionality: pm - %arg[1]
+ * Description: Validate contents of mocs registers over suspend resume
+ * Functionality: pm_suspend
  *
  * arg[1]:
  *
  * @s2idle:	s2idle
  * @s3:		s3
  * @s4:		s4
+ *
+ * @d3hot:	d3hot
+ * @d3cold:	d3cold
  */
-static void test_mocs_suspend_resume(device_t device, int s_state)
+static void test_mocs_suspend_resume(device_t device, enum igt_suspend_state s_state,
+				     enum igt_acpi_d_state d_state)
 {
 	int gt;
+	uint64_t active_time;
+	bool check_rpm = (d_state == IGT_ACPI_D3Hot ||
+			  d_state == IGT_ACPI_D3Cold);
+
 
 	xe_for_each_gt(device.fd_xe, gt) {
 		char path[256];
@@ -639,24 +639,34 @@ static void test_mocs_suspend_resume(device_t device, int s_state)
 		// Mocs debugfs contents before and after suspend-resume
 		char mocs_content_pre[4096], mocs_contents_post[4096];
 
+		igt_debug("Running on GT%d\n", gt);
+
 		sprintf(path, "gt%d/mocs", gt);
 		igt_assert(igt_debugfs_exists(device.fd_xe, path, O_RDONLY));
 		igt_debugfs_dump(device.fd_xe, path);
 		igt_debugfs_read(device.fd_xe, path, mocs_content_pre);
 
-		if (s_state == NO_SUSPEND) {
+		if (check_rpm) {
+			igt_assert(in_d3(device, d_state));
+			active_time = igt_pm_get_runtime_active_time(device.pci_xe);
+
 			fw_handle = igt_debugfs_open(device.fd_xe, "forcewake_all", O_RDONLY);
 			igt_assert(fw_handle >= 0);
-			igt_assert(igt_get_runtime_pm_status() == IGT_RUNTIME_PM_STATUS_ACTIVE);
+			igt_assert(igt_pm_get_runtime_active_time(device.pci_xe) >
+				   active_time);
 
 			/* Make sure runtime pm goes back to suspended status after closing forcewake_all */
 			close(fw_handle);
-			igt_assert(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_SUSPENDED));
-		} else {
-			enum igt_suspend_test test = s_state == SUSPEND_STATE_DISK ?
-				SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
+			sleep(1);
 
-			igt_system_suspend_autoresume(s_state, test);
+			igt_assert(in_d3(device, d_state));
+		} else {
+			if (s_state != NO_SUSPEND) {
+				enum igt_suspend_test test = s_state == SUSPEND_STATE_DISK ?
+					SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
+
+				igt_system_suspend_autoresume(s_state, test);
+			}
 		}
 		igt_assert(igt_debugfs_exists(device.fd_xe, path, O_RDONLY));
 		igt_debugfs_dump(device.fd_xe, path);
@@ -766,7 +776,7 @@ igt_main
 		}
 
 		igt_subtest_f("%s-mocs", s->name)
-			test_mocs_suspend_resume(device, s->state);
+			test_mocs_suspend_resume(device, s->state, NO_RPM);
 	}
 
 	igt_fixture {
@@ -825,6 +835,14 @@ igt_main
 
 			igt_pm_set_autosuspend_delay(device.pci_xe, delay_ms);
 		}
+
+		igt_describe_f("Validate the contents of mocs registers over %s state", d->name);
+		igt_subtest_f("%s-mocs", d->name) {
+			igt_assert(setup_d3(device, d->state));
+			test_mocs_suspend_resume(device, NO_SUSPEND, d->state);
+			cleanup_d3(device);
+		}
+
 	}
 
 	igt_describe("Validate whether card is limited to d3hot,"
@@ -833,12 +851,6 @@ igt_main
 		orig_threshold = get_vram_d3cold_threshold(sysfs_fd);
 		igt_install_exit_handler(vram_d3cold_threshold_restore);
 		test_vram_d3cold_threshold(device, sysfs_fd);
-	}
-
-	igt_subtest("mocs-rpm") {
-		dpms_on_off(device, DRM_MODE_DPMS_OFF);
-		test_mocs_suspend_resume(device, NO_SUSPEND);
-		dpms_on_off(device, DRM_MODE_DPMS_ON);
 	}
 
 	igt_fixture {
