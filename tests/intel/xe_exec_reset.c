@@ -236,6 +236,10 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		if (e != i)
 			 syncobj_reset(fd, &syncobjs[e], 1);
 		xe_exec(fd, &exec);
+
+		if (i < bad_batches && !(flags & CAT_ERROR))
+			xe_spin_wait_started(&data[i].spin);
+
 	}
 
 	if (flags & GT_RESET)
@@ -380,6 +384,9 @@ test_legacy_mode(int fd, struct drm_xe_engine_class_instance *eci,
 		if (e != i)
 			 syncobj_reset(fd, &syncobjs[e], 1);
 		xe_exec(fd, &exec);
+
+		if (!i && !(flags & CAT_ERROR))
+			xe_spin_wait_started(&data[i].spin);
 	}
 
 	if (flags & GT_RESET)
