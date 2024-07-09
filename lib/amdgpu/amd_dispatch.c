@@ -233,7 +233,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
 	base_cmd->emit(base_cmd, 0x240);
 	if (hang == BACKEND_SE_GC_SHADER_INVALID_USER_DATA) {
-		base_cmd->emit(base_cmd, mc_address_src);
+		base_cmd->emit(base_cmd, mc_address_src + ring * 0x1000);
 		base_cmd->emit(base_cmd, 0);
 	} else {
 		base_cmd->emit(base_cmd, mc_address_src);
@@ -254,11 +254,11 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	base_cmd->emit(base_cmd, PACKET3_COMPUTE(PKT3_SET_SH_REG, 4));
 	base_cmd->emit(base_cmd, 0x244);
 	if (hang == BACKEND_SE_GC_SHADER_INVALID_USER_DATA) {
-		base_cmd->emit(base_cmd, mc_address_src);
+		base_cmd->emit(base_cmd, mc_address_dst + ring * 0x1000);
 		base_cmd->emit(base_cmd, 0);
 	} else {
-		base_cmd->emit(base_cmd, mc_address_src);
-		base_cmd->emit(base_cmd, (mc_address_src >> 32) | 0x100000);
+		base_cmd->emit(base_cmd, mc_address_dst);
+		base_cmd->emit(base_cmd, (mc_address_dst >> 32) | 0x100000);
 	}
 	base_cmd->emit(base_cmd, 0x400);
 	if (version == 9)
@@ -553,7 +553,7 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 	struct drm_amdgpu_info_hw_ip info;
 	uint32_t ring_id, version;
 
-	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_GFX, 0, &info);
+	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
 	igt_assert_eq(r, 0);
 	if (!info.available_rings)
 		igt_info("SKIP ... as there's no graphics ring\n");
