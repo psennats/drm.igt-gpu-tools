@@ -62,7 +62,12 @@ static void enable_vfs_autoprobe_on(int pf_fd, unsigned int num_vfs)
 /**
  * SUBTEST: enable-vfs-bind-unbind-each
  * Description:
- *   Verify VFs enabling with binding and unbinding the driver one be one to each of them
+ *   Verify VFs enabling with binding and unbinding the driver one by one to each of them.
+ *   Version includes dynamic subtests that allow specifying the number of enabled VFs as numvfs-N.
+ *
+ * SUBTEST: enable-vfs-bind-unbind-each-numvfs-all
+ * Description:
+ *   Verify the enabling of all VFs and the sequential binding and unbinding of the driver to each one.
  */
 static void enable_vfs_bind_unbind_each(int pf_fd, unsigned int num_vfs)
 {
@@ -176,10 +181,12 @@ igt_main
 				enable_vfs_bind_unbind_each(pf_fd, num_vfs);
 			}
 		}
+	}
+
+	igt_describe("Verify the enabling of all VFs and the sequential binding and unbinding of the driver to each one");
+	igt_subtest("enable-vfs-bind-unbind-each-numvfs-all") {
 		for_max_sriov_num_vfs(pf_fd, num_vfs) {
-			igt_dynamic_f("numvfs-all") {
-				enable_vfs_bind_unbind_each(pf_fd, num_vfs);
-			}
+			enable_vfs_bind_unbind_each(pf_fd, num_vfs);
 		}
 	}
 
