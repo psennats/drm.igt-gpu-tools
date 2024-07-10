@@ -83,9 +83,10 @@ igt@kms_prime@.*
 ##################################################################
 igt@kms_cursor_legacy@modeset-atomic-cursor-hotspot
 ##################################################################
-# SR-IOV tests that are too stressful or time-consuming
+# SR-IOV tests too stressful or time-consuming
+# to execute all dynamic subtests at once.
 ##################################################################
-igt@sriov_basic@enable-vfs-autoprobe-on
+igt@sriov_basic@enable-vfs-autoprobe-on$
 igt@sriov_basic@enable-vfs-bind-unbind-each$
-igt@sriov_basic@bind-unbind-vf
+igt@sriov_basic@bind-unbind-vf$
 ##################################################################
