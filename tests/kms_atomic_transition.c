@@ -34,6 +34,7 @@
 #include "igt_rand.h"
 #include "drmtest.h"
 #include "sw_sync.h"
+#include "igt_sysfs.h"
 #include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -1174,6 +1175,8 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 	int pipe_count = 0;
 
 	igt_fixture {
+		int dir, current_log_level;
+
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
 
 		kmstest_set_vt_graphics_mode();
@@ -1185,6 +1188,15 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 
 		for_each_connected_output(&data.display, output)
 			count++;
+
+		dir = igt_sysfs_drm_module_params_open();
+		if (dir >= 0) {
+			current_log_level = igt_drm_debug_level_get(dir);
+			close(dir);
+
+			if (current_log_level > 10)
+				igt_drm_debug_level_update(10);
+		}
 	}
 
 	igt_describe("Check toggling of primary plane with vblank");
