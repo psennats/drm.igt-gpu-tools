@@ -138,6 +138,11 @@ void igt_sysfs_set_boolean(int dir, const char *attr, bool value);
 void bind_fbcon(bool enable);
 void fbcon_blink_enable(bool enable);
 
+void igt_drm_debug_level_update(unsigned int new_log_level);
+void igt_drm_debug_level_reset(void);
+int igt_drm_debug_level_get(int dir);
+int igt_sysfs_drm_module_params_open(void);
+
 /**
  * igt_sysfs_rw_attr:
  * @dir: file descriptor for parent directory

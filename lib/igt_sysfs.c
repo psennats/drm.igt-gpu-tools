@@ -413,6 +413,114 @@ int igt_sysfs_get_num_gt(int device)
 }
 
 /**
+ * igt_sysfs_drm_module_params_open:
+ *
+ * This opens the sysfs directory corresponding to drm module
+ * parameters.
+ *
+ * Returns:
+ * The directory fd, or -1 on failure.
+ */
+int igt_sysfs_drm_module_params_open(void)
+{
+	char path[] = "/sys/module/drm/parameters";
+
+	if (access(path, F_OK))
+		return -1;
+
+	return open(path, O_RDONLY);
+}
+
+static int log_level = -1;
+
+/**
+ * igt_drm_debug_level_get:
+ *
+ * This reads the current debug log level of the machine on
+ * which the test is currently executing.
+ *
+ * Returns:
+ * The current log level, or -1 on error.
+ */
+int igt_drm_debug_level_get(int dir)
+{
+	char buf[20];
+
+	if (log_level >= 0)
+		return log_level;
+
+	if (igt_sysfs_read(dir, "debug", buf, sizeof(buf) - 1) < 0)
+		return -1;
+
+	return atoi(buf);
+}
+
+/**
+ * igt_drm_debug_level_reset:
+ *
+ * This modifies the current debug log level of the machine
+ * to the default value post-test.
+ *
+ */
+void igt_drm_debug_level_reset(void)
+{
+	char buf[20];
+	int dir;
+
+	if (log_level < 0)
+		return;
+
+	dir = igt_sysfs_drm_module_params_open();
+	if (dir < 0)
+		return;
+
+	igt_debug("Resetting DRM debug level to %d\n", log_level);
+	snprintf(buf, sizeof(buf), "%d", log_level);
+	igt_assert(igt_sysfs_set(dir, "debug", buf));
+
+	close(dir);
+}
+
+static void igt_drm_debug_level_reset_exit_handler(int sig)
+{
+	igt_drm_debug_level_reset();
+}
+
+/**
+ * igt_drm_debug_level_update:
+ * @debug_level: new debug level to set
+ *
+ * This modifies the current drm debug log level to the new value.
+ */
+void igt_drm_debug_level_update(unsigned int new_log_level)
+{
+	char buf[20];
+	int dir;
+
+	dir = igt_sysfs_drm_module_params_open();
+	if (dir < 0)
+		return;
+
+	log_level = igt_drm_debug_level_get(dir);
+	if (log_level < 0) {
+		close(dir);
+		return;
+	}
+
+	igt_debug("Setting DRM debug level to %d\n", new_log_level);
+	snprintf(buf, sizeof(buf), "%d", new_log_level);
+	igt_assert(igt_sysfs_set(dir, "debug", buf));
+
+	close(dir);
+
+	/*
+	 * TODO: Check whether multiple exit handlers will get installed,
+	 * if we call this api multiple times
+	 */
+	igt_install_exit_handler(igt_drm_debug_level_reset_exit_handler);
+}
+
+/**
  * igt_sysfs_write:
  * @dir: sysfs directory
  * @attr: name of the sysfs node to open
