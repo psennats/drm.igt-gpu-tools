@@ -22,11 +22,17 @@
 #include "xe/xe_spin.h"
 #include <string.h>
 
+#define SYNC_OBJ_SIGNALED	(0x1 << 0)
+
 /**
  * SUBTEST: spin
  * Description: test spin
+ *
+ * SUBTEST: spin-signaled
+ * Description: test spin with signaled sync obj
  */
-static void test_spin(int fd, struct drm_xe_engine_class_instance *eci)
+static void test_spin(int fd, struct drm_xe_engine_class_instance *eci,
+		      unsigned int flags)
 {
 	uint32_t vm;
 	uint64_t addr = 0x1a0000;
@@ -45,6 +51,7 @@ static void test_spin(int fd, struct drm_xe_engine_class_instance *eci)
 	uint32_t bo = 0;
 	struct xe_spin *spin;
 	struct xe_spin_opts spin_opts = { .addr = addr, .preempt = false };
+	int i;
 
 	vm = xe_vm_create(fd, 0, 0);
 	bo_size = sizeof(*spin);
@@ -56,28 +63,33 @@ static void test_spin(int fd, struct drm_xe_engine_class_instance *eci)
 	spin = xe_bo_map(fd, bo, bo_size);
 
 	exec_queue = xe_exec_queue_create(fd, vm, eci, 0);
-	syncobj = syncobj_create(fd, 0);
+	syncobj = syncobj_create(fd, (flags & SYNC_OBJ_SIGNALED) ?
+				 DRM_SYNCOBJ_CREATE_SIGNALED : 0);
 
 	sync[0].handle = syncobj_create(fd, 0);
 	xe_vm_bind_async(fd, vm, 0, bo, 0, addr, bo_size, sync, 1);
 
-	xe_spin_init(spin, &spin_opts);
+#define N_TIMES 4
+	for (i = 0; i < N_TIMES; ++i) {
+		xe_spin_init(spin, &spin_opts);
 
-	sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
-	sync[1].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-	sync[1].handle = syncobj;
+		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
+		sync[1].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
+		sync[1].handle = syncobj;
 
-	exec.exec_queue_id = exec_queue;
-	exec.address = addr;
-	xe_exec(fd, &exec);
+		exec.exec_queue_id = exec_queue;
+		exec.address = addr;
+		xe_exec(fd, &exec);
 
-	xe_spin_wait_started(spin);
-	usleep(50000);
-	igt_assert(!syncobj_wait(fd, &syncobj, 1, 1, 0, NULL));
-	xe_spin_end(spin);
+		xe_spin_wait_started(spin);
+		usleep(50000);
+		igt_assert(!syncobj_wait(fd, &syncobj, 1, 1, 0, NULL));
+		xe_spin_end(spin);
 
-	igt_assert(syncobj_wait(fd, &syncobj, 1, INT64_MAX, 0, NULL));
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
+		igt_assert(syncobj_wait(fd, &syncobj, 1, INT64_MAX, 0, NULL));
+		igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
+	}
+#undef N_TIMES
 
 	sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
 	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
@@ -729,7 +741,11 @@ igt_main
 
 	igt_subtest("spin")
 		xe_for_each_engine(fd, hwe)
-			test_spin(fd, hwe);
+			test_spin(fd, hwe, 0);
+
+	igt_subtest("spin-signaled")
+		xe_for_each_engine(fd, hwe)
+			test_spin(fd, hwe, SYNC_OBJ_SIGNALED);
 
 	igt_subtest("cat-error")
 		xe_for_each_engine(fd, hwe)
