@@ -308,8 +308,7 @@ static void nohangcheck_hostile(int i915)
 	igt_hang_t hang;
 	int fence = -1;
 	const intel_ctx_t *ctx;
-	int err = 0;
-	int dir;
+	int dir, err;
 	uint64_t ahnd;
 
 	/*
@@ -333,8 +332,11 @@ static void nohangcheck_hostile(int i915)
 		int new;
 
 		/* Set a fast hang detection for a dead context */
-		gem_engine_property_printf(i915, e->name,
-					   "preempt_timeout_ms", "%d", 50);
+		err = gem_engine_property_printf(i915, e->name,
+						 "preempt_timeout_ms", "%d", 50);
+		igt_debug_on_f(err < 0,
+			       "%s preempt_timeout_ms update failed: %d\n",
+			       e->name, err);
 
 		spin = __igt_spin_new(i915,
 				      .ahnd = ahnd,
@@ -362,6 +364,7 @@ static void nohangcheck_hostile(int i915)
 	intel_ctx_destroy(i915, ctx);
 	igt_assert(fence != -1);
 
+	err = 0;
 	if (sync_fence_wait(fence, MSEC_PER_SEC)) { /* 640ms preempt-timeout */
 		igt_debugfs_dump(i915, "i915_engine_info");
 		err = -ETIME;
