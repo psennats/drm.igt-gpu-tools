@@ -470,14 +470,10 @@ static int __open_primary(int dir)
 	if (igt_debug_on(readlinkat(dir, "device", target, sizeof(target)) < 0))
 		return dir;
 
-	fd = openat(dir, "..", O_RDONLY);
-	if (fd < 0)
-		return dir;
-
 	close(dir);
 	for (minor = 0; minor < 64; minor++) {
 		sprintf(buf, "/sys/dev/char/%d:%d", major, minor);
-		dir = openat(fd, buf, O_RDONLY);
+		dir = open(buf, O_RDONLY);
 		if (dir < 0)
 			continue;
 
@@ -488,7 +484,6 @@ static int __open_primary(int dir)
 		close(dir);
 		dir = -1;
 	}
-	close(fd);
 
 	return dir;
 }
