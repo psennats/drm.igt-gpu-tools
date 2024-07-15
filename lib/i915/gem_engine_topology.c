@@ -467,7 +467,8 @@ static int __open_primary(int dir)
 	if (minor < 64)
 		return dir;
 
-	if (igt_debug_on(readlinkat(dir, "device", target, sizeof(target)) < 0))
+	len = readlinkat(dir, "device", target, sizeof(target));
+	if (igt_debug_on(len <= 0))
 		return dir;
 
 	close(dir);
@@ -477,8 +478,8 @@ static int __open_primary(int dir)
 		if (dir < 0)
 			continue;
 
-		if (readlinkat(dir, "device", device, sizeof(device)) > 0 &&
-		    !strcmp(device, target))
+		if (readlinkat(dir, "device", device, sizeof(device)) == len &&
+		    !strncmp(device, target, len))
 			break;
 
 		close(dir);
