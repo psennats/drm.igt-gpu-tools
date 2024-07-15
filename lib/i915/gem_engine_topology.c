@@ -479,7 +479,7 @@ static int __open_primary(int dir)
 		sprintf(buf, "/sys/dev/char/%d:%d", major, minor);
 		dir = openat(fd, buf, O_RDONLY);
 		if (dir < 0)
-			break;
+			continue;
 
 		if (readlinkat(dir, "device", device, sizeof(device)) > 0 &&
 		    !strcmp(device, target))
