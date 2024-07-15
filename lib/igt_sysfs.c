@@ -186,7 +186,7 @@ char *igt_sysfs_path(int device, char *path, int pathlen)
 	snprintf(path, pathlen, "/sys/dev/char/%d:%d",
 		 major(st.st_rdev), minor(st.st_rdev));
 
-	if (access(path, F_OK))
+	if (igt_debug_on(access(path, F_OK)))
 		return NULL;
 
 	return path;
@@ -206,7 +206,7 @@ int igt_sysfs_open(int device)
 {
 	char path[80];
 
-	if (!igt_sysfs_path(device, path, sizeof(path)))
+	if (igt_debug_on(!igt_sysfs_path(device, path, sizeof(path))))
 		return -1;
 
 	return open(path, O_RDONLY);

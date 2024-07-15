@@ -454,12 +454,12 @@ static int __open_primary(int dir)
 	int len;
 
 	fd = openat(dir, "dev", O_RDONLY);
-	if (fd < 0)
+	if (igt_debug_on(fd < 0))
 		return dir;
 
 	len = read(fd, buf, sizeof(buf) - 1);
 	close(fd);
-	if (len <= 0)
+	if (igt_debug_on(len <= 0))
 		return dir;
 	buf[len] = '\0';
 
@@ -467,7 +467,7 @@ static int __open_primary(int dir)
 	if (minor < 64)
 		return dir;
 
-	if (readlinkat(dir, "device", target, sizeof(target)) < 0)
+	if (igt_debug_on(readlinkat(dir, "device", target, sizeof(target)) < 0))
 		return dir;
 
 	fd = openat(dir, "..", O_RDONLY);
@@ -500,24 +500,27 @@ static FILE *__open_attr(int dir, const char *mode, ...)
 	va_list ap;
 
 	/* The attributes are not to be found on render nodes */
-	dir = __open_primary(dir);
+	igt_debug_on((dir = __open_primary(dir)) < 0);
 
 	va_start(ap, mode);
 	while (dir >= 0 && (path = va_arg(ap, const char *))) {
 		int fd;
 
-		fd = openat(dir, path, O_RDONLY);
+		igt_debug_on_f((fd = openat(dir, path, O_RDONLY)) < 0,
+			       "failed component: %s\n", path);
 		close(dir);
 
 		dir = fd;
 	}
 	va_end(ap);
+	if (dir < 0)
+		return NULL;
 
 	if (*mode != 'r') /* clumsy, but fun */
-		dir = reopen(dir, O_RDWR);
+		igt_debug_on((dir = reopen(dir, O_RDWR)) < 0);
 
 	file = fdopen(dir, mode);
-	if (!file) {
+	if (igt_debug_on(!file)) {
 		close(dir);
 		return NULL;
 	}
@@ -554,7 +557,7 @@ int gem_engine_property_printf(int i915, const char *engine, const char *attr,
 
 	file = __open_attr(igt_sysfs_open(i915), "w",
 			   "engine", engine, attr, NULL);
-	if (!file)
+	if (igt_debug_on(!file))
 		return -1;
 
 	va_start(ap, fmt);
