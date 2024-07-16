@@ -29,6 +29,7 @@
 #include "igt_core.h"
 #include "igt_drm_clients.h"
 #include "igt_drm_fdinfo.h"
+#include "igt_profiling.h"
 #include "drmtest.h"
 
 enum utilization_type {
@@ -391,10 +392,19 @@ static int parse_args(int argc, char * const argv[], struct gputop_args *args)
 	return 1;
 }
 
+static volatile bool stop_top;
+
+static void sigint_handler(int sig)
+{
+	(void) sig;
+	stop_top = true;
+}
+
 int main(int argc, char **argv)
 {
 	struct gputop_args args;
 	unsigned int period_us;
+	struct igt_profiled_device *profiled_devices = NULL;
 	struct igt_drm_clients *clients = NULL;
 	int con_w = -1, con_h = -1;
 	int ret;
@@ -413,9 +423,21 @@ int main(int argc, char **argv)
 	if (!clients)
 		exit(1);
 
+	profiled_devices = igt_devices_profiled();
+	if (profiled_devices != NULL) {
+		igt_devices_configure_profiling(profiled_devices, true);
+
+		if (signal(SIGINT, sigint_handler) == SIG_ERR) {
+			fprintf(stderr, "Failed to install signal handler!\n");
+			igt_devices_configure_profiling(profiled_devices, false);
+			igt_devices_free_profiling(profiled_devices);
+			profiled_devices = NULL;
+		}
+	}
+
 	igt_drm_clients_scan(clients, NULL, NULL, 0, NULL, 0);
 
-	while (n != 0) {
+	while ((n != 0) && !stop_top) {
 		struct igt_drm_client *c, *prevc = NULL;
 		int i, engine_w = 0, lines = 0;
 
@@ -443,9 +465,17 @@ int main(int argc, char **argv)
 		usleep(period_us);
 		if (n > 0)
 			n--;
+
+		if (profiled_devices != NULL)
+			igt_devices_update_original_profiling_state(profiled_devices);
 	}
 
 	igt_drm_clients_free(clients);
+
+	if (profiled_devices != NULL) {
+		igt_devices_configure_profiling(profiled_devices, false);
+		igt_devices_free_profiling(profiled_devices);
+	}
 
 	return 0;
 }
