@@ -309,6 +309,14 @@ lib_igt_drm_fdinfo_build = static_library('igt_drm_fdinfo',
 
 lib_igt_drm_fdinfo = declare_dependency(link_with : lib_igt_drm_fdinfo_build,
 				  include_directories : inc)
+
+lib_igt_profiling_build = static_library('igt_profiling',
+	['igt_profiling.c'],
+	include_directories : inc)
+
+lib_igt_profiling = declare_dependency(link_with : lib_igt_profiling_build,
+				        include_directories : inc)
+
 i915_perf_files = [
   'igt_list.c',
   'i915/perf.c',
