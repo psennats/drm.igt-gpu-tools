@@ -1,0 +1,11 @@
+##################################################################
+# Block list for VF runs
+##################################################################
+#
+# Prevent potential module reloads during tests
+#
+igt@xe_module_load
+#
+# Blocked because of abort
+#
+igt@xe_debugfs@gt

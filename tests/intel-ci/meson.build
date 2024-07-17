@@ -11,6 +11,7 @@ intelci_files = [
   'xe.blocklist.txt',
   'xe-fast-feedback.testlist',
   'xe-fast-feedback-chamelium-only.testlist',
+  'xe-sriov-vf.blocklist.txt',
 ]
 
 install_data(sources : intelci_files, install_dir : datadir)
