@@ -233,8 +233,8 @@ static void idle_residency_on_exec(int fd, struct drm_xe_engine_class_instance *
 	unsigned long end, start;
 	unsigned long elapsed_ms, residency_end, residency_start;
 
-	igt_debug("Running on %s:%d\n",
-		  xe_engine_class_string(hwe->engine_class), hwe->engine_instance);
+	igt_info("Running on %s:%d\n",
+		 xe_engine_class_string(hwe->engine_class), hwe->engine_instance);
 	done = mmap(0, 4096, PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 	igt_assert(done != MAP_FAILED);
 	memset(done, 0, 4096);
@@ -321,35 +321,44 @@ igt_main
 	}
 
 	igt_describe("Validate GT C6 on idle");
-	igt_subtest("gt-c6-on-idle")
+	igt_subtest_with_dynamic("gt-c6-on-idle") {
 		xe_for_each_gt(fd, gt)
-			igt_assert_f(igt_wait(xe_is_gt_in_c6(fd, gt), 1000, 1), "GT %d not in C6\n", gt);
+			igt_dynamic_f("gt%u", gt)
+				igt_assert_f(igt_wait(xe_is_gt_in_c6(fd, gt), 1000, 1),
+					     "GT %d not in C6\n", gt);
+	}
 
 	igt_describe("Validate idle residency measured over suspend cycle is within the tolerance");
-	igt_subtest("gt-c6-freeze") {
+	igt_subtest_with_dynamic("gt-c6-freeze") {
 		if (xe_has_vram(fd)) {
 			igt_device_get_pci_slot_name(fd, pci_slot_name);
 			igt_pm_get_d3cold_allowed(pci_slot_name, &d3cold_allowed);
 			igt_pm_set_d3cold_allowed(pci_slot_name, 0);
 		}
 		xe_for_each_gt(fd, gt)
-			test_idle_residency(fd, gt, TEST_S2IDLE);
+			igt_dynamic_f("gt%u", gt)
+				test_idle_residency(fd, gt, TEST_S2IDLE);
 
 		if (xe_has_vram(fd))
 			igt_pm_set_d3cold_allowed(pci_slot_name, d3cold_allowed);
 	}
 
 	igt_describe("Validate idle residency measured over a time interval is within the tolerance");
-	igt_subtest("idle-residency")
+	igt_subtest_with_dynamic("idle-residency") {
 		xe_for_each_gt(fd, gt)
-			test_idle_residency(fd, gt, TEST_IDLE);
+			igt_dynamic_f("gt%u", gt)
+				test_idle_residency(fd, gt, TEST_IDLE);
+	}
 
 	igt_describe("Validate idle residency on exec");
-	igt_subtest("idle-residency-on-exec") {
+	igt_subtest_with_dynamic("idle-residency-on-exec") {
 		xe_for_each_gt(fd, gt) {
 			xe_for_each_engine(fd, hwe) {
-				if (gt == hwe->gt_id && !hwe->engine_instance)
-					idle_residency_on_exec(fd, hwe);
+				if (gt == hwe->gt_id && !hwe->engine_instance) {
+					igt_dynamic_f("gt%u-engine-%s", gt,
+						      xe_engine_class_string(hwe->engine_class))
+						idle_residency_on_exec(fd, hwe);
+				}
 			}
 		}
 	}
