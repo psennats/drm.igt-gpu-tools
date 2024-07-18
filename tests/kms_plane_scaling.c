@@ -855,7 +855,7 @@ find_connected_pipe(igt_display_t *display, bool second, igt_output_t **output)
 	return pipe;
 }
 
-static void
+static int
 __test_planes_scaling_combo(data_t *d, int w1, int h1, int w2, int h2,
 			    enum pipe pipe, igt_output_t *output,
 			    igt_plane_t *p1, igt_plane_t *p2,
@@ -897,9 +897,10 @@ __test_planes_scaling_combo(data_t *d, int w1, int h1, int w2, int h2,
 	igt_plane_set_fb(p1, NULL);
 	igt_plane_set_fb(p2, NULL);
 
-	igt_skip_on_f(ret == -EINVAL || ret == -ERANGE,
-		      "Scaling op not supported by driver\n");
-	igt_assert_eq(ret, 0);
+	if (ret == -EINVAL || ret == -ERANGE)
+		igt_debug("Scaling op not supported by driver with %s\n",
+			 (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
+	return ret;
 }
 
 static void setup_fb(int fd, int width, int height, struct igt_fb *fb)
@@ -921,59 +922,66 @@ test_planes_scaling_combo(data_t *d, double sf_plane1,
 	drmModeModeInfo *mode;
 	int n_planes;
 	int w1, h1, w2, h2;
+	int ret;
 
 	cleanup_crtc(d);
 
 	igt_output_set_pipe(output, pipe);
-	mode = igt_output_get_mode(output);
+	for_each_connector_mode(output) {
+		mode = &output->config.connector->modes[j__];
+		igt_output_override_mode(output, mode);
+		igt_debug("Trying mode %dx%d\n",
+			  mode->hdisplay, mode->vdisplay);
+		w1 = get_width(mode, sf_plane1);
+		h1 = get_height(mode, sf_plane1);
+		w2 = get_width(mode, sf_plane2);
+		h2 = get_height(mode, sf_plane2);
 
-	w1 = get_width(mode, sf_plane1);
-	h1 = get_height(mode, sf_plane1);
-	w2 = get_width(mode, sf_plane2);
-	h2 = get_height(mode, sf_plane2);
+		n_planes = display->pipes[pipe].n_planes;
+		igt_require(n_planes >= 2);
 
-	n_planes = display->pipes[pipe].n_planes;
-	igt_require(n_planes >= 2);
+		switch (test_type) {
+		case TEST_PLANES_UPSCALE:
+			setup_fb(display->drm_fd, w1, h1, &d->fb[1]);
+			setup_fb(display->drm_fd, w2, h2, &d->fb[2]);
+			break;
+		case TEST_PLANES_DOWNSCALE:
+			setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[1]);
+			setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[2]);
+			break;
+		case TEST_PLANES_UPSCALE_DOWNSCALE:
+			setup_fb(display->drm_fd, w1, h1, &d->fb[1]);
+			setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[2]);
+			break;
+		case TEST_PLANES_DOWNSCALE_UPSCALE:
+			setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[1]);
+			setup_fb(display->drm_fd, w2, h2, &d->fb[2]);
+			break;
+		default:
+			igt_assert(0);
+		}
 
-	switch (test_type) {
-	case TEST_PLANES_UPSCALE:
-		setup_fb(display->drm_fd, w1, h1, &d->fb[1]);
-		setup_fb(display->drm_fd, w2, h2, &d->fb[2]);
-		break;
-	case TEST_PLANES_DOWNSCALE:
-		setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[1]);
-		setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[2]);
-		break;
-	case TEST_PLANES_UPSCALE_DOWNSCALE:
-		setup_fb(display->drm_fd, w1, h1, &d->fb[1]);
-		setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[2]);
-		break;
-	case TEST_PLANES_DOWNSCALE_UPSCALE:
-		setup_fb(display->drm_fd, mode->hdisplay, mode->vdisplay, &d->fb[1]);
-		setup_fb(display->drm_fd, w2, h2, &d->fb[2]);
-		break;
-	default:
-		igt_assert(0);
-	}
+		for (int k = 0; k < n_planes - 1; k += 2) {
+			igt_plane_t *p1, *p2;
 
-	for (int k = 0; k < n_planes - 1; k += 2) {
-		igt_plane_t *p1, *p2;
+			p1 = &display->pipes[pipe].planes[k];
+			igt_require(p1);
+			p2 = &display->pipes[pipe].planes[k+1];
+			igt_require(p2);
 
-		p1 = &display->pipes[pipe].planes[k];
-		igt_require(p1);
-		p2 = &display->pipes[pipe].planes[k+1];
-		igt_require(p2);
-
-		if (p1->type == DRM_PLANE_TYPE_CURSOR || p2->type == DRM_PLANE_TYPE_CURSOR)
+			if (p1->type == DRM_PLANE_TYPE_CURSOR || p2->type == DRM_PLANE_TYPE_CURSOR)
 				continue;
-
-		__test_planes_scaling_combo(d, w1, h1, w2, h2,
-					    pipe, output, p1, p2,
-					    &d->fb[1], &d->fb[2],
-					    test_type);
+			ret = __test_planes_scaling_combo(d, w1, h1, w2, h2,
+							  pipe, output, p1, p2,
+							  &d->fb[1], &d->fb[2],
+							  test_type);
+			if (ret != 0)
+				break;
+		}
+		cleanup_fbs(d);
 	}
-
-	cleanup_fbs(d);
+	igt_skip_on_f(ret == -EINVAL || ret == -ERANGE, "Unsupported scaling operation in driver with return value %s\n",
+		      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 }
 
 static void
