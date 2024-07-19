@@ -1328,8 +1328,6 @@ static bool kunit_get_tests(struct igt_list_head *tests,
 		igt_require_f(r->code == IGT_EXIT_SKIP,
 			      "Unexpected non-SKIP result while listing test cases\n");
 
-	igt_skip_on(kmod_module_remove_module(tst->kmod, 0));
-
 	return true;
 }
 
@@ -1356,6 +1354,8 @@ static void __igt_kunit(struct igt_ktest *tst,
 			char glob[1024];
 			int i;
 
+			igt_skip_on(kmod_module_remove_module(tst->kmod,
+							      KMOD_REMOVE_FORCE));
 			igt_skip_on(igt_kernel_tainted(&taints));
 
 			igt_assert_lt(snprintf(glob, sizeof(glob), "%s.%s",
@@ -1410,12 +1410,6 @@ static void __igt_kunit(struct igt_ktest *tst,
 
 		if (igt_debug_on(igt_kernel_tainted(&taints))) {
 			igt_info("Kernel tainted, not executing more selftests.\n");
-			break;
-		}
-
-		if (igt_debug_on(kmod_module_remove_module(tst->kmod,
-							   KMOD_REMOVE_FORCE))) {
-			igt_info("Unloading test module failed, not executing more selftests.\n");
 			break;
 		}
 	}
