@@ -168,6 +168,7 @@ const char *get_topo_name(int value)
 	case DRM_XE_TOPO_DSS_COMPUTE: return "DSS_COMPUTE";
 	case DRM_XE_TOPO_EU_PER_DSS: return "EU_PER_DSS";
 	case DRM_XE_TOPO_L3_BANK: return "L3_BANK";
+	case DRM_XE_TOPO_SIMD16_EU_PER_DSS: return "SIMD16_EU_PER_DSS";
 	}
 	return "??";
 }
@@ -354,6 +355,7 @@ test_query_gt_list(int fd)
 static void
 test_query_gt_topology(int fd)
 {
+	uint16_t dev_id = intel_get_drm_devid(fd);
 	struct drm_xe_query_topology_mask *topology;
 	int pos = 0;
 	struct drm_xe_device_query query = {
@@ -362,6 +364,7 @@ test_query_gt_topology(int fd)
 		.size = 0,
 		.data = 0,
 	};
+	uint32_t topo_types = 0;
 
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 	igt_assert_neq(query.size, 0);
@@ -378,13 +381,26 @@ test_query_gt_topology(int fd)
 	while (query.size >= sizeof(struct drm_xe_query_topology_mask)) {
 		struct drm_xe_query_topology_mask *topo = (struct drm_xe_query_topology_mask*)((unsigned char*)topology + pos);
 		int sz = sizeof(struct drm_xe_query_topology_mask) + topo->num_bytes;
+
 		igt_info(" gt_id: %2d type: %-12s (%d) n:%d [%d] ", topo->gt_id,
 			 get_topo_name(topo->type), topo->type, topo->num_bytes, sz);
+
 		for (int j=0; j< topo->num_bytes; j++)
 			igt_info(" %02x", topo->mask[j]);
+
+		topo_types = 1 << topo->type;
 		igt_info("\n");
 		query.size -= sz;
 		pos += sz;
+	}
+
+	/* sanity check EU type */
+	if (IS_PONTEVECCHIO(dev_id) || AT_LEAST_GEN(dev_id, 20)) {
+		igt_assert(topo_types & (1 << DRM_XE_TOPO_SIMD16_EU_PER_DSS));
+		igt_assert_eq(topo_types & (1 << DRM_XE_TOPO_EU_PER_DSS), 0);
+	} else {
+		igt_assert(topo_types & (1 << DRM_XE_TOPO_EU_PER_DSS));
+		igt_assert_eq(topo_types & (1 << DRM_XE_TOPO_SIMD16_EU_PER_DSS), 0);
 	}
 
 	free(topology);
