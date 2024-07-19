@@ -865,7 +865,7 @@ static void xe_vm_bind_array_err(int fd, uint32_t vm, uint32_t exec_queue,
 }
 
 #define BIND_ARRAY_BIND_EXEC_QUEUE_FLAG	(0x1 << 0)
-
+#define BIND_ARRAY_ENOBUFS_FLAG		(0x1 << 1)
 
 /**
  * SUBTEST: bind-array-twice
@@ -875,6 +875,11 @@ static void xe_vm_bind_array_err(int fd, uint32_t vm, uint32_t exec_queue,
  *
  * SUBTEST: bind-array-many
  * Description: Test bind array many times
+ * Functionality: bind exec_queues
+ * Test category: functionality test
+ *
+ * SUBTEST: bind-array-enobufs
+ * Description: Test bind array which too large are trigger -ENOBUFs error
  * Functionality: bind exec_queues
  * Test category: functionality test
  *
@@ -890,10 +895,10 @@ static void xe_vm_bind_array_err(int fd, uint32_t vm, uint32_t exec_queue,
  */
 static void
 test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
-		unsigned int flags)
+		uint64_t addr, size_t bo_size, unsigned int flags)
 {
 	uint32_t vm;
-	uint64_t addr = 0x1a0000, base_addr = 0x1a0000;
+	uint64_t base_addr = addr;
 	struct drm_xe_sync sync[2] = {
 		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
 		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
@@ -903,9 +908,7 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 		.syncs = to_user_pointer(sync),
 	};
 	uint32_t exec_queue, bind_exec_queue = 0;
-#define BIND_ARRAY_MAX_N_EXEC	16
-	struct drm_xe_vm_bind_op bind_ops[BIND_ARRAY_MAX_N_EXEC] = { };
-	size_t bo_size;
+	struct drm_xe_vm_bind_op *bind_ops;
 	uint32_t bo = 0;
 	struct {
 		uint32_t batch[16];
@@ -914,10 +917,11 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 	} *data;
 	int i, b;
 
-	igt_assert(n_execs <= BIND_ARRAY_MAX_N_EXEC);
+	bind_ops = malloc(sizeof(*bind_ops) * n_execs);
+	igt_assert(bind_ops);
 
 	vm = xe_vm_create(fd, 0, 0);
-	bo_size = sizeof(*data) * n_execs;
+	bo_size = bo_size ?: sizeof(*data) * n_execs;
 	bo_size = xe_bb_size(fd, bo_size);
 
 	bo = xe_bo_create(fd, vm, bo_size,
@@ -945,6 +949,22 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 	}
 
 	sync[0].handle = syncobj_create(fd, 0);
+	if (flags & BIND_ARRAY_ENOBUFS_FLAG) {
+		struct xe_cork cork;
+
+		xe_cork_init(fd, eci, &cork);
+
+		sync[1].handle = xe_cork_sync_handle(&cork);
+		sync[1].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
+
+		xe_vm_bind_array_err(fd, vm, bind_exec_queue, bind_ops,
+				     n_execs, sync, 2, ENOBUFS);
+		xe_cork_end(&cork);
+		xe_cork_wait_done(&cork);
+		xe_cork_fini(&cork);
+		n_execs = n_execs / 2;
+	}
+
 	xe_vm_bind_array(fd, vm, bind_exec_queue, bind_ops, n_execs, sync, 1);
 
 	addr = base_addr;
@@ -1004,6 +1024,7 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 	munmap(data, bo_size);
 	gem_close(fd, bo);
 	xe_vm_destroy(fd, vm);
+	free(bind_ops);
 }
 
 /**
@@ -2393,20 +2414,26 @@ igt_main
 
 	igt_subtest("bind-array-twice")
 		xe_for_each_engine(fd, hwe)
-			test_bind_array(fd, hwe, 2, 0);
+			test_bind_array(fd, hwe, 2, 0x1a0000, 0, 0);
 
 	igt_subtest("bind-array-many")
 		xe_for_each_engine(fd, hwe)
-			test_bind_array(fd, hwe, 16, 0);
+			test_bind_array(fd, hwe, 16, 0x1a0000, 0, 0);
+
+	igt_subtest("bind-array-enobufs")
+		xe_for_each_engine(fd, hwe)
+			test_bind_array(fd, hwe, xe_has_vram(fd) ? 1024 : 512,
+					0x1a0000, SZ_2M,
+					BIND_ARRAY_ENOBUFS_FLAG);
 
 	igt_subtest("bind-array-exec_queue-twice")
 		xe_for_each_engine(fd, hwe)
-			test_bind_array(fd, hwe, 2,
+			test_bind_array(fd, hwe, 2, 0x1a0000, 0,
 					BIND_ARRAY_BIND_EXEC_QUEUE_FLAG);
 
 	igt_subtest("bind-array-exec_queue-many")
 		xe_for_each_engine(fd, hwe)
-			test_bind_array(fd, hwe, 16,
+			test_bind_array(fd, hwe, 16, 0x1a0000, 0,
 					BIND_ARRAY_BIND_EXEC_QUEUE_FLAG);
 
 	igt_subtest("bind-array-conflict")
