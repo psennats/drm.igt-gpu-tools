@@ -331,11 +331,16 @@ test_query_gt_list(int fd)
 				igt_assert_lte(1270, verx100);
 
 			/*
-			 * Aside from MTL/ARL, all version numbers should be
-			 * 20.00 or higher.
+			 * Aside from MTL/ARL and media on BMG, all version
+			 * numbers should be 20.00 or higher.
 			 */
-			if (!IS_METEORLAKE(dev_id))
-				igt_assert_lte(20, gt_list->gt_list[i].ip_ver_major);
+			if (IS_METEORLAKE(dev_id))
+				continue;
+			if (gt_list->gt_list[i].type == DRM_XE_QUERY_GT_TYPE_MEDIA &&
+			    IS_BATTLEMAGE(dev_id))
+				continue;
+
+			igt_assert_lte(20, gt_list->gt_list[i].ip_ver_major);
 		}
 	}
 }
