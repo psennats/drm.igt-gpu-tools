@@ -521,6 +521,7 @@ xe_fill_topology_info(int drm_fd, uint32_t device_id, uint32_t *topology_size)
 			ptr += ptopo->subslice_stride;
 			break;
 		case DRM_XE_TOPO_EU_PER_DSS:
+		case DRM_XE_TOPO_SIMD16_EU_PER_DSS:
 			for (i = 0; i < ptopo->max_subslices; i++) {
 				memcpy(ptr, topo->mask, ptopo->eu_stride);
 				ptr += ptopo->eu_stride;
