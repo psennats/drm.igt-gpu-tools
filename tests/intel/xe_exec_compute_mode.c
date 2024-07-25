@@ -29,9 +29,11 @@
 #define REBIND				(0x1 << 1)
 #define INVALIDATE			(0x1 << 2)
 #define RACE				(0x1 << 3)
-#define BIND_EXECQUEUE		(0x1 << 4)
+#define BIND_EXECQUEUE			(0x1 << 4)
 #define VM_FOR_BO			(0x1 << 5)
-#define EXEC_QUEUE_EARLY	(0x1 << 6)
+#define EXEC_QUEUE_EARLY		(0x1 << 6)
+#define FREE_MAPPPING			(0x1 << 7)
+#define UNMAP_MAPPPING			(0x1 << 8)
 
 /**
  * SUBTEST: twice-%s
@@ -51,6 +53,8 @@
  * @basic:				basic
  * @preempt-fence-early:		preempt fence early
  * @userptr:				userptr
+ * @userptr-free:			userptr free
+ * @userptr-unmap:			userptr unmap
  * @rebind:				rebind
  * @userptr-rebind:			userptr rebind
  * @userptr-invalidate:			userptr invalidate
@@ -74,6 +78,8 @@
  * @basic:				basic
  * @preempt-fence-early:		preempt fence early
  * @userptr:				userptr
+ * @userptr-free:			userptr free
+ * @userptr-unmap:			userptr unmap
  * @rebind:				rebind
  * @userptr-rebind:			userptr rebind
  * @userptr-invalidate:			userptr invalidate
@@ -88,7 +94,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	  int n_exec_queues, int n_execs, unsigned int flags)
 {
 	uint32_t vm;
-	uint64_t addr = 0x1a0000;
+	uint64_t addr = 0x1a0000, dummy_addr = 0x10001a0000;
 #define USER_FENCE_VALUE	0xdeadbeefdeadbeefull
 	struct drm_xe_sync sync[1] = {
 		{ .type = DRM_XE_SYNC_TYPE_USER_FENCE,
@@ -114,6 +120,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	int i, j, b;
 	int map_fd = -1;
 	int64_t fence_timeout;
+	void *dummy;
 
 	igt_assert(n_exec_queues <= MAX_N_EXECQUEUES);
 
@@ -142,6 +149,17 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 					     bo_size);
 			igt_assert(data);
 		}
+		if (flags & UNMAP_MAPPPING) {
+			dummy = mmap((void *)MAP_ADDRESS, bo_size, PROT_READ |
+				     PROT_WRITE, MAP_SHARED | MAP_FIXED |
+				     MAP_ANONYMOUS, -1, 0);
+			igt_assert(dummy != MAP_FAILED);
+		}
+		if (flags & FREE_MAPPPING) {
+			dummy = aligned_alloc(xe_get_default_alignment(fd),
+					      bo_size);
+			igt_assert(dummy);
+		}
 	} else {
 		bo = xe_bo_create(fd, flags & VM_FOR_BO ? vm : 0,
 				  bo_size, vram_if_possible(fd, eci->gt_id),
@@ -157,16 +175,21 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 				xe_bind_exec_queue_create(fd, vm, 0);
 		else
 			bind_exec_queues[i] = 0;
-	};
+	}
 
 	sync[0].addr = to_user_pointer(&data[0].vm_sync);
-	if (bo)
+	if (bo) {
 		xe_vm_bind_async(fd, vm, bind_exec_queues[0], bo, 0, addr,
 				 bo_size, sync, 1);
-	else
+	} else {
+		if (flags & (FREE_MAPPPING | UNMAP_MAPPPING))
+			xe_vm_bind_userptr_async(fd, vm, bind_exec_queues[0],
+						 to_user_pointer(dummy),
+						 dummy_addr, bo_size, 0, 0);
 		xe_vm_bind_userptr_async(fd, vm, bind_exec_queues[0],
 					 to_user_pointer(data), addr,
 					 bo_size, sync, 1);
+	}
 #define ONE_SEC	MS_TO_NS(1000)
 #define HUNDRED_SEC	MS_TO_NS(100000)
 
@@ -196,6 +219,12 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 		exec.exec_queue_id = exec_queues[e];
 		exec.address = batch_addr;
 		xe_exec(fd, &exec);
+
+		if (flags & FREE_MAPPPING && !i)
+			free(dummy);
+
+		if (flags & UNMAP_MAPPPING && !i)
+			munmap(dummy, bo_size);
 
 		if (flags & REBIND && i + 1 != n_execs) {
 			xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
@@ -489,6 +518,8 @@ igt_main
 		{ "basic", 0 },
 		{ "preempt-fence-early", VM_FOR_BO | EXEC_QUEUE_EARLY },
 		{ "userptr", USERPTR },
+		{ "userptr-free", USERPTR | FREE_MAPPPING },
+		{ "userptr-unmap", USERPTR | UNMAP_MAPPPING },
 		{ "rebind", REBIND },
 		{ "userptr-rebind", USERPTR | REBIND },
 		{ "userptr-invalidate", USERPTR | INVALIDATE },
