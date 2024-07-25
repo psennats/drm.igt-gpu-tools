@@ -367,6 +367,124 @@ static void userptr_invalid(int fd)
 }
 
 /**
+ * SUBTEST: compact-64k-pages
+ * Description:
+ *	Take corner cases related to compact and 64k pages
+ * Functionality: bind
+ * Test category: functionality test
+ */
+static void compact_64k_pages(int fd, struct drm_xe_engine_class_instance *eci)
+{
+	size_t page_size = xe_get_default_alignment(fd);
+	uint64_t addr0 = 0x10000000ull, addr1;
+	uint32_t vm;
+	uint32_t bo0, bo1;
+	uint32_t exec_queue;
+	void *ptr0, *ptr1;
+	struct drm_xe_sync sync[2] = {
+		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ,
+			.flags = DRM_XE_SYNC_FLAG_SIGNAL, },
+		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ,
+			.flags = DRM_XE_SYNC_FLAG_SIGNAL, },
+	};
+	struct {
+		uint32_t batch[16];
+		uint64_t pad;
+		uint32_t data;
+	} *data = NULL;
+	struct drm_xe_exec exec = {
+		.num_batch_buffer = 1,
+		.num_syncs = 2,
+		.syncs = to_user_pointer(sync),
+	};
+	uint64_t batch_offset;
+	uint64_t batch_addr;
+	uint64_t sdi_offset;
+	uint64_t sdi_addr;
+	int b = 0;
+
+	vm = xe_vm_create(fd, 0, 0);
+	exec_queue = xe_exec_queue_create(fd, vm, eci, 0);
+
+	bo0 = xe_bo_create(fd, vm, SZ_8M,
+			   vram_if_possible(fd, eci->gt_id),
+			   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	ptr0 = xe_bo_map(fd, bo0, SZ_8M);
+
+	bo1 = xe_bo_create(fd, vm, SZ_8M / 2,
+			   vram_if_possible(fd, eci->gt_id),
+			   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	ptr1 = xe_bo_map(fd, bo1, SZ_8M / 2);
+
+	sync[0].handle = syncobj_create(fd, 0);
+	if (page_size == SZ_4K) {
+		/* Setup mapping to split a 64k PTE in cache */
+		xe_vm_bind_async(fd, vm, 0, bo0, 0, addr0, SZ_64K, 0, 0);
+
+		addr1 = addr0 + (SZ_64K / 2);
+		xe_vm_bind_async(fd, vm, 0, bo1, 0, addr1, SZ_64K / 2,
+				 sync, 1);
+	} else if (page_size == SZ_64K) {
+		addr0 += page_size;
+
+		/* Setup mapping to split compact 64k pages */
+		xe_vm_bind_async(fd, vm, 0, bo0, 0, addr0, SZ_8M, 0, 0);
+
+		addr1 = addr0 + (SZ_8M / 4);
+		xe_vm_bind_async(fd, vm, 0, bo1, 0, addr1, SZ_8M / 2,
+				 sync, 1);
+	}
+	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
+
+	/* Verify 1st and 2nd mappings working */
+	batch_offset = (char *)&data[0].batch - (char *)data;
+	batch_addr = addr0 + batch_offset;
+	sdi_offset = (char *)&data[0].data - (char *)data;
+	sdi_addr = addr0 + sdi_offset;
+	data = ptr0;
+
+	data[0].batch[b++] = MI_STORE_DWORD_IMM_GEN4;
+	data[0].batch[b++] = sdi_addr;
+	data[0].batch[b++] = sdi_addr >> 32;
+	data[0].batch[b++] = 0xc0ffee;
+
+	sdi_addr = addr1 + sdi_offset;
+	data[0].batch[b++] = MI_STORE_DWORD_IMM_GEN4;
+	data[0].batch[b++] = sdi_addr;
+	data[0].batch[b++] = sdi_addr >> 32;
+	data[0].batch[b++] = 0xc0ffee;
+
+	data[0].batch[b++] = MI_BATCH_BUFFER_END;
+	igt_assert(b <= ARRAY_SIZE(data[0].batch));
+
+	sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
+	sync[1].handle = syncobj_create(fd, 0);
+	exec.exec_queue_id = exec_queue;
+	exec.address = batch_addr;
+	xe_exec(fd, &exec);
+
+	igt_assert(syncobj_wait(fd, &sync[1].handle, 1, INT64_MAX, 0, NULL));
+	igt_assert_eq(data[0].data, 0xc0ffee);
+	data = ptr1;
+	igt_assert_eq(data[0].data, 0xc0ffee);
+
+	sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
+	syncobj_reset(fd, &sync[0].handle, 1);
+	xe_vm_unbind_all_async(fd, vm, 0, bo0, 0, 0);
+	xe_vm_unbind_all_async(fd, vm, 0, bo1, sync, 1);
+	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
+
+	xe_exec_queue_destroy(fd, exec_queue);
+	syncobj_destroy(fd, sync[0].handle);
+	syncobj_destroy(fd, sync[1].handle);
+	munmap(ptr0, SZ_8M);
+	munmap(ptr1, SZ_8M / 2);
+	gem_close(fd, bo0);
+	gem_close(fd, bo1);
+	xe_vm_destroy(fd, vm);
+}
+
+/**
  * SUBTEST: shared-%s-page
  * Description: Test shared arg[1] page
  * Test category: functionality test
@@ -1972,6 +2090,12 @@ igt_main
 
 	igt_subtest("bind-flag-invalid")
 		bind_flag_invalid(fd);
+
+	igt_subtest("compact-64k-pages")
+		xe_for_each_engine(fd, hwe) {
+			compact_64k_pages(fd, hwe);
+			break;
+		}
 
 	igt_subtest("shared-pte-page")
 		xe_for_each_engine(fd, hwe)
