@@ -22,6 +22,7 @@
 #include "drm.h"
 #include "igt.h"
 #include "igt_device.h"
+#include "igt_syncobj.h"
 #include "igt_sysfs.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
@@ -4463,6 +4464,255 @@ static void test_mapped_oa_buffer(map_oa_buffer_test_t test_with_fd_open,
 	__perf_close(stream_fd);
 }
 
+
+/* Return alternative config_id if available, else just return config_id */
+static void find_alt_oa_config(u32 config_id, u32 *alt_config_id)
+{
+	struct dirent *entry;
+	int metrics_fd, dir_fd;
+	DIR *metrics_dir;
+	bool ret;
+
+	metrics_fd = openat(sysfs, "metrics", O_DIRECTORY);
+	igt_assert_lte(0, metrics_fd);
+
+	metrics_dir = fdopendir(metrics_fd);
+	igt_assert(metrics_dir);
+
+	while ((entry = readdir(metrics_dir))) {
+		if (entry->d_type != DT_DIR)
+			continue;
+
+		dir_fd = openat(metrics_fd, entry->d_name, O_RDONLY);
+		ret = __igt_sysfs_get_u32(dir_fd, "id", alt_config_id);
+		close(dir_fd);
+		if (!ret)
+			continue;
+
+		if (config_id != *alt_config_id)
+			goto exit;
+	}
+
+	*alt_config_id = config_id;
+exit:
+	closedir(metrics_dir);
+}
+
+#define USER_FENCE_VALUE	0xdeadbeefdeadbeefull
+
+#define WAIT		(0x1 << 0)
+#define CONFIG		(0x1 << 1)
+
+enum oa_sync_type {
+	OA_SYNC_TYPE_SYNCOBJ,
+	OA_SYNC_TYPE_USERPTR,
+	OA_SYNC_TYPE_UFENCE,
+};
+
+struct oa_sync {
+	enum oa_sync_type sync_type;
+	u32 syncobj;
+	u32 vm;
+	u32 bo;
+	size_t bo_size;
+	struct {
+		uint64_t vm_sync;
+		uint64_t pad;
+		uint64_t oa_sync;
+	} *data;
+};
+
+static void
+oa_sync_init(enum oa_sync_type sync_type, const struct drm_xe_engine_class_instance *hwe,
+	     struct oa_sync *osync, struct drm_xe_sync *sync)
+{
+	uint64_t addr = 0x1a0000;
+
+	osync->sync_type = sync_type;
+	sync->flags = DRM_XE_SYNC_FLAG_SIGNAL;
+
+	switch (osync->sync_type) {
+	case OA_SYNC_TYPE_SYNCOBJ:
+		osync->syncobj = syncobj_create(drm_fd, 0);
+		sync->handle = osync->syncobj;
+		sync->type = DRM_XE_SYNC_TYPE_SYNCOBJ;
+		break;
+	case OA_SYNC_TYPE_USERPTR:
+	case OA_SYNC_TYPE_UFENCE:
+		sync->type = DRM_XE_SYNC_TYPE_USER_FENCE;
+		sync->timeline_value = USER_FENCE_VALUE;
+
+		osync->vm = xe_vm_create(drm_fd, 0, 0);
+		osync->bo_size = xe_bb_size(drm_fd, sizeof(*osync->data));
+		if (osync->sync_type == OA_SYNC_TYPE_USERPTR) {
+			osync->data = aligned_alloc(xe_get_default_alignment(drm_fd),
+						    osync->bo_size);
+			igt_assert(osync->data);
+		} else {
+			osync->bo = xe_bo_create(drm_fd, osync->vm, osync->bo_size,
+						 vram_if_possible(drm_fd, hwe->gt_id),
+						 DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+			osync->data = xe_bo_map(drm_fd, osync->bo, osync->bo_size);
+		}
+		memset(osync->data, 0, osync->bo_size);
+
+		sync->addr = to_user_pointer(&osync->data[0].vm_sync);
+		if (osync->bo)
+			xe_vm_bind_async(drm_fd, osync->vm, 0, osync->bo, 0,
+					 addr, osync->bo_size, sync, 1);
+		else
+			xe_vm_bind_userptr_async(drm_fd, osync->vm, 0,
+						 to_user_pointer(osync->data),
+						 addr, osync->bo_size, sync, 1);
+		xe_wait_ufence(drm_fd, &osync->data[0].vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
+
+		sync->addr = to_user_pointer(&osync->data[0].oa_sync);
+		break;
+	default:
+		igt_assert(false);
+	}
+}
+
+static void oa_sync_wait(struct oa_sync *osync)
+{
+	switch (osync->sync_type) {
+	case OA_SYNC_TYPE_SYNCOBJ:
+		igt_assert(syncobj_wait(drm_fd, &osync->syncobj, 1, INT64_MAX, 0, NULL));
+		syncobj_reset(drm_fd, &osync->syncobj, 1);
+		break;
+	case OA_SYNC_TYPE_USERPTR:
+	case OA_SYNC_TYPE_UFENCE:
+		xe_wait_ufence(drm_fd, &osync->data[0].oa_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
+		osync->data[0].oa_sync = 0;
+		break;
+	default:
+		igt_assert(false);
+	}
+}
+
+static void oa_sync_free(struct oa_sync *osync)
+{
+	switch (osync->sync_type) {
+	case OA_SYNC_TYPE_SYNCOBJ:
+		syncobj_destroy(drm_fd, osync->syncobj);
+		break;
+	case OA_SYNC_TYPE_USERPTR:
+	case OA_SYNC_TYPE_UFENCE:
+		if (osync->bo) {
+			munmap(osync->data, osync->bo_size);
+			gem_close(drm_fd, osync->bo);
+		} else {
+			free(osync->data);
+		}
+		xe_vm_destroy(drm_fd, osync->vm);
+		break;
+	default:
+		igt_assert(false);
+	}
+}
+
+/**
+ * SUBTEST: syncs-%s-%s
+ *
+ * Description: Test OA syncs (with %arg[1] sync types and %arg[2] wait and
+ *		reconfig flags) signal correctly in open and reconfig code
+ *		paths
+ *
+ * arg[1]:
+ *
+ * @syncobj:	sync type syncobj
+ *
+ * arg[2]:
+ *
+ * @wait-cfg:	Exercise reconfig path and wait for syncs to signal
+ * @wait:	Don't exercise reconfig path and wait for syncs to signal
+ * @cfg:	Exercise reconfig path but don't wait for syncs to signal
+ * @none:	Don't exercise reconfig path and don't wait for syncs to signal
+ */
+
+/**
+ * SUBTEST: syncs-%s-%s
+ *
+ * Description: Test OA syncs (with %arg[1] sync types and %arg[2] wait and
+ *		reconfig flags) signal correctly in open and reconfig code
+ *		paths
+ *
+ * arg[1]:
+ *
+ * @userptr:	sync type userptr
+ * @ufence:	sync type ufence
+ *
+ * arg[2]:
+ *
+ * @wait-cfg:	Exercise reconfig path and wait for syncs to signal
+ * @wait:	Don't exercise reconfig path and wait for syncs to signal
+ */
+static void test_syncs(const struct drm_xe_engine_class_instance *hwe,
+		       enum oa_sync_type sync_type, int flags)
+{
+	struct drm_xe_ext_set_property extn[XE_OA_MAX_SET_PROPERTIES] = {};
+	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct drm_xe_sync sync = {};
+	struct oa_sync osync = {};
+	uint64_t open_properties[] = {
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
+		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
+		DRM_XE_OA_PROPERTY_NUM_SYNCS, 1,
+		DRM_XE_OA_PROPERTY_SYNCS, to_user_pointer(&sync),
+	};
+	struct intel_xe_oa_open_prop open_param = {
+		.num_properties = ARRAY_SIZE(open_properties) / 2,
+		.properties_ptr = to_user_pointer(open_properties),
+	};
+	uint64_t config_properties[] = {
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, 0, /* Filled later */
+		DRM_XE_OA_PROPERTY_NUM_SYNCS, 1,
+		DRM_XE_OA_PROPERTY_SYNCS, to_user_pointer(&sync),
+	};
+	struct intel_xe_oa_open_prop config_param = {
+		.num_properties = ARRAY_SIZE(config_properties) / 2,
+		.properties_ptr = to_user_pointer(config_properties),
+	};
+	uint32_t alt_config_id;
+	int ret;
+
+	/*
+	 * Necessarily wait in userptr/ufence cases, otherwise IGT process can exit
+	 * after calling oa_sync_free, which results in -EFAULT when kernel signals
+	 * the userptr/ufence
+	 */
+	if (sync_type == OA_SYNC_TYPE_USERPTR || sync_type == OA_SYNC_TYPE_UFENCE)
+		flags |= WAIT;
+
+	oa_sync_init(sync_type, hwe, &osync, &sync);
+
+	stream_fd = __perf_open(drm_fd, &open_param, false);
+
+	/* Reset the sync object if we are going to reconfig the stream */
+	if (flags & (WAIT | CONFIG))
+		oa_sync_wait(&osync);
+
+	if (!(flags & CONFIG))
+		goto exit;
+
+	/* Change stream configuration */
+	find_alt_oa_config(test_set->perf_oa_metrics_set, &alt_config_id);
+
+	config_properties[1] = alt_config_id;
+	intel_xe_oa_prop_to_ext(&config_param, extn);
+
+	ret = igt_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_CONFIG, extn);
+	igt_assert_eq(ret, test_set->perf_oa_metrics_set);
+
+	if (flags & WAIT)
+		oa_sync_wait(&osync);
+exit:
+	__perf_close(stream_fd);
+	oa_sync_free(&osync);
+}
+
 static const char *xe_engine_class_name(uint32_t engine_class)
 {
 	switch (engine_class) {
@@ -4511,6 +4761,22 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 
 igt_main
 {
+	const struct sync_section {
+		const char *name;
+		enum oa_sync_type sync_type;
+		unsigned int flags;
+	} sync_sections[] = {
+		{ "syncobj-wait-cfg", OA_SYNC_TYPE_SYNCOBJ, WAIT | CONFIG},
+		{ "syncobj-wait", OA_SYNC_TYPE_SYNCOBJ, WAIT },
+		{ "syncobj-cfg", OA_SYNC_TYPE_SYNCOBJ, CONFIG },
+		{ "syncobj-none", OA_SYNC_TYPE_SYNCOBJ, 0 },
+		/* userptr/ufence cases always set WAIT (see test_syncs) */
+		{ "userptr-wait-cfg", OA_SYNC_TYPE_USERPTR, WAIT | CONFIG},
+		{ "userptr-wait", OA_SYNC_TYPE_USERPTR, WAIT },
+		{ "ufence-wait-cfg", OA_SYNC_TYPE_UFENCE, WAIT | CONFIG},
+		{ "ufence-wait", OA_SYNC_TYPE_UFENCE, WAIT },
+		{ NULL },
+	};
 	struct drm_xe_engine_class_instance *hwe = NULL;
 	struct xe_device *xe_dev;
 
@@ -4710,6 +4976,22 @@ igt_main
 			igt_require(HAS_OA_MMIO_TRIGGER(devid));
 			__for_one_hwe_in_oag(hwe)
 				test_mmio_triggered_reports(hwe);
+		}
+	}
+
+	igt_subtest_group {
+		igt_fixture {
+			struct drm_xe_query_oa_units *qoa = xe_oa_units(drm_fd);
+			struct drm_xe_oa_unit *oau = (struct drm_xe_oa_unit *)&qoa->oa_units[0];
+
+			igt_require(oau->capabilities & DRM_XE_OA_CAPS_SYNCS);
+		}
+
+		for (const struct sync_section *s = sync_sections; s->name; s++) {
+			igt_subtest_with_dynamic_f("syncs-%s", s->name)
+				__for_one_render_engine(hwe)
+					test_syncs(hwe, s->sync_type, s->flags);
+
 		}
 	}
 

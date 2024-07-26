@@ -1025,8 +1025,17 @@ const char *intel_xe_perf_read_report_reason(const struct intel_xe_perf *perf,
 	return "unknown";
 }
 
-static void xe_oa_prop_to_ext(struct intel_xe_oa_open_prop *properties,
-			      struct drm_xe_ext_set_property *extn)
+/**
+ * intel_xe_oa_prop_to_ext:
+ * @properties: pointer to internal IGT properties
+ * @extn: Pointer to array of set_property uapi structs
+ *
+ * Convert 'struct intel_xe_oa_open_prop' properties used internally in IGT
+ * into chained 'struct drm_xe_ext_set_property' structures used in
+ * OA/observation uapi
+ */
+void intel_xe_oa_prop_to_ext(struct intel_xe_oa_open_prop *properties,
+			     struct drm_xe_ext_set_property *extn)
 {
 	__u64 *prop = from_user_pointer(properties->properties_ptr);
 	struct drm_xe_ext_set_property *ext = extn;
@@ -1063,7 +1072,7 @@ int intel_xe_perf_ioctl(int fd, enum drm_xe_observation_op op, void *arg)
 		struct intel_xe_oa_open_prop *oprop = (struct intel_xe_oa_open_prop *)arg;
 
 		igt_assert_lte(oprop->num_properties, XE_OA_MAX_SET_PROPERTIES);
-		xe_oa_prop_to_ext(oprop, ext);
+		intel_xe_oa_prop_to_ext(oprop, ext);
 	}
 
 	return igt_ioctl(fd, DRM_IOCTL_XE_OBSERVATION, &p);
