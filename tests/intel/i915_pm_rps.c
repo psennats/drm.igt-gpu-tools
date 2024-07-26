@@ -1162,7 +1162,8 @@ igt_main
 
 	igt_subtest_with_dynamic("thresholds-idle") {
 		int tmp, gt;
-
+		igt_skip_on_f(i915_is_slpc_enabled(drm_fd),
+			      "This subtest is not supported when SLPC is enabled\n");
 		i915_for_each_gt(drm_fd, tmp, gt) {
 			igt_dynamic_f("gt%u", gt)
 				test_thresholds(drm_fd, gt, TEST_IDLE);
@@ -1171,7 +1172,8 @@ igt_main
 
 	igt_subtest_with_dynamic("thresholds") {
 		int tmp, gt;
-
+		igt_skip_on_f(i915_is_slpc_enabled(drm_fd),
+			      "This subtest is not supported when SLPC is enabled\n");
 		i915_for_each_gt(drm_fd, tmp, gt) {
 			igt_dynamic_f("gt%u", gt)
 				test_thresholds(drm_fd, gt, 0);
@@ -1180,7 +1182,8 @@ igt_main
 
 	igt_subtest_with_dynamic("thresholds-park") {
 		int tmp, gt;
-
+		igt_skip_on_f(i915_is_slpc_enabled(drm_fd),
+			      "This subtest is not supported when SLPC is enabled\n");
 		i915_for_each_gt(drm_fd, tmp, gt) {
 			igt_dynamic_f("gt%u", gt)
 				test_thresholds(drm_fd, gt, TEST_PARK);
@@ -1189,6 +1192,8 @@ igt_main
 
 	igt_subtest_with_dynamic("thresholds-idle-park") {
 		int tmp, gt;
+		igt_skip_on_f(i915_is_slpc_enabled(drm_fd),
+			      "This subtest is not supported when SLPC is enabled\n");
 
 		i915_for_each_gt(drm_fd, tmp, gt) {
 			igt_dynamic_f("gt%u", gt)
