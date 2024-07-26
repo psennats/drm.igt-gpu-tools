@@ -385,6 +385,8 @@ static bool is_i915_wedged(int i915)
 static void healthcheck(struct device_fds *dev)
 {
 	if (dev->fds.dev == -1) {
+		/* give the kernel a breath for re-creating device nodes in devtmpfs */
+		sleep(1);
 		/* refresh device list */
 		igt_devices_scan(true);
 		igt_debug("reopen the device\n");
