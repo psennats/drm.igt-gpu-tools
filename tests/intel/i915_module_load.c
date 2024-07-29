@@ -230,7 +230,7 @@ inject_fault(const char *module_name, const char *opt, int fault)
 	char buf[1024];
 	int dir;
 
-	igt_assert(fault > 0);
+	igt_assert_lt(0, fault);
 	snprintf(buf, sizeof(buf), "%s=%d", opt, fault);
 
 	if (igt_kmod_load(module_name, buf)) {
@@ -343,8 +343,8 @@ static uint32_t  driver_load_with_lmem_bar_size(uint32_t lmem_bar_size, bool che
 		char *tmp;
 
 		tmp = __igt_params_get(i915, "lmem_bar_size");
-		if (!tmp)
-			igt_skip("lmem_bar_size modparam not supported on this kernel. Skipping the test.\n");
+		igt_skip_on_f(!tmp,
+			      "lmem_bar_size modparam not supported on this kernel. Skipping the test.\n");
 		free(tmp);
 	}
 

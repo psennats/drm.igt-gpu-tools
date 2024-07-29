@@ -70,7 +70,7 @@ test_balancer(int fd, int gt, uint32_t vm, uint64_t addr, uint64_t userptr,
 	int i, j, b, num_placements = 0;
 	bool owns_vm = false, owns_fd = false;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	if (flags & FD) {
 		fd = drm_reopen_driver(fd);
@@ -88,7 +88,7 @@ test_balancer(int fd, int gt, uint32_t vm, uint64_t addr, uint64_t userptr,
 
 		eci[num_placements++] = *hwe;
 	}
-	igt_assert(num_placements > 1);
+	igt_assert_lt(1, num_placements);
 
 	bo_size = sizeof(*data) * n_execs;
 	bo_size = xe_bb_size(fd, bo_size);
@@ -272,7 +272,7 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 	int map_fd = -1;
 	bool owns_vm = false, owns_fd = false;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	if (flags & FD) {
 		fd = drm_reopen_driver(fd);
@@ -396,7 +396,8 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 			if (flags & RACE) {
 				map_fd = open("/tmp", O_TMPFILE | O_RDWR,
 					      0x666);
-				write(map_fd, data, bo_size);
+				igt_assert_eq(write(map_fd, data, bo_size),
+					      bo_size);
 				data = mmap(from_user_pointer(userptr), bo_size,
 					    PROT_READ | PROT_WRITE,
 					    MAP_SHARED | MAP_FIXED,
@@ -476,7 +477,7 @@ test_legacy_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 	int i, j, b, hang_exec_queue = n_exec_queues / 2;
 	bool owns_vm = false, owns_fd = false;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	if (flags & FD) {
 		fd = drm_reopen_driver(fd);

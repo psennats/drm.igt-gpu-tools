@@ -108,7 +108,7 @@ test_export_dma_buf(struct drm_xe_engine_class_instance *hwe0,
 	} *data [MAX_N_BO];
 	int i;
 
-	igt_assert(n_bo <= MAX_N_BO);
+	igt_assert_lte(n_bo, MAX_N_BO);
 
 	for (i = 0; i < N_FD; ++i) {
 		fd[i] = drm_open_driver(DRIVER_XE);

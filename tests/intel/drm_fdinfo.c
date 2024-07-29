@@ -275,7 +275,7 @@ static void log_busy(unsigned int num_engines, uint64_t *val)
 		int len;
 
 		len = snprintf(p, rem, "%u=%" PRIu64 "\n",  i, val[i]);
-		igt_assert(len > 0);
+		igt_assert_lt(0, len);
 		rem -= len;
 		p += len;
 	}
@@ -805,7 +805,7 @@ static size_t read_fdinfo(char *buf, const size_t sz, int at, const char *name)
 		buf[count - 1] = 0;
 	close(fd);
 
-	return count > 0 ? count : 0;
+	return max(count, 0);
 }
 
 /*
@@ -855,7 +855,7 @@ test_memory(int i915, struct gem_memory_region *mr, unsigned int flags)
 
 	gem_quiescent_gpu(i915);
 	ret =  __igt_parse_drm_fdinfo(dir, buf, &info, NULL, 0, NULL, 0);
-	igt_assert(ret > 0);
+	igt_assert_lt(0, ret);
 	igt_require(info.num_regions);
 	memcpy(&prev_info, &info, sizeof(info));
 	memcpy(&base_info, &info, sizeof(info));
@@ -905,7 +905,7 @@ test_memory(int i915, struct gem_memory_region *mr, unsigned int flags)
 		ret =  __igt_parse_drm_fdinfo(dir, buf, &info,
 					      NULL, 0,
 					      region_map, ARRAY_SIZE(region_map));
-		igt_assert(ret > 0);
+		igt_assert_lt(0, ret);
 		igt_assert(info.num_regions);
 
 		read_fdinfo(fdinfo_buf, sizeof(fdinfo_buf), dir, buf);

@@ -315,7 +315,7 @@ static int noop(int fd, uint32_t ctx, const struct intel_execution_ring *e)
 
 	memset(&exec, 0, sizeof(exec));
 	exec.handle = gem_create(fd, 4096);
-	igt_assert((int)exec.handle > 0);
+	igt_assert_lt(0, (int)exec.handle);
 	gem_write(fd, exec.handle, 0, &bbe, sizeof(bbe));
 
 	memset(&eb, 0, sizeof(eb));
@@ -457,7 +457,7 @@ static void test_rs(const struct intel_execution_ring *e,
 		if (i == hang_index)
 			inject_hang(fd[i], 0, e, ASYNC);
 		else
-			igt_assert(noop(fd[i], 0, e) > 0);
+			igt_assert_lt(0, noop(fd[i], 0, e));
 	}
 	sync_gpu();
 
@@ -524,7 +524,7 @@ static void test_rs_ctx(const struct intel_execution_ring *e,
 			if (i == hang_index && j == hang_context)
 				inject_hang(fd[i], ctx[i][j], e, ASYNC);
 			else
-				igt_assert(noop(fd[i], ctx[i][j], e) > 0);
+				igt_assert_lt(0, noop(fd[i], ctx[i][j], e));
 		}
 	}
 	sync_gpu();
@@ -876,7 +876,7 @@ static void _check_param_ctx(const int fd, const int ctx, const cap_t cap)
 		igt_assert_eq(_test_params(fd, ctx, 0, 0), 0);
 
 		if (cap != root) {
-			igt_assert(get_reset_count(fd, ctx) == 0);
+			igt_assert_eq(get_reset_count(fd, ctx), 0);
 		}
 	}
 

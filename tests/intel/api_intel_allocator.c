@@ -705,7 +705,7 @@ static void execbuf_with_allocator(int fd)
 		gem_close(fd, object[i].handle);
 	}
 
-	igt_assert(copied == magic);
+	igt_assert_eq_u32(copied, magic);
 	igt_assert(intel_allocator_close(ahnd) == true);
 }
 
@@ -776,13 +776,13 @@ static void gem_pool(int i915)
 	bb[0] = single_exec_from_pool(i915, ahnd, 4096);
 	gem_sync(i915, bb[0]);
 	bb[1] = single_exec_from_pool(i915, ahnd, 4096);
-	igt_assert(bb[0] == bb[1]);
+	igt_assert_eq_u32(bb[0], bb[1]);
 
 	bb[2] = single_exec_from_pool(i915, ahnd, 8192);
 	gem_sync(i915, bb[2]);
 	bb[3] = single_exec_from_pool(i915, ahnd, 8192);
-	igt_assert(bb[2] == bb[3]);
-	igt_assert(bb[0] != bb[2]);
+	igt_assert_eq_u32(bb[2], bb[3]);
+	igt_assert_neq_u32(bb[0], bb[2]);
 
 	spin = igt_spin_new(i915,
 			    .ahnd = ahnd,
@@ -792,8 +792,8 @@ static void gem_pool(int i915)
 	bb[2] = single_exec_from_pool(i915, ahnd, 8192);
 	bb[3] = single_exec_from_pool(i915, ahnd, 8192);
 	igt_spin_free(i915, spin);
-	igt_assert(bb[0] != bb[1]);
-	igt_assert(bb[2] != bb[3]);
+	igt_assert_neq_u32(bb[0], bb[1]);
+	igt_assert_neq_u32(bb[2], bb[3]);
 
 	put_ahnd(ahnd);
 

@@ -302,7 +302,8 @@ static void prio_inversion(int i915, unsigned int flags)
 		naughty_child(i915, link[1], obj.handle, flags);
 
 	igt_debug("Waiting for naughty client\n");
-	read(link[0], &elapsed, sizeof(elapsed));
+	igt_assert_eq(read(link[0], &elapsed, sizeof(elapsed)),
+		      sizeof(elapsed));
 	igt_debug("Ready...\n");
 	usleep(250 * 1000); /* let the naughty execbuf begin */
 	igt_debug("Go!\n");
@@ -331,7 +332,8 @@ static void prio_inversion(int i915, unsigned int flags)
 	igt_waitchildren();
 	gem_close(i915, obj.handle);
 
-	read(link[0], &naughty, sizeof(naughty));
+	igt_assert_eq(read(link[0], &naughty, sizeof(naughty)),
+		      sizeof(naughty));
 	igt_info("Naughty client took %'"PRIu64"ns\n", naughty);
 
 	igt_assert(elapsed < naughty / 2);

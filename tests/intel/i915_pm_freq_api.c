@@ -61,34 +61,34 @@ static void test_freq_basic_api(int dirfd, int gt)
 	igt_debug("GT: %d, RPn: %d, RPe: %d, RP0: %d\n", gt, rpn, rpe, rp0);
 
 	/* Set min/max to RPn, RP0 for baseline behavior */
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn) > 0);
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rp0) > 0);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn));
+	igt_assert_lt(0, set_freq(dirfd, RPS_MAX_FREQ_MHZ, rp0));
 
 	/*
 	 * Negative bound tests
 	 * RPn is the floor
 	 * RP0 is the ceiling
 	 */
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn - 1) < 0);
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rp0 + 1) < 0);
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn - 1) < 0);
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rp0 + 1) < 0);
+	igt_assert_lt(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn - 1), 0);
+	igt_assert_lt(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rp0 + 1), 0);
+	igt_assert_lt(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn - 1), 0);
+	igt_assert_lt(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rp0 + 1), 0);
 
 	/* Assert min requests are respected from rp0 to rpn */
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rp0) > 0);
-	igt_assert(get_freq(dirfd, RPS_MIN_FREQ_MHZ) == rp0);
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpe) > 0);
-	igt_assert(get_freq(dirfd, RPS_MIN_FREQ_MHZ) == rpe);
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn) > 0);
-	igt_assert(get_freq(dirfd, RPS_MIN_FREQ_MHZ) == rpn);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MIN_FREQ_MHZ, rp0));
+	igt_assert_eq_u32(get_freq(dirfd, RPS_MIN_FREQ_MHZ), rp0);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpe));
+	igt_assert_eq_u32(get_freq(dirfd, RPS_MIN_FREQ_MHZ), rpe);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn));
+	igt_assert_eq_u32(get_freq(dirfd, RPS_MIN_FREQ_MHZ), rpn);
 
 	/* Assert max requests are respected from rpn to rp0 */
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn) > 0);
-	igt_assert(get_freq(dirfd, RPS_MAX_FREQ_MHZ) == rpn);
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpe) > 0);
-	igt_assert(get_freq(dirfd, RPS_MAX_FREQ_MHZ) == rpe);
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rp0) > 0);
-	igt_assert(get_freq(dirfd, RPS_MAX_FREQ_MHZ) == rp0);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn));
+	igt_assert_eq_u32(get_freq(dirfd, RPS_MAX_FREQ_MHZ), rpn);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpe));
+	igt_assert_eq_u32(get_freq(dirfd, RPS_MAX_FREQ_MHZ), rpe);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MAX_FREQ_MHZ, rp0));
+	igt_assert_eq_u32(get_freq(dirfd, RPS_MAX_FREQ_MHZ), rp0);
 
 }
 
@@ -100,8 +100,8 @@ static void test_reset(int i915, int dirfd, int gt, int count)
 
 	for (int i = 0; i < count; i++) {
 		igt_debug("Running cycle: %d", i);
-		igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn) > 0);
-		igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn) > 0);
+		igt_assert_lt(0, set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn));
+		igt_assert_lt(0, set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn));
 		usleep(ACT_FREQ_LATENCY_US);
 		req_freq = get_freq(dirfd, RPS_CUR_FREQ_MHZ);
 		if (req_freq)
@@ -124,8 +124,8 @@ static void test_suspend(int i915, int dirfd, int gt)
 	uint32_t rpn = get_freq(dirfd, RPS_RPn_FREQ_MHZ);
 	uint32_t req_freq;
 
-	igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn) > 0);
-	igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn) > 0);
+	igt_assert_lt(0, set_freq(dirfd, RPS_MIN_FREQ_MHZ, rpn));
+	igt_assert_lt(0, set_freq(dirfd, RPS_MAX_FREQ_MHZ, rpn));
 	usleep(ACT_FREQ_LATENCY_US);
 	req_freq = get_freq(dirfd, RPS_CUR_FREQ_MHZ);
 	if (req_freq)
@@ -149,8 +149,10 @@ static void restore_sysfs_freq(int sig)
 	/* Restore frequencies */
 	for_each_sysfs_gt_dirfd(i915, dirfd, gt) {
 		igt_pm_ignore_slpc_efficient_freq(i915, dirfd, false);
-		igt_assert(set_freq(dirfd, RPS_MAX_FREQ_MHZ, stash_max[gt]) > 0);
-		igt_assert(set_freq(dirfd, RPS_MIN_FREQ_MHZ, stash_min[gt]) > 0);
+		igt_assert_lt(0,
+			      set_freq(dirfd, RPS_MAX_FREQ_MHZ, stash_max[gt]));
+		igt_assert_lt(0,
+			      set_freq(dirfd, RPS_MIN_FREQ_MHZ, stash_min[gt]));
 	}
 	free(stash_min);
 	free(stash_max);

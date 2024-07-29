@@ -190,7 +190,7 @@ test_exec(int fd, int gt, int class, int n_exec_queues, int n_execs,
 	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
 	int i, j, b, num_placements = 0;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	xe_for_each_engine(fd, hwe) {
 		if (hwe->engine_class != class || hwe->gt_id != gt)
@@ -410,7 +410,7 @@ test_cm(int fd, int gt, int class, int n_exec_queues, int n_execs,
 	int i, j, b, num_placements = 0;
 	int map_fd = -1;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	xe_for_each_engine(fd, hwe) {
 		if (hwe->engine_class != class || hwe->gt_id != gt)
@@ -534,7 +534,8 @@ test_cm(int fd, int gt, int class, int n_exec_queues, int n_execs,
 			if (flags & RACE) {
 				map_fd = open("/tmp", O_TMPFILE | O_RDWR,
 					      0x666);
-				write(map_fd, data, bo_size);
+				igt_assert_eq(write(map_fd, data, bo_size),
+					      bo_size);
 				data = mmap((void *)MAP_ADDRESS, bo_size,
 					    PROT_READ | PROT_WRITE, MAP_SHARED |
 					    MAP_FIXED, map_fd, 0);

@@ -143,9 +143,7 @@ static void xchg_reloc(void *array, unsigned i, unsigned j)
 	struct drm_i915_gem_relocation_entry *b = &reloc[j];
 	struct drm_i915_gem_relocation_entry tmp;
 
-	tmp = *a;
-	*a = *b;
-	*b = tmp;
+	igt_swap(*a, *b);
 }
 
 static void execN(int fd, uint32_t handle, uint64_t batch_size, unsigned flags, char *ptr)

@@ -122,8 +122,8 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	} *data;
 	int i, b;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
-	igt_assert(n_vm <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_vm, MAX_N_EXEC_QUEUES);
 
 	for (i = 0; i < n_vm; ++i)
 		vm[i] = xe_vm_create(fd, 0, 0);

@@ -425,7 +425,7 @@ static void write_value(const char *path, int value)
 
 	fd = open(path, O_WRONLY);
 	if (fd != -1) {
-		write(fd, buf, len);
+		igt_assert_eq(write(fd, buf, len), len);
 		close(fd);
 	}
 }
@@ -497,8 +497,7 @@ static void test_exhaustion(int i915)
 		count++;
 	}
 	igt_assert(count);
-	if (t.err)
-		igt_warn("err:%d after %lu threads\n", t.err, count);
+	igt_warn_on_f(t.err, "err:%d after %lu threads\n", t.err, count);
 
 	/* Service the fault; releasing the stuck ioctls */
 	memset(&copy, 0, sizeof(copy));

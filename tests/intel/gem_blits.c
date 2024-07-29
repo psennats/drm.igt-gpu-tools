@@ -267,7 +267,7 @@ static void buffer_set_tiling(const struct device *device,
 		batch[i++] = obj[1].offset >> 32;
 
 	if ((tiling | buffer->tiling) >= T_YMAJOR) {
-		igt_assert(device->gen >= 6);
+		igt_assert_lte(6, device->gen);
 		batch[i++] = MI_FLUSH_DW_CMD | 2;
 		batch[i++] = 0;
 		batch[i++] = 0;
@@ -415,7 +415,7 @@ static bool blit_to_linear(const struct device *device,
 		batch[i++] = obj[1].offset >> 32;
 
 	if (buffer->tiling >= T_YMAJOR) {
-		igt_assert(device->gen >= 6);
+		igt_assert_lte(6, device->gen);
 		batch[i++] = MI_FLUSH_DW_CMD | 2;
 		batch[i++] = 0;
 		batch[i++] = 0;
@@ -542,11 +542,9 @@ static bool buffer_check(const struct device *device,
 			continue;
 
 		for (int x = 0; x < buffer->width; x++) {
-			if (row[x] != model[x] && num_errors++ < 5) {
-				igt_warn("buffer handle=%d mismatch at (%d, %d): expected %08x, found %08x\n",
-					 buffer->handle,
-					 x, y, model[x], row[x]);
-			}
+			igt_warn_on_f(row[x] != model[x] && num_errors++ < 5,
+				      "buffer handle=%d mismatch at (%d, %d): expected %08x, found %08x\n",
+				      buffer->handle, x, y, model[x], row[x]);
 		}
 	}
 
@@ -664,7 +662,7 @@ blit(const struct device *device,
 		height = dst->height - dst_y;
 
 	if (dst->caching) {
-		igt_assert(device->gen >= 3);
+		igt_assert_lte(3, device->gen);
 		igt_assert(device->llc || !src->caching);
 	}
 
@@ -764,7 +762,7 @@ blit(const struct device *device,
 		batch[i++] = obj[1].offset >> 32;
 
 	if ((src->tiling | dst->tiling) >= T_YMAJOR) {
-		igt_assert(device->gen >= 6);
+		igt_assert_lte(6, device->gen);
 		batch[i++] = MI_FLUSH_DW_CMD | 2;
 		batch[i++] = 0;
 		batch[i++] = 0;

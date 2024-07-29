@@ -627,7 +627,7 @@ static void test_inflight(int fd, unsigned int wait)
 		for (unsigned int n = 0; n < max; n++) {
 			gem_execbuf_wr(fd, &execbuf);
 			fence[n] = execbuf.rsvd2 >> 32;
-			igt_assert(fence[n] != -1);
+			igt_assert_neq(fence[n], -1);
 		}
 
 		igt_debugfs_dump(fd, "i915_engine_info");
@@ -687,7 +687,7 @@ static void test_inflight_suspend(int fd)
 	for (unsigned int n = 0; n < max; n++) {
 		gem_execbuf_wr(fd, &execbuf);
 		fence[n] = execbuf.rsvd2 >> 32;
-		igt_assert(fence[n] != -1);
+		igt_assert_neq(fence[n], -1);
 	}
 
 	igt_set_autoresume_delay(30);
@@ -774,7 +774,7 @@ static void test_inflight_contexts(int fd, unsigned int wait)
 			if (__gem_execbuf_wr(fd, &execbuf))
 				break; /* small shared ring */
 			fence[n] = execbuf.rsvd2 >> 32;
-			igt_assert(fence[n] != -1);
+			igt_assert_neq(fence[n], -1);
 			count++;
 		}
 
@@ -885,7 +885,7 @@ static void test_inflight_internal(int fd, unsigned int wait)
 		gem_execbuf_wr(fd, &execbuf);
 
 		fences[nfence] = execbuf.rsvd2 >> 32;
-		igt_assert(fences[nfence] != -1);
+		igt_assert_neq(fences[nfence], -1);
 		nfence++;
 	}
 

@@ -129,9 +129,9 @@ check_bo(struct intel_buf *buf, uint32_t val, struct intel_bb *ibb)
 	linear = intel_buf_cpu_map(linear_buf, 0);
 	num_errors = 0;
 	for (i = 0; i < width * height; i++) {
-		if (linear[i] != val && num_errors++ < 32)
-			igt_warn("[%08x] Expected 0x%08x, found 0x%08x (difference 0x%08x)\n",
-				 i * 4, val, linear[i], val ^ linear[i]);
+		igt_warn_on_f(linear[i] != val && num_errors++ < 32,
+			      "[%08x] Expected 0x%08x, found 0x%08x (difference 0x%08x)\n",
+			      i * 4, val, linear[i], val ^ linear[i]);
 		val++;
 	}
 	igt_assert_eq(num_errors, 0);

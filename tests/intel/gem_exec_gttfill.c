@@ -66,9 +66,7 @@ static void xchg_batch(void *array, unsigned int i, unsigned int j)
 	struct batch *batches = array;
 	struct batch tmp;
 
-	tmp = batches[i];
-	batches[i] = batches[j];
-	batches[j] = tmp;
+	igt_swap(batches[i], batches[j]);
 }
 
 static void submit(int fd, uint64_t ahnd, unsigned int gen,

@@ -1343,7 +1343,7 @@ static void concurrent_child(int i915, const intel_ctx_t *ctx,
 	x += idx * CONCURRENT;
 
 	do {
-		read(in, batch, sizeof(*batch));
+		igt_assert_eq(read(in, batch, sizeof(*batch)), sizeof(*batch));
 		if (!*batch)
 			break;
 
@@ -1359,7 +1359,7 @@ static void concurrent_child(int i915, const intel_ctx_t *ctx,
 			}
 		}
 
-		write(out, &err, sizeof(err));
+		igt_assert_eq(write(out, &err, sizeof(err)), sizeof(err));
 		count++;
 	} while (err == 0);
 

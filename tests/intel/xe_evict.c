@@ -57,7 +57,7 @@ test_evict(int fd, struct drm_xe_engine_class_instance *eci,
 	} *data;
 	int i, b;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	bo = calloc(n_execs / 2, sizeof(*bo));
 	igt_assert(bo);
@@ -237,7 +237,7 @@ test_evict_cm(int fd, struct drm_xe_engine_class_instance *eci,
 	} *data;
 	int i, b;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	bo = calloc(n_execs / 2, sizeof(*bo));
 	igt_assert(bo);

@@ -255,7 +255,7 @@ static void store_cachelines(int fd, struct drm_xe_engine_class_instance *eci,
 		object_index = n % (count - 1);
 		ptr[n]  = bo_map[object_index] + delta / 4;
 
-		igt_assert(*ptr[n] == value[n]);
+		igt_assert_eq_u32(*ptr[n], value[n]);
 	}
 
 	for (i = 0; i < count; i++) {

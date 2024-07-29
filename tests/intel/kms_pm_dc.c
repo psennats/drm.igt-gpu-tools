@@ -230,11 +230,10 @@ static uint32_t get_dc_counter(char *dc_data)
 	long ret;
 	char *s = strchr(dc_data, ':');
 
-	assert(s);
+	igt_assert(s);
 	s++;
 	ret = strtol(s, &e, 10);
-	assert(((ret != LONG_MIN && ret != LONG_MAX) || errno != ERANGE) &&
-	       e > s && *e == '\n' && ret >= 0);
+	igt_assert(((ret != LONG_MIN && ret != LONG_MAX) || errno != ERANGE) && e > s && *e == '\n' && ret >= 0);
 	return ret;
 }
 
@@ -611,8 +610,8 @@ static void test_deep_pkgc_state(data_t *data)
 	}
 
 	/* Skip the test if no VRR capable output is found */
-	if (!vrr_supported)
-		igt_skip("No VRR capable output found, skipping the test.\n");
+	igt_skip_on_f(!vrr_supported,
+		      "No VRR capable output found, skipping the test.\n");
 
 	igt_display_reset(display);
 

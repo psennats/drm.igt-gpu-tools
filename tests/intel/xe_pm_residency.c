@@ -182,7 +182,7 @@ static unsigned long read_idle_residency(int fd, int gt)
 	int gt_fd;
 
 	gt_fd = xe_sysfs_gt_open(fd, gt);
-	igt_assert(gt_fd >= 0);
+	igt_assert_lte(0, gt_fd);
 	igt_assert(igt_sysfs_scanf(gt_fd, "gtidle/idle_residency_ms", "%lu", &residency) == 1);
 	close(gt_fd);
 
@@ -280,7 +280,7 @@ static void toggle_gt_c6(int fd, int n)
 
 	do {
 		fw_handle = igt_debugfs_open(fd, "forcewake_all", O_RDONLY);
-		igt_assert(fw_handle >= 0);
+		igt_assert_lte(0, fw_handle);
 		/* check if all gts are in C0 after forcewake is acquired */
 		xe_for_each_gt(fd, gt)
 			igt_assert_f(!xe_is_gt_in_c6(fd, gt),

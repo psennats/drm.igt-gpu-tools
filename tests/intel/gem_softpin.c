@@ -793,7 +793,7 @@ static void __reserve(uint64_t ahnd, int i915, bool pinned,
 	unsigned int flags;
 	int i;
 
-	igt_assert(num_obj > 1);
+	igt_assert_lt(1, num_obj);
 
 	flags = EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
 	if (pinned)
@@ -843,7 +843,7 @@ static void __exec_using_allocator(uint64_t ahnd, int i915, int num_obj,
 	uint64_t sz = 4096;
 	int i;
 
-	igt_assert(num_obj > 10);
+	igt_assert_lt(10, num_obj);
 
 	flags = EXEC_OBJECT_SUPPORTS_48B_ADDRESS;
 	if (pinned)
@@ -969,9 +969,7 @@ static void xchg_batch(void *array, unsigned int i, unsigned int j)
 	struct batch *batches = array;
 	struct batch tmp;
 
-	tmp = batches[i];
-	batches[i] = batches[j];
-	batches[j] = tmp;
+	igt_swap(batches[i], batches[j]);
 }
 
 static void submit(int fd, unsigned int gen,

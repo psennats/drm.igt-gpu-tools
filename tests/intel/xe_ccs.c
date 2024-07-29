@@ -212,7 +212,7 @@ static void surf_copy(int xe,
 	WRITE_PNG(xe, run_id, "corrupted", &blt.dst, dst->x2, dst->y2, bpp);
 	result = memcmp(src->ptr, dst->ptr, src->size);
 	if (blt_platform_has_flat_ccs_enabled(xe))
-		igt_assert(result != 0);
+		igt_assert_neq(result, 0);
 
 	/* In case of suspend_resume, buffer object would become
 	 * uncompressed in xe2+ dgfx, and therefore retrieve the
@@ -696,7 +696,7 @@ static int opt_handler(int opt, int opt_index, void *data)
 	case 'f':
 		param.compression_format = atoi(optarg);
 		igt_debug("Compression format: %d\n", param.compression_format);
-		igt_assert((param.compression_format & ~0x1f) == 0);
+		igt_assert_eq((param.compression_format & ~0x1f), 0);
 		break;
 	case 'p':
 		param.write_png = true;

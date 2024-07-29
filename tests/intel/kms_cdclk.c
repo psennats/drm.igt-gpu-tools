@@ -236,9 +236,8 @@ static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *out
 	mode_hi = get_highres_mode(output);
 	igt_require(mode_hi != NULL);
 
-	if (mode_hi->hdisplay == mode_lo->hdisplay &&
-	    mode_hi->vdisplay == mode_lo->vdisplay)
-		igt_skip("Highest and lowest mode resolutions are same; no transition\n");
+	igt_skip_on_f(mode_hi->hdisplay == mode_lo->hdisplay && mode_hi->vdisplay == mode_lo->vdisplay,
+		      "Highest and lowest mode resolutions are same; no transition\n");
 
 	primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
 

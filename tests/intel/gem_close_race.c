@@ -307,7 +307,7 @@ static void multigpu_threads(int timeout, unsigned int flags, int gpu_count)
 		struct drm_gem_open name;
 		int fd = __drm_open_driver_another(gpu, DRIVER_INTEL);
 
-		igt_assert(fd > 0);
+		igt_assert_lt(0, fd);
 
 		igt_fork(child, size)
 			thread(fd, name, timeout, flags);

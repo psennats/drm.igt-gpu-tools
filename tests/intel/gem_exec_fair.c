@@ -579,10 +579,12 @@ static void fair_child(int i915, const intel_ctx_t *ctx,
 
 	/* Synchronize with other children/parent upon construction */
 	if (sv != -1)
-		write(sv, &p_fence, sizeof(p_fence));
+		igt_assert_eq(write(sv, &p_fence, sizeof(p_fence)),
+			      sizeof(p_fence));
 	if (rv != -1)
-		read(rv, &p_fence, sizeof(p_fence));
-	igt_assert(p_fence == -1);
+		igt_assert_eq(read(rv, &p_fence, sizeof(p_fence)),
+			      sizeof(p_fence));
+	igt_assert_eq(p_fence, -1);
 
 	aux_flags = 0;
 	if (intel_gen(intel_get_drm_devid(i915)) < 8)
@@ -850,9 +852,11 @@ static void fairness(int i915, const intel_ctx_cfg_t *cfg,
 		{
 			int sync;
 			for (int child = 0; child < nchild; child++)
-				read(lnk.child[0], &sync, sizeof(sync));
+				igt_assert_eq(read(lnk.child[0], &sync, sizeof(sync)),
+					      sizeof(sync));
 			for (int child = 0; child < nchild; child++)
-				write(lnk.parent[1], &sync, sizeof(sync));
+				igt_assert_eq(write(lnk.parent[1], &sync, sizeof(sync)),
+					      sizeof(sync));
 		}
 
 		while (nfences--)
@@ -1028,9 +1032,9 @@ static void deadline_child(int i915,
 	if (!(flags & DL_PRIO))
 		execbuf.flags |= I915_EXEC_FENCE_IN;
 
-	write(sv, &prev, sizeof(int));
-	read(rv, &prev, sizeof(int));
-	igt_assert(prev == -1);
+	igt_assert_eq(write(sv, &prev, sizeof(int)), sizeof(int));
+	igt_assert_eq(read(rv, &prev, sizeof(int)), sizeof(int));
+	igt_assert_eq(prev, -1);
 
 	prev = execbuf.rsvd2;
 	next = execbuf.rsvd2 >> 32;
@@ -1044,7 +1048,8 @@ static void deadline_child(int i915,
 		gem_execbuf_wr(i915, &execbuf);
 		close(execbuf.rsvd2);
 
-		write(sv, &fence.handle, sizeof(uint32_t));
+		igt_assert_eq(write(sv, &fence.handle, sizeof(uint32_t)),
+			      sizeof(uint32_t));
 
 		prev = next;
 		next = execbuf.rsvd2 >> 32;
@@ -1187,10 +1192,12 @@ static void deadline(int i915, const intel_ctx_cfg_t *cfg,
 		}
 
 		for (int i = 0; i < num_children; i++)
-			read(link[i].child[0], &over, sizeof(int));
+			igt_assert_eq(read(link[i].child[0], &over, sizeof(int)),
+				      sizeof(int));
 		igt_info("Testing %d children, with %'dns\n", num_children, child_ns);
 		for (int i = 0; i < num_children; i++)
-			write(link[i].parent[1], &over, sizeof(int));
+			igt_assert_eq(write(link[i].parent[1], &over, sizeof(int)),
+				      sizeof(int));
 
 		over = 0;
 		missed = 0;
@@ -1207,7 +1214,8 @@ static void deadline(int i915, const intel_ctx_cfg_t *cfg,
 
 			sw_sync_timeline_inc(timeline, 1);
 			for (int i = 0; i < num_children; i++) {
-				read(link[i].child[0], &fences[i].handle, sizeof(uint32_t));
+				igt_assert_eq(read(link[i].child[0], &fences[i].handle, sizeof(uint32_t)),
+					      sizeof(uint32_t));
 				fences[i].flags = I915_EXEC_FENCE_WAIT;
 			}
 

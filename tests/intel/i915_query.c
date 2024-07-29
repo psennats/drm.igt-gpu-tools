@@ -491,7 +491,7 @@ test_query_topology_matches_eu_total(int fd)
 
 	free(topo_info);
 
-	igt_assert(n_eus_topology == n_eus);
+	igt_assert_eq(n_eus_topology, n_eus);
 }
 
 /*
@@ -1380,7 +1380,7 @@ static void query_parse_and_validate_hwconfig_table(int i915)
 	i915_query_items(i915, &item, 1);
 	igt_assert(item.length == table_size);
 	igt_info("Table size = %d bytes\n", table_size);
-	igt_assert(table_size > 0);
+	igt_assert_lt(0, table_size);
 
 	/* HWConfig table is a list of KLV sets */
 	max_words = table_size / sizeof(uint32_t);
@@ -1391,21 +1391,21 @@ static void query_parse_and_validate_hwconfig_table(int i915)
 		igt_assert(data[i] < __INTEL_HWCONFIG_KEY_LIMIT);
 
 		len = data[i + 1];
-		igt_assert(len > 0);
-		igt_assert((i + 2 + len) <= max_words);
+		igt_assert_lt(0, len);
+		igt_assert_lte((i + 2 + len), max_words);
 
 		igt_info("[%2d] %s: ", data[i], hwconfig_keys[data[i]]);
 
 		value = data[i + 2];
 		switch (data[i]) {
 		case INTEL_HWCONFIG_MEMORY_TYPE:
-			igt_assert(len == 1);
+			igt_assert_eq(len, 1);
 			igt_assert(value < __INTEL_HWCONFIG_MEMORY_TYPE_LIMIT);
 			igt_info("%s\n", hwconfig_memtypes[value]);
 			break;
 
 		case INTEL_HWCONFIG_CACHE_TYPES:
-			igt_assert(len == 1);
+			igt_assert_eq(len, 1);
 
 			if (!value)
 				igt_info("-\n");

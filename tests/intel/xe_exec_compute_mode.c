@@ -122,7 +122,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	int64_t fence_timeout;
 	void *dummy;
 
-	igt_assert(n_exec_queues <= MAX_N_EXECQUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
 
 	vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
 	bo_size = sizeof(*data) * n_execs;
@@ -272,7 +272,8 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			if (flags & RACE) {
 				map_fd = open("/tmp", O_TMPFILE | O_RDWR,
 					      0x666);
-				write(map_fd, data, bo_size);
+				igt_assert_eq(write(map_fd, data, bo_size),
+				              bo_size);
 				data = mmap((void *)MAP_ADDRESS, bo_size,
 					    PROT_READ | PROT_WRITE, MAP_SHARED |
 					    MAP_FIXED, map_fd, 0);
@@ -486,7 +487,7 @@ static void lr_mode_workload(int fd)
 	ts_1 = spin->timestamp;
 	sleep(1);
 	ts_2 = spin->timestamp;
-	igt_assert(ts_1 != ts_2);
+	igt_assert_neq_u32(ts_1, ts_2);
 
 	xe_spin_end(spin);
 	xe_wait_ufence(fd, &spin->exec_sync, USER_FENCE_VALUE, 0, ONE_SEC);
@@ -495,7 +496,7 @@ static void lr_mode_workload(int fd)
 	ts_1 = spin->timestamp;
 	sleep(1);
 	ts_2 = spin->timestamp;
-	igt_assert(ts_1 == ts_2);
+	igt_assert_eq_u32(ts_1, ts_2);
 
 	sync.addr = to_user_pointer(&vm_sync);
 	xe_vm_unbind_async(fd, vm, 0, 0, spin_addr, bo_size, &sync, 1);

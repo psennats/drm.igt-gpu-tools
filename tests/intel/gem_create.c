@@ -637,7 +637,7 @@ static void create_ext_set_pat(int fd)
 	 * This means that we are on a Meteor Lake and the PAT
 	 * index is already supported by the running i915
 	 */
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/*
 	 * {set|get}_caching ioctl should fail for objects created with set_pat

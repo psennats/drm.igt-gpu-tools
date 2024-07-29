@@ -500,7 +500,7 @@ far_delay(int i915, unsigned long delay, unsigned int target,
 	batch[1] = batch[0];
 	batch[1].flags &= ~EXEC_OBJECT_WRITE;
 	batch[0].handle = handle;
-	assert(batch[0].flags & EXEC_OBJECT_WRITE);
+	igt_assert(batch[0].flags & EXEC_OBJECT_WRITE);
 	gem_execbuf_wr(i915, &execbuf);
 
 	gem_close(i915, obj.handle);

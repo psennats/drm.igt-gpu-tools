@@ -35,7 +35,7 @@ void save_force_dsc_en(int drmfd, igt_output_t *output)
 		igt_is_force_dsc_enabled(drmfd, output->name);
 	force_dsc_restore_fd =
 		igt_get_dsc_debugfs_fd(drmfd, output->name);
-	igt_assert(force_dsc_restore_fd >= 0);
+	igt_assert_lte(0, force_dsc_restore_fd);
 }
 
 void restore_force_dsc_en(void)
@@ -163,7 +163,7 @@ void save_force_dsc_fractional_bpp_en(int drmfd, igt_output_t *output)
 		igt_is_force_dsc_fractional_bpp_enabled(drmfd, output->name);
 	force_dsc_fractional_bpp_restore_fd =
 		igt_get_dsc_fractional_bpp_debugfs_fd(drmfd, output->name);
-	igt_assert(force_dsc_fractional_bpp_restore_fd >= 0);
+	igt_assert_lte(0, force_dsc_fractional_bpp_restore_fd);
 }
 
 void restore_force_dsc_fractional_bpp_en(void)

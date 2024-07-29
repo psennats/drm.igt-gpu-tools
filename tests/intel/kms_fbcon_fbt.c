@@ -317,8 +317,7 @@ static void fbc_skips_on_fbcon(int debugfs_fd)
 	for (i = 0; skip == false && i < ARRAY_SIZE(reasons); i++)
 		skip = strstr(buf, reasons[i]);
 
-	if (skip)
-		igt_skip("fbcon modeset is not compatible with FBC\n");
+	igt_skip_on_f(skip, "fbcon modeset is not compatible with FBC\n");
 }
 
 static void psr_skips_on_fbcon(int debugfs_fd)

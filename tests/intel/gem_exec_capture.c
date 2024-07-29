@@ -406,7 +406,7 @@ static void __capture1(int fd, int dir, uint64_t ahnd, const intel_ctx_t *ctx,
 	gem_execbuf_wr(fd, &execbuf);
 
 	fence_out = execbuf.rsvd2 >> 32;
-	igt_assert(fence_out >= 0);
+	igt_assert_lte(0, fence_out);
 
 	/* Wait for the request to start */
 	while (READ_ONCE(*seqno) != 0xc0ffee)
@@ -792,11 +792,11 @@ static void prioinv(int fd, int dir, const intel_ctx_t *ctx,
 				&fence_out, REGION_SMEM, true));
 		put_ahnd(ahnd);
 
-		write(link[1], &fd, sizeof(fd)); /* wake the parent up */
+		igt_assert_eq(write(link[1], &fd, sizeof(fd)), sizeof(fd)); /* wake the parent up */
 		wait_to_die(fence_out);
-		write(link[1], &fd, sizeof(fd)); /* wake the parent up */
+		igt_assert_eq(write(link[1], &fd, sizeof(fd)), sizeof(fd)); /* wake the parent up */
 	}
-	read(link[0], &dummy, sizeof(dummy));
+	igt_assert_eq(read(link[0], &dummy, sizeof(dummy)), sizeof(dummy));
 	igt_require_f(poll(&(struct pollfd){link[0], POLLIN}, 1, 500) == 0,
 		      "Capture completed too quickly! Will not block\n");
 

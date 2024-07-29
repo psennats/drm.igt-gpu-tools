@@ -492,12 +492,12 @@ __perf_open(int fd, struct intel_xe_oa_open_prop *param, bool prevent_pm)
 
 	ret = intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, param);
 
-	igt_assert(ret >= 0);
+	igt_assert_lte(0, ret);
 	errno = 0;
 
 	if (prevent_pm) {
 		pm_fd = open("/dev/cpu_dma_latency", O_RDWR);
-		igt_assert(pm_fd >= 0);
+		igt_assert_lte(0, pm_fd);
 
 		igt_assert_eq(write(pm_fd, &pm_value, sizeof(pm_value)), sizeof(pm_value));
 	}
@@ -568,7 +568,7 @@ elapsed_delta(uint64_t t1, uint64_t t0, uint32_t width)
 {
 	uint32_t max_bits = sizeof(t1) * 8;
 
-	igt_assert(width <= max_bits);
+	igt_assert_lte_u32(width, max_bits);
 
 	if (t1 < t0 && width != max_bits)
 		return ((1ULL << width) - t0) + t1;
@@ -1710,7 +1710,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 
 			/* igt_debug(" > read %i bytes\n", ret); */
 			/* We should never have no data. */
-			igt_assert(ret > 0);
+			igt_assert_lt(0, ret);
 
 			for (int offset = 0;
 			     offset < ret && n_timer_reports < NUM_TIMER_REPORTS;
@@ -1933,7 +1933,7 @@ static void test_blocking(uint64_t requested_oa_period,
 		while ((ret = read(perf_fd, buf, sizeof(buf))) < 0 &&
 		       (errno == EINTR || errno == EIO))
 			;
-		igt_assert(ret > 0);
+		igt_assert_lt(0, ret);
 
 		for (int offset = 0; offset < ret; offset += format_size) {
 			uint32_t *report = (void *)(buf + offset);
@@ -1972,12 +1972,12 @@ static void test_blocking(uint64_t requested_oa_period,
 	/* With completely broken blocking (but also not returning an error) we
 	 * could end up with an open loop,
 	 */
-	igt_assert(n <= (max_iterations + n_extra_iterations));
+	igt_assert_lte(n, (max_iterations + n_extra_iterations));
 
 	/* Make sure the driver is reporting new samples with a reasonably
 	 * low latency...
 	 */
-	igt_assert(n > (min_iterations + n_extra_iterations));
+	igt_assert_lt((min_iterations + n_extra_iterations), n);
 
 	if (!set_kernel_hrtimer)
 		igt_assert(kernel_ns <= (test_duration_ns / 100ull));
@@ -2163,12 +2163,12 @@ static void test_polling(uint64_t requested_oa_period,
 	/* With completely broken blocking while polling (but still somehow
 	 * reporting a POLLIN event) we could end up with an open loop.
 	 */
-	igt_assert(n <= (max_iterations + n_extra_iterations));
+	igt_assert_lte(n, (max_iterations + n_extra_iterations));
 
 	/* Make sure the driver is reporting new samples with a reasonably
 	 * low latency...
 	 */
-	igt_assert(n > (min_iterations + n_extra_iterations));
+	igt_assert_lt((min_iterations + n_extra_iterations), n);
 
 	if (!set_kernel_hrtimer)
 		igt_assert(kernel_ns <= (test_duration_ns / 100ull));
@@ -2260,7 +2260,7 @@ num_valid_reports_captured(struct intel_xe_oa_open_prop *param,
 		       (errno == EINTR || errno == EIO))
 			;
 
-		igt_assert(ret > 0);
+		igt_assert_lt(0, ret);
 
 		for (int offset = 0; offset < ret; offset += format_size) {
 			uint32_t *report = (void *)(buf + offset);
@@ -3473,7 +3473,7 @@ static int xe_oa_add_config(int fd, struct drm_xe_oa_config *config)
 	int config_id = __xe_oa_add_config(fd, config);
 
 	igt_debug("config_id=%i\n", config_id);
-	igt_assert(config_id > 0);
+	igt_assert_lt(0, config_id);
 
 	return config_id;
 }
@@ -3769,7 +3769,7 @@ test_whitelisted_registers_userspace_config(void)
 
 	/* Create a new config */
 	ret = intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config);
-	igt_assert(ret > 0); /* Config 0 should be used by the kernel */
+	igt_assert_lt(0, ret); /* Config 0 should be used by the kernel */
 	config_id = ret;
 
 	xe_oa_remove_config(drm_fd, config_id);
@@ -4195,7 +4195,7 @@ test_oa_unit_exclusive_stream(bool exponent)
 		properties[11] = exec_q[i];
 		errno = 0;
 		err = intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &param);
-		igt_assert(err < 0);
+		igt_assert_lt(err, 0);
 		igt_assert(errno == EBUSY || errno == ENODEV);
 		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
 	}

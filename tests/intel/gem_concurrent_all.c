@@ -306,7 +306,7 @@ userptr_create_bo(const struct buffers *b)
 	igt_assert(ptr != (void *)-1);
 	userptr.user_ptr = to_user_pointer(ptr);
 
-	do_or_die(drmIoctl(fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr));
+	do_ioctl(fd, DRM_IOCTL_I915_GEM_USERPTR, &userptr);
 	buf = intel_buf_create_using_handle_and_size(b->bops, userptr.handle,
 						     b->width, b->height, 32, 0,
 						     I915_TILING_NONE, 0,
@@ -497,7 +497,7 @@ vgem_create_bo(const struct buffers *b)
 	struct dmabuf *dmabuf;
 	uint32_t handle;
 
-	igt_assert(vgem_drv != -1);
+	igt_assert_neq(vgem_drv, -1);
 
 	vgem.width = b->width;
 	vgem.height = b->height;
@@ -915,7 +915,7 @@ static void buffers_create(struct buffers *b)
 	igt_assert(b->bops);
 
 	buffers_destroy(b);
-	igt_assert(b->count == 0);
+	igt_assert_eq(b->count, 0);
 	b->count = count;
 
 	ahnd = alloc_open();
@@ -941,7 +941,7 @@ static void __buffers_create(struct buffers *b)
 {
 	b->bops = buf_ops_create(fd);
 	igt_assert(b->bops);
-	igt_assert(b->num_buffers > 0);
+	igt_assert_lt(0, b->num_buffers);
 	igt_assert(b->mode);
 	igt_assert(b->mode->create_bo);
 

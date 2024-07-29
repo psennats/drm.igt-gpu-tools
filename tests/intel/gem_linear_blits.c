@@ -212,9 +212,9 @@ check_bo(int fd, uint32_t handle, uint32_t val)
 
 	num_errors = 0;
 	for (i = 0; i < WIDTH*HEIGHT; i++) {
-		if (linear[i] != val && num_errors++ < 32)
-			igt_warn("[%08x] Expected 0x%08x, found 0x%08x (difference 0x%08x)\n",
-				 i * 4, val, linear[i], val ^ linear[i]);
+		igt_warn_on_f(linear[i] != val && num_errors++ < 32,
+			      "[%08x] Expected 0x%08x, found 0x%08x (difference 0x%08x)\n",
+			      i * 4, val, linear[i], val ^ linear[i]);
 		val++;
 	}
 	igt_assert_eq(num_errors, 0);

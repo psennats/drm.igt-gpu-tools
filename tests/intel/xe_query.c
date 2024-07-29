@@ -198,7 +198,7 @@ test_query_engines(int fd)
 								    hwe->gt_id);
 	}
 
-	igt_assert(i > 0);
+	igt_assert_lt(0, i);
 }
 
 /**
@@ -464,15 +464,15 @@ test_query_gt_topology_l3_bank_mask(int fd)
 
 			igt_info(" count: %d\n", count);
 			if (intel_get_device_info(dev_id)->graphics_ver < 20) {
-				igt_assert(count > 0);
+				igt_assert_lt(0, count);
 			}
 
 			if (IS_METEORLAKE(dev_id))
-				igt_assert((count % 2) == 0);
+				igt_assert_eq((count % 2), 0);
 			else if (IS_PONTEVECCHIO(dev_id))
-				igt_assert((count % 4) == 0);
+				igt_assert_eq((count % 4), 0);
 			else if (IS_DG2(dev_id))
-				igt_assert((count % 8) == 0);
+				igt_assert_eq((count % 8), 0);
 		}
 
 		query.size -= sz;
@@ -786,7 +786,7 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 		if (!((i + 1) % NUM_SNAPSHOTS)) {
 			igt_debug("clock %s\n", clock[index].name);
 			igt_debug("usable %d\n", usable);
-			igt_assert(usable > 2);
+			igt_assert_lt(2, usable);
 			usable = 0;
 		}
 	}

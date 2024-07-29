@@ -470,7 +470,7 @@ static void test_hang_detector(const intel_ctx_t *ctx,
 	igt_stop_hang_detector();
 
 	/* Did it work? */
-	igt_assert(hang_count == 1);
+	igt_assert_eq(hang_count, 1);
 
 	check_alive();
 }

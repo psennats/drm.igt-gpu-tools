@@ -250,7 +250,7 @@ static char *get_drpc(int i915, int gt_id)
 	int gt_dir;
 
 	gt_dir = igt_debugfs_gt_dir(i915, gt_id);
-	igt_assert(gt_dir != -1);
+	igt_assert_neq(gt_dir, -1);
 	return igt_sysfs_get(gt_dir, "drpc");
 }
 
@@ -307,7 +307,7 @@ static int open_pmu(int i915, uint64_t config)
 
 	fd = perf_i915_open(i915, config);
 	igt_skip_on(fd < 0 && errno == ENODEV);
-	igt_assert(fd >= 0);
+	igt_assert_lte(0, fd);
 
 	return fd;
 }

@@ -94,7 +94,7 @@ static uint64_t get_vram_d3cold_threshold(int sysfs)
 	igt_require_f(!faccessat(sysfs, path, R_OK, 0), "vram_d3cold_threshold is not present\n");
 
 	ret = igt_sysfs_scanf(sysfs, path, "%lu", &threshold);
-	igt_assert(ret > 0);
+	igt_assert_lt(0, ret);
 
 	return threshold;
 }
@@ -111,7 +111,7 @@ static void set_vram_d3cold_threshold(int sysfs, uint64_t threshold)
 	else
 		igt_warn("vram_d3cold_threshold is not present\n");
 
-	igt_assert(ret > 0);
+	igt_assert_lt(0, ret);
 }
 
 static void vram_d3cold_threshold_restore(int sig)
@@ -305,8 +305,8 @@ test_exec(device_t device, struct drm_xe_engine_class_instance *eci,
 	bool check_rpm = (d_state == IGT_ACPI_D3Hot ||
 			  d_state == IGT_ACPI_D3Cold);
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
-	igt_assert(n_execs > 0);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
+	igt_assert_lt(0, n_execs);
 
 	if (check_rpm) {
 		igt_assert(in_d3(device, d_state));
@@ -507,7 +507,7 @@ static void test_vram_d3cold_threshold(device_t device, int sysfs_fd)
 	 * Therefore open and close fw handle to wake the device.
 	 */
 	fw_handle = igt_debugfs_open(device.fd_xe, "forcewake_all", O_RDONLY);
-	igt_assert(fw_handle >= 0);
+	igt_assert_lte(0, fw_handle);
 	active = igt_get_runtime_pm_status() == IGT_RUNTIME_PM_STATUS_ACTIVE;
 	close(fw_handle);
 	igt_assert(active);
@@ -557,7 +557,7 @@ static void test_mmap(device_t device, uint32_t placement, uint32_t flags,
 
 	fw_handle = igt_debugfs_open(device.fd_xe, "forcewake_all", O_RDONLY);
 
-	igt_assert(fw_handle >= 0);
+	igt_assert_lte(0, fw_handle);
 	igt_assert(igt_pm_get_runtime_active_time(device.pci_xe) >
 		   active_time);
 
@@ -600,7 +600,7 @@ static void test_mmap(device_t device, uint32_t placement, uint32_t flags,
 
 	/* Runtime resume and check the pattern */
 	fw_handle = igt_debugfs_open(device.fd_xe, "forcewake_all", O_RDONLY);
-	igt_assert(fw_handle >= 0);
+	igt_assert_lte(0, fw_handle);
 	igt_assert(igt_get_runtime_pm_status() == IGT_RUNTIME_PM_STATUS_ACTIVE);
 	for (i = 0; i < bo_size / sizeof(*map); i++)
 		igt_assert(map[i] == MAGIC_2);
@@ -651,7 +651,7 @@ static void test_mocs_suspend_resume(device_t device, enum igt_suspend_state s_s
 			active_time = igt_pm_get_runtime_active_time(device.pci_xe);
 
 			fw_handle = igt_debugfs_open(device.fd_xe, "forcewake_all", O_RDONLY);
-			igt_assert(fw_handle >= 0);
+			igt_assert_lte(0, fw_handle);
 			igt_assert(igt_pm_get_runtime_active_time(device.pci_xe) >
 				   active_time);
 

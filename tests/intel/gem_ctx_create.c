@@ -297,18 +297,14 @@ static void xchg_u32(void *array, unsigned i, unsigned j)
 {
 	uint32_t *a = array, tmp;
 
-	tmp = a[i];
-	a[i] = a[j];
-	a[j] = tmp;
+	igt_swap(a[i], a[j]);
 }
 
 static void xchg_ptr(void *array, unsigned i, unsigned j)
 {
 	void **a = array, *tmp;
 
-	tmp = a[i];
-	a[i] = a[j];
-	a[j] = tmp;
+	igt_swap(a[i], a[j]);
 }
 
 static unsigned __context_size(int fd)

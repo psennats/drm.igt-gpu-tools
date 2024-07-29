@@ -811,7 +811,7 @@ static void test_pxp_dmabuffshare_refcnt(int i915)
 	for (n = 0; n < (TSTSURF_SIZE/4); ++n)
 		if (encrypted[0][n] == encrypted[1][n])
 			++num_matches;
-	igt_assert(num_matches == (TSTSURF_SIZE/4));
+	igt_assert_eq(num_matches, (TSTSURF_SIZE / 4));
 }
 
 
@@ -988,7 +988,7 @@ static void test_pxp_stale_ctx_execution(int i915)
 	 */
 	prepare_exec_assets(i915, &data, true, false);
 	ret = gem_execbuf_flush_store_dw(i915, data.ibb, data.ctx, data.fencebuf);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	trigger_pxp_debugfs_forced_teardown(i915);
 
@@ -1008,7 +1008,7 @@ static void test_pxp_stale_buf_execution(int i915)
 	/* Use pxp buffers with pxp context for testing for invalidation of protected buffers. */
 	prepare_exec_assets(i915, &data, true, true);
 	ret = gem_execbuf_flush_store_dw(i915, data.ibb, data.ctx, data.fencebuf);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	trigger_pxp_debugfs_forced_teardown(i915);
 
@@ -1055,7 +1055,7 @@ static void test_pxp_stale_buf_optout_execution(int i915)
 	 * the intent of the subtest) to ensure ARB session is alive.
 	 */
 	ret = create_ctx_with_params(i915, true, true, true, false, &tmpctx);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/*
 	 * Use a normal context for testing opt-out behavior
@@ -1063,7 +1063,7 @@ static void test_pxp_stale_buf_optout_execution(int i915)
 	 */
 	prepare_exec_assets(i915, &data, false, true);
 	ret = gem_execbuf_flush_store_dw(i915, data.ibb, data.ctx, data.fencebuf);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	trigger_pxp_debugfs_forced_teardown(i915);
 
@@ -1088,7 +1088,7 @@ static void test_pxp_pwrcycle_staleasset_execution(int i915, struct powermgt_dat
 	 */
 	prepare_exec_assets(i915, &data[0], true, false);
 	ret = gem_execbuf_flush_store_dw(i915, data[0].ibb, data[0].ctx, data[0].fencebuf);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/*
 	 * For asset data[1]: Use pxp buffers with pxp context for testing for invalidation
@@ -1096,7 +1096,7 @@ static void test_pxp_pwrcycle_staleasset_execution(int i915, struct powermgt_dat
 	 */
 	prepare_exec_assets(i915, &data[1], true, true);
 	ret = gem_execbuf_flush_store_dw(i915, data[1].ibb, data[1].ctx, data[1].fencebuf);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/*
 	 * For asset data[2]: Use a normal context for testing opt-out behavior
@@ -1104,7 +1104,7 @@ static void test_pxp_pwrcycle_staleasset_execution(int i915, struct powermgt_dat
 	 */
 	prepare_exec_assets(i915, &data[2], false, true);
 	ret = gem_execbuf_flush_store_dw(i915, data[2].ibb, data[2].ctx, data[2].fencebuf);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/* Do an S3 suspend resume cycle which also causes the pxp teardown event */
 	trigger_powermgt_suspend_cycle(i915, pm);

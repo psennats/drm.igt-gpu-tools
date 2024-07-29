@@ -499,27 +499,27 @@ static void fill_render(data_t *data, const struct igt_fb *fb,
 
 static bool psr_wait_entry_if_enabled(data_t *data)
 {
-	if (!is_psr_enable_possible(data->drm_fd, data->op_psr_mode))
-		igt_skip("enable_psr modparam doesn't allow psr mode %d\n",
-			 data->op_psr_mode);
+	igt_skip_on_f(!is_psr_enable_possible(data->drm_fd, data->op_psr_mode),
+		      "enable_psr modparam doesn't allow psr mode %d\n",
+		      data->op_psr_mode);
 
 	return psr_wait_entry(data->debugfs_fd, data->op_psr_mode, data->output);
 }
 
 static bool psr_wait_update_if_enabled(data_t *data)
 {
-	if (!is_psr_enable_possible(data->drm_fd, data->op_psr_mode))
-		igt_skip("enable_psr modparam doesn't allow psr mode %d\n",
-			 data->op_psr_mode);
+	igt_skip_on_f(!is_psr_enable_possible(data->drm_fd, data->op_psr_mode),
+		      "enable_psr modparam doesn't allow psr mode %d\n",
+		      data->op_psr_mode);
 
 	return psr_wait_update(data->debugfs_fd, data->op_psr_mode, data->output);
 }
 
 static bool psr_enable_if_enabled(data_t *data)
 {
-	if (!is_psr_enable_possible(data->drm_fd, data->op_psr_mode))
-		igt_skip("enable_psr modparam doesn't allow psr mode %d\n",
-			 data->op_psr_mode);
+	igt_skip_on_f(!is_psr_enable_possible(data->drm_fd, data->op_psr_mode),
+		      "enable_psr modparam doesn't allow psr mode %d\n",
+		      data->op_psr_mode);
 
 	return psr_enable(data->drm_fd, data->debugfs_fd, data->op_psr_mode, data->output);
 }

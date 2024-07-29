@@ -222,7 +222,7 @@ test_forcewake(int fd)
 {
 	int handle = igt_debugfs_open(fd, "forcewake_all", O_WRONLY);
 
-	igt_assert(handle != -1);
+	igt_assert_neq(handle, -1);
 	close(handle);
 }
 

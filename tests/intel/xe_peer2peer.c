@@ -279,7 +279,7 @@ static char *region_name(int xe, uint32_t region)
 		r = snprintf(name, len, "%s",
 			     xe_region_name(region));
 
-	igt_assert(r > 0);
+	igt_assert_lt(0, r);
 
 	return name;
 }

@@ -307,7 +307,7 @@ static void setup_fb(data_t *data, struct igt_fb *newfb, uint32_t width,
 		igt_remove_fb(data->drm_fd, &col_fb);
 	}
 
-	igt_assert(drmIoctl(data->drm_fd, DRM_IOCTL_MODE_ADDFB2, &f) == 0);
+	do_ioctl(data->drm_fd, DRM_IOCTL_MODE_ADDFB2, &f);
 	newfb->fb_id = f.fb_id;
 }
 

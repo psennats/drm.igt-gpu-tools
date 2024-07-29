@@ -322,7 +322,8 @@ static void load_helper_run(enum load load)
 			spin[high_load] = __igt_spin_new(drm_fd, .ahnd = ahnd);
 
 			if (lh.signal && high_load != prev_load) {
-				write(lh.link, &lh.signal, sizeof(lh.signal));
+				igt_assert_eq(write(lh.link, &lh.signal, sizeof(lh.signal)),
+					      sizeof(lh.signal));
 				lh.signal = false;
 			}
 			prev_load = high_load;
@@ -690,9 +691,9 @@ static uint64_t __fence_order(int i915,
 	obj->flags = flags1;
 	gem_execbuf(i915, eb);
 
-	read(fd, before, sizeof(before));
+	igt_assert_eq(read(fd, before, sizeof(before)), sizeof(before));
 	gem_sync(i915, obj->handle);
-	read(fd, after, sizeof(after));
+	igt_assert_eq(read(fd, after, sizeof(after)), sizeof(after));
 	close(fd);
 
 	after[0] -= before[0];
@@ -796,9 +797,9 @@ static uint64_t __engine_order(int i915,
 		gem_execbuf(i915, eb);
 	}
 
-	read(fd, before, sizeof(before));
+	igt_assert_eq(read(fd, before, sizeof(before)), sizeof(before));
 	gem_sync(i915, obj->handle);
-	read(fd, after, sizeof(after));
+	igt_assert_eq(read(fd, after, sizeof(after)), sizeof(after));
 	close(fd);
 
 	after[0] -= before[0];

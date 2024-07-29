@@ -808,7 +808,7 @@ static void display_vs_wb_transient(int fd)
 
 		/* c0 -> c6 might flush caches */
 		fw_handle = igt_debugfs_open(fd, "forcewake_all", O_RDONLY);
-		igt_assert(fw_handle >= 0);
+		igt_assert_lte(0, fw_handle);
 
 		render_copy(ibb,
 			    &src,

@@ -674,11 +674,11 @@ static int __do_intel_bb_blit(struct buf_ops *bops, uint32_t tiling)
 
 	/* We'll fail on src <-> final compare so just warn */
 	if (tiling == I915_TILING_NONE) {
-		if (compare_bufs(&src, &dst, false) > 0)
-			igt_warn("none->none blit failed!");
+		igt_warn_on_f(compare_bufs(&src, &dst, false) > 0,
+			      "none->none blit failed!");
 	} else {
-		if (compare_bufs(&src, &dst, false) == 0)
-			igt_warn("none->tiled blit failed!");
+		igt_warn_on_f(compare_bufs(&src, &dst, false) == 0,
+			      "none->tiled blit failed!");
 	}
 
 	fails = compare_bufs(&src, &final, true);
@@ -925,11 +925,11 @@ static int render(struct buf_ops *bops, uint32_t tiling,
 
 	/* We'll fail on src <-> final compare so just warn */
 	if (tiling == I915_TILING_NONE) {
-		if (compare_bufs(&src, &dst, false) > 0)
-			igt_warn("%s: none->none failed!\n", __func__);
+		igt_warn_on_f(compare_bufs(&src, &dst, false) > 0,
+			      "%s: none->none failed!\n", __func__);
 	} else {
-		if (compare_bufs(&src, &dst, false) == 0)
-			igt_warn("%s: none->tiled failed!\n", __func__);
+		igt_warn_on_f(compare_bufs(&src, &dst, false) == 0,
+			      "%s: none->tiled failed!\n", __func__);
 	}
 
 	fails = compare_bufs(&src, &final, true);

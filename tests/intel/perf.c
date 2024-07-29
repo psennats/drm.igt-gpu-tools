@@ -493,12 +493,12 @@ __perf_open(int fd, struct drm_i915_perf_open_param *param, bool prevent_pm)
 
 	ret = igt_ioctl(fd, DRM_IOCTL_I915_PERF_OPEN, param);
 
-	igt_assert(ret >= 0);
+	igt_assert_lte(0, ret);
 	errno = 0;
 
 	if (prevent_pm) {
 		pm_fd = open("/dev/cpu_dma_latency", O_RDWR);
-		igt_assert(pm_fd >= 0);
+		igt_assert_lte(0, pm_fd);
 
 		igt_assert_eq(write(pm_fd, &pm_value, sizeof(pm_value)), sizeof(pm_value));
 	}
@@ -625,7 +625,7 @@ elapsed_delta(uint64_t t1, uint64_t t0, uint32_t width)
 {
 	uint32_t max_bits = sizeof(t1) * 8;
 
-	igt_assert(width <= max_bits);
+	igt_assert_lte_u32(width, max_bits);
 
 	if (t1 < t0 && width != max_bits)
 		return ((1ULL << width) - t0) + t1;
@@ -2128,7 +2128,7 @@ test_oa_exponents(const struct intel_execution_engine2 *e)
 			/* igt_debug(" > read %i bytes\n", ret); */
 
 			/* We should never have no data. */
-			igt_assert(ret > 0);
+			igt_assert_lt(0, ret);
 
 			for (int offset = 0;
 			     offset < ret && n_timer_reports < NUM_TIMER_REPORTS;
@@ -2472,7 +2472,7 @@ test_blocking(uint64_t requested_oa_period,
 		       errno == EINTR)
 			;
 
-		igt_assert(ret > 0);
+		igt_assert_lt(0, ret);
 
 		/* For Haswell reports don't contain a well defined reason
 		 * field we so assume all reports to be 'periodic'. For gen8+
@@ -2526,12 +2526,12 @@ test_blocking(uint64_t requested_oa_period,
 	/* With completely broken blocking (but also not returning an error) we
 	 * could end up with an open loop,
 	 */
-	igt_assert(n <= (max_iterations + n_extra_iterations));
+	igt_assert_lte(n, (max_iterations + n_extra_iterations));
 
 	/* Make sure the driver is reporting new samples with a reasonably
 	 * low latency...
 	 */
-	igt_assert(n > (min_iterations + n_extra_iterations));
+	igt_assert_lt((min_iterations + n_extra_iterations), n);
 
 	if (!set_kernel_hrtimer)
 		igt_assert(kernel_ns <= (test_duration_ns / 100ull));
@@ -2728,12 +2728,12 @@ test_polling(uint64_t requested_oa_period,
 	/* With completely broken blocking while polling (but still somehow
 	 * reporting a POLLIN event) we could end up with an open loop.
 	 */
-	igt_assert(n <= (max_iterations + n_extra_iterations));
+	igt_assert_lte(n, (max_iterations + n_extra_iterations));
 
 	/* Make sure the driver is reporting new samples with a reasonably
 	 * low latency...
 	 */
-	igt_assert(n > (min_iterations + n_extra_iterations));
+	igt_assert_lt((min_iterations + n_extra_iterations), n);
 
 	if (!set_kernel_hrtimer)
 		igt_assert(kernel_ns <= (test_duration_ns / 100ull));
@@ -2821,7 +2821,7 @@ num_valid_reports_captured(struct drm_i915_perf_open_param *param,
 		       errno == EINTR)
 			;
 
-		igt_assert(ret > 0);
+		igt_assert_lt(0, ret);
 
 		for (int offset = 0; offset < ret; offset += header->size) {
 			header = (void *)(buf + offset);
@@ -3343,7 +3343,7 @@ test_short_reads(void)
 		ret = read(stream_fd,
 			   header,
 			   page_size);
-		igt_assert(ret > 0);
+		igt_assert_lt(0, ret);
 	} while (header->type == DRM_I915_PERF_RECORD_OA_REPORT_LOST);
 
 	igt_assert_eq(ret, record_size);
@@ -5001,7 +5001,7 @@ static int i915_perf_add_config(int fd, struct drm_i915_perf_oa_config *config)
 	int config_id = __i915_perf_add_config(fd, config);
 
 	igt_debug("config_id=%i\n", config_id);
-	igt_assert(config_id > 0);
+	igt_assert_lt(0, config_id);
 
 	return config_id;
 }
@@ -5339,7 +5339,7 @@ test_whitelisted_registers_userspace_config(void)
 
 	/* Create a new config */
 	ret = igt_ioctl(drm_fd, DRM_IOCTL_I915_PERF_ADD_CONFIG, &config);
-	igt_assert(ret > 0); /* Config 0 should be used by the kernel */
+	igt_assert_lt(0, ret); /* Config 0 should be used by the kernel */
 	config_id = ret;
 
 	i915_perf_remove_config(drm_fd, config_id);
@@ -5360,7 +5360,7 @@ read_i915_module_ref(void)
 		if (strncmp(line, "i915 ", 5) == 0) {
 			unsigned long mem;
 			int ret = sscanf(line + 5, "%lu %u", &mem, &ref_count);
-			igt_assert(ret == 2);
+			igt_assert_eq(ret, 2);
 			goto done;
 		}
 	}
@@ -5381,7 +5381,7 @@ static int perf_sysfs_open(int i915)
 	for_each_sysfs_gt_dirfd(i915, dirfd, gt)
 		break;
 
-	igt_assert(dirfd != -1);
+	igt_assert_neq(dirfd, -1);
 
 	return dirfd;
 }
@@ -5784,7 +5784,7 @@ test_group_exclusive_stream(const intel_ctx_t *ctx, bool exponent)
 		grp->perf_fd = igt_ioctl(drm_fd,
 					 DRM_IOCTL_I915_PERF_OPEN,
 					 &param);
-		igt_assert(grp->perf_fd >= 0);
+		igt_assert_lte(0, grp->perf_fd);
 		igt_debug("opened OA buffer with c:i %d:%d\n",
 			  ci->engine_class, ci->engine_instance);
 	}
@@ -5826,7 +5826,7 @@ test_group_exclusive_stream(const intel_ctx_t *ctx, bool exponent)
 			param.num_properties = ARRAY_SIZE(properties) / 2 - 1;
 			errno = 0;
 			err = igt_ioctl(drm_fd, DRM_IOCTL_I915_PERF_OPEN, &param);
-			igt_assert(err < 0);
+			igt_assert_lt(err, 0);
 			igt_assert(errno == EBUSY || errno == ENODEV);
 			igt_debug("try OA ci unit with c:i %d:%d\n",
 				  ci->engine_class, ci->engine_instance);

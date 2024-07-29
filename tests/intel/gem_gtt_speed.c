@@ -70,7 +70,7 @@ static void streaming_load(void *src, int len)
 {
 	__m128i tmp, *s = src;
 
-	igt_assert((len & 15) == 0);
+	igt_assert_eq((len & 15), 0);
 	igt_assert((((uintptr_t)src) & 15) == 0);
 
 	while (len >= 16) {

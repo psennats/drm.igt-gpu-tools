@@ -1527,7 +1527,7 @@ static void pm_test_tiling(void)
 			gem_set_tiling(drm_fd, handles[j],
 					tiling_modes[i], stride);
 			gem_get_tiling(drm_fd, handles[j], &ti, &sw);
-			igt_assert(tiling_modes[i] == ti);
+			igt_assert_eq_u32(tiling_modes[i], ti);
 		}
 
 		enable_one_screen_and_wait(&ms_data);

@@ -158,9 +158,7 @@ static void xchg_u32(void *array, unsigned i, unsigned j)
 {
 	uint32_t tmp, *base = array;
 
-	tmp = base[i];
-	base[i] = base[j];
-	base[j] = tmp;
+	igt_swap(base[i], base[j]);
 }
 
 static void run_test(int fd, int count, uint64_t end)

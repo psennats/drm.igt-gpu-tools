@@ -366,7 +366,7 @@ static void test_fence_busy_all(int fd, const intel_ctx_t *ctx, unsigned flags)
 		execbuf.rsvd2 = -1;
 		gem_execbuf_wr(fd, &execbuf);
 		fence = execbuf.rsvd2 >> 32;
-		igt_assert(fence != -1);
+		igt_assert_neq(fence, -1);
 
 		if (all < 0) {
 			all = fence;

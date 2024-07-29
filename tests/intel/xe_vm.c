@@ -526,7 +526,7 @@ shared_pte_page(int fd, struct drm_xe_engine_class_instance *eci, int n_bo,
 	int n_exec_queues = n_bo, n_execs = n_bo;
 	int i, b;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	bo = malloc(sizeof(*bo) * n_bo);
 	igt_assert(bo);
@@ -1382,7 +1382,7 @@ test_large_binds(int fd, struct drm_xe_engine_class_instance *eci,
 		base_addr -= xe_get_default_alignment(fd);
 	}
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 	vm = xe_vm_create(fd, 0, 0);
 
 	if (flags & LARGE_BIND_FLAG_USERPTR) {

@@ -140,7 +140,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	int i, j, b;
 	int map_fd = -1;
 
-	igt_assert(n_exec_queues <= MAX_N_EXEC_QUEUES);
+	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	if (flags & ENABLE_SCRATCH)
 		vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE |
@@ -291,7 +291,8 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			if (flags & RACE) {
 				map_fd = open("/tmp", O_TMPFILE | O_RDWR,
 					      0x666);
-				write(map_fd, data, bo_size);
+				igt_assert_eq(write(map_fd, data, bo_size),
+				              bo_size);
 				data = mmap((void *)MAP_ADDRESS, bo_size,
 					    PROT_READ | PROT_WRITE, MAP_SHARED |
 					    MAP_FIXED, map_fd, 0);

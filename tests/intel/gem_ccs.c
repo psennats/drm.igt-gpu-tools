@@ -175,7 +175,7 @@ static void surf_copy(int i915,
 	gem_sync(i915, blt.dst.handle);
 	WRITE_PNG(i915, run_id, "corrupted", &blt.dst, dst->x2, dst->y2, bpp);
 	result = memcmp(src->ptr, dst->ptr, src->size);
-	igt_assert(result != 0);
+	igt_assert_neq(result, 0);
 
 	/* retrieve back ccs */
 	memcpy(ccsmap, ccscopy, ccssize);
@@ -601,7 +601,7 @@ static int opt_handler(int opt, int opt_index, void *data)
 	case 'f':
 		param.compression_format = atoi(optarg);
 		igt_debug("Compression format: %d\n", param.compression_format);
-		igt_assert((param.compression_format & ~0x1f) == 0);
+		igt_assert_eq((param.compression_format & ~0x1f), 0);
 		break;
 	case 'p':
 		param.write_png = true;

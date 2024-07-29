@@ -348,7 +348,7 @@ static void check_ccs_cc_plane(int drm_fd, igt_fb_t *fb, int plane, const float 
 		       (uint8_t)(cc_color[1] * 0xff) << 8 |
 		       (uint8_t)(cc_color[2] * 0xff);
 
-	igt_assert(native_color == cc_p[4].d);
+	igt_assert_eq_u32(native_color, cc_p[4].d);
 
 	igt_assert(gem_munmap(map, fb->size) == 0);
 };

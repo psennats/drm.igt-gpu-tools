@@ -346,7 +346,7 @@ static void nohangcheck_hostile(int i915)
 						IGT_SPIN_FENCE_OUT));
 
 		new = fill_ring(i915, &spin->execbuf);
-		igt_assert(new != -1);
+		igt_assert_neq(new, -1);
 		spin->out_fence = -1;
 
 		if (fence < 0) {
@@ -362,7 +362,7 @@ static void nohangcheck_hostile(int i915)
 		}
 	}
 	intel_ctx_destroy(i915, ctx);
-	igt_assert(fence != -1);
+	igt_assert_neq(fence, -1);
 
 	err = 0;
 	if (sync_fence_wait(fence, MSEC_PER_SEC)) { /* 640ms preempt-timeout */

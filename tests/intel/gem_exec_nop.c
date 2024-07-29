@@ -415,7 +415,7 @@ stable_nop_on_ring(int fd, uint32_t handle, const intel_ctx_t *ctx,
 	igt_stats_t s;
 	double n;
 
-	igt_assert(reps >= 5);
+	igt_assert_lte(5, reps);
 
 	igt_stats_init_with_size(&s, reps);
 	s.is_float = true;

@@ -200,7 +200,7 @@ static char *get_drpc(int i915, int gt_id)
 	int gt_dir;
 
 	gt_dir = igt_debugfs_gt_dir(i915, gt_id);
-	igt_assert(gt_dir != -1);
+	igt_assert_neq(gt_dir, -1);
 	return igt_sysfs_get(gt_dir, "drpc");
 }
 
@@ -210,7 +210,7 @@ static int open_pmu(int i915, uint64_t config)
 
 	fd = perf_i915_open(i915, config);
 	igt_skip_on(fd < 0 && errno == ENODEV);
-	igt_assert(fd >= 0);
+	igt_assert_lte(0, fd);
 
 	return fd;
 }
@@ -221,7 +221,7 @@ static int open_group(int i915, uint64_t config, int group)
 
 	fd = perf_i915_open_group(i915, config, group);
 	igt_skip_on(fd < 0 && errno == ENODEV);
-	igt_assert(fd >= 0);
+	igt_assert_lte(0, fd);
 
 	return fd;
 }
@@ -527,7 +527,7 @@ static void log_busy(unsigned int num_engines, uint64_t *val)
 		int len;
 
 		len = snprintf(p, rem, "%u=%" PRIu64 "\n",  i, val[i]);
-		igt_assert(len > 0);
+		igt_assert_lt(0, len);
 		rem -= len;
 		p += len;
 	}
@@ -950,7 +950,7 @@ __sema_busy(int gem_fd, uint64_t ahnd, int pmu, const intel_ctx_t *ctx,
 	int timeout = 3;
 
 	/* Time spent being busy includes time waiting on semaphores */
-	igt_assert(busy_pct >= sema_pct);
+	igt_assert_lte(sema_pct, busy_pct);
 
 	gem_quiescent_gpu(gem_fd);
 
@@ -1359,7 +1359,7 @@ static void open_invalid(int i915)
 	int fd;
 
 	fd = perf_i915_open(i915, -1ULL);
-	igt_assert(fd < 0);
+	igt_assert_lt(fd, 0);
 }
 
 static bool cpu0_hotplug_support(void)
@@ -1415,7 +1415,7 @@ static void cpu_hotplug(int gem_fd)
 					       cpu), sizeof(name));
 			cpufd = open(name, O_WRONLY);
 			if (cpufd == -1) {
-				igt_assert(cpu > 0);
+				igt_assert_lt(0, cpu);
 				/*
 				 * Signal parent that we cycled through all
 				 * CPUs and we are done.
@@ -1534,7 +1534,7 @@ test_interrupts(int gem_fd)
 			close(old_fd);
 		}
 
-		igt_assert(fence_fd >= 0);
+		igt_assert_lte(0, fence_fd);
 	}
 
 	/* Wait for idle state. */
@@ -1755,9 +1755,9 @@ test_frequency(int gem_fd, unsigned int gt)
 	 */
 	__igt_sysfs_set_u32(sysfs, "rps_min_freq_mhz", min_freq);
 	__igt_sysfs_get_u32(sysfs, "rps_min_freq_mhz", &read_value);
-	if (read_value != min_freq)
-		igt_warn("Unable to restore min frequency to saved value [%u MHz], now %u MHz\n",
-			 min_freq, read_value);
+	igt_warn_on_f(read_value != min_freq,
+		      "Unable to restore min frequency to saved value [%u MHz], now %u MHz\n",
+		      min_freq, read_value);
 	close(fd[0]);
 	close(fd[1]);
 	put_ahnd(ahnd);
@@ -1880,7 +1880,7 @@ test_rc6(int gem_fd, unsigned int gt, unsigned int num_gt, unsigned int flags)
 			continue;
 
 		if (gt_ == gt) {
-			igt_assert(test_idx == -1);
+			igt_assert_eq(test_idx, -1);
 			test_idx = pmus;
 		}
 
@@ -1890,7 +1890,7 @@ test_rc6(int gem_fd, unsigned int gt, unsigned int num_gt, unsigned int flags)
 		igt_skip_on(fd[pmus] < 0 && errno == ENODEV);
 		pmus++;
 	}
-	igt_assert(test_idx >= 0);
+	igt_assert_lte(0, test_idx);
 
 	if (flags & TEST_RUNTIME_PM) {
 		drmModeRes *res;
@@ -1981,7 +1981,7 @@ test_rc6(int gem_fd, unsigned int gt, unsigned int num_gt, unsigned int flags)
 			continue;
 
 		fw[gt_] = open_forcewake_handle(gem_fd, gt_);
-		igt_assert(fw[gt_] >= 0);
+		igt_assert_lte(0, fw[gt_]);
 	}
 
 	usleep(1e3); /* wait for the rc6 cycle counter to stop ticking */
@@ -2206,7 +2206,8 @@ accuracy(int gem_fd, const intel_ctx_t *ctx,
 				 100 * expected, target_busy_pct,
 				 avg, sqrt(var / n));
 
-			write(link[1], &expected, sizeof(expected));
+			igt_assert_eq(write(link[1], &expected, sizeof(expected)),
+				      sizeof(expected));
 		}
 
 		igt_spin_free(gem_fd, spin);
@@ -2216,12 +2217,14 @@ accuracy(int gem_fd, const intel_ctx_t *ctx,
 	fd = open_pmu(gem_fd, I915_PMU_ENGINE_BUSY(e->class, e->instance));
 
 	/* Let the child run. */
-	read(link[0], &expected, sizeof(expected));
+	igt_assert_eq(read(link[0], &expected, sizeof(expected)),
+		      sizeof(expected));
 	assert_within(100.0 * expected, target_busy_pct, 5);
 
 	/* Collect engine busyness for an interesting part of child runtime. */
 	val[0] = __pmu_read_single(fd, &ts[0]);
-	read(link[0], &expected, sizeof(expected));
+	igt_assert_eq(read(link[0], &expected, sizeof(expected)),
+		      sizeof(expected));
 	val[1] = __pmu_read_single(fd, &ts[1]);
 	close(fd);
 

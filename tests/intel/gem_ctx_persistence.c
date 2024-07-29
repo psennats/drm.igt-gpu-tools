@@ -1093,10 +1093,12 @@ static void test_processes(int i915)
 
 			/* Wait until we are told to die */
 			pid = getpid();
-			write(p[i].sv[0], &pid, sizeof(pid));
+			igt_assert_eq(write(p[i].sv[0], &pid, sizeof(pid)),
+				      sizeof(pid));
 
 			pid = 0;
-			read(p[i].sv[0], &pid, sizeof(pid));
+			igt_assert_eq(read(p[i].sv[0], &pid, sizeof(pid)),
+				      sizeof(pid));
 			igt_assert(pid == getpid());
 		}
 	}
@@ -1109,8 +1111,10 @@ static void test_processes(int i915)
 		igt_assert_eq(sync_fence_wait(fence, 0), -ETIME);
 
 		/* Kill *this* process */
-		read(p[i].sv[1], &pid, sizeof(pid));
-		write(p[i].sv[1], &pid, sizeof(pid));
+		igt_assert_eq(read(p[i].sv[1], &pid, sizeof(pid)),
+			      sizeof(pid));
+		igt_assert_eq(write(p[i].sv[1], &pid, sizeof(pid)),
+			      sizeof(pid));
 
 		/*
 		 * A little bit of slack required for the signal to terminate
