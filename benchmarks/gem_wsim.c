@@ -172,10 +172,7 @@ struct w_step {
 		int priority;
 		struct intel_engines engine_map;
 		bool load_balance;
-		struct {
-			uint64_t bond_mask;
-			enum intel_engine_id bond_master;
-		};
+		struct bond bond;
 		int sseu;
 		struct working_set working_set;
 	};
@@ -1146,10 +1143,10 @@ parse_workload(struct w_arg *arg, unsigned int flags, double scale_dur,
 							  "Invalid context at step %u!\n",
 							  nr_steps);
 					} else if (nr == 1) {
-						step.bond_mask = engine_list_mask(field);
-						check_arg(step.bond_mask == 0,
-							"Invalid siblings list at step %u!\n",
-							nr_steps);
+						step.bond.mask = engine_list_mask(field);
+						check_arg(step.bond.mask == 0,
+							  "Invalid siblings list at step %u!\n",
+							  nr_steps);
 					} else if (nr == 2) {
 						tmp = str_to_engine(field);
 						check_arg(tmp <= 0 ||
@@ -1157,7 +1154,7 @@ parse_workload(struct w_arg *arg, unsigned int flags, double scale_dur,
 							  tmp == DEFAULT,
 							  "Invalid master engine at step %u!\n",
 							  nr_steps);
-						step.bond_master = tmp;
+						step.bond.master = tmp;
 					}
 
 					nr++;
@@ -2170,10 +2167,7 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 						     ctx->bond_count *
 						     sizeof(struct bond));
 				igt_assert(ctx->bonds);
-				ctx->bonds[ctx->bond_count - 1].mask =
-					w->bond_mask;
-				ctx->bonds[ctx->bond_count - 1].master =
-					w->bond_master;
+				ctx->bonds[ctx->bond_count - 1] = w->bond;
 			}
 		}
 	}
