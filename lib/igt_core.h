@@ -916,6 +916,15 @@ void igt_describe_f(const char *fmt, ...);
 #define igt_assert_lte(n1, n2) igt_assert_cmpint(n1, <=, >, n2)
 
 /**
+ * igt_assert_lte_u32:
+ * @n1: first integer
+ * @n2: second integer
+ *
+ * Like igt_assert_lte(), but for uint32_t.
+ */
+#define igt_assert_lte_u32(n1, n2) igt_assert_cmpuint(n1, <=, >, n2)
+
+/**
  * igt_assert_lte_u64:
  * @n1: first integer
  * @n2: second integer
@@ -953,6 +962,15 @@ void igt_describe_f(const char *fmt, ...);
  * of simply printing the stringified expression.
  */
 #define igt_assert_lt(n1, n2) igt_assert_cmpint(n1, <, >=, n2)
+
+/**
+ * igt_assert_lt_u32:
+ * @n1: first integer
+ * @n2: second integer
+ *
+ * Like igt_assert_lt(), but for uint32_t.
+ */
+#define igt_assert_lt_u32(n1, n2) igt_assert_cmpuint(n1, <, >=, n2)
 
 /**
  * igt_assert_lt_u64:
