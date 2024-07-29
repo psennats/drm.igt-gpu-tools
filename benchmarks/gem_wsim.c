@@ -181,7 +181,7 @@ struct w_step {
 	/* Implementation details */
 	unsigned int idx;
 	struct igt_list_head rq_link;
-	unsigned int request;
+	unsigned int request_idx;
 	unsigned int preempt_us;
 
 	union {
@@ -1300,7 +1300,8 @@ add_step:
 			step.delay = __duration(step.delay, scale_time);
 
 		step.idx = nr_steps++;
-		step.request = -1;
+		step.rq_link.next = NULL;
+		step.rq_link.prev = NULL;
 		steps = realloc(steps, sizeof(step) * nr_steps);
 		igt_assert(steps);
 
@@ -2226,7 +2227,7 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 			};
 			struct i915_context_engines_bond *last = NULL;
 
-			/* update engine_idx */
+			/* update engine_idx and request_idx */
 			for_each_w_step(w, wrk) {
 				if (w->context != ctx_idx)
 					continue;
@@ -2239,6 +2240,8 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 						w->engine_idx = map_idx + 1;
 					else
 						igt_assert(ctx->load_balance);
+
+					w->request_idx = ctx->engine_map.engines[map_idx];
 				}
 			}
 
@@ -2298,12 +2301,13 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 
 			gem_context_set_param(fd, &param);
 		} else {
-			/* update engine_idx */
+			/* update engine_idx and request_idx */
 			for_each_w_step(w, wrk) {
 				if (w->context != ctx_idx)
 					continue;
 				if (w->type == BATCH) {
 					w->engine_idx = engine_to_i915_legacy_ring(&w->engine);
+					w->request_idx = w->engine;
 				}
 			}
 		}
@@ -2396,8 +2400,10 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 			for_each_w_step(w, wrk) {
 				if (w->context != ctx_idx)
 					continue;
-				if (w->type == BATCH)
+				if (w->type == BATCH) {
 					w->engine_idx = 0;
+					w->request_idx = ctx->engine_map.engines[w->engine_idx];
+				}
 			}
 
 			xe_exec_queue_create_(ctx, eq);
@@ -2412,8 +2418,9 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 					continue;
 				if (w->type == BATCH) {
 					engine_classes[w->engine]++;
-					/* update engine_idx */
+					/* update engine_idx and request_idx */
 					w->engine_idx = w->engine;
+					w->request_idx = w->engine;
 				}
 			}
 
@@ -2730,7 +2737,6 @@ static void *run_workload(void *data)
 		clock_gettime(CLOCK_MONOTONIC, &repeat_start);
 
 		for_each_w_step(w, wrk) {
-			enum intel_engine_id engine = w->engine;
 			int do_sleep = 0;
 
 			if (!wrk->run)
@@ -2851,13 +2857,12 @@ static void *run_workload(void *data)
 			else
 				do_eb(wrk, w);
 
-			if (w->request != -1) {
+			if (w->rq_link.next) {
 				igt_list_del(&w->rq_link);
-				wrk->nrequest[w->request]--;
+				wrk->nrequest[w->request_idx]--;
 			}
-			w->request = engine;
-			igt_list_add_tail(&w->rq_link, &wrk->requests[engine]);
-			wrk->nrequest[engine]++;
+			igt_list_add_tail(&w->rq_link, &wrk->requests[w->request_idx]);
+			wrk->nrequest[w->request_idx]++;
 
 			if (!wrk->run)
 				break;
@@ -2866,17 +2871,16 @@ static void *run_workload(void *data)
 				w_step_sync(w);
 
 			if (qd_throttle > 0) {
-				while (wrk->nrequest[engine] > qd_throttle) {
+				while (wrk->nrequest[w->request_idx] > qd_throttle) {
 					struct w_step *s;
 
-					s = igt_list_first_entry(&wrk->requests[engine],
+					s = igt_list_first_entry(&wrk->requests[w->request_idx],
 								 s, rq_link);
 
 					w_step_sync(s);
 
-					s->request = -1;
 					igt_list_del(&s->rq_link);
-					wrk->nrequest[engine]--;
+					wrk->nrequest[w->request_idx]--;
 				}
 			}
 		}
