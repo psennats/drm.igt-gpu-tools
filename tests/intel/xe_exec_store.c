@@ -51,7 +51,8 @@ static void store_dword_batch(struct data *data, uint64_t addr, int value)
 	data->addr = batch_addr;
 }
 
-static void cond_batch(struct data *data, uint64_t addr, int value)
+static void cond_batch(struct data *data, uint64_t addr, int value,
+		       uint16_t dev_id)
 {
 	int b;
 	uint64_t batch_offset = (char *)&(data->batch) - (char *)data;
@@ -63,6 +64,10 @@ static void cond_batch(struct data *data, uint64_t addr, int value)
 	data->batch[b++] = MI_ATOMIC | MI_ATOMIC_INC;
 	data->batch[b++] = sdi_addr;
 	data->batch[b++] = sdi_addr >> 32;
+
+	if (intel_graphics_ver(dev_id) >= IP_VER(20, 0))
+		data->batch[b++] = MI_MEM_FENCE | MI_WRITE_FENCE;
+
 	data->batch[b++] = MI_CONDITIONAL_BATCH_BUFFER_END | MI_DO_COMPARE | 5 << 12 | 2;
 	data->batch[b++] = value;
 	data->batch[b++] = sdi_addr;
@@ -101,7 +106,8 @@ static void persistance_batch(struct data *data, uint64_t addr)
  * SUBTEST: basic-all
  * Description: Test to verify store dword on all available engines.
  */
-static void basic_inst(int fd, int inst_type, struct drm_xe_engine_class_instance *eci)
+static void basic_inst(int fd, int inst_type, struct drm_xe_engine_class_instance *eci,
+		       uint16_t dev_id)
 {
 	struct drm_xe_sync sync[2] = {
 		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
@@ -144,7 +150,7 @@ static void basic_inst(int fd, int inst_type, struct drm_xe_engine_class_instanc
 	else if (inst_type == COND_BATCH) {
 		/* A random value where it stops at the below value. */
 		value = 20 + random() % 10;
-		cond_batch(data, addr, value);
+		cond_batch(data, addr, value, dev_id);
 	}
 	else
 		igt_assert_f(inst_type < 2, "Entered wrong inst_type.\n");
@@ -333,21 +339,23 @@ igt_main
 {
 	struct drm_xe_engine_class_instance *hwe;
 	int fd;
+	uint16_t dev_id;
 	struct drm_xe_engine *engine;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
 		xe_device_get(fd);
+		dev_id = intel_get_drm_devid(fd);
 	}
 
 	igt_subtest("basic-store") {
 		engine = xe_engine(fd, 1);
-		basic_inst(fd, STORE, &engine->instance);
+		basic_inst(fd, STORE, &engine->instance, dev_id);
 	}
 
 	igt_subtest("basic-cond-batch") {
 		engine = xe_engine(fd, 1);
-		basic_inst(fd, COND_BATCH, &engine->instance);
+		basic_inst(fd, COND_BATCH, &engine->instance, dev_id);
 	}
 
 	igt_subtest_with_dynamic("basic-all") {
@@ -356,7 +364,7 @@ igt_main
 				      xe_engine_class_string(hwe->engine_class),
 				      hwe->engine_instance,
 				      hwe->gt_id);
-			basic_inst(fd, STORE, hwe);
+			basic_inst(fd, STORE, hwe, dev_id);
 		}
 	}
 

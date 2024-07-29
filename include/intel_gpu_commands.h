@@ -89,6 +89,7 @@
 #define   MI_DISPLAY_FLIP_SKL_PLANE_3_A	(7 << 8)
 #define   MI_DISPLAY_FLIP_SKL_PLANE_3_B	(8 << 8)
 #define   MI_DISPLAY_FLIP_SKL_PLANE_3_C	(9 << 8)
+#define   MI_MEM_FENCE		MI_INSTR(0x09, 0)
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6, gen7 */
 #define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define   MI_SEMAPHORE_UPDATE	    (1<<21)
@@ -192,6 +193,7 @@
 #define MI_OPCODE(x)		(((x) >> 23) & 0x3f)
 #define IS_MI_LRI_CMD(x)	(MI_OPCODE(x) == MI_OPCODE(MI_INSTR(0x22, 0)))
 #define MI_LRI_LEN(x)		(((x) & 0xff) + 1)
+#define MI_WRITE_FENCE			(3 << 0)
 
 /*
  * 3D instructions used by the kernel
