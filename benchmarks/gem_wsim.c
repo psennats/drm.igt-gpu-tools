@@ -159,6 +159,7 @@ struct w_step {
 	enum w_type type;
 	unsigned int context;
 	unsigned int engine;
+	unsigned int engine_idx;
 	struct duration duration;
 	struct deps data_deps;
 	struct deps fence_deps;
@@ -527,6 +528,41 @@ static int str_to_engine(const char *str)
 	}
 
 	return -1;
+}
+
+static unsigned int
+engine_to_i915_legacy_ring(const enum intel_engine_id *engine)
+{
+	static const unsigned int eb_engine_map[NUM_ENGINES] = {
+		[DEFAULT] = I915_EXEC_DEFAULT,
+		[RCS] = I915_EXEC_RENDER,
+		[BCS] = I915_EXEC_BLT,
+		[VCS] = I915_EXEC_BSD,
+		[VCS1] = I915_EXEC_BSD | I915_EXEC_BSD_RING1,
+		[VCS2] = I915_EXEC_BSD | I915_EXEC_BSD_RING2,
+		[VECS] = I915_EXEC_VEBOX
+	};
+
+	return eb_engine_map[*engine];
+}
+
+static bool are_equal_engines(const enum intel_engine_id *e1,
+			      const enum intel_engine_id *e2)
+{
+	return *e1 == *e2;
+}
+
+static bool find_engine_in_map(const enum intel_engine_id *engine,
+			       struct intel_engines *engines, unsigned int *idx)
+{
+	igt_assert(idx);
+	for (unsigned int i = 0; i < engines->nr_engines; ++i)
+		if (are_equal_engines(engine, &engines->engines[i])) {
+			*idx = i;
+			return true;
+		}
+
+	return false;
 }
 
 static struct intel_engine_data *query_engines(void)
@@ -1587,47 +1623,10 @@ static unsigned int create_bb(struct w_step *w, int self)
 	return r;
 }
 
-static const unsigned int eb_engine_map[NUM_ENGINES] = {
-	[DEFAULT] = I915_EXEC_DEFAULT,
-	[RCS] = I915_EXEC_RENDER,
-	[BCS] = I915_EXEC_BLT,
-	[VCS] = I915_EXEC_BSD,
-	[VCS1] = I915_EXEC_BSD | I915_EXEC_BSD_RING1,
-	[VCS2] = I915_EXEC_BSD | I915_EXEC_BSD_RING2,
-	[VECS] = I915_EXEC_VEBOX
-};
-
 static void
-eb_set_engine(struct drm_i915_gem_execbuffer2 *eb, enum intel_engine_id engine)
+eb_update_flags(struct workload *wrk, struct w_step *w)
 {
-	eb->flags = eb_engine_map[engine];
-}
-
-static unsigned int
-find_engine_in_map(struct ctx *ctx, enum intel_engine_id engine)
-{
-	unsigned int i;
-
-	for (i = 0; i < ctx->engine_map.nr_engines; i++) {
-		if (ctx->engine_map.engines[i] == engine)
-			return i + 1;
-	}
-
-	igt_assert(ctx->load_balance);
-	return 0;
-}
-
-static void
-eb_update_flags(struct workload *wrk, struct w_step *w,
-		enum intel_engine_id engine)
-{
-	struct ctx *ctx = __get_ctx(wrk, w);
-
-	if (ctx->engine_map.nr_engines)
-		w->i915.eb.flags = find_engine_in_map(ctx, engine);
-	else
-		eb_set_engine(&w->i915.eb, engine);
-
+	w->i915.eb.flags = w->engine_idx;
 	w->i915.eb.flags |= I915_EXEC_HANDLE_LUT;
 	w->i915.eb.flags |= I915_EXEC_NO_RELOC;
 
@@ -1646,19 +1645,9 @@ static struct xe_exec_queue *
 xe_get_eq(struct workload *wrk, const struct w_step *w)
 {
 	struct ctx *ctx = __get_ctx(wrk, w);
-	struct xe_exec_queue *eq;
 
-	if (ctx->engine_map.nr_engines) {
-		igt_assert_eq(ctx->xe.nr_queues, 1);
-		igt_assert(ctx->xe.queue_list[0].id);
-		eq = &ctx->xe.queue_list[0];
-	} else {
-		igt_assert(w->engine >= 0 && w->engine < ctx->xe.nr_queues);
-		igt_assert(ctx->xe.queue_list[w->engine].id);
-		eq = &ctx->xe.queue_list[w->engine];
-	}
-
-	return eq;
+	igt_assert_lt(w->engine_idx, ctx->xe.nr_queues);
+	return &ctx->xe.queue_list[w->engine_idx];
 }
 
 static struct vm *
@@ -1682,7 +1671,6 @@ static uint32_t alloc_bo(int i915, unsigned long *size)
 static void
 alloc_step_batch(struct workload *wrk, struct w_step *w)
 {
-	enum intel_engine_id engine = w->engine;
 	struct dep_entry *dep;
 	unsigned int j = 0;
 	unsigned int nr_obj = 2 + w->data_deps.nr;
@@ -1770,7 +1758,7 @@ alloc_step_batch(struct workload *wrk, struct w_step *w)
 	w->i915.eb.buffer_count = j + 1;
 	w->i915.eb.rsvd1 = get_ctxid(wrk, w);
 
-	eb_update_flags(wrk, w, engine);
+	eb_update_flags(wrk, w);
 #ifdef DEBUG
 	printf("%u: %u:|", w->idx, w->i915.eb.buffer_count);
 	for (i = 0; i <= j; i++)
@@ -2175,7 +2163,7 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 	/*
 	 * Create and configure contexts.
 	 */
-	for_each_ctx(ctx, wrk) {
+	__for_each_ctx(ctx, wrk, ctx_idx) {
 		struct drm_i915_gem_context_create_ext_setparam ext = {
 			.base.name = I915_CONTEXT_CREATE_EXT_SETPARAM,
 			.param.param = I915_CONTEXT_PARAM_VM,
@@ -2238,6 +2226,22 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 			};
 			struct i915_context_engines_bond *last = NULL;
 
+			/* update engine_idx */
+			for_each_w_step(w, wrk) {
+				if (w->context != ctx_idx)
+					continue;
+				if (w->type == BATCH) {
+					unsigned int map_idx = 0;
+
+					if (find_engine_in_map(&w->engine, &ctx->engine_map,
+							       &map_idx))
+						/* 0 is virtual, map indexes are shifted by one */
+						w->engine_idx = map_idx + 1;
+					else
+						igt_assert(ctx->load_balance);
+				}
+			}
+
 			if (ctx->load_balance) {
 				set_engines->extensions =
 					to_user_pointer(load_balance);
@@ -2293,6 +2297,15 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 			load_balance->base.next_extension = to_user_pointer(last);
 
 			gem_context_set_param(fd, &param);
+		} else {
+			/* update engine_idx */
+			for_each_w_step(w, wrk) {
+				if (w->context != ctx_idx)
+					continue;
+				if (w->type == BATCH) {
+					w->engine_idx = engine_to_i915_legacy_ring(&w->engine);
+				}
+			}
 		}
 
 		if (wrk->sseu) {
@@ -2379,6 +2392,14 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 						eq->hwe_list[i].gt_id);
 			}
 
+			/* update engine_idx */
+			for_each_w_step(w, wrk) {
+				if (w->context != ctx_idx)
+					continue;
+				if (w->type == BATCH)
+					w->engine_idx = 0;
+			}
+
 			xe_exec_queue_create_(ctx, eq);
 		} else {
 			int engine_classes[NUM_ENGINES] = {};
@@ -2389,8 +2410,11 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 			for_each_w_step(w, wrk) {
 				if (w->context != ctx_idx)
 					continue;
-				if (w->type == BATCH)
+				if (w->type == BATCH) {
 					engine_classes[w->engine]++;
+					/* update engine_idx */
+					w->engine_idx = w->engine;
+				}
 			}
 
 			for (i = 0; i < NUM_ENGINES; i++) {
@@ -2627,12 +2651,12 @@ static void do_xe_exec(struct workload *wrk, struct w_step *w)
 }
 
 static void
-do_eb(struct workload *wrk, struct w_step *w, enum intel_engine_id engine)
+do_eb(struct workload *wrk, struct w_step *w)
 {
 	struct dep_entry *dep;
 	unsigned int i;
 
-	eb_update_flags(wrk, w, engine);
+	eb_update_flags(wrk, w);
 	update_bb_start(wrk, w);
 
 	for_each_dep(dep, w->fence_deps) {
@@ -2825,7 +2849,7 @@ static void *run_workload(void *data)
 			if (is_xe)
 				do_xe_exec(wrk, w);
 			else
-				do_eb(wrk, w, engine);
+				do_eb(wrk, w);
 
 			if (w->request != -1) {
 				igt_list_del(&w->rq_link);
