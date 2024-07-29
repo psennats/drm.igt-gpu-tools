@@ -2989,6 +2989,7 @@ static void print_help(void)
 "  -f <scale>        Scale factor for batch durations.\n"
 "  -F <scale>        Scale factor for delays.\n"
 "  -L                List GPUs.\n"
+"  -l                List physical engines.\n"
 "  -D <gpu>          One of the GPUs from -L.\n"
 	);
 }
@@ -3048,10 +3049,42 @@ add_workload_arg(struct w_arg *w_args, unsigned int nr_args, char *w_arg,
 	return w_args;
 }
 
+static void list_engines(void)
+{
+	struct intel_engines *engines = query_engines();
+	int engine_class_count[NUM_ENGINE_CLASSES] = {};
+	unsigned int i;
+
+	for (i = 0; i < engines->nr_engines; ++i) {
+		igt_assert_lt(engines->engines[i].engine_class, NUM_ENGINE_CLASSES);
+		engine_class_count[engines->engines[i].engine_class]++;
+	}
+
+	for (i = 0; i < engines->nr_engines; ++i) {
+		if (engine_class_count[engines->engines[i].engine_class] > 1)
+			printf("%s%u",
+			       intel_engine_class_string(engines->engines[i].engine_class),
+			       engines->engines[i].engine_instance + 1);
+		else
+			printf("%s",
+			       intel_engine_class_string(engines->engines[i].engine_class));
+
+		if (is_xe && engines->engines[i].gt_id)
+			printf("-%u", engines->engines[i].gt_id);
+
+		if (verbose > 3)
+			printf(" [%d:%d:%d]", engines->engines[i].engine_class,
+			       engines->engines[i].engine_instance,
+			       engines->engines[i].gt_id);
+		printf("\n");
+	}
+}
+
 int main(int argc, char **argv)
 {
 	struct igt_device_card card = { };
 	bool list_devices_arg = false;
+	bool list_engines_arg = false;
 	unsigned int repeat = 1;
 	unsigned int clients = 1;
 	unsigned int flags = 0;
@@ -3074,10 +3107,13 @@ int main(int argc, char **argv)
 	master_prng = time(NULL);
 
 	while ((c = getopt(argc, argv,
-			   "LhqvsSdc:r:w:W:a:p:I:f:F:D:")) != -1) {
+			   "LlhqvsSdc:r:w:W:a:p:I:f:F:D:")) != -1) {
 		switch (c) {
 		case 'L':
 			list_devices_arg = true;
+			break;
+		case 'l':
+			list_engines_arg = true;
 			break;
 		case 'D':
 			device_arg = strdup(optarg);
@@ -3198,6 +3234,11 @@ int main(int argc, char **argv)
 	is_xe = is_xe_device(fd);
 	if (is_xe)
 		xe_device_get(fd);
+
+	if (list_engines_arg) {
+		list_engines();
+		goto out;
+	}
 
 	if (!nr_w_args) {
 		wsim_err("No workload descriptor(s)!\n");
