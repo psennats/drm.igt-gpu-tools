@@ -126,6 +126,11 @@ struct w_arg {
 	bool sseu;
 };
 
+struct intel_engines {
+	unsigned int nr_engines;
+	enum intel_engine_id *engines;
+};
+
 struct bond {
 	uint64_t mask;
 	enum intel_engine_id master;
@@ -165,10 +170,7 @@ struct w_step {
 		int target;
 		int throttle;
 		int priority;
-		struct {
-			unsigned int engine_map_count;
-			enum intel_engine_id *engine_map;
-		};
+		struct intel_engines engine_map;
 		bool load_balance;
 		struct {
 			uint64_t bond_mask;
@@ -220,8 +222,7 @@ struct xe_exec_queue {
 struct ctx {
 	uint32_t id;
 	int priority;
-	unsigned int engine_map_count;
-	enum intel_engine_id *engine_map;
+	struct intel_engines engine_map;
 	unsigned int bond_count;
 	struct bond *bonds;
 	bool load_balance;
@@ -722,15 +723,17 @@ static int parse_engine_map(struct w_step *step, const char *_str)
 			return -1; /* TODO */
 
 		add = engine == VCS ? num_engines_in_class(VCS) : 1;
-		step->engine_map_count += add;
-		step->engine_map = realloc(step->engine_map,
-					   step->engine_map_count *
-					   sizeof(step->engine_map[0]));
+		step->engine_map.nr_engines += add;
+		step->engine_map.engines = realloc(step->engine_map.engines,
+						   step->engine_map.nr_engines *
+						   sizeof(step->engine_map.engines[0]));
 
 		if (engine != VCS)
-			step->engine_map[step->engine_map_count - add] = engine;
+			step->engine_map.engines[step->engine_map.nr_engines - add] = engine;
 		else
-			fill_engines_id_class(&step->engine_map[step->engine_map_count - add], VCS);
+			fill_engines_id_class(&step->engine_map.engines[step->engine_map
+										.nr_engines - add],
+					      VCS);
 	}
 
 	return 0;
@@ -1608,8 +1611,8 @@ find_engine_in_map(struct ctx *ctx, enum intel_engine_id engine)
 {
 	unsigned int i;
 
-	for (i = 0; i < ctx->engine_map_count; i++) {
-		if (ctx->engine_map[i] == engine)
+	for (i = 0; i < ctx->engine_map.nr_engines; i++) {
+		if (ctx->engine_map.engines[i] == engine)
 			return i + 1;
 	}
 
@@ -1623,7 +1626,7 @@ eb_update_flags(struct workload *wrk, struct w_step *w,
 {
 	struct ctx *ctx = __get_ctx(wrk, w);
 
-	if (ctx->engine_map)
+	if (ctx->engine_map.nr_engines)
 		w->i915.eb.flags = find_engine_in_map(ctx, engine);
 	else
 		eb_set_engine(&w->i915.eb, engine);
@@ -1648,7 +1651,7 @@ xe_get_eq(struct workload *wrk, const struct w_step *w)
 	struct ctx *ctx = __get_ctx(wrk, w);
 	struct xe_exec_queue *eq;
 
-	if (ctx->engine_map) {
+	if (ctx->engine_map.nr_engines) {
 		igt_assert_eq(ctx->xe.nr_queues, 1);
 		igt_assert(ctx->xe.queue_list[0].id);
 		eq = &ctx->xe.queue_list[0];
@@ -1937,7 +1940,7 @@ set_ctx_sseu(struct ctx *ctx, uint64_t slice_mask)
 	if (slice_mask == -1)
 		slice_mask = device_sseu.slice_mask;
 
-	if (ctx->engine_map && ctx->load_balance) {
+	if (ctx->engine_map.nr_engines && ctx->load_balance) {
 		sseu.flags = I915_CONTEXT_SSEU_FLAG_ENGINE_INDEX;
 		sseu.engine.engine_class = I915_ENGINE_CLASS_INVALID;
 		sseu.engine.engine_instance = 0;
@@ -2147,9 +2150,8 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 
 			if (w->type == ENGINE_MAP) {
 				ctx->engine_map = w->engine_map;
-				ctx->engine_map_count = w->engine_map_count;
 			} else if (w->type == LOAD_BALANCE) {
-				if (!ctx->engine_map) {
+				if (!ctx->engine_map.nr_engines) {
 					wsim_err("Load balancing needs an engine map!\n");
 					return 1;
 				}
@@ -2229,15 +2231,15 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 
 		__configure_context(ctx_id, wrk->prio);
 
-		if (ctx->engine_map) {
+		if (ctx->engine_map.nr_engines) {
 			struct i915_context_param_engines *set_engines =
-				alloca0(sizeof_param_engines(ctx->engine_map_count + 1));
+				alloca0(sizeof_param_engines(ctx->engine_map.nr_engines + 1));
 			struct i915_context_engines_load_balance *load_balance =
-				alloca0(sizeof_load_balance(ctx->engine_map_count));
+				alloca0(sizeof_load_balance(ctx->engine_map.nr_engines));
 			struct drm_i915_gem_context_param param = {
 				.ctx_id = ctx_id,
 				.param = I915_CONTEXT_PARAM_ENGINES,
-				.size = sizeof_param_engines(ctx->engine_map_count + 1),
+				.size = sizeof_param_engines(ctx->engine_map.nr_engines + 1),
 				.value = to_user_pointer(set_engines),
 			};
 			struct i915_context_engines_bond *last = NULL;
@@ -2249,11 +2251,11 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 				load_balance->base.name =
 					I915_CONTEXT_ENGINES_EXT_LOAD_BALANCE;
 				load_balance->num_siblings =
-					ctx->engine_map_count;
+					ctx->engine_map.nr_engines;
 
-				for (j = 0; j < ctx->engine_map_count; j++)
+				for (j = 0; j < ctx->engine_map.nr_engines; j++)
 					load_balance->engines[j] =
-						get_engine(ctx->engine_map[j]);
+						get_engine(ctx->engine_map.engines[j]);
 			}
 
 			/* Reserve slot for virtual engine. */
@@ -2262,9 +2264,9 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 			set_engines->engines[0].engine_instance =
 				I915_ENGINE_CLASS_INVALID_NONE;
 
-			for (j = 1; j <= ctx->engine_map_count; j++)
+			for (j = 1; j <= ctx->engine_map.nr_engines; j++)
 				set_engines->engines[j] =
-					get_engine(ctx->engine_map[j - 1]);
+					get_engine(ctx->engine_map.engines[j - 1]);
 
 			last = NULL;
 			for (j = 0; j < ctx->bond_count; j++) {
@@ -2286,7 +2288,7 @@ static int prepare_contexts(unsigned int id, struct workload *wrk)
 						continue;
 
 					idx = find_engine(&set_engines->engines[1],
-							  ctx->engine_map_count,
+							  ctx->engine_map.nr_engines,
 							  e);
 					bond->engines[b++] =
 						set_engines->engines[1 + idx];
@@ -2335,9 +2337,8 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 				continue;
 			if (w->type == ENGINE_MAP) {
 				ctx->engine_map = w->engine_map;
-				ctx->engine_map_count = w->engine_map_count;
 			} else if (w->type == LOAD_BALANCE) {
-				if (!ctx->engine_map) {
+				if (!ctx->engine_map.nr_engines) {
 					wsim_err("Load balancing needs an engine map!\n");
 					return 1;
 				}
@@ -2346,15 +2347,15 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 		}
 
 		/* create exec queue for each referenced engine */
-		if (ctx->engine_map) {
+		if (ctx->engine_map.nr_engines) {
 			ctx->xe.nr_queues = 1;
 			ctx->xe.queue_list = calloc(ctx->xe.nr_queues, sizeof(*ctx->xe.queue_list));
 			igt_assert(ctx->xe.queue_list);
 			eq = &ctx->xe.queue_list[ctx->xe.nr_queues - 1];
-			eq->nr_hwes = ctx->engine_map_count;
+			eq->nr_hwes = ctx->engine_map.nr_engines;
 			eq->hwe_list = calloc(eq->nr_hwes, sizeof(*eq->hwe_list));
 			for (i = 0; i < eq->nr_hwes; ++i) {
-				eq->hwe_list[i] = xe_get_engine(ctx->engine_map[i]);
+				eq->hwe_list[i] = xe_get_engine(ctx->engine_map.engines[i]);
 
 				/* check no mixing classes and no duplicates */
 				for (int j = 0; j < i; ++j) {
@@ -2377,7 +2378,8 @@ static int xe_prepare_contexts(unsigned int id, struct workload *wrk)
 
 				if (verbose > 3)
 					printf("%u ctx[%d] %s [%u:%u:%u]\n",
-						id, ctx_idx, ring_str_map[ctx->engine_map[i]],
+						id, ctx_idx,
+						ring_str_map[ctx->engine_map.engines[i]],
 						eq->hwe_list[i].engine_class,
 						eq->hwe_list[i].engine_instance,
 						eq->hwe_list[i].gt_id);
