@@ -265,6 +265,32 @@ int xe_sysfs_gt_open(int xe_device, int gt)
 	return open(path, O_RDONLY);
 }
 
+/**
+ * xe_sysfs_gt_has_node:
+ * @xe_device: fd of the device
+ * @gt: gt number
+ * @node: node inside sysfs gt dir that needs to be checked for existence
+ *
+ * This checks if specified node exists in device sysfs gt directory.
+ *
+ * Returns:
+ * true if node exists in sysfs, false otherwise.
+ */
+bool xe_sysfs_gt_has_node(int xe_device, int gt, const char *node)
+{
+	bool has_node;
+	int gt_fd;
+
+	gt_fd = xe_sysfs_gt_open(xe_device, gt);
+	if (gt_fd < 0)
+		return false;
+
+	has_node = igt_sysfs_has_attr(gt_fd, node);
+	close(gt_fd);
+
+	return has_node;
+}
+
 static const char *xe_engine_class_to_str(__u16 class)
 {
 	static const char * const str[] = {

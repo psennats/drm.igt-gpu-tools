@@ -168,6 +168,7 @@ void igt_sysfs_engines(int xe, int engines, const char **property,
 
 char *xe_sysfs_gt_path(int xe_device, int gt, char *path, int pathlen);
 int xe_sysfs_gt_open(int xe_device, int gt);
+bool xe_sysfs_gt_has_node(int xe_device, int gt, const char *node);
 char *xe_sysfs_tile_path(int xe_device, int tile, char *path, int pathlen);
 int xe_sysfs_tile_open(int xe_device, int tile);
 int xe_sysfs_get_num_tiles(int xe_device);
