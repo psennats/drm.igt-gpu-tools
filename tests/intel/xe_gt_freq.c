@@ -26,6 +26,9 @@
 #include <sys/time.h>
 
 #define MAX_N_EXEC_QUEUES 16
+#define GT_FREQUENCY_MULTIPLIER	50
+#define GT_FREQUENCY_SCALER	3
+#define FREQ_UNIT_MHZ	 DIV_ROUND_CLOSEST(GT_FREQUENCY_MULTIPLIER, GT_FREQUENCY_SCALER)
 
 /*
  * Too many intermediate components and steps before freq is adjusted
@@ -70,9 +73,14 @@ static uint32_t get_freq(int fd, int gt_id, const char *freq_name)
 	return freq;
 }
 
-static uint32_t rpe(int fd, int gt_id)
+static bool within_expected_range(uint32_t freq, uint32_t val)
 {
-	return get_freq(fd, gt_id, "rpe");
+	/*
+	 * GT Frequencies are requested at units of 16.66 Mhz, so allow
+	 * that tolerance.
+	 */
+	return (freq <= val + FREQ_UNIT_MHZ) &&
+		(freq >= val - FREQ_UNIT_MHZ);
 }
 
 static uint32_t get_throttle(int fd, int gt_id, const char *throttle_file)
@@ -128,6 +136,8 @@ static void test_freq_basic_api(int fd, int gt_id)
 {
 	uint32_t rpn = get_freq(fd, gt_id, "rpn");
 	uint32_t rp0 = get_freq(fd, gt_id, "rp0");
+	uint32_t rpmid = (rp0 + rpn) / 2;
+	uint32_t min_freq, max_freq;
 
 	/*
 	 * Negative bound tests
@@ -142,16 +152,19 @@ static void test_freq_basic_api(int fd, int gt_id)
 	/* Assert min requests are respected from rp0 to rpn */
 	igt_assert(set_freq(fd, gt_id, "min", rp0) > 0);
 	igt_assert(get_freq(fd, gt_id, "min") == rp0);
-	igt_assert(set_freq(fd, gt_id, "min", rpe(fd, gt_id)) > 0);
-	igt_assert(get_freq(fd, gt_id, "min") == rpe(fd, gt_id));
+	igt_assert(set_freq(fd, gt_id, "min", rpmid) > 0);
+	min_freq = get_freq(fd, gt_id, "min");
+	/* SLPC can set min higher than rpmid - as it follows RPe */
+	igt_assert(min_freq >= (rpmid - FREQ_UNIT_MHZ));
 	igt_assert(set_freq(fd, gt_id, "min", rpn) > 0);
 	igt_assert(get_freq(fd, gt_id, "min") == rpn);
 
 	/* Assert max requests are respected from rpn to rp0 */
 	igt_assert(set_freq(fd, gt_id, "max", rpn) > 0);
 	igt_assert(get_freq(fd, gt_id, "max") == rpn);
-	igt_assert(set_freq(fd, gt_id, "max", rpe(fd, gt_id)) > 0);
-	igt_assert(get_freq(fd, gt_id, "max") == rpe(fd, gt_id));
+	igt_assert(set_freq(fd, gt_id, "max", rpmid) > 0);
+	max_freq = get_freq(fd, gt_id, "max");
+	igt_assert(within_expected_range(max_freq, rpmid));
 	igt_assert(set_freq(fd, gt_id, "max", rp0) > 0);
 	igt_assert(get_freq(fd, gt_id, "max") == rp0);
 }
@@ -168,13 +181,16 @@ static void test_freq_fixed(int fd, int gt_id, bool gt_idle)
 {
 	uint32_t rpn = get_freq(fd, gt_id, "rpn");
 	uint32_t rp0 = get_freq(fd, gt_id, "rp0");
+	uint32_t rpmid = (rp0 + rpn) / 2;
+	uint32_t cur_freq, act_freq;
 
 	igt_debug("Starting testing fixed request\n");
 
 	/*
 	 * For Fixed freq we need to set both min and max to the desired value
 	 * Then we check if hardware is actually operating at the desired freq
-	 * And let's do this for all the 3 known Render Performance (RP) values.
+	 * And let's do this for all the 2 known Render Performance (RP) values
+	 * RP0 and RPn and something in between.
 	 */
 	igt_assert(set_freq(fd, gt_id, "min", rpn) > 0);
 	igt_assert(set_freq(fd, gt_id, "max", rpn) > 0);
@@ -190,17 +206,20 @@ static void test_freq_fixed(int fd, int gt_id, bool gt_idle)
 		igt_assert(get_freq(fd, gt_id, "act") == rpn);
 	}
 
-	igt_assert(set_freq(fd, gt_id, "min", rpe(fd, gt_id)) > 0);
-	igt_assert(set_freq(fd, gt_id, "max", rpe(fd, gt_id)) > 0);
+	igt_assert(set_freq(fd, gt_id, "min", rpmid) > 0);
+	igt_assert(set_freq(fd, gt_id, "max", rpmid) > 0);
 	usleep(ACT_FREQ_LATENCY_US);
-	igt_assert(get_freq(fd, gt_id, "cur") == rpe(fd, gt_id));
+	cur_freq = get_freq(fd, gt_id, "cur");
+	/* If rpmid is around RPe, we could see SLPC follow it */
+	igt_assert(cur_freq >= (rpmid - FREQ_UNIT_MHZ));
 
 	if (gt_idle) {
 		igt_assert_f(igt_wait(xe_is_gt_in_c6(fd, gt_id), 1000, 10),
 			     "GT %d should be in C6\n", gt_id);
 		igt_assert(get_freq(fd, gt_id, "act") == 0);
 	} else {
-		igt_assert(get_freq(fd, gt_id, "act") == rpe(fd, gt_id));
+		act_freq = get_freq(fd, gt_id, "act");
+		igt_assert(act_freq <= cur_freq + FREQ_UNIT_MHZ);
 	}
 
 	igt_assert(set_freq(fd, gt_id, "min", rp0) > 0);
@@ -232,15 +251,17 @@ static void test_freq_fixed(int fd, int gt_id, bool gt_idle)
 static void test_freq_range(int fd, int gt_id, bool gt_idle)
 {
 	uint32_t rpn = get_freq(fd, gt_id, "rpn");
+	uint32_t rp0 = get_freq(fd, gt_id, "rp0");
+	uint32_t rpmid = (rp0 + rpn) / 2;
 	uint32_t cur, act;
 
 	igt_debug("Starting testing range request\n");
 
 	igt_assert(set_freq(fd, gt_id, "min", rpn) > 0);
-	igt_assert(set_freq(fd, gt_id, "max", rpe(fd, gt_id)) > 0);
+	igt_assert(set_freq(fd, gt_id, "max", rpmid) > 0);
 	usleep(ACT_FREQ_LATENCY_US);
 	cur = get_freq(fd, gt_id, "cur");
-	igt_assert(rpn <= cur && cur <= rpe(fd, gt_id));
+	igt_assert(rpn <= cur && cur <= rpmid + FREQ_UNIT_MHZ);
 
 	if (gt_idle) {
 		igt_assert_f(igt_wait(xe_is_gt_in_c6(fd, gt_id), 1000, 10),
@@ -248,7 +269,7 @@ static void test_freq_range(int fd, int gt_id, bool gt_idle)
 		igt_assert(get_freq(fd, gt_id, "act") == 0);
 	} else {
 		act = get_freq(fd, gt_id, "act");
-		igt_assert(rpn <= act && act <= rpe(fd, gt_id));
+		igt_assert((rpn <= act) && (act <= cur + FREQ_UNIT_MHZ));
 	}
 
 	igt_debug("Finished testing range request\n");
@@ -262,17 +283,19 @@ static void test_freq_range(int fd, int gt_id, bool gt_idle)
 static void test_freq_low_max(int fd, int gt_id)
 {
 	uint32_t rpn = get_freq(fd, gt_id, "rpn");
+	uint32_t rp0 = get_freq(fd, gt_id, "rp0");
+	uint32_t rpmid = (rp0 + rpn) / 2;
 
 	/*
 	 *  When max request < min request, max is ignored and min works like
 	 * a fixed one. Let's assert this assumption
 	 */
-	igt_assert(set_freq(fd, gt_id, "min", rpe(fd, gt_id)) > 0);
+	igt_assert(set_freq(fd, gt_id, "min", rpmid) > 0);
 	igt_assert(set_freq(fd, gt_id, "max", rpn) > 0);
 	usleep(ACT_FREQ_LATENCY_US);
 
-	/* Refresh value of rpe, pcode could have adjusted it */
-	igt_assert(get_freq(fd, gt_id, "cur") == rpe(fd, gt_id));
+	/* Cur freq will follow RPe, which could be higher than min freq */
+	igt_assert(get_freq(fd, gt_id, "cur") >= (rpmid - FREQ_UNIT_MHZ));
 }
 
 /**
