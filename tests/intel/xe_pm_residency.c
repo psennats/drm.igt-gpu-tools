@@ -317,7 +317,9 @@ igt_main
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
+
 		igt_require(!IS_PONTEVECCHIO(xe_dev_id(fd)));
+		igt_require(xe_sysfs_gt_has_node(fd, 0, "gtidle"));
 	}
 
 	igt_describe("Validate GT C6 on idle");
