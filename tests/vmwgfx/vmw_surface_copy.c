@@ -120,9 +120,9 @@ static void test_invalid_copies(int fd, int32 cid)
 		vmw_is_format_supported(fd, SVGA3D_DEVCAP_SURFACEFMT_A8R8G8B8));
 
 	s1 = vmw_create_surface_simple(fd, 0, SVGA3D_A8R8G8B8, surface_size,
-				       NULL);
+				       SVGA3D_INVALID_ID);
 	s2 = vmw_create_surface_simple(fd, 0, SVGA3D_A8R8G8B8, surface_size,
-				       NULL);
+				       SVGA3D_INVALID_ID);
 	cmd_buf = vmw_execbuf_create(fd, cid);
 
 	box.x = 0;
@@ -271,8 +271,8 @@ static void test_invalid_copies_3d(int fd, int32 cid)
 	igt_require(vmw_is_format_supported(fd, SVGA3D_DEVCAP_DXFMT_Z_D32));
 
 	s1 = vmw_create_surface_simple(fd, 0, SVGA3D_A8R8G8B8, surface_size,
-				       NULL);
-	s2 = vmw_create_surface_simple(fd, 0, SVGA3D_Z_D32, surface_size, NULL);
+				       SVGA3D_INVALID_ID);
+	s2 = vmw_create_surface_simple(fd, 0, SVGA3D_Z_D32, surface_size, SVGA3D_INVALID_ID);
 	cmd_buf = vmw_execbuf_create(fd, cid);
 
 	box.x = 0;

@@ -36,7 +36,10 @@ static void draw_triangle(struct vmw_svga_device *device, int32 cid)
 
 	vmw_create_default_objects(device, cid, &objects,
 				   &vmw_default_rect_size);
-	rendered_img = vmw_triangle_draw(device, cid, &objects, true);
+	rendered_img =
+		vmw_triangle_draw(device, cid, &objects,
+				  vmw_triangle_draw_flags_sync |
+				  vmw_triangle_draw_flags_readback);
 
 	save_status = vmw_save_data_as_png(objects.color_rt, rendered_img,
 					   "vmw_tri.png");
@@ -65,7 +68,7 @@ static void replace_with_coherent_rt(struct vmw_svga_device *device,
 			SVGA3D_SURFACE_BIND_RENDER_TARGET,
 		SVGA3D_R8G8B8A8_UNORM, 0, SVGA3D_MS_PATTERN_NONE,
 		SVGA3D_MS_QUALITY_NONE, SVGA3D_TEX_FILTER_NONE, 1, 1, *rt_size,
-		NULL, drm_vmw_surface_flag_coherent);
+		SVGA3D_INVALID_ID, drm_vmw_surface_flag_coherent);
 
 	objects->depth_rt = vmw_ioctl_create_surface_full(
 		device->drm_fd,
@@ -74,7 +77,7 @@ static void replace_with_coherent_rt(struct vmw_svga_device *device,
 			SVGA3D_SURFACE_BIND_DEPTH_STENCIL,
 		SVGA3D_R24G8_TYPELESS, 0, SVGA3D_MS_PATTERN_NONE,
 		SVGA3D_MS_QUALITY_NONE, SVGA3D_TEX_FILTER_NONE, 1, 1, *rt_size,
-		NULL, drm_vmw_surface_flag_coherent);
+		SVGA3D_INVALID_ID, drm_vmw_surface_flag_coherent);
 
 	cmd_buf = vmw_execbuf_create(device->drm_fd, context_id);
 
@@ -160,7 +163,8 @@ static void draw_triangle_on_coherent_rt(struct vmw_svga_device *device,
 	default_ds_view_id = objects.ds_view_id;
 	replace_with_coherent_rt(device, cid, &objects, &vmw_default_rect_size);
 
-	rendered_img = vmw_triangle_draw(device, cid, &objects, false);
+	rendered_img = vmw_triangle_draw(device, cid, &objects,
+					 vmw_triangle_draw_flags_readback);
 
 	vmw_triangle_assert_values(rendered_img, objects.color_rt);
 

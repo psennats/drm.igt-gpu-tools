@@ -72,7 +72,7 @@ create_and_write_shareable_surface(int32 fd, SVGA3dSize surface_size)
 	surface = vmw_ioctl_create_surface_full(
 		fd, SVGA3D_SURFACE_HINT_RENDERTARGET, SVGA3D_BUFFER, 0,
 		SVGA3D_MS_PATTERN_NONE, SVGA3D_MS_QUALITY_NONE,
-		SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, NULL,
+		SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, SVGA3D_INVALID_ID,
 		drm_vmw_surface_flag_shareable);
 
 	mob.handle = surface->base.buffer_handle;
@@ -125,7 +125,7 @@ igt_main
 		surface = vmw_ioctl_create_surface_full(
 			fd1, SVGA3D_SURFACE_HINT_RENDERTARGET, SVGA3D_BUFFER, 0,
 			SVGA3D_MS_PATTERN_NONE, SVGA3D_MS_QUALITY_NONE,
-			SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, mob,
+			SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, mob->handle,
 			drm_vmw_surface_flag_shareable);
 
 		write_to_mob(fd1, mob);
@@ -274,7 +274,7 @@ igt_main
 		surface = vmw_ioctl_create_surface_full(
 			fd1, SVGA3D_SURFACE_HINT_RENDERTARGET, SVGA3D_BUFFER, 0,
 			SVGA3D_MS_PATTERN_NONE, SVGA3D_MS_QUALITY_NONE,
-			SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, NULL,
+			SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, SVGA3D_INVALID_ID,
 			drm_vmw_surface_flag_shareable);
 
 		/* Shouldn't crash on multiple invocations */

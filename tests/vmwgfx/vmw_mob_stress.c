@@ -35,7 +35,10 @@ static void test_triangle_render(struct vmw_svga_device *device, int32 cid)
 
 	vmw_create_default_objects(device, cid, &objects,
 				   &vmw_default_rect_size);
-	rendered_tri = vmw_triangle_draw(device, cid, &objects, true);
+	rendered_tri =
+		vmw_triangle_draw(device, cid, &objects,
+				  vmw_triangle_draw_flags_sync |
+				  vmw_triangle_draw_flags_readback);
 	vmw_triangle_assert_values(rendered_tri, objects.color_rt);
 
 	free(rendered_tri);

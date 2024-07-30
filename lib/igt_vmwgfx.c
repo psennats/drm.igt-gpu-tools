@@ -427,7 +427,7 @@ struct vmw_surface *vmw_ioctl_buffer_create(int fd, SVGA3dSurfaceAllFlags flags,
 	SVGA3dSize surface_size = { .width = size, .height = 1, .depth = 1 };
 
 	return vmw_create_surface_simple(fd, flags, SVGA3D_BUFFER, surface_size,
-					 mob);
+					 mob->handle);
 }
 
 /**
@@ -454,7 +454,7 @@ struct vmw_surface *vmw_ioctl_create_surface_full(
 	uint32 multisample_count, SVGA3dMSPattern multisample_pattern,
 	SVGA3dMSQualityLevel quality_level, SVGA3dTextureFilter autogen_filter,
 	uint32 num_mip_levels, uint32 array_size, SVGA3dSize size,
-	struct vmw_mob *mob, enum drm_vmw_surface_flags surface_flags)
+	uint32 buffer_handle, enum drm_vmw_surface_flags surface_flags)
 {
 	struct vmw_surface *surface;
 	int32 ret;
@@ -470,10 +470,8 @@ struct vmw_surface *vmw_ioctl_create_surface_full(
 	arg.req.base.array_size = array_size;
 	arg.req.base.autogen_filter = autogen_filter;
 	arg.req.base.drm_surface_flags |= surface_flags;
-	if (mob) {
-		arg.req.base.buffer_handle = mob->handle;
-	} else {
-		arg.req.base.buffer_handle = SVGA3D_INVALID_ID;
+	arg.req.base.buffer_handle = buffer_handle;
+	if (buffer_handle != SVGA3D_INVALID_ID) {
 		arg.req.base.drm_surface_flags |=
 			drm_vmw_surface_flag_create_buffer;
 	}
@@ -499,7 +497,6 @@ struct vmw_surface *vmw_ioctl_create_surface_full(
 	}
 
 	surface->base = arg.rep;
-	surface->mob = mob;
 	return surface;
 
 out_err1:
@@ -511,7 +508,7 @@ struct vmw_surface *vmw_create_surface_simple(int fd,
 					      SVGA3dSurfaceAllFlags flags,
 					      SVGA3dSurfaceFormat format,
 					      SVGA3dSize size,
-					      struct vmw_mob *mob)
+					      uint32 buffer_handle)
 {
 	/*
 	 * TODO:
@@ -531,7 +528,7 @@ struct vmw_surface *vmw_create_surface_simple(int fd,
 					     multisample_count,
 					     multisample_pattern, quality_level,
 					     SVGA3D_TEX_FILTER_NONE, 1,
-					     array_size, size, mob, 0);
+					     array_size, size, buffer_handle, 0);
 }
 
 /**
@@ -921,14 +918,14 @@ void vmw_create_default_objects(struct vmw_svga_device *device,
 		device->drm_fd,
 		SVGA3D_SURFACE_HINT_TEXTURE | SVGA3D_SURFACE_HINT_RENDERTARGET |
 			SVGA3D_SURFACE_BIND_RENDER_TARGET,
-		SVGA3D_R8G8B8A8_UNORM, *rt_size, NULL);
+		SVGA3D_R8G8B8A8_UNORM, *rt_size, SVGA3D_INVALID_ID);
 
 	objects->depth_rt = vmw_create_surface_simple(
 		device->drm_fd,
 		SVGA3D_SURFACE_HINT_DEPTHSTENCIL |
 			SVGA3D_SURFACE_HINT_RENDERTARGET |
 			SVGA3D_SURFACE_BIND_DEPTH_STENCIL,
-		SVGA3D_R24G8_TYPELESS, *rt_size, NULL);
+		SVGA3D_R24G8_TYPELESS, *rt_size, SVGA3D_INVALID_ID);
 
 	rtv_desc.tex.arraySize = 1;
 	rtv_desc.tex.firstArraySlice = 0;
@@ -1225,7 +1222,8 @@ void vmw_cmd_surface_copy(struct vmw_execbuf *cmd_buf, SVGA3dSurfaceImageId src,
 }
 
 uint8 *vmw_triangle_draw(struct vmw_svga_device *device, int32 cid,
-			 struct vmw_default_objects *objects, bool do_sync)
+			 struct vmw_default_objects *objects,
+			 uint32_t draw_flags)
 {
 	struct vmw_execbuf *cmd_buf;
 	struct drm_vmw_fence_rep cmd_fence;
@@ -1234,7 +1232,7 @@ uint8 *vmw_triangle_draw(struct vmw_svga_device *device, int32 cid,
 	SVGA3dVertexBuffer vb_binding;
 	SVGA3dRGBAFloat clear_color;
 	void *vertex_data;
-	uint8 *rendered_img;
+	uint8 *rendered_img = NULL;
 	struct vmw_vertex vertices[3] = {
 		{ 0.0, 0.75, 0.5, 1.0, 0.0, 1.0, 0.0, 1.0 },
 		{ 0.75, -0.75, 0.5, 1.0, 1.0, 0.0, 0.0, 1.0 },
@@ -1281,19 +1279,20 @@ uint8 *vmw_triangle_draw(struct vmw_svga_device *device, int32 cid,
 
 	/* Draw */
 	vmw_cmd_draw(cmd_buf, 3, 0);
-	vmw_cmd_draw(cmd_buf, 3, 0);
 
 	/* Readback */
-	vmw_cmd_readback_gb_surface(cmd_buf, objects->color_rt->base.handle);
+	if (draw_flags & vmw_triangle_draw_flags_readback)
+		vmw_cmd_readback_gb_surface(cmd_buf, objects->color_rt->base.handle);
 
 	/* Submit commands */
 	vmw_execbuf_submit(cmd_buf, &cmd_fence);
-	if (do_sync)
+	if (draw_flags & vmw_triangle_draw_flags_sync)
 		vmw_ioctl_fence_finish(device->drm_fd, &cmd_fence);
 	vmw_execbuf_destroy(cmd_buf);
 
 	/* Read framebuffer into system mem and save */
-	rendered_img = vmw_readback_surface(device->drm_fd, objects->color_rt);
+	if (draw_flags & vmw_triangle_draw_flags_readback)
+		rendered_img = vmw_readback_surface(device->drm_fd, objects->color_rt);
 
 	vmw_ioctl_surface_unref(device->drm_fd, vertex_buffer);
 	vmw_ioctl_mob_close_handle(device->drm_fd, vertex_mob);

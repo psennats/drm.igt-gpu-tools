@@ -115,7 +115,6 @@ struct vmw_mob {
 struct vmw_surface {
 	struct drm_vmw_gb_surface_create_rep base;
 	struct drm_vmw_gb_surface_create_ext_req params;
-	struct vmw_mob *mob;
 };
 
 struct vmw_vertex {
@@ -194,13 +193,13 @@ struct vmw_surface *vmw_ioctl_create_surface_full(
 	uint32 multisample_count, SVGA3dMSPattern multisample_pattern,
 	SVGA3dMSQualityLevel quality_level, SVGA3dTextureFilter autogen_filter,
 	uint32 num_mip_levels, uint32 array_size, SVGA3dSize size,
-	struct vmw_mob *mob, enum drm_vmw_surface_flags surface_flags);
+	uint32 buffer_handle, enum drm_vmw_surface_flags surface_flags);
 
 struct vmw_surface *vmw_create_surface_simple(int fd,
 					      SVGA3dSurfaceAllFlags flags,
 					      SVGA3dSurfaceFormat format,
 					      SVGA3dSize size,
-					      struct vmw_mob *mob);
+					      uint32 buffer_handle);
 
 struct vmw_execbuf *vmw_execbuf_create(int drm_fd, int32_t cid);
 void vmw_execbuf_set_cid(struct vmw_execbuf *execbuf, int32_t cid);
@@ -261,8 +260,14 @@ void vmw_cmd_surface_copy(struct vmw_execbuf *cmd_buf, SVGA3dSurfaceImageId src,
 			  SVGA3dSurfaceImageId dest, const SVGA3dCopyBox *boxes,
 			  uint32 num_boxes);
 
+enum vmw_triangle_draw_flags {
+	vmw_triangle_draw_flags_none = 0,
+	vmw_triangle_draw_flags_sync = 1 << 0,
+	vmw_triangle_draw_flags_readback = 1 << 1,
+};
+
 uint8 *vmw_triangle_draw(struct vmw_svga_device *device, int32 cid,
-			 struct vmw_default_objects *objects, bool do_sync);
+			 struct vmw_default_objects *objects, uint32_t draw_flags);
 
 void vmw_triangle_assert_values(uint8 *rendered_img,
 				struct vmw_surface *color_rt);
