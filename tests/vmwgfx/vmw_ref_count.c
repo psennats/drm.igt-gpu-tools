@@ -1,33 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
-/**********************************************************
- * Copyright 2021-2023 VMware, Inc.
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- **********************************************************/
+/*
+ * Copyright (c) 2021-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+ */
 
 #include "igt_vmwgfx.h"
 
 IGT_TEST_DESCRIPTION("Perform tests related to vmwgfx's ref_count codepaths.");
 
+#define NUM_SURFACES 10
 static uint32 data[10] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
 
 static void write_to_mob(int fd, struct vmw_mob *mob)
@@ -35,6 +16,7 @@ static void write_to_mob(int fd, struct vmw_mob *mob)
 	void *write_data;
 
 	write_data = vmw_ioctl_mob_map(fd, mob);
+	igt_assert(write_data);
 	memcpy(write_data, data, sizeof(data));
 	vmw_ioctl_mob_unmap(mob);
 }
@@ -73,7 +55,7 @@ create_and_write_shareable_surface(int32 fd, SVGA3dSize surface_size)
 		fd, SVGA3D_SURFACE_HINT_RENDERTARGET, SVGA3D_BUFFER, 0,
 		SVGA3D_MS_PATTERN_NONE, SVGA3D_MS_QUALITY_NONE,
 		SVGA3D_TEX_FILTER_NONE, 1, 1, surface_size, SVGA3D_INVALID_ID,
-		drm_vmw_surface_flag_shareable);
+		drm_vmw_surface_flag_shareable | drm_vmw_surface_flag_create_buffer);
 
 	mob.handle = surface->base.buffer_handle;
 	mob.map_handle = surface->base.buffer_map_handle;
@@ -86,17 +68,22 @@ create_and_write_shareable_surface(int32 fd, SVGA3dSize surface_size)
 
 static bool ref_surface_and_check_contents(int32 fd, uint32 surface_handle)
 {
-	struct vmw_surface surface;
+	struct vmw_surface *surface;
 	struct vmw_mob mob = { 0 };
+	bool data_valid;
 
 	surface = vmw_ioctl_surface_ref(fd, surface_handle,
 					DRM_VMW_HANDLE_LEGACY);
 
-	mob.handle = surface.base.handle;
-	mob.size = surface.base.buffer_size;
-	mob.map_handle = surface.base.buffer_map_handle;
+	mob.handle = surface->base.handle;
+	mob.size = surface->base.buffer_size;
+	mob.map_handle = surface->base.buffer_map_handle;
 
-	return verify_mob_data(fd, &mob);
+	data_valid = verify_mob_data(fd, &mob);
+
+	vmw_ioctl_surface_unref(fd, surface);
+
+	return data_valid;
 }
 
 igt_main
@@ -293,7 +280,7 @@ igt_main
 	igt_subtest("surface_alloc_ref_unref")
 	{
 		struct vmw_surface *surface;
-		struct vmw_surface ref_surface;
+		struct vmw_surface *ref_surface;
 		struct vmw_mob readback_mob = { 0 };
 
 		surface = create_and_write_shareable_surface(fd1, surface_size);
@@ -303,15 +290,162 @@ igt_main
 
 		vmw_ioctl_surface_unref(fd1, surface);
 
-		readback_mob.handle = ref_surface.base.handle;
-		readback_mob.size = ref_surface.base.buffer_size;
-		readback_mob.map_handle = ref_surface.base.buffer_map_handle;
+		readback_mob.handle = ref_surface->base.handle;
+		readback_mob.size = ref_surface->base.buffer_size;
+		readback_mob.map_handle = ref_surface->base.buffer_map_handle;
 
 		igt_assert(verify_mob_data(fd1, &readback_mob));
+
+		vmw_ioctl_surface_unref(fd1, ref_surface);
 	}
 
-	igt_fixture
+	igt_describe("Test refing a surface from the buffer handle.");
+	igt_subtest("surface_buffer_ref")
 	{
+		struct vmw_surface *surfaces[NUM_SURFACES] = {0};
+		struct vmw_surface *refs[NUM_SURFACES] = {0};
+		struct vmw_surface *buf_refs[NUM_SURFACES] = {0};
+		int i;
+		SVGA3dSize surf_size;
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			surf_size.width = 32 + i * 16;
+			surf_size.height = 32 + i * 16;
+			surf_size.depth = 1;
+
+			surfaces[i] = vmw_create_surface_simple(fd1,
+								SVGA3D_SURFACE_HINT_TEXTURE |
+								SVGA3D_SURFACE_HINT_RENDERTARGET |
+								SVGA3D_SURFACE_BIND_RENDER_TARGET,
+								SVGA3D_R8G8B8A8_UNORM, surf_size,
+								SVGA3D_INVALID_ID);
+			igt_assert(surfaces[i]);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			int prime_fd = prime_handle_to_fd_for_mmap(fd1,
+								   surfaces[i]->base.handle);
+
+			refs[i] = vmw_ioctl_surface_ref(fd1, prime_fd,
+							DRM_VMW_HANDLE_PRIME);
+			igt_assert_eq(surfaces[i]->base.handle,
+				      refs[i]->base.handle);
+			igt_assert_eq(surfaces[i]->base.backup_size,
+				      refs[i]->base.backup_size);
+			igt_assert_eq(surfaces[i]->base.buffer_size,
+				      refs[i]->base.buffer_size);
+			igt_assert_eq(surfaces[i]->base.buffer_map_handle,
+				      refs[i]->base.buffer_map_handle);
+			igt_assert_eq(surfaces[i]->params.base.format,
+				      refs[i]->params.base.format);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			int prime_fd = prime_handle_to_fd_for_mmap(fd1,
+								   surfaces[i]->base.buffer_handle);
+
+			buf_refs[i] = vmw_ioctl_surface_ref(fd1, prime_fd,
+							    DRM_VMW_HANDLE_PRIME);
+			igt_assert_eq(surfaces[i]->base.handle,
+				      buf_refs[i]->base.handle);
+			igt_assert_eq(surfaces[i]->base.backup_size,
+				      buf_refs[i]->base.backup_size);
+			igt_assert_eq(surfaces[i]->base.buffer_size,
+				      buf_refs[i]->base.buffer_size);
+			igt_assert_eq(surfaces[i]->base.buffer_map_handle,
+				      buf_refs[i]->base.buffer_map_handle);
+			igt_assert_eq(surfaces[i]->params.base.format,
+				      buf_refs[i]->params.base.format);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			vmw_ioctl_surface_unref(fd1, buf_refs[i]);
+			vmw_ioctl_surface_unref(fd1, refs[i]);
+			vmw_ioctl_surface_unref(fd1, surfaces[i]);
+		}
+	}
+
+	igt_describe("Test refcounts on prime surfaces.");
+	igt_subtest("surface_prime_refs") {
+		struct vmw_surface *surfaces[NUM_SURFACES] = {0};
+		int prime_fds[NUM_SURFACES] = {0};
+		struct vmw_surface *refs[NUM_SURFACES] = {0};
+		int i;
+		SVGA3dSize surf_size;
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			surf_size.width = 32 + i * 16;
+			surf_size.height = 32 + i * 16;
+			surf_size.depth = 1;
+
+			surfaces[i] = vmw_create_surface_simple(fd1,
+								SVGA3D_SURFACE_HINT_TEXTURE |
+								SVGA3D_SURFACE_HINT_RENDERTARGET |
+								SVGA3D_SURFACE_BIND_RENDER_TARGET,
+								SVGA3D_R8G8B8A8_UNORM, surf_size,
+								SVGA3D_INVALID_ID);
+			igt_assert(surfaces[i]);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			prime_fds[i] = prime_handle_to_fd(fd1,
+							  surfaces[i]->base.handle);
+			igt_assert_neq(prime_fds[i], 0);
+			igt_assert_neq(prime_fds[i], -1);
+			vmw_ioctl_surface_unref(fd1, surfaces[i]);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			refs[i] = vmw_ioctl_surface_ref(fd1, prime_fds[i],
+							DRM_VMW_HANDLE_PRIME);
+			close(prime_fds[i]);
+			igt_assert_neq(refs[i]->base.handle, 0);
+			igt_assert_neq(refs[i]->base.backup_size, 0);
+			igt_assert_neq(refs[i]->base.buffer_size, 0);
+		}
+	}
+
+	igt_describe("Test refcounts on prime surfaces with buffer handles.");
+	igt_subtest("surface_buffer_prime_refs") {
+		struct vmw_surface *surfaces[NUM_SURFACES] = {0};
+		int prime_fds[NUM_SURFACES] = {0};
+		struct vmw_surface *refs[NUM_SURFACES] = {0};
+		int i;
+		SVGA3dSize surf_size;
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			surf_size.width = 32 + i * 16;
+			surf_size.height = 32 + i * 16;
+			surf_size.depth = 1;
+
+			surfaces[i] = vmw_create_surface_simple(fd1,
+								SVGA3D_SURFACE_HINT_TEXTURE |
+								SVGA3D_SURFACE_HINT_RENDERTARGET |
+								SVGA3D_SURFACE_BIND_RENDER_TARGET,
+								SVGA3D_R8G8B8A8_UNORM, surf_size,
+								SVGA3D_INVALID_ID);
+			igt_assert(surfaces[i]);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			prime_fds[i] = prime_handle_to_fd(fd1,
+							  surfaces[i]->base.buffer_handle);
+			igt_assert_neq(prime_fds[i], 0);
+			igt_assert_neq(prime_fds[i], -1);
+			vmw_ioctl_surface_unref(fd1, surfaces[i]);
+		}
+
+		for (i = 0; i < NUM_SURFACES; ++i) {
+			refs[i] = vmw_ioctl_surface_ref(fd1, prime_fds[i],
+							DRM_VMW_HANDLE_PRIME);
+			close(prime_fds[i]);
+			igt_assert_neq(refs[i]->base.handle, 0);
+			igt_assert_neq(refs[i]->base.backup_size, 0);
+			igt_assert_neq(refs[i]->base.buffer_size, 0);
+		}
+	}
+
+	igt_fixture {
 		drm_close_driver(fd1);
 		drm_close_driver(fd2);
 	}

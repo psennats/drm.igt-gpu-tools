@@ -1,28 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
-/**********************************************************
- * Copyright 2021-2023 VMware, Inc.
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- **********************************************************/
+/*
+ * Copyright (c) 2021-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+ */
 
 #include "igt_vmwgfx.h"
 
@@ -154,6 +134,7 @@ bool vmw_save_data_as_png(struct vmw_surface *surface, void *data,
 	/* Can separate this into another function as it grows */
 	switch (surface->params.base.format) {
 	case SVGA3D_R8G8B8A8_UNORM:
+	case SVGA3D_B8G8R8X8_UNORM:
 		format = CAIRO_FORMAT_ARGB32;
 		break;
 	default:
@@ -345,11 +326,15 @@ void vmw_ioctl_mob_close_handle(int fd, struct vmw_mob *mob)
 	free(mob);
 }
 
-struct vmw_surface vmw_ioctl_surface_ref(int fd, int32 sid, uint32 handle_type)
+struct vmw_surface *vmw_ioctl_surface_ref(int fd, int32 sid, uint32 handle_type)
 {
 	int ret;
-	union drm_vmw_gb_surface_reference_ext_arg arg;
-	struct vmw_surface surface;
+	union drm_vmw_gb_surface_reference_ext_arg arg = {0};
+	struct vmw_surface *surface;
+
+	surface = calloc(1, sizeof(struct vmw_surface));
+	if (!surface)
+		return NULL;
 
 	arg.req.handle_type = handle_type;
 	arg.req.sid = sid;
@@ -359,8 +344,8 @@ struct vmw_surface vmw_ioctl_surface_ref(int fd, int32 sid, uint32 handle_type)
 	if (ret != 0)
 		fprintf(stderr, "%s Failed\n", __func__);
 
-	surface.base = arg.rep.crep;
-	surface.params = arg.rep.creq;
+	surface->base = arg.rep.crep;
+	surface->params = arg.rep.creq;
 	return surface;
 }
 
@@ -471,7 +456,7 @@ struct vmw_surface *vmw_ioctl_create_surface_full(
 	arg.req.base.autogen_filter = autogen_filter;
 	arg.req.base.drm_surface_flags |= surface_flags;
 	arg.req.base.buffer_handle = buffer_handle;
-	if (buffer_handle != SVGA3D_INVALID_ID) {
+	if (buffer_handle == SVGA3D_INVALID_ID) {
 		arg.req.base.drm_surface_flags |=
 			drm_vmw_surface_flag_create_buffer;
 	}
