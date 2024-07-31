@@ -189,7 +189,7 @@ gfx_ring_bad_write_linear(const struct amdgpu_ip_funcs *func,
 		      const struct amdgpu_ring_context *ring_context,
 		      uint32_t *pm4_dw, unsigned int cmd_error)
 {
-	uint32_t i, j;
+	uint32_t i, j, stream_length;
 
 	i = 0;
 	j = 0;
@@ -198,6 +198,11 @@ gfx_ring_bad_write_linear(const struct amdgpu_ip_funcs *func,
 	  * But the range applies to all asics.
 	  * 0xcb-0xcf, 0xd2-0xef, 0xf1-0xfb
 	  */
+	if (cmd_error == CMD_STREAM_EXEC_INVALID_PACKET_LENGTH)
+		stream_length = ring_context->write_length / 16;
+	else
+		stream_length = ring_context->write_length;
+
 	if (cmd_error == CMD_STREAM_EXEC_INVALID_OPCODE)
 		ring_context->pm4[i++] = PACKET3(0xf2, 2 +  ring_context->write_length);
 	else if (cmd_error == CMD_STREAM_EXEC_INVALID_PACKET_LENGTH)
@@ -223,7 +228,7 @@ gfx_ring_bad_write_linear(const struct amdgpu_ip_funcs *func,
 		ring_context->pm4[i++] = upper_32_bits(ring_context->bo_mc);
 	}
 
-	while (j++ < ring_context->write_length)
+	while (j++ < stream_length)
 		ring_context->pm4[i++] = func->deadbeaf;
 	*pm4_dw = i;
 	return i;
