@@ -8,6 +8,7 @@
 #include "lib/amdgpu/amd_memory.h"
 #include "lib/amdgpu/amd_command_submission.h"
 #include "lib/amdgpu/amd_deadlock_helpers.h"
+#include "lib/amdgpu/amdgpu_asic_addr.h"
 
 #define AMDGPU_FAMILY_SI                        110 /* Hainan, Oland, Verde, Pitcairn, Tahiti */
 #define AMDGPU_FAMILY_CI                        120 /* Bonaire, Hawaii */
@@ -24,7 +25,8 @@ is_deadlock_tests_enable(const struct amdgpu_gpu_info *gpu_info)
 	if (gpu_info->family_id == AMDGPU_FAMILY_SI ||
 	    gpu_info->family_id == AMDGPU_FAMILY_KV ||
 	    gpu_info->family_id == AMDGPU_FAMILY_CZ ||
-	    gpu_info->family_id == AMDGPU_FAMILY_RV) {
+	    ((gpu_info->family_id == AMDGPU_FAMILY_RV) &&
+	     (!ASICREV_IS_RENOIR(gpu_info->chip_external_rev)))) {
 		igt_info("\n\nGPU reset is not enabled for the ASIC, deadlock test skip\n");
 		enable = false;
 	}

@@ -901,11 +901,15 @@ static bool
 is_rings_available(amdgpu_device_handle device_handle, uint32_t mask,
 		enum amd_ip_block_type type)
 {
-	struct drm_amdgpu_info_hw_ip hw_ip_info = {0};
-	int r;
+	struct drm_amdgpu_info_hw_ip hw_ip_info;
 
-	r = amdgpu_query_hw_ip_info(device_handle, type, 0, &hw_ip_info);
-	igt_assert_eq(r, 0);
+	memset(&hw_ip_info, 0, sizeof(hw_ip_info));
+	/*
+	 * Ignore the check of the return value of amdgpu_query_hw_ip_info(), as
+	 * it could fail if certain IP instance types are not present in the
+	 * ASIC
+	 */
+	amdgpu_query_hw_ip_info(device_handle, type, 0, &hw_ip_info);
 
 	return  hw_ip_info.available_rings & mask;
 }
