@@ -78,6 +78,10 @@ igt@kms_frontbuffer_tracking@(fbcpsrdrrs|psrdrrs).*
 # KMS: Yet to add/missing XE support
 ##################################################################
 igt@kms_prime@.*
+
+# Expected failure on XE:
+# https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/294
+igt@kms_rmfb@close-fd
 ##################################################################
 # KMS: Non-Intel tests
 ##################################################################
