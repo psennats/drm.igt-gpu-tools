@@ -4503,6 +4503,7 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe = NULL;
+	struct xe_device *xe_dev;
 
 	igt_fixture {
 		struct stat sb;
@@ -4527,7 +4528,10 @@ igt_main
 		igt_assert_eq(drm_fd, -1);
 
 		drm_fd = drm_open_driver(DRIVER_XE);
-		xe_device_get(drm_fd);
+		xe_dev = xe_device_get(drm_fd);
+
+		/* See xe_query_oa_units_new() */
+		igt_require(xe_dev->oa_units);
 
 		devid = intel_get_drm_devid(drm_fd);
 		sysfs = igt_sysfs_open(drm_fd);

@@ -124,7 +124,9 @@ static struct drm_xe_query_oa_units *xe_query_oa_units_new(int fd)
 		.data = 0,
 	};
 
-	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+	/* Support older kernels where this uapi is not yet available */
+	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
+		return NULL;
 
 	oa_units = malloc(query.size);
 	igt_assert(oa_units);
