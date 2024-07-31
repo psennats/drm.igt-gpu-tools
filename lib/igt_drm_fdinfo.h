@@ -74,7 +74,9 @@ struct drm_client_fdinfo {
 };
 
 /**
- * igt_parse_drm_fdinfo: Parses the drm fdinfo file
+ * igt_parse_drm_fdinfo: Parse the drm fdinfo file for this process
+ *
+ * Parse /proc/self/fdinfo/<drm_fd> collecting all key-values
  *
  * @drm_fd: DRM file descriptor
  * @info: Structure to populate with read data. Must be zeroed.
@@ -92,10 +94,12 @@ igt_parse_drm_fdinfo(int drm_fd, struct drm_client_fdinfo *info,
 		     const char **region_map, unsigned int region_entries);
 
 /**
- * __igt_parse_drm_fdinfo: Parses the drm fdinfo file
+ * __igt_parse_drm_fdinfo: Parse the drm fdinfo file for a process
  *
- * @dir: File descriptor pointing to /proc/pid/fdinfo directory
- * @fd: String representation of the file descriptor number to parse.
+ * Parse /proc/<pid>/fdinfo/<fd> collecting all key-values.
+ *
+ * @dir: File descriptor pointing to /proc/<pid>/fdinfo directory
+ * @fd: String representation of the file descriptor number (<fd>) to parse.
  * @info: Structure to populate with read data. Must be zeroed.
  * @name_map: Optional array of strings representing engine names
  * @map_entries: Number of strings in the names array
