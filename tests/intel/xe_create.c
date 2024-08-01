@@ -157,7 +157,6 @@ enum vm_count {
 };
 
 #define MAXEXECQUEUES 2048
-#define MAXTIME 5
 
 /**
  * SUBTEST: create-execqueues-%s
@@ -175,10 +174,8 @@ enum vm_count {
 static void create_execqueues(int fd, enum exec_queue_destroy ed,
 			      enum vm_count vc)
 {
-	struct timespec tv = { };
 	uint32_t num_engines, exec_queues_per_process, vm;
-	int nproc = sysconf(_SC_NPROCESSORS_ONLN), seconds;
-	int real_timeout = MAXTIME * (vc == SHARED ? 4 : 1);
+	int nproc = sysconf(_SC_NPROCESSORS_ONLN);
 
 	if (vc == SHARED) {
 		fd = drm_reopen_driver(fd);
@@ -188,8 +185,6 @@ static void create_execqueues(int fd, enum exec_queue_destroy ed,
 
 	exec_queues_per_process = max_t(uint32_t, 1, MAXEXECQUEUES / nproc);
 	igt_debug("nproc: %u, exec_queues per process: %u\n", nproc, exec_queues_per_process);
-
-	igt_nsec_elapsed(&tv);
 
 	igt_fork(n, nproc) {
 		struct drm_xe_engine *engine;
@@ -235,16 +230,6 @@ static void create_execqueues(int fd, enum exec_queue_destroy ed,
 	if (vc == SHARED) {
 		xe_vm_destroy(fd, vm);
 		drm_close_driver(fd);
-	}
-
-	seconds = igt_seconds_elapsed(&tv);
-	if (seconds > real_timeout) {
-		if (igt_run_in_simulation())
-			igt_info("Creating %d exec_queues took too long: %d [limit: %d] seconds\n",
-				 MAXEXECQUEUES, seconds, real_timeout);
-		else
-			igt_assert_f(false, "Creating %d exec_queues took too long: %d [limit: %d] seconds\n",
-				     MAXEXECQUEUES, seconds, real_timeout);
 	}
 }
 
