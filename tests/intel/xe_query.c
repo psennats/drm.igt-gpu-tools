@@ -137,7 +137,8 @@ const char* get_hwconfig_name(int param)
 	CASE_STRINGIFY(MIN_MESH_URB_ENTRIES);
 	CASE_STRINGIFY(MAX_MESH_URB_ENTRIES);
 	}
-	return "?? Please fix "__FILE__;
+	igt_assert_lt(param, __INTEL_HWCONFIG_KEY_LIMIT);
+	igt_assert(!"Missing config table enum");
 }
 #undef CASE_STRINGIFY
 
