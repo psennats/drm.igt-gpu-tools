@@ -295,14 +295,14 @@ static void active(int fd, const intel_ctx_cfg_t *cfg,
 
 static void xchg_u32(void *array, unsigned i, unsigned j)
 {
-	uint32_t *a = array, tmp;
+	uint32_t *a = array;
 
 	igt_swap(a[i], a[j]);
 }
 
 static void xchg_ptr(void *array, unsigned i, unsigned j)
 {
-	void **a = array, *tmp;
+	void **a = array;
 
 	igt_swap(a[i], a[j]);
 }

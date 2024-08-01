@@ -156,7 +156,7 @@ update_batch(int fd, uint32_t bb_handle,
 
 static void xchg_u32(void *array, unsigned i, unsigned j)
 {
-	uint32_t tmp, *base = array;
+	uint32_t *base = array;
 
 	igt_swap(base[i], base[j]);
 }
