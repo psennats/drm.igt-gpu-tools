@@ -1339,6 +1339,7 @@ static const char * const hwconfig_keys[] = {
 	[INTEL_HWCONFIG_MAX_TASK_URB_ENTRIES] = "Max Task URB Entries",
 	[INTEL_HWCONFIG_MIN_MESH_URB_ENTRIES] = "Min Mesh URB Entries",
 	[INTEL_HWCONFIG_MAX_MESH_URB_ENTRIES] = "Max Mesh URB Entries",
+	[INTEL_HWCONFIG_MAX_GSC] = "MaxGSC",
 };
 
 static const char * const hwconfig_memtypes[] = {
