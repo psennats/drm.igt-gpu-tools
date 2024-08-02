@@ -862,7 +862,7 @@ static void iterate_combinations(int n, int k, bool allow_repetitions,
 	int v;
 
 	if (!k) {
-		igt_assert(set->count < set->capacity);
+		igt_assert_lt(set->count, set->capacity);
 		set->items[set->count++] = *comb;
 		return;
 	}

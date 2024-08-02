@@ -147,7 +147,7 @@ static void wait_flip_event(data_t *data)
 		break;
 	case 1:
 		ret = drmHandleEvent(data->drm_fd, &evctx);
-		igt_assert(ret == 0);
+		igt_assert_eq(ret, 0);
 		break;
 	default:
 		/* unexpected */
@@ -275,7 +275,7 @@ static void test_async_flip(data_t *data)
 					      data->bufs[frame % NUM_FBS].fb_id,
 					      flags, data);
 
-			igt_assert(ret == 0);
+			igt_assert_eq(ret, 0);
 
 			wait_flip_event(data);
 
@@ -286,7 +286,7 @@ static void test_async_flip(data_t *data)
 						      data->bufs[frame % NUM_FBS].fb_id,
 						      flags, data);
 
-				igt_assert(ret == 0);
+				igt_assert_eq(ret, 0);
 
 				wait_flip_event(data);
 			}
@@ -298,7 +298,7 @@ static void test_async_flip(data_t *data)
 		if (frame == 1 && data->allow_fail)
 			igt_skip_on(ret == -EINVAL);
 		else
-			igt_assert(ret == 0);
+			igt_assert_eq(ret, 0);
 
 		wait_flip_event(data);
 
@@ -335,7 +335,7 @@ static void wait_for_vblank(data_t *data, unsigned long *vbl_time, unsigned int 
 	wait_vbl.request.type = DRM_VBLANK_RELATIVE | pipe_id_flag;
 	wait_vbl.request.sequence = 1;
 
-	igt_assert(drmIoctl(data->drm_fd, DRM_IOCTL_WAIT_VBLANK, &wait_vbl) == 0);
+	do_ioctl(data->drm_fd, DRM_IOCTL_WAIT_VBLANK, &wait_vbl);
 	*vbl_time = wait_vbl.reply.tval_sec * 1000000 + wait_vbl.reply.tval_usec;
 	*seq = wait_vbl.reply.sequence;
 }
@@ -358,7 +358,7 @@ static void test_timestamp(data_t *data)
 			      data->bufs[0].fb_id,
 			      flags, data);
 
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	wait_flip_event(data);
 
@@ -368,7 +368,7 @@ static void test_timestamp(data_t *data)
 			      data->bufs[0].fb_id,
 			      flags, data);
 
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	wait_flip_event(data);
 
@@ -423,7 +423,7 @@ static void test_cursor(data_t *data)
 			      data->bufs[0].fb_id,
 			      flags, data);
 
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	wait_flip_event(data);
 
@@ -459,7 +459,7 @@ static void test_invalid(data_t *data)
 	/* first async flip is expected to allow modifier changes */
 	ret = drmModePageFlip(data->drm_fd, data->crtc_id, fb[1].fb_id,
 			      DRM_MODE_PAGE_FLIP_ASYNC | DRM_MODE_PAGE_FLIP_EVENT, data);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 	wait_flip_event(data);
 
 	/* subsequent async flips should reject modifier changes */
@@ -483,7 +483,7 @@ static void queue_vblank(data_t *data)
 		.request.signal = (long)data,
 	};
 
-	igt_assert(drmIoctl(data->drm_fd, DRM_IOCTL_WAIT_VBLANK, &wait_vbl) == 0);
+	do_ioctl(data->drm_fd, DRM_IOCTL_WAIT_VBLANK, &wait_vbl);
 }
 
 static void vblank_handler_crc(int fd_, unsigned int sequence, unsigned int tv_sec,
@@ -533,7 +533,7 @@ static void wait_events_crc(data_t *data)
 			break;
 		case 1:
 			ret = drmHandleEvent(data->drm_fd, &evctx);
-			igt_assert(ret == 0);
+			igt_assert_eq(ret, 0);
 			break;
 		default:
 			/* unexpected */

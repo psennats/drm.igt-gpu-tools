@@ -547,8 +547,8 @@ static void atomic_implicit_crtc(data_t *data)
 		if (strcmp(prop->name, "CRTC_ID") == 0)
 			crtc_id_prop = props->props[i];
 
-		printf("prop name %s, prop id %u, prop id %u\n",
-		       prop->name, props->props[i], prop->prop_id);
+		igt_info("prop name %s, prop id %u, prop id %u\n", prop->name,
+			 props->props[i], prop->prop_id);
 		drmModeFreeProperty(prop);
 		if (crtc_id_prop)
 			break;
@@ -564,7 +564,7 @@ static void atomic_implicit_crtc(data_t *data)
 	igt_assert(req);
 	ret = drmModeAtomicAddProperty(req, data->plane_id,
 				       crtc_id_prop, data->crtc_id);
-	igt_assert(ret >= 0);
+	igt_assert_lte(0, ret);
 
 	/* sanity check */
 	ret = drmModeAtomicCommit(data->master.fd, req, DRM_MODE_ATOMIC_TEST_ONLY, NULL);
@@ -579,7 +579,7 @@ static void atomic_implicit_crtc(data_t *data)
 	igt_assert(req);
 	ret = drmModeAtomicAddProperty(req, data->connector_id,
 				       crtc_id_prop, data->crtc_id);
-	igt_assert(ret >= 0);
+	igt_assert_lte(0, ret);
 
 	/* sanity check */
 	ret = drmModeAtomicCommit(data->master.fd, req, DRM_MODE_ATOMIC_TEST_ONLY, NULL);

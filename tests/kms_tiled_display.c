@@ -564,7 +564,7 @@ static void basic_test(data_t *data, drmEventContext *drm_event, struct pollfd *
 		DRM_MODE_PAGE_FLIP_EVENT, data);
 	while (!got_all_page_flips(data)) {
 		ret = poll(pfd, 1, 1000);
-		igt_assert(ret == 1);
+		igt_assert_eq(ret, 1);
 		drmHandleEvent(data->drm_fd, drm_event);
 	}
 }

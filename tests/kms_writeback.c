@@ -136,11 +136,11 @@ static bool check_writeback_config(igt_display_t *display, igt_output_t *output,
 
 		ret = igt_create_fb(display->drm_fd, width, height,
 				    fourcc[i], modifier, &input_fb);
-		igt_assert(ret >= 0);
+		igt_assert_lte(0, ret);
 
 		ret = igt_create_fb(display->drm_fd, width, height,
 				    fourcc[i], modifier, &output_fb);
-		igt_assert(ret >= 0);
+		igt_assert_lte(0, ret);
 
 		plane = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
 		igt_plane_set_fb(plane, &input_fb);
@@ -293,7 +293,7 @@ static void test_invalid_parameters(igt_output_t *output, igt_fb_t *valid_fb, ig
 		ret = do_writeback_test(output, invalid_tests[i].fb_id,
 					invalid_tests[i].out_fence_ptr,
 					invalid_tests[i].ptr_valid);
-		igt_assert(ret != 0);
+		igt_assert_neq(ret, 0);
 	}
 }
 
@@ -308,11 +308,11 @@ static void writeback_fb_id(igt_output_t *output, igt_fb_t *valid_fb, igt_fb_t *
 
 	/* Zero WRITEBACK_FB_ID */
 	ret = do_writeback_test(output, 0, NULL, false);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/* Valid output buffer */
 	ret = do_writeback_test(output, valid_fb->fb_id, NULL, false);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 }
 
 static void fill_fb(igt_fb_t *fb, uint32_t pixel)

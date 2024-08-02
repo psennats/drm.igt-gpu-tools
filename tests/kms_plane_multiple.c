@@ -317,7 +317,7 @@ test_plane_position_with_output(data_t *data, enum pipe pipe,
 	igt_plane_t *plane;
 	int i;
 	int err, c = 0;
-	int iterations = opt.iterations < 1 ? 1 : opt.iterations;
+	int iterations = max(1, opt.iterations);
 	bool loop_forever;
 	char info[256];
 

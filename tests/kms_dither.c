@@ -95,7 +95,7 @@ static dither_status_t get_dither_state(data_t *data, enum pipe pipe)
 	dither_status_t status;
 
 	dir = igt_debugfs_dir(data->drm_fd);
-	igt_assert(dir >= 0);
+	igt_assert_lte(0, dir);
 
 	igt_require_intel(data->drm_fd);
 

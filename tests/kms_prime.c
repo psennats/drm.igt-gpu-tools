@@ -219,7 +219,7 @@ static void import_fb(int importer_fd, struct igt_fb *fb,
 			    DRM_FORMAT_XRGB8888,
 			    handles, pitches, offsets,
 			    &fb->fb_id, 0);
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 }
 
 static void set_fb(struct igt_fb *fb,
@@ -235,7 +235,7 @@ static void set_fb(struct igt_fb *fb,
 	igt_plane_set_fb(primary, fb);
 	ret = igt_display_commit(display);
 
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 }
 
 static void collect_crc_for_fb(int importer_fd, struct igt_fb *fb, igt_display_t *display,
@@ -368,7 +368,7 @@ static void kms_poll_state_restore(void)
 {
 	int sysfs_fd;
 
-	igt_assert((sysfs_fd = open(KMS_HELPER, O_RDONLY)) >= 0);
+	igt_assert_lte(0, (sysfs_fd = open(KMS_HELPER, O_RDONLY)));
 	__igt_sysfs_set_boolean(sysfs_fd, "poll", kms_poll_saved_state);
 	close(sysfs_fd);
 

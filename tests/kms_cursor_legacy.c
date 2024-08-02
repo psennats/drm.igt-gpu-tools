@@ -970,7 +970,7 @@ static void flip_vs_cursor(igt_display_t *display, enum flip_test mode, int nloo
 		igt_assert(shared != MAP_FAILED);
 
 		cpu = sched_getcpu();
-		igt_assert(cpu >= 0);
+		igt_assert_lte(0, cpu);
 
 		CPU_ZERO(&mask);
 		CPU_SET(cpu, &mask);

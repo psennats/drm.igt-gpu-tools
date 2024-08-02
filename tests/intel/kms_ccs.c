@@ -272,7 +272,7 @@ create_fb_prepare_add(int drm_fd, int width, int height,
 		      igt_fb_t *fb, struct drm_mode_fb_cmd2 *f)
 {
 	igt_create_bo_for_fb(drm_fd, width, height, format, modifier, fb);
-	igt_assert(fb->gem_handle > 0);
+	igt_assert_lt_u32(0, fb->gem_handle);
 
 	addfb_init(fb, f);
 }
@@ -314,7 +314,7 @@ static void check_ccs_plane(int drm_fd, igt_fb_t *fb, int plane)
 		if (*(uint32_t *)(ccs_p + i))
 			break;
 
-	igt_assert(gem_munmap(map, fb->size) == 0);
+	igt_assert_eq(0, gem_munmap(map, fb->size));
 
 	igt_assert_f(i < ccs_size,
 		     "CCS plane %d (for main plane %d) lacks compression meta-data\n",
@@ -350,7 +350,7 @@ static void check_ccs_cc_plane(int drm_fd, igt_fb_t *fb, int plane, const float 
 
 	igt_assert_eq_u32(native_color, cc_p[4].d);
 
-	igt_assert(gem_munmap(map, fb->size) == 0);
+	igt_assert_eq(0, gem_munmap(map, fb->size));
 };
 
 static void check_all_ccs_planes(int drm_fd, igt_fb_t *fb, const float *cc_color, bool check_cc_plane)
@@ -453,7 +453,7 @@ static void fill_fb_random(int drm_fd, igt_fb_t *fb)
 	for (i = 0; i < fb->size; i++)
 		p[i] = rand();
 
-	igt_assert(gem_munmap(map, fb->size) == 0);
+	igt_assert_eq(0, gem_munmap(map, fb->size));
 
 	/* randomize also ccs surface on Xe2 */
 	if (AT_LEAST_GEN(intel_get_drm_devid(drm_fd), 20))
@@ -728,7 +728,6 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 	struct drm_mode_fb_cmd2 f = {0};
 	uint64_t modifier;
 	cairo_t *cr;
-	int ret;
 	const float cc_color[4] = {colors[!!data->plane].r,
 				   colors[!!data->plane].g,
 				   colors[!!data->plane].b,
@@ -793,8 +792,7 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 		}
 	}
 
-	ret = drmIoctl(data->drm_fd, DRM_IOCTL_MODE_ADDFB2, &f);
-	igt_assert_eq(ret, 0);
+	do_ioctl(data->drm_fd, DRM_IOCTL_MODE_ADDFB2, &f);
 
 	if (check_ccs_planes)
 		check_all_ccs_planes(data->drm_fd, fb, cc_color, !(data->flags & TEST_RANDOM));

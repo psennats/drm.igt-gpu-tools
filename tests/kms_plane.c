@@ -875,10 +875,11 @@ static bool test_format_plane_colors(data_t *data, enum pipe pipe,
 		}
 	}
 
-	if (crc_mismatch_count)
-		igt_warn("CRC mismatches with format " IGT_FORMAT_FMT " on %s.%u with %d/%d solid colors tested (0x%X)\n",
-			 IGT_FORMAT_ARGS(format), kmstest_pipe_name(pipe),
-			 plane->index, crc_mismatch_count, data->num_colors, crc_mismatch_mask);
+	igt_warn_on_f(crc_mismatch_count,
+		      "CRC mismatches with format " IGT_FORMAT_FMT " on %s.%u with %d/%d solid colors tested (0x%X)\n",
+		      IGT_FORMAT_ARGS(format), kmstest_pipe_name(pipe),
+		      plane->index, crc_mismatch_count, data->num_colors,
+		      crc_mismatch_mask);
 
 	return result;
 }

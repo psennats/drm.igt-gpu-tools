@@ -80,7 +80,7 @@ static bool test(int drm_fd, uint32_t connector_id)
 	connector = drmModeGetConnectorCurrent(drm_fd, connector_id);
 	dir_fd = igt_connector_sysfs_open(drm_fd, connector);
 	drmModeFreeConnector(connector);
-	igt_assert(dir_fd >= 0);
+	igt_assert_lte(0, dir_fd);
 
 	if (connector->connection != DRM_MODE_CONNECTED &&
 	    is_mst_connector(drm_fd, connector_id)) {
@@ -107,7 +107,7 @@ static bool test(int drm_fd, uint32_t connector_id)
 		snprintf(path, sizeof(path), "/dev/%s", ent->d_name);
 
 		fd = open(path, O_RDONLY);
-		igt_assert(fd >= 0);
+		igt_assert_lte(0, fd);
 
 		ret = read(fd, buf, sizeof(buf));
 		igt_info("%s: %s\n", path,

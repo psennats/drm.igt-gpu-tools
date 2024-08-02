@@ -263,7 +263,7 @@ get_vrr_range(data_t *data, igt_output_t *output)
 	range_t range;
 
 	fd = igt_debugfs_connector_dir(data->drm_fd, output->name, O_RDONLY);
-	igt_assert(fd >= 0);
+	igt_assert_lte(0, fd);
 
 	res = igt_debugfs_simple_read(fd, "vrr_range", buf, sizeof(buf));
 	igt_require(res > 0);

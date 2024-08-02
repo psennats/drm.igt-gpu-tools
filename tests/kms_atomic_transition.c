@@ -522,7 +522,7 @@ static int fd_completed(int fd)
 	int ret;
 
 	ret = poll(&pfd, 1, 0);
-	igt_assert(ret >= 0);
+	igt_assert_lte(0, ret);
 	return ret;
 }
 
@@ -633,8 +633,8 @@ run_transition_test(data_t *data, enum pipe pipe, igt_output_t *output,
 			break;
 		}
 
-		if (!ret)
-			igt_skip("Cannot run tests without proper size sprite planes\n");
+		igt_skip_on_f(!ret,
+			      "Cannot run tests without proper size sprite planes\n");
 	}
 
 	igt_display_commit2(&data->display, COMMIT_ATOMIC);

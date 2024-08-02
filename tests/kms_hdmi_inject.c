@@ -118,8 +118,8 @@ hdmi_inject_4k(int drm_fd, drmModeConnector *connector)
 	edid = igt_kms_get_4k_edid();
 	kmstest_force_edid(drm_fd, connector, edid);
 
-	if (!kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_ON))
-		igt_skip("Could not force connector on\n");
+	igt_skip_on_f(!kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_ON),
+		      "Could not force connector on\n");
 
 	cid = connector->connector_id;
 
@@ -152,7 +152,7 @@ hdmi_inject_4k(int drm_fd, drmModeConnector *connector)
 			     &connector->connector_id, 1,
 			     &connector->modes[i]);
 
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	igt_remove_fb(drm_fd, &fb);
 
@@ -173,8 +173,8 @@ hdmi_inject_audio(int drm_fd, drmModeConnector *connector)
 	edid = igt_kms_get_hdmi_audio_edid();
 	kmstest_force_edid(drm_fd, connector, edid);
 
-	if (!kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_ON))
-		igt_skip("Could not force connector on\n");
+	igt_skip_on_f(!kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_ON),
+		      "Could not force connector on\n");
 
 	cid = connector->connector_id;
 	connector = drmModeGetConnectorCurrent(drm_fd, cid);
@@ -197,7 +197,7 @@ hdmi_inject_audio(int drm_fd, drmModeConnector *connector)
 			     &connector->modes[0]);
 
 
-	igt_assert(ret == 0);
+	igt_assert_eq(ret, 0);
 
 	/*
 	 * Test if we have /proc/asound/HDMI/eld#0.0 and is its contents are
