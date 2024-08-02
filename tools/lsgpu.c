@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Intel Corporation
+ * Copyright © 2019-2024 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,15 +22,16 @@
  *
  */
 
-#include "igt_device_scan.h"
-#include "igt.h"
-#include <sys/ioctl.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <string.h>
-#include <signal.h>
+#include <fcntl.h>
 #include <glib.h>
 #include <libudev.h>
+#include <string.h>
+#include <signal.h>
+#include <sys/ioctl.h>
+
+#include "igt.h"
+#include "igt_device_scan.h"
 
 /**
  * SECTION:lsgpu
@@ -80,12 +81,14 @@ enum {
 	OPT_DEVICE         = 'd',
 	OPT_HELP           = 'h',
 	OPT_PCISCAN        = 'P',
+	OPT_VERSION        = 'V',
 };
 
 static bool g_show_vendors;
 static bool g_list_filters;
 static bool g_help;
 static bool g_pciscan;
+static bool g_version;
 static char *igt_device;
 
 static const char *usage_str =
@@ -99,11 +102,20 @@ static const char *usage_str =
 	"  -v, --list-vendors          List recognized vendors\n"
 	"  -l, --list-filter-types     List registered device filters types\n"
 	"  -d, --device filter         Device filter, can be given multiple times\n"
+	"  -V, --version               Show version information and exit\n"
 	"  -h, --help                  Show this help message and exit\n"
 	"\nOptions valid for default print out mode only:\n"
 	"      --drm                   Show DRM filters (default) for each device\n"
 	"      --sysfs                 Show sysfs filters for each device\n"
 	"      --pci                   Show PCI filters for each device\n";
+
+static void show_version(void)
+{
+	printf("lsgpu version 1.0\n"
+	       "Copyright © 2019-2024 Intel Corporation\n"
+	       "This is free software; see the source for copying conditions.  There is NO\n"
+	       "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
+}
 
 static void test_device_open(struct igt_device_card *card)
 {
@@ -256,6 +268,7 @@ int main(int argc, char *argv[])
 		{"list-filter-types", no_argument,       NULL, OPT_LIST_FILTERS},
 		{"device",            required_argument, NULL, OPT_DEVICE},
 		{"help",              no_argument,       NULL, OPT_HELP},
+		{"version",           no_argument,       NULL, OPT_VERSION},
 		{0, 0, 0, 0}
 	};
 	int c, ret = 0, index = 0;
@@ -264,7 +277,7 @@ int main(int argc, char *argv[])
 			.type = IGT_PRINT_USER,
 	};
 
-	while ((c = getopt_long(argc, argv, "ncspvld:hP",
+	while ((c = getopt_long(argc, argv, "ncspvld:hPV",
 				long_options, &index)) != -1) {
 		switch(c) {
 
@@ -295,6 +308,9 @@ int main(int argc, char *argv[])
 		case OPT_PCISCAN:
 			g_pciscan = true;
 			break;
+		case OPT_VERSION:
+			g_version = true;
+			break;
 		case 0:
 			fmt.option = IGT_PRINT_DRM;
 			break;
@@ -312,6 +328,11 @@ int main(int argc, char *argv[])
 
 	if (g_help) {
 		printf("%s\n", usage_str);
+		exit(0);
+	}
+
+	if (g_version) {
+		show_version();
 		exit(0);
 	}
 
