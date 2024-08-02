@@ -805,7 +805,7 @@ static size_t read_fdinfo(char *buf, const size_t sz, int at, const char *name)
 		buf[count - 1] = 0;
 	close(fd);
 
-	return max(count, 0);
+	return max_t(typeof(count), count, 0);
 }
 
 /*
