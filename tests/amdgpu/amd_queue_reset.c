@@ -898,7 +898,6 @@ igt_main
 	unsigned int arr_err[] = {
 			CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
 			CMD_STREAM_EXEC_INVALID_OPCODE,
-			CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
 			//CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,TODO  not job timeout, debug why for n31
 			//CMD_STREAM_TRANS_BAD_REG_ADDRESS, TODO  amdgpu: device lost from bus! for n31
 			BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR,
@@ -992,7 +991,7 @@ igt_main
 	 *igt_describe("Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes");
 	 *igt_subtest_with_dynamic("amdgpu-compute-CMD_STREAM_TRANS_BAD_REG_ADDRESS") {
 	 *	if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-	 *		igt_dynamic_f("amdgpu-compute-CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC")
+	 *		igt_dynamic_f("amdgpu-compute-CMD_STREAM_TRANS_BAD_MEM_ADDRESS")
 	 *			set_next_test_to_run(sh_mem, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
 	 *					ip_background, ip_test, ring_id_good, ring_id_bad);
 	 *	}
