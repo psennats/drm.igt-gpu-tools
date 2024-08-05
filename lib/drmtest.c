@@ -81,7 +81,19 @@
  * and [batchbuffer](igt-gpu-tools-intel-batchbuffer.html) libraries as dependencies.
  */
 
-static int __get_drm_device_name(int fd, char *name, int name_size)
+/**
+ * __get_drm_device_name:
+ * @fd: a drm file descriptor
+ * @name: pointer to memory
+ * @name_size: size of @name
+ *
+ * A wrapper for DRM_IOCTL_VERSION which will write drm device name in @name.
+ *
+ * Returns:
+ * 0  if name of DRM driver was filled in @name
+ * -1 on ioctl fail
+ */
+int __get_drm_device_name(int fd, char *name, int name_size)
 {
 	drm_version_t version;
 

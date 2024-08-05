@@ -38,6 +38,8 @@
 
 #include "igt_core.h"
 
+int __get_drm_device_name(int fd, char *name, int name_size);
+
 /*
  * NOTE: Theser are _only_ for testcases exercising driver specific rendering
  * ioctls and uapi (and a bunch of historical reasons). And KMS testcase should
