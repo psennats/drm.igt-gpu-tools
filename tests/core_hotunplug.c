@@ -142,7 +142,11 @@ static int close_device(int fd_drm, const char *when, const char *which)
 		return fd_drm;
 
 	local_debug("%sclosing %sdevice instance\n", when, which);
-	return local_close(fd_drm, "Device close failed");
+	errno = 0;
+	if (igt_warn_on_f(__drm_close_driver(fd_drm), "Device close failed\n"))
+		return -errno;	/* (never -1) */
+
+	return -1;	/* success */
 }
 
 static int close_sysfs(int fd_sysfs_dev)
