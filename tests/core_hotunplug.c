@@ -681,11 +681,16 @@ igt_main
 
 	igt_fixture {
 		int fd_drm;
+		char driver[32] = {};
 
 		fd_drm = __drm_open_driver(DRIVER_ANY);
 		igt_skip_on_f(fd_drm < 0, "No known DRM device found\n");
 
 		priv.chipset = drm_get_chipset(fd_drm);
+		/* Make sure it opens the same driver */
+		__get_drm_device_name(fd_drm, driver, sizeof(driver) - 1);
+		__set_forced_driver(driver);
+		igt_info("DRM driver: %s\n", driver);
 
 		if (is_i915_device(fd_drm)) {
 			gem_quiescent_gpu(fd_drm);
