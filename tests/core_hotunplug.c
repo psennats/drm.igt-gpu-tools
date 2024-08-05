@@ -708,6 +708,10 @@ igt_main
 
 		igt_assert_eq(close_device(fd_drm, "", "selected "), -1);
 
+		fd_drm = __drm_open_driver_render(priv.chipset);
+		igt_skip_on_f(fd_drm < 0, "No known DRM render device found\n");
+		igt_assert_eq(close_device(fd_drm, "", "selected render "), -1);
+
 		prepare(&priv);
 	}
 
