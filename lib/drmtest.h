@@ -72,6 +72,8 @@ enum intel_driver {
 
 void __set_forced_driver(const char *name);
 
+unsigned int drm_get_chipset(int fd);
+
 /**
  * ARRAY_SIZE:
  * @arr: static array

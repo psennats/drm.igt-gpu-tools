@@ -241,6 +241,27 @@ static void modulename_to_chipset(const char *name, unsigned int *chip)
 	}
 }
 
+/**
+ * drm_get_chipset:
+ * @fd: a drm file descriptor
+ *
+ * Returns:
+ * chipset if driver name found in modules[] array, for example: DRIVER_INTEL
+ * DRIVER_ANY if drm device name not known
+ */
+unsigned int drm_get_chipset(int fd)
+{
+	unsigned int chip = DRIVER_ANY;
+	char name[32] = "";
+
+	if (__get_drm_device_name(fd, name, sizeof(name) - 1))
+		return chip;
+
+	modulename_to_chipset(name, &chip);
+
+	return chip;
+}
+
 static const char *chipset_to_str(int chipset)
 {
 	switch (chipset) {
