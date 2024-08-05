@@ -685,9 +685,9 @@ igt_main
 		fd_drm = __drm_open_driver(DRIVER_ANY);
 		igt_skip_on_f(fd_drm < 0, "No known DRM device found\n");
 
-		if (is_i915_device(fd_drm)) {
-			priv.chipset = DRIVER_INTEL;
+		priv.chipset = drm_get_chipset(fd_drm);
 
+		if (is_i915_device(fd_drm)) {
 			gem_quiescent_gpu(fd_drm);
 			igt_require_gem(fd_drm);
 
