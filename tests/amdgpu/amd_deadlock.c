@@ -94,6 +94,13 @@ igt_main
 		}
 	}
 
+	igt_describe("Test-GPU-reset-by-access-compute-illegal-mem-addr");
+	igt_subtest("amdgpu-compute-illegal-mem-access") {
+		igt_skip_on_f(!arr_cap[AMD_IP_COMPUTE], "SKIP, compute ring don't support\n");
+		bad_access_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
+				AMDGPU_HW_IP_COMPUTE);
+	}
+
 	igt_describe("Test-GPU-reset-by-flooding-compute-ring-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-compute") {
 		if (arr_cap[AMD_IP_COMPUTE]) {
