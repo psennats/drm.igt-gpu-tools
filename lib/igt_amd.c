@@ -1015,6 +1015,169 @@ bool igt_amd_output_has_ilr_setting(int drm_fd, char *connector_name)
 }
 
 /**
+ * igt_amd_output_has_replay_cap: check if eDP connector has replay_capability debugfs entry
+ * @drm_fd: DRM file descriptor
+ * @connector_name: The connector's name, on which we're reading the status
+ */
+bool igt_amd_output_has_replay_cap(int drm_fd, char *connector_name)
+{
+	return igt_amd_output_has_debugfs(drm_fd, connector_name, DEBUGFS_EDP_REPLAY_CAP);
+}
+
+/**
+ * igt_amd_replay_support_sink: check if sink device support Panel Replay
+ * @drm_fd: DRM file descriptor
+ * @connector_name: The connector's name, on which we're reading the status
+ */
+bool igt_amd_replay_support_sink(int drm_fd, char *connector_name)
+{
+	char buf[128];
+	int ret;
+	int fd;
+
+	fd = igt_debugfs_connector_dir(drm_fd, connector_name, O_RDONLY);
+	if (fd < 0) {
+		igt_info("output %s: debugfs not found\n", connector_name);
+
+		return false;
+	}
+
+	ret = igt_debugfs_simple_read(fd, DEBUGFS_EDP_REPLAY_CAP, buf, sizeof(buf));
+	igt_assert_f(ret >= 0, "Reading %s for connector %s failed.\n",
+		 DEBUGFS_EDP_REPLAY_CAP, connector_name);
+	close(fd);
+
+	if (ret < 1)
+		return false;
+
+	return strstr(buf, "Sink support: yes");
+}
+
+/**
+ * igt_amd_replay_support_drv: check if driver support Panel Replay
+ * @drm_fd: DRM file descriptor
+ * @connector_name: The connector's name, on which we're reading the status
+ */
+bool igt_amd_replay_support_drv(int drm_fd, char *connector_name)
+{
+	char buf[128];
+	int ret;
+	int fd;
+
+	fd = igt_debugfs_connector_dir(drm_fd, connector_name, O_RDONLY);
+	if (fd < 0) {
+		igt_info("output %s: debugfs not found\n", connector_name);
+
+		return false;
+	}
+
+	ret = igt_debugfs_simple_read(fd, DEBUGFS_EDP_REPLAY_CAP, buf, sizeof(buf));
+	igt_assert_f(ret >= 0, "Reading %s for connector %s failed.\n",
+		 DEBUGFS_EDP_REPLAY_CAP, connector_name);
+	close(fd);
+
+	if (ret < 1)
+		return false;
+
+	return strstr(buf, "Driver support: yes") && strstr(buf, "Config support: yes");
+}
+
+/**
+ * igt_amd_output_has_replay_state: check if eDP connector has replay_state debugfs entry
+ * @drm_fd: DRM file descriptor
+ * @connector_name: The connector's name, on which we're reading the status
+ */
+bool igt_amd_output_has_replay_state(int drm_fd, char *connector_name)
+{
+	return igt_amd_output_has_debugfs(drm_fd, connector_name, DEBUGFS_EDP_REPLAY_STATE);
+}
+
+/*
+ * Convert raw panel replay state to emum panel replay state.
+ */
+static enum replay_state convert_replay_state(uint32_t raw_state)
+{
+	switch (raw_state) {
+	case 0:
+		return REPLAY_STATE_0;
+	case 0x10:
+		return REPLAY_STATE_1;
+	case 0x11:
+		return REPLAY_STATE_1A;
+	case 0x20:
+		return REPLAY_STATE_2;
+	case 0x21:
+		return REPLAY_STATE_2A;
+	case 0x30:
+		return REPLAY_STATE_3;
+	case 0x31:
+		return REPLAY_STATE_3INIT;
+	case 0x40:
+		return REPLAY_STATE_4;
+	case 0x41:
+		return REPLAY_STATE_4A;
+	case 0x42:
+		return REPLAY_STATE_4B;
+	case 0x43:
+		return REPLAY_STATE_4C;
+	case 0x44:
+		return REPLAY_STATE_4D;
+	case 0x45:
+		return REPLAY_STATE_4E;
+	case 0x4A:
+		return REPLAY_STATE_4B_LOCKED;
+	case 0x4B:
+		return REPLAY_STATE_4C_UNLOCKED;
+	case 0x50:
+		return REPLAY_STATE_5;
+	case 0x51:
+		return REPLAY_STATE_5A;
+	case 0x52:
+		return REPLAY_STATE_5B;
+	case 0x5A:
+		return REPLAY_STATE_5A_LOCKED;
+	case 0x5B:
+		return REPLAY_STATE_5B_UNLOCKED;
+	case 0x60:
+		return REPLAY_STATE_6;
+	case 0x61:
+		return REPLAY_STATE_6A;
+	case 0x62:
+		return REPLAY_STATE_6B;
+	default:
+		return REPLAY_STATE_INVALID;
+	}
+}
+
+/**
+ * @brief Read Panel Replay State from debugfs interface
+ * @param drm_fd DRM file descriptor
+ * @param connector_name The connector's name, on which we're reading the status
+ * @return Panel Replay state
+ */
+enum replay_state igt_amd_read_replay_state(int drm_fd, char *connector_name)
+{
+	char buf[4];
+	int fd, ret, raw_state;
+
+	fd = igt_debugfs_connector_dir(drm_fd, connector_name, O_RDONLY);
+	if (fd < 0) {
+		igt_info("Couldn't open connector %s debugfs directory\n", connector_name);
+
+		return -1;
+	}
+
+	ret = igt_debugfs_simple_read(fd, DEBUGFS_EDP_REPLAY_STATE, buf, sizeof(buf));
+	close(fd);
+
+	igt_assert_f(ret >= 0, "Reading %s for connector %s failed.\n",
+		 DEBUGFS_EDP_REPLAY_STATE, connector_name);
+
+	raw_state = strtol(buf, NULL, 10);
+	return convert_replay_state(raw_state);
+}
+
+/**
  * igt_amd_output_has_psr_cap: check if eDP connector has psr_capability debugfs entry
  * @drm_fd: DRM file descriptor
  * @connector_name: The connector's name, on which we're reading the status
