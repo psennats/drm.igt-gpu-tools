@@ -754,6 +754,7 @@ is_background_parameter_found(int argc, char **argv)
 }
 
 #define RUNSUBTEST	"--run-subtest"
+
 static bool
 is_run_subtest_parameter_found(int argc, char **argv)
 {
@@ -768,6 +769,7 @@ is_run_subtest_parameter_found(int argc, char **argv)
 	}
 	return ret;
 }
+
 
 static bool
 add_background_parameter(int *pargc, char **argv)
@@ -801,9 +803,9 @@ launch_background_process(int argc, char **argv, char *path, pid_t *ppid, int sh
 	int status;
 	posix_spawn_file_actions_t action;
 
-	for(int i = 0; i < argc; i++) {
+	for (int i = 0; i < argc; i++) {
 		/* The background process only runs when a queue reset is actually triggered. */
-		if(strstr(argv[i], "list-subtests") != NULL)
+		if (strstr(argv[i], "list-subtests") != NULL)
 			return 0;
 	}
 	posix_spawn_file_actions_init(&action);
@@ -907,29 +909,29 @@ igt_main
 
 	int const_num_of_tests;
 
-	posix_spawn_file_actions_init(&action);
-
-	if (!get_command_line(cmdline, &argc, &argv, &path))
-		igt_fail(IGT_EXIT_FAILURE);
-
-	if (is_run_subtest_parameter_found(argc, argv))
-		const_num_of_tests = 1;
-	else
-		const_num_of_tests = ARRAY_SIZE(arr_err);
-
-	if (!is_background_parameter_found(argc, argv)) {
-		add_background_parameter(&argc, argv);
-		fd_shm = shared_mem_create(&sh_mem);
-		igt_require(fd_shm != -1);
-		launch_background_process(argc, argv, path, &pid_background, fd_shm);
-		process = PROCESS_TEST;
-	} else {
-		process = PROCESS_BACKGROUND;
-	}
-
 	igt_fixture {
 		uint32_t major, minor;
 		int err;
+
+		posix_spawn_file_actions_init(&action);
+
+		if (!get_command_line(cmdline, &argc, &argv, &path))
+			igt_fail(IGT_EXIT_FAILURE);
+
+		if (is_run_subtest_parameter_found(argc, argv))
+			const_num_of_tests = 1;
+		else
+			const_num_of_tests = ARRAY_SIZE(arr_err);
+
+		if (!is_background_parameter_found(argc, argv)) {
+			add_background_parameter(&argc, argv);
+			fd_shm = shared_mem_create(&sh_mem);
+			igt_require(fd_shm != -1);
+			launch_background_process(argc, argv, path, &pid_background, fd_shm);
+			process = PROCESS_TEST;
+		} else {
+			process = PROCESS_BACKGROUND;
+		}
 
 		fd = drm_open_driver(DRIVER_AMDGPU);
 
@@ -964,7 +966,7 @@ igt_main
 	igt_describe("Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes");
 	igt_subtest("amdgpu-compute-CMD_STREAM_EXEC_INVALID_PACKET_LENGTH") {
 		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-				set_next_test_to_run(sh_mem, CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
+			set_next_test_to_run(sh_mem, CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
 						ip_background, ip_test, ring_id_good, ring_id_bad);
 		}
 	}
@@ -972,7 +974,7 @@ igt_main
 	igt_describe("Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes");
 	igt_subtest("amdgpu-compute-CMD_STREAM_EXEC_INVALID_OPCODE") {
 		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-				set_next_test_to_run(sh_mem, CMD_STREAM_EXEC_INVALID_OPCODE,
+			set_next_test_to_run(sh_mem, CMD_STREAM_EXEC_INVALID_OPCODE,
 						ip_background, ip_test, ring_id_good, ring_id_bad);
 		}
 	}
@@ -997,11 +999,11 @@ igt_main
 	 *	}
 	 */
 
+	//amdgpu_ring_soft_recovery
 	igt_describe("Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes");
-	igt_subtest("Handful-by-soft-recovery-amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR") { 
+	igt_subtest("Handful-by-soft-recovery-amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR") {
 		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-				//amdgpu_ring_soft_recovery
-				set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR,
+			set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR,
 						ip_background, ip_test, ring_id_good, ring_id_bad);
 		}
 	}
@@ -1009,7 +1011,7 @@ igt_main
 	igt_describe("Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes");
 	igt_subtest("amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING") {
 		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-				set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,
+			set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,
 						ip_background, ip_test, ring_id_good, ring_id_bad);
 		}
 	}
@@ -1017,7 +1019,7 @@ igt_main
 	igt_describe("Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes");
 	igt_subtest("amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_USER_DATA") {
 		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-				set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_USER_DATA,
+			set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_USER_DATA,
 						ip_background, ip_test, ring_id_good, ring_id_bad);
 		}
 	}
@@ -1033,6 +1035,7 @@ igt_main
 		drm_close_driver(fd);
 		shared_mem_destroy(sh_mem, fd_shm, true);
 		posix_spawn_file_actions_destroy(&action);
+
+		free_command_line(argc, argv, path);
 	}
-	free_command_line(argc, argv, path);
 }
