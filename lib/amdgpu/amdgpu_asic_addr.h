@@ -107,8 +107,8 @@
 #define AMDGPU_GFX1102_RANGE     0x10, 0x20 //# 16 <= x < 32
 #define AMDGPU_GFX1103_R1_RANGE  0x01, 0x80 //# 1 <= x < 128
 #define AMDGPU_GFX1103_R2_RANGE  0x80, 0xFF //# 128 <= x < max
-#define AMDGPU_GFX1150_RANGE     0x01, 0xc0 //# 01 <= x < c0
-#define AMDGPU_GFX1151_RANGE     0xc1, 0xFF //# c1 <= x < 255
+#define AMDGPU_GFX1150_RANGE     0x01, 0x40 //# 01 <= x < 64
+#define AMDGPU_GFX1151_RANGE     0xc0, 0xFF //# 192 <= x < 255
 #define AMDGPU_GFX1200_RANGE     0x01, 0xFF //# 01 <= x < 255
 
 #define AMDGPU_EXPAND_FIX(x) x
