@@ -26,9 +26,9 @@ amdgpu_dispatch_hang_slow_compute(amdgpu_device_handle device_handle)
 }
 
 static void
-amdgpu_dispatch_hang_gfx(amdgpu_device_handle device_handle)
+amdgpu_dispatch_hang_gfx(amdgpu_device_handle device_handle, enum cmd_error_type error)
 {
-	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, 1);
+	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, error);
 }
 
 static void
@@ -118,7 +118,7 @@ igt_main
 	igt_subtest_with_dynamic("amdgpu-dispatch-hang-test-gfx-with-IP-GFX") {
 		if (arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("amdgpu-dispatch-hang-test-gfx")
-			amdgpu_dispatch_hang_gfx(device);
+			amdgpu_dispatch_hang_gfx(device, BACKEND_SE_GC_SHADER_INVALID_SHADER);
 		}
 	}
 
