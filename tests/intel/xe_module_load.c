@@ -112,7 +112,7 @@ static const char * const unwanted_drivers[] = {
  * Description: Reload the Xe driver
  *
  * SUBTEST: reload-no-display
- * Description: Reload the Xe driver passing ``enable_display=0`` parameter
+ * Description: Reload the Xe driver passing ``probe_display=0`` parameter
  *
  * SUBTEST: many-reload
  * Description: Reload the Xe driver many times
@@ -145,7 +145,7 @@ igt_main
 
 	igt_subtest("reload-no-display") {
 		igt_xe_driver_unload();
-		load_and_check_xe("enable_display=0");
+		load_and_check_xe("probe_display=0");
 		igt_xe_driver_unload();
 	}
 
