@@ -126,7 +126,6 @@ xe_sysfs_get_job_timeout_ms(int fd, struct drm_xe_engine_class_instance *eci)
 /**
  * SUBTEST: sanity
  * Description: check basic shader with write operation
- * Run type: BAT
  *
  */
 static void test_sip(struct drm_xe_engine_class_instance *eci, uint32_t flags)
