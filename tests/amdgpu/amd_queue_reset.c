@@ -409,7 +409,7 @@ is_queue_reset_tests_enable(const struct amdgpu_gpu_info *gpu_info)
 static int
 amdgpu_write_linear(amdgpu_device_handle device, amdgpu_context_handle context_handle,
 		const struct amdgpu_ip_block_version *ip_block,
-		struct job_struct *job)
+		const struct job_struct *job)
 {
 	const int pm4_dw = 256;
 	struct amdgpu_ring_context *ring_context;
@@ -613,6 +613,11 @@ run_background(amdgpu_device_handle device, struct shmbuf *sh_mem,
 		is_dispatch_shader_test(job.error,  error_str, &is_dispatch);
 		while (1) {
 			r = amdgpu_write_linear(device, context_handle,  ip_block_test, &job);
+
+			if (counter > NUM_ITERATION && counter % NUM_ITERATION == 0)
+				igt_debug("+++BACKGROUND++ amdgpu_write_linear for %s ring_id %d ret %d counter %d\n",
+						job.ip == AMD_IP_GFX ? "AMD_IP_GFX":"AMD_IP_COMPUTE", job.ring_id, r, counter);
+
 			if (get_test_state(sh_mem, &error_code, &flags) &&
 				get_reset_state(sh_mem, &reset_flags)) {
 				//if entire gpu reset then stop back ground jobs
@@ -846,25 +851,36 @@ free_contexts(amdgpu_device_handle device, amdgpu_context_handle *p_contexts,
 	}
 }
 
-/* TODO add logic to iterate for all */
 static bool
-get_next_rings(unsigned int ring_begin, unsigned int available_rings,
-		unsigned int *next_ring, unsigned int *next_next_ring)
+get_next_rings(unsigned int ring_begin, struct drm_amdgpu_info_hw_ip info[],
+		unsigned int *good_job_ring, unsigned int *bad_job_ring,  unsigned int order)
 {
-	bool ret = false;
 	unsigned int ring_id;
 
-	for (ring_id = ring_begin; (1 << ring_id) & available_rings; ring_id++) {
-		*next_ring = ring_id;
-		*next_next_ring = ring_id + 1;
+	/* Check good job ring is available. By default good job run on compute ring */
+	for (ring_id = ring_begin; (1 << ring_id) & info[0].available_rings; ring_id++) {
+		if ((1 << *good_job_ring) & info[0].available_rings) {
+			*good_job_ring = ring_id;
+			/* check bad job ring is available */
+			for (ring_id = ring_begin; (1 << ring_id) & info[order].available_rings; ring_id++) {
+				/* if order is 0, bad job run on compute ring,
+				 * It should skip good ring and find next ring to run bad job.
+				 */
+				if (!order)
+					*bad_job_ring = *good_job_ring + 1;
+				else
+					*bad_job_ring = ring_id;
+				if ((1 << *bad_job_ring) & info[order].available_rings) {
+					return true;
+				}
+			}
 
-		if ((*next_ring  & available_rings) && (*next_next_ring & available_rings)) {
-			ret = true;
-			break;
 		}
 	}
-	return ret;
+
+	return false;
 }
+
 igt_main
 {
 	char cmdline[2048];
@@ -878,7 +894,7 @@ igt_main
 	posix_spawn_file_actions_t action;
 	amdgpu_device_handle device;
 	struct amdgpu_gpu_info gpu_info = {0};
-	struct drm_amdgpu_info_hw_ip info = {0};
+	struct drm_amdgpu_info_hw_ip info[2] = {0};
 	int fd = -1;
 	int fd_shm = -1;
 	struct shmbuf *sh_mem = NULL;
@@ -888,7 +904,7 @@ igt_main
 	unsigned int ring_id_good = 0;
 	unsigned int ring_id_bad = 1;
 
-	enum amd_ip_block_type ip_test = AMD_IP_COMPUTE;
+	enum amd_ip_block_type ip_tests[2] = {AMD_IP_COMPUTE/*keep first*/, AMD_IP_GFX};
 	enum amd_ip_block_type ip_background = AMD_IP_COMPUTE;
 
 	amdgpu_context_handle *arr_context_handle = NULL;
@@ -897,14 +913,27 @@ igt_main
 	 * which are shared between child processes ( test/monitor/main and
 	 *  separate for background
 	 */
-	unsigned int arr_err[] = {
-			CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
-			CMD_STREAM_EXEC_INVALID_OPCODE,
-			//CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,TODO  not job timeout, debug why for n31
-			//CMD_STREAM_TRANS_BAD_REG_ADDRESS, TODO  amdgpu: device lost from bus! for n31
-			BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR,
-			BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,
-			BACKEND_SE_GC_SHADER_INVALID_USER_DATA
+	struct dynamic_test arr_err[] = {
+			{CMD_STREAM_EXEC_INVALID_PACKET_LENGTH, "CMD_STREAM_EXEC_INVALID_PACKET_LENGTH",
+				"Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes"},
+			{CMD_STREAM_EXEC_INVALID_OPCODE, "CMD_STREAM_EXEC_INVALID_OPCODE",
+				"Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes"},
+			//TODO  not job timeout, debug why for n31.
+			//{CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,"CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC",
+			//	"Stressful-and-multiple-cs-of-bad and good mem-sync-operations-using-multiple-processes"},
+			//TODO amdgpu: device lost from bus! for n31
+			//{CMD_STREAM_TRANS_BAD_REG_ADDRESS,"CMD_STREAM_TRANS_BAD_REG_ADDRESS",
+			//	"Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes"},
+			{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR, "BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR",
+				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+			//TODO  KGQ cannot revocer by queue reset, it maybe need a fw bugfix on naiv31
+			//{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,"BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING",
+			//	"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+			{BACKEND_SE_GC_SHADER_INVALID_USER_DATA, "BACKEND_SE_GC_SHADER_INVALID_USER_DATA",
+				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+			{BACKEND_SE_GC_SHADER_INVALID_SHADER, "BACKEND_SE_GC_SHADER_INVALID_SHADER",
+				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+			{}
 	};
 
 	int const_num_of_tests;
@@ -921,7 +950,7 @@ igt_main
 		if (is_run_subtest_parameter_found(argc, argv))
 			const_num_of_tests = 1;
 		else
-			const_num_of_tests = ARRAY_SIZE(arr_err);
+			const_num_of_tests = (sizeof(arr_err)/sizeof(struct dynamic_test) - 1) * ARRAY_SIZE(ip_tests);
 
 		if (!is_background_parameter_found(argc, argv)) {
 			add_background_parameter(&argc, argv);
@@ -943,8 +972,11 @@ igt_main
 
 		r = amdgpu_query_gpu_info(device, &gpu_info);
 		igt_assert_eq(r, 0);
-		 r = amdgpu_query_hw_ip_info(device, ip_test, 0, &info);
-		igt_assert_eq(r, 0);
+		for (int i = 0; i < ARRAY_SIZE(ip_tests); i++) {
+			r = amdgpu_query_hw_ip_info(device, ip_tests[i], 0, &info[i]);
+			igt_assert_eq(r, 0);
+		}
+
 		r = setup_amdgpu_ip_blocks(major, minor, &gpu_info, device);
 		igt_assert_eq(r, 0);
 
@@ -959,68 +991,20 @@ igt_main
 		igt_require(sh_mem != NULL);
 
 		run_all(device, arr_context_handle,
-			process, sh_mem, const_num_of_tests, info.hw_ip_version_major,
+			process, sh_mem, const_num_of_tests, info[0].hw_ip_version_major,
 			&monitor_child, &test_child);
 	}
 
-	igt_describe("Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes");
-	igt_subtest("amdgpu-compute-CMD_STREAM_EXEC_INVALID_PACKET_LENGTH") {
-		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-			set_next_test_to_run(sh_mem, CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
-						ip_background, ip_test, ring_id_good, ring_id_bad);
-		}
-	}
-
-	igt_describe("Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes");
-	igt_subtest("amdgpu-compute-CMD_STREAM_EXEC_INVALID_OPCODE") {
-		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-			set_next_test_to_run(sh_mem, CMD_STREAM_EXEC_INVALID_OPCODE,
-						ip_background, ip_test, ring_id_good, ring_id_bad);
-		}
-	}
-
-	/* TODO  not job timeout, debug why for nv32
-	 *igt_describe("Stressful-and-multiple-cs-of-bad and good mem-sync-operations-using-multiple-processes");
-	 *igt_subtest_with_dynamic("amdgpu-compute-CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC") {
-	 *	if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-	 *		igt_dynamic_f("amdgpu-compute-CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC")
-	 *			set_next_test_to_run(sh_mem, CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,
-	 *					ip_background, ip_test, ring_id_good, ring_id_bad);
-	 *	}
-	 */
-
-	/* TODO  amdgpu: device lost from bus! for nv32
-	 *igt_describe("Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes");
-	 *igt_subtest_with_dynamic("amdgpu-compute-CMD_STREAM_TRANS_BAD_REG_ADDRESS") {
-	 *	if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-	 *		igt_dynamic_f("amdgpu-compute-CMD_STREAM_TRANS_BAD_MEM_ADDRESS")
-	 *			set_next_test_to_run(sh_mem, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
-	 *					ip_background, ip_test, ring_id_good, ring_id_bad);
-	 *	}
-	 */
-
-	//amdgpu_ring_soft_recovery
-	igt_describe("Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes");
-	igt_subtest("Handful-by-soft-recovery-amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR") {
-		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-			set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR,
-						ip_background, ip_test, ring_id_good, ring_id_bad);
-		}
-	}
-
-	igt_describe("Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes");
-	igt_subtest("amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING") {
-		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-			set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,
-						ip_background, ip_test, ring_id_good, ring_id_bad);
-		}
-	}
-
-	igt_describe("Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes");
-	igt_subtest("amdgpu-compute-BACKEND_SE_GC_SHADER_INVALID_USER_DATA") {
-		if (arr_cap[ip_test] && get_next_rings(ring_id_good, info.available_rings, &ring_id_good, &ring_id_bad)) {
-			set_next_test_to_run(sh_mem, BACKEND_SE_GC_SHADER_INVALID_USER_DATA,
-						ip_background, ip_test, ring_id_good, ring_id_bad);
+	for (int i = 0; i < ARRAY_SIZE(ip_tests); i++) {
+		for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
+			igt_describe("Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes");
+			igt_subtest_with_dynamic_f("amdgpu-%s-%s", ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GRAPHIX", it->name) {
+				if (arr_cap[ip_tests[i]] && get_next_rings(ring_id_good, info, &ring_id_good, &ring_id_bad, i)) {
+					igt_dynamic_f("amdgpu-%s-ring-good-%d-bad-%d-%s", it->name,ring_id_good, ring_id_bad, ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GRAPHIX");
+					set_next_test_to_run(sh_mem, it->test,
+							ip_background, ip_tests[i], ring_id_good, ring_id_bad);
+				}
+			}
 		}
 	}
 

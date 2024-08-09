@@ -45,6 +45,13 @@ enum  cmd_error_type {
 	BACKEND_SE_GC_SHADER_INVALID_USER_DATA /* COMPUTE_USER_DATA */
 };
 
+struct dynamic_test{
+	enum cmd_error_type test;
+	const char *name;
+	const char *describe;
+};
+#define for_each_test(t, T) for(typeof(*T) *t = T; t->name; t++)
+
 /* aux struct to hold misc parameters for convenience to maintain */
 struct amdgpu_ring_context {
 
