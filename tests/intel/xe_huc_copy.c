@@ -177,7 +177,6 @@ static bool
 is_huc_running(int fd)
 {
 	char buf[4096];
-	char *s;
 	int gt;
 
 	xe_for_each_gt(fd, gt) {
@@ -185,9 +184,8 @@ is_huc_running(int fd)
 
 		sprintf(name, "gt%d/uc/huc_info", gt);
 		igt_debugfs_read(fd, name, buf);
-		s = strstr(buf, "RUNNING");
 
-		if (s)
+		if (strstr(buf, "RUNNING") || strstr(buf, "PRELOADED"))
 			return true;
 	}
 	return false;
