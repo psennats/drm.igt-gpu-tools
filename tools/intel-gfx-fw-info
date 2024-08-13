@@ -149,6 +149,9 @@ def parse_args(argv: typing.List[str]) -> argparse.Namespace:
     description = "Dump GuC/HuC firmware header"
     parser = argparse.ArgumentParser(prog="intel-gfx-fw-info", description=description)
 
+    parser.add_argument("-x", "--raw", action="store_true",
+                        help="Also print raw header content")
+
     parser.add_argument("filename", help="GuC/HuC firmware file")
 
     return parser.parse_args(argv)
@@ -173,8 +176,10 @@ def main(argv: typing.List[str]) -> int:
         return 1
 
     print(*fw.decode(), sep="\n")
-    print("raw dump:", end="")
-    cstruct.dumpstruct(fw.fw, color=sys.stdout.isatty())
+
+    if args.raw:
+        print("raw dump:", end="")
+        cstruct.dumpstruct(fw.fw, color=sys.stdout.isatty())
 
     return 0
 
