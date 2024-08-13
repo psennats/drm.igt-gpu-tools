@@ -207,11 +207,17 @@ run_dither_test(data_t *data, int fb_bpc, int fb_format, int output_bpc)
 	for_each_connected_output(display, output) {
 		enum pipe pipe;
 
-		if (!is_supported(output))
+		if (!is_supported(output)) {
+			igt_info("Output %s: Doesn't support \"max bpc\" property.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
-		if (igt_get_output_max_bpc(data->drm_fd, output->name) < output_bpc)
+		if (igt_get_output_max_bpc(data->drm_fd, output->name) < output_bpc) {
+			igt_info("Output %s: Doesn't support %d-bpc.\n",
+				 igt_output_name(output), output_bpc);
 			continue;
+		}
 
 		for_each_pipe(display, pipe) {
 			igt_output_set_pipe(output, pipe);
