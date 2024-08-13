@@ -520,8 +520,10 @@ static void run_subtests(data_t *data)
 						continue;
 
 					if (!all_pipes && data->pipe != active_pipes[0] &&
-					    data->pipe != active_pipes[last_pipe])
+					    data->pipe != active_pipes[last_pipe]) {
+						igt_info("Skipping pipe %s\n", kmstest_pipe_name(data->pipe));
 						continue;
+					}
 
 					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(data->pipe), data->output->name) {
 						data->flags = m->flags | NOHANG;
@@ -544,8 +546,10 @@ static void run_subtests(data_t *data)
 						continue;
 
 					if (!all_pipes && data->pipe != active_pipes[0] &&
-					    data->pipe != active_pipes[last_pipe])
+					    data->pipe != active_pipes[last_pipe]) {
+						igt_info("Skipping pipe %s\n", kmstest_pipe_name(data->pipe));
 						continue;
+					}
 
 					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(data->pipe), data->output->name) {
 						data->flags = m->flags;
@@ -656,8 +660,10 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 				continue;
 
 			if (!all_pipes && data.pipe != active_pipes[0] &&
-					  data.pipe != active_pipes[last_pipe])
+					  data.pipe != active_pipes[last_pipe]) {
+				igt_info("Skipping pipe %s\n", kmstest_pipe_name(data.pipe));
 				continue;
+			}
 
 			igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(data.pipe), data.output->name)
 				crtc_id_subtest(&data, fd);
