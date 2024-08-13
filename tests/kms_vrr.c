@@ -879,12 +879,14 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 	data->debugfs_fd = igt_debugfs_dir(data->drm_fd);
 
 	if ((flags & (TEST_SEAMLESS_VRR | TEST_SEAMLESS_DRRS | TEST_CMRR | TEST_LINK_OFF)) &&
-	    output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
+	    output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP) {
+		igt_info("%s: Connected panel is not eDP.\n", igt_output_name(output));
 		return false;
+	}
 
 	if ((flags & TEST_SEAMLESS_DRRS) &&
 	    !intel_output_has_drrs(data->drm_fd, output)) {
-		igt_info("Selected panel won't support DRRS.\n");
+		igt_info("%s: Won't support DRRS.\n", igt_output_name(output));
 		return false;
 	}
 
@@ -894,7 +896,7 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 			psr_disable(data->drm_fd, data->debugfs_fd, NULL);
 
 		if (igt_get_i915_edp_lobf_status(data->drm_fd, output->name)) {
-			igt_info("LOBF not supported. \n");
+			igt_info("%s: LOBF not supported.\n", igt_output_name(output));
 			return false;
 		}
 	}
@@ -911,8 +913,11 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 	 *   - Limit the vrr_max range with the override mode vrefresh.
 	 */
 	data->switch_modes[HIGH_RR_MODE] = output_mode_with_maxrate(output, data->range.max);
-	if (data->switch_modes[HIGH_RR_MODE].vrefresh < data->range.min)
+	if (data->switch_modes[HIGH_RR_MODE].vrefresh < data->range.min) {
+		igt_info("%s: Can't find a valid mode with refresh rate (%d) greater than Vmin (%d).\n",
+			 igt_output_name(output), data->switch_modes[HIGH_RR_MODE].vrefresh, data->range.min);
 		return false;
+	}
 
 	data->range.max = data->switch_modes[HIGH_RR_MODE].vrefresh;
 	igt_output_override_mode(output, &data->switch_modes[HIGH_RR_MODE]);
@@ -922,8 +927,10 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 		return true;
 
 	data->switch_modes[LOW_RR_MODE] = low_rr_mode_with_same_res(output, data->range.min);
-	if (data->switch_modes[LOW_RR_MODE].vrefresh == data->switch_modes[HIGH_RR_MODE].vrefresh)
+	if (data->switch_modes[LOW_RR_MODE].vrefresh == data->switch_modes[HIGH_RR_MODE].vrefresh) {
+		igt_info("%s: Not found a valid low refresh rate mode.\n", igt_output_name(output));
 		return false;
+	}
 
 	data->range.min = data->switch_modes[LOW_RR_MODE].vrefresh;
 
@@ -933,18 +940,24 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 
 static bool config_constraint(data_t *data, igt_output_t *output, uint32_t flags)
 {
-	if (!has_vrr(output))
+	if (!has_vrr(output)) {
+		igt_info("Driver doesn't support VRR.\n");
 		return false;
+	}
 
 	if (flags & TEST_SEAMLESS_DRRS)
 		goto out;
 
 	/* For Negative tests, panel should be non-vrr. */
-	if ((flags & TEST_NEGATIVE) && vrr_capable(output))
+	if ((flags & TEST_NEGATIVE) && vrr_capable(output)) {
+		igt_info("%s: Can't run negative tests on VRR panel.\n", igt_output_name(output));
 		return false;
+	}
 
-	if ((flags & ~TEST_NEGATIVE) && !vrr_capable(output))
+	if ((flags & ~TEST_NEGATIVE) && !vrr_capable(output)) {
+		igt_info("%s: Can't run VRR tests on non-VRR panel.\n", igt_output_name(output));
 		return false;
+	}
 
 out:
 	if (!output_constraint(data, output, flags))
