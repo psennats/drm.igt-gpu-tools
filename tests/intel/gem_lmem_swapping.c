@@ -189,6 +189,7 @@ init_object_ccs(int i915, struct object *obj, struct blt_copy_object *tmp,
 {
 	struct blt_block_copy_data_ext ext = {}, *pext = &ext;
 	const struct intel_execution_engine2 *e;
+	struct intel_execution_engine2 ec;
 	struct blt_copy_data blt = {};
 	struct blt_copy_batch *cmd;
 	uint64_t size = 4096;
@@ -196,8 +197,10 @@ init_object_ccs(int i915, struct object *obj, struct blt_copy_object *tmp,
 
 	obj->seed = seed;
 	for_each_ctx_engine(i915, ctx, e) {
-		if (gem_engine_can_block_copy(i915, e))
+		if (gem_engine_can_block_copy(i915, e)) {
+			ec = *e;
 			break;
+		}
 	}
 	igt_assert_f(e, "Ctx don't have blt engine\n");
 
@@ -224,7 +227,7 @@ init_object_ccs(int i915, struct object *obj, struct blt_copy_object *tmp,
 	blt_set_object_ext(&ext.dst, 0, obj->blt_obj->x2, obj->blt_obj->y2,
 			   SURFACE_TYPE_2D);
 
-	blt_block_copy(i915, ctx, e, ahnd, &blt, pext);
+	blt_block_copy(i915, ctx, &ec, ahnd, &blt, pext);
 	free(cmd);
 }
 
@@ -255,14 +258,17 @@ verify_object_ccs(int i915, const struct object *obj,
 {
 	struct blt_block_copy_data_ext ext = {}, *pext = &ext;
 	const struct intel_execution_engine2 *e;
+	struct intel_execution_engine2 ec;
 	struct blt_copy_data blt = {};
 	struct blt_copy_batch *cmd;
 	uint64_t size = 4096;
 	unsigned long j, val, *buf;
 
 	for_each_ctx_engine(i915, ctx, e) {
-		if (gem_engine_can_block_copy(i915, e))
+		if (gem_engine_can_block_copy(i915, e)) {
+			ec = *e;
 			break;
+		}
 	}
 	igt_assert_f(e, "Ctx don't have blt engine\n");
 
@@ -284,7 +290,7 @@ verify_object_ccs(int i915, const struct object *obj,
 	blt_set_object_ext(&ext.src, 0, obj->blt_obj->x2, obj->blt_obj->y2,
 			   SURFACE_TYPE_2D);
 	blt_set_object_ext(&ext.dst, 0, tmp->x2, tmp->y2, SURFACE_TYPE_2D);
-	blt_block_copy(i915, ctx, e, ahnd, &blt, pext);
+	blt_block_copy(i915, ctx, &ec, ahnd, &blt, pext);
 
 	buf = gem_mmap__device_coherent(i915, tmp->handle, 0,
 					obj->size, PROT_READ);

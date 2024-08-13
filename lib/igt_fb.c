@@ -3050,13 +3050,13 @@ static void blitcopy(const struct igt_fb *dst_fb,
 						   dst_fb->size);
 		} else if (ahnd && block_copy_ok(src_fb) && block_copy_ok(dst_fb)) {
 			for_each_ctx_engine(src_fb->fd, ictx, e) {
-				if (gem_engine_can_block_copy(src_fb->fd, e))
+				if (gem_engine_can_block_copy(src_fb->fd, e)) {
+					do_block_copy(src_fb, dst_fb, mem_region, i, ahnd,
+						      bb, bb_size, ictx, e);
 					break;
+				}
 			}
 			igt_assert_f(e, "No block copy capable engine found!\n");
-
-			do_block_copy(src_fb, dst_fb, mem_region, i, ahnd,
-				      bb, bb_size, ictx, e);
 		} else {
 			igt_blitter_src_copy(dst_fb->fd,
 					     ahnd, ctx, NULL,
