@@ -6,6 +6,7 @@
 
 import argparse
 import logging
+import hashlib
 import sys
 import typing
 
@@ -146,15 +147,21 @@ class FwGsc(Fw):
 
 
 def parse_args(argv: typing.List[str]) -> argparse.Namespace:
-    description = "Dump GuC/HuC firmware header"
+    description = "Dump GuC/HuC firmware information"
     parser = argparse.ArgumentParser(prog="intel-gfx-fw-info", description=description)
 
     parser.add_argument("-x", "--raw", action="store_true",
                         help="Also print raw header content")
+    parser.add_argument("-c", "--checksum", action="store_true",
+                        help="Also print checksum")
 
     parser.add_argument("filename", help="GuC/HuC firmware file")
 
     return parser.parse_args(argv)
+
+
+def calculate_checksum(f: typing.BinaryIO) -> str:
+    return hashlib.sha256(f.read()).hexdigest()
 
 
 def main(argv: typing.List[str]) -> int:
@@ -162,6 +169,8 @@ def main(argv: typing.List[str]) -> int:
 
     cparser = cstruct.cstruct()
     cparser.load(CDEF)
+
+    checksum = None
 
     try:
         with open(args.filename, mode="rb") as f:
@@ -171,6 +180,11 @@ def main(argv: typing.List[str]) -> int:
                 fw = FwGsc(cparser.uc_huc_gsc_header(f))
             else:
                 fw = FwCss(cparser.uc_css_header(f))
+
+            if args.checksum:
+                f.seek(0, 0)
+                checksum = calculate_checksum(f)
+
     except FileNotFoundError as e:
         logging.fatal(e)
         return 1
@@ -180,6 +194,9 @@ def main(argv: typing.List[str]) -> int:
     if args.raw:
         print("raw dump:", end="")
         cstruct.dumpstruct(fw.fw, color=sys.stdout.isatty())
+
+    if checksum:
+        print(f"checksum: {checksum}")
 
     return 0
 
