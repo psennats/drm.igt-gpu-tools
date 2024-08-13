@@ -893,11 +893,18 @@ run_deep_color_tests_for_pipe(data_t *data, enum pipe p)
 		uint64_t max_bpc = get_max_bpc(output);
 		bool ret;
 
-		if (!max_bpc)
+		if (!max_bpc) {
+			igt_info("Output %s: Doesn't support \"max bpc\" property.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
-		if (!panel_supports_deep_color(data->drm_fd, output->name))
+		if (!panel_supports_deep_color(data->drm_fd, output->name)) {
+			igt_info("Output %s: Doesn't support deep-color.\n",
+				 igt_output_name(output));
 			continue;
+		}
+
 		/*
 		 * In intel driver, for MST streams pipe_bpp is
 		 * restricted to 8bpc. So, deep-color >= 10bpc
@@ -905,16 +912,22 @@ run_deep_color_tests_for_pipe(data_t *data, enum pipe p)
 		 * supports 10bpc. Once KMD FIXME, is resolved
 		 * this MST constraint can be removed.
 		 */
-		if (is_intel_device(data->drm_fd) && igt_check_output_is_dp_mst(output))
+		if (is_intel_device(data->drm_fd) && igt_check_output_is_dp_mst(output)) {
+			igt_info("Output %s: DP-MST doesn't support deep-color on Intel hardware.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
 		igt_display_reset(&data->display);
 		igt_output_set_prop_value(output, IGT_CONNECTOR_MAX_BPC, 10);
 		igt_output_set_pipe(output, p);
 
 		if (is_intel_device(data->drm_fd) &&
-		    !igt_max_bpc_constraint(&data->display, p, output, 10))
+		    !igt_max_bpc_constraint(&data->display, p, output, 10)) {
+			igt_info("Output %s: Doesn't support 10-bpc.\n",
+				 igt_output_name(output));
 			continue;
+		}
 
 		data->color_depth = 10;
 		data->drm_format = DRM_FORMAT_XRGB2101010;
