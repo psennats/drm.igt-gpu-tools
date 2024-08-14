@@ -6,6 +6,7 @@
 #ifndef IGT_HOOK_H
 #define IGT_HOOK_H
 
+#include <stddef.h>
 #include <stdio.h>
 
 /**
@@ -60,7 +61,7 @@ struct igt_hook_evt {
 	const char *result;
 };
 
-int igt_hook_create(const char *hook_str, struct igt_hook **igt_hook_ptr);
+int igt_hook_create(const char **hook_strs, size_t n, struct igt_hook **igt_hook_ptr);
 void igt_hook_free(struct igt_hook *igt_hook);
 void igt_hook_event_notify(struct igt_hook *igt_hook, struct igt_hook_evt *evt);
 const char *igt_hook_error_str(int error);

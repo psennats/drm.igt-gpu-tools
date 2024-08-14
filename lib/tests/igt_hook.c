@@ -42,6 +42,15 @@ out:
 	return i;
 }
 
+static int igt_single_hook(const char *hook_str, struct igt_hook **igt_hook_ptr)
+{
+	const char *hook_strs[] = {
+		hook_str,
+	};
+
+	return igt_hook_create(hook_strs, 1, igt_hook_ptr);
+}
+
 static void test_invalid_hook_descriptors(void)
 {
 	struct {
@@ -59,7 +68,7 @@ static void test_invalid_hook_descriptors(void)
 			int err;
 			struct igt_hook *igt_hook;
 
-			err = igt_hook_create(invalid_cases[i].hook_desc, &igt_hook);
+			err = igt_single_hook(invalid_cases[i].hook_desc, &igt_hook);
 			igt_assert(err != 0);
 		}
 	}
@@ -112,7 +121,7 @@ static void test_all_env_vars(void)
 	ret = asprintf(&hook_str, "printenv -0 | grep -z ^IGT_HOOK >&%d", pipefd[1]);
 	igt_assert(ret > 0);
 
-	ret = igt_hook_create(hook_str, &igt_hook);
+	ret = igt_single_hook(hook_str, &igt_hook);
 	igt_assert(ret == 0);
 
 	igt_hook_event_notify(igt_hook, &evt);

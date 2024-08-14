@@ -78,6 +78,7 @@
 #include "igt_map.h"
 #include "igt_device_scan.h"
 #include "igt_thread.h"
+#include "igt_vec.h"
 #include "runnercomms.h"
 
 #define UNW_LOCAL_ONLY
@@ -1115,10 +1116,12 @@ static int common_init(int *argc, char **argv,
 	struct option *combined_opts;
 	int extra_opt_count;
 	int all_opt_count;
+	struct igt_vec hook_strs;
 	int ret = 0;
 
 	common_init_env();
 	IGT_INIT_LIST_HEAD(&subgroup_descriptions);
+	igt_vec_init(&hook_strs, sizeof(char *));
 
 	command_str = argv[0];
 	if (strrchr(command_str, '/'))
@@ -1241,17 +1244,7 @@ static int common_init(int *argc, char **argv,
 			break;
 		case OPT_HOOK:
 			assert(optarg);
-			if (igt_hook) {
-				igt_warn("Overriding previous hook descriptor\n");
-				igt_hook_free(igt_hook);
-			}
-			ret = igt_hook_create(optarg, &igt_hook);
-			if (ret) {
-				igt_critical("Failed to initialize hook data: %s\n",
-					     igt_hook_error_str(ret));
-				ret = -2;
-				goto out;
-			}
+			igt_vec_push(&hook_strs, &optarg);
 			break;
 		case OPT_HELP_HOOK:
 			igt_hook_print_help(stdout, "--hook");
@@ -1285,11 +1278,23 @@ static int common_init(int *argc, char **argv,
 		}
 	}
 
+	if (igt_vec_length(&hook_strs)) {
+		ret = igt_hook_create(hook_strs.elems, igt_vec_length(&hook_strs), &igt_hook);
+
+		if (ret) {
+			igt_critical("Failed to initialize hook data: %s\n",
+				     igt_hook_error_str(ret));
+			ret = -2;
+			goto out;
+		}
+	}
+
 	common_init_config();
 
 out:
 	free(short_opts);
 	free(combined_opts);
+	igt_vec_fini(&hook_strs);
 
 	/* exit immediately if this test has no subtests and a subtest or the
 	 * list of subtests has been requested */

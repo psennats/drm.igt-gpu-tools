@@ -758,6 +758,7 @@ bool parse_options(int argc, char **argv,
 				fprintf(stderr, "Newlines in --hook are currently unsupported.\n");
 				goto error;
 			}
+			/* FIXME: Allow as many options as allowed by test binaries. */
 			settings->hook_str = optarg;
 			break;
 		case OPT_HELP_HOOK:

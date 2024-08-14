@@ -35,9 +35,13 @@
 
 typedef uint16_t evt_mask_t;
 
-struct igt_hook {
+struct igt_hook_descriptor {
 	evt_mask_t evt_mask;
 	char *cmd;
+};
+
+struct igt_hook {
+	struct igt_hook_descriptor *descriptors;
 	char *test_name;
 	size_t test_name_size;
 	char *subtest_name;
@@ -172,15 +176,16 @@ static void igt_hook_update_test_fullname(struct igt_hook *igt_hook)
 
 /**
  * igt_hook_create:
- * @hook_str: Hook descriptor string.
+ * @hook_str: Array of hook strings.
+ * @n: Number of element in @hook_strs.
  * @igt_hook_ptr: Destination of the struct igt_hook pointer.
  *
  * Allocate and initialize an #igt_hook structure.
  *
- * This function parses the hook descriptor in @hook_str and initializes the
+ * This function parses the hook descriptors in @hook_strs and initializes the
  * struct. The pointer to the allocated structure is stored in @igt_hook_ptr.
  *
- * The hook descriptor comes from the argument to `--hook` of the test
+ * Each hook descriptor comes from the argument to `--hook` of the test
  * executable being run.
  *
  * If an error happens, the returned error number can be passed to
@@ -188,20 +193,43 @@ static void igt_hook_update_test_fullname(struct igt_hook *igt_hook)
  *
  * Returns: Zero on success and a non-zero value on error.
  */
-int igt_hook_create(const char *hook_str, struct igt_hook **igt_hook_ptr)
+int igt_hook_create(const char **hook_strs, size_t n, struct igt_hook **igt_hook_ptr)
 {
 	int ret;
-	evt_mask_t evt_mask;
-	const char *cmd;
+	size_t cmd_buffer_size;
+	char *cmd_buffer;
 	struct igt_hook *igt_hook = NULL;
 
-	ret = igt_hook_parse_hook_str(hook_str, &evt_mask, &cmd);
-	if (ret)
-		goto out;
+	/* Parse hook descriptors the first time to learn the needed size. */
+	cmd_buffer_size = 0;
+	for (size_t i = 0; i < n; i++) {
+		evt_mask_t evt_mask;
+		const char *cmd;
 
-	igt_hook = calloc(1, sizeof(*igt_hook));
-	igt_hook->evt_mask = evt_mask;
-	igt_hook->cmd = strdup(cmd);
+		ret = igt_hook_parse_hook_str(hook_strs[i], &evt_mask, &cmd);
+		if (ret)
+			goto out;
+
+		cmd_buffer_size += strlen(cmd) + 1;
+	}
+
+	igt_hook = calloc(1, (sizeof(*igt_hook) + (n + 1) * sizeof(*igt_hook->descriptors) +
+			      cmd_buffer_size));
+
+	/* Now parse hook descriptors a second time and store the result. */
+	igt_hook->descriptors = (void *)igt_hook + sizeof(*igt_hook);
+	cmd_buffer = (void *)igt_hook->descriptors + (n + 1) * sizeof(*igt_hook->descriptors);
+	for (size_t i = 0; i < n; i++) {
+		evt_mask_t evt_mask;
+		const char *cmd;
+
+		igt_hook_parse_hook_str(hook_strs[i], &evt_mask, &cmd);
+		strcpy(cmd_buffer, cmd);
+		igt_hook->descriptors[i].evt_mask = evt_mask;
+		igt_hook->descriptors[i].cmd = cmd_buffer;
+		cmd_buffer += strlen(cmd) + 1;
+	}
+
 	igt_hook->test_name = malloc(TEST_NAME_INITIAL_SIZE);
 	igt_hook->test_name_size = TEST_NAME_INITIAL_SIZE;
 	igt_hook->subtest_name = malloc(TEST_NAME_INITIAL_SIZE);
@@ -237,7 +265,6 @@ void igt_hook_free(struct igt_hook *igt_hook)
 	if (!igt_hook)
 		return;
 
-	free(igt_hook->cmd);
 	free(igt_hook->test_name);
 	free(igt_hook->subtest_name);
 	free(igt_hook->dyn_subtest_name);
@@ -327,6 +354,7 @@ static void igt_hook_update_env_vars(struct igt_hook *igt_hook, struct igt_hook_
 void igt_hook_event_notify(struct igt_hook *igt_hook, struct igt_hook_evt *evt)
 {
 	evt_mask_t evt_bit;
+	bool has_match = false;
 
 	if (!igt_hook)
 		return;
@@ -334,9 +362,19 @@ void igt_hook_event_notify(struct igt_hook *igt_hook, struct igt_hook_evt *evt)
 	evt_bit = 1 << evt->evt_type;
 	igt_hook_update_test_name_pre_call(igt_hook, evt);
 
-	if (evt_bit & igt_hook->evt_mask) {
+	for (size_t i = 0; igt_hook->descriptors[i].cmd; i++) {
+		if (evt_bit & igt_hook->descriptors[i].evt_mask) {
+			has_match = true;
+			break;
+		}
+	}
+
+	if (has_match) {
 		igt_hook_update_env_vars(igt_hook, evt);
-		system(igt_hook->cmd);
+
+		for (size_t i = 0; igt_hook->descriptors[i].cmd; i++)
+			if (evt_bit & igt_hook->descriptors[i].evt_mask)
+				system(igt_hook->descriptors[i].cmd);
 	}
 
 	igt_hook_update_test_name_post_call(igt_hook, evt);
@@ -466,5 +504,8 @@ available to the command:\n\
   values are: SUCCESS, SKIP or FAIL. This is only applicable on \"post-*\"\n\
   events and will be the empty string for other types of events.\n\
 \n\
-");
+\n\
+Note that %s can be passed multiple times. Each descriptor is evaluated in turn\n\
+when matching events and running hook commands.\n\
+", option_name);
 }

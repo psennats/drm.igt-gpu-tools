@@ -212,6 +212,14 @@ out:
 	return true;
 }
 
+
+#define checked_snprintf(char_array, format...) \
+	({\
+		int ret__ = snprintf(char_array, sizeof(char_array), format); \
+		internal_assert(0 < ret__ && ret__ < sizeof(char_array)); \
+		ret__; \
+	})
+
 static void run_tests_and_match_env(const char *evt_descriptors, const char **expected_envs[])
 {
 	int i;
@@ -227,11 +235,9 @@ static void run_tests_and_match_env(const char *evt_descriptors, const char **ex
 	/* Use grep to filter only env var set by us. This should ensure that
 	 * writing to the pipe will not block due to capacity, since we only
 	 * read from the pipe after the shell command is done. */
-	ret = snprintf(hook_str, sizeof(hook_str),
-		     "%1$s:printenv -0 | grep -z ^IGT_HOOK >&%2$d; printf -- ---\\\\00 >&%2$d",
-		     evt_descriptors,
-		     pipefd[1]);
-	internal_assert(0 < ret && ret < sizeof(hook_str));
+	checked_snprintf(hook_str,
+			 "%1$s:printenv -0 | grep -z ^IGT_HOOK >&%2$d; printf -- ---\\\\00 >&%2$d",
+			 evt_descriptors, pipefd[1]);
 
 	set_fake_argv("igt_hook_integration", "--hook", hook_str, NULL);
 
@@ -249,6 +255,59 @@ static void run_tests_and_match_env(const char *evt_descriptors, const char **ex
 
 	fclose(f);
 
+}
+
+static void test_multiple_hook_options(void)
+{
+	int ret;
+	int pipefd[2];
+	pid_t pid;
+	char hook_strs[3][128];
+	char hook_out[4096] = {};
+	char expected_output[] = (
+		"  hook-2 pre-subtest igt@igt_hook_integration@a\n"
+		"  hook-0 post-subtest igt@igt_hook_integration@a\n"
+		"  hook-1 post-subtest igt@igt_hook_integration@a\n"
+		"  hook-2 pre-subtest igt@igt_hook_integration@b\n"
+		"  hook-0 post-subtest igt@igt_hook_integration@b\n"
+		"  hook-1 post-subtest igt@igt_hook_integration@b\n"
+		"  hook-0 post-test igt@igt_hook_integration\n"
+	);
+
+	ret = pipe(pipefd);
+	internal_assert(ret == 0);
+
+	checked_snprintf(hook_strs[0],
+			 "post-test,post-subtest:echo '  hook-0' $IGT_HOOK_EVENT $IGT_HOOK_TEST_FULLNAME >&%d",
+			 pipefd[1]);
+
+	checked_snprintf(hook_strs[1],
+			 "post-subtest:echo '  hook-1' $IGT_HOOK_EVENT $IGT_HOOK_TEST_FULLNAME >&%d",
+			 pipefd[1]);
+
+	checked_snprintf(hook_strs[2],
+			 "pre-subtest:echo '  hook-2' $IGT_HOOK_EVENT $IGT_HOOK_TEST_FULLNAME >&%d",
+			 pipefd[1]);
+
+	set_fake_argv("igt_hook_integration",
+		      "--hook", hook_strs[0],
+		      "--hook", hook_strs[1],
+		      "--hook", hook_strs[2],
+		      NULL);
+
+	pid = do_fork_bg_with_pipes(fake_main, NULL, NULL);
+	internal_assert(safe_wait(pid, &ret) != -1);
+	internal_assert_wexited(ret, IGT_EXIT_FAILURE);
+
+	close(pipefd[1]);
+	read_whole_pipe(pipefd[0], hook_out, sizeof(hook_out));
+	close(pipefd[0]);
+
+	if (strcmp(hook_out, expected_output)) {
+		printf("Expected output:\n%s\n\n", expected_output);
+		printf("Output from hook:\n%s\n", hook_out);
+	}
+	internal_assert(strcmp(hook_out, expected_output) == 0);
 }
 
 int main(int argc, char **argv)
@@ -303,5 +362,10 @@ int main(int argc, char **argv)
 
 		printf("Check multiple event types tracking\n");
 		run_tests_and_match_env("post-dyn-subtest,pre-subtest", expected_envs);
+	}
+
+	{
+		printf("Check multiple hook options\n");
+		test_multiple_hook_options();
 	}
 }
