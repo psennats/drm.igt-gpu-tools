@@ -20,6 +20,7 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"
+#include "xe/xe_util.h"
 #include <string.h>
 
 #define SYNC_OBJ_SIGNALED	(0x1 << 0)
@@ -162,21 +163,15 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint32_t data;
 	} *data;
 	struct xe_spin_opts spin_opts = { .preempt = false };
-	struct drm_xe_engine_class_instance *hwe;
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	int i, j, b, num_placements = 0, bad_batches = 1;
+	int i, j, b, num_placements, bad_batches = 1;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
 
 	if (flags & CLOSE_FD)
 		fd = drm_open_driver(DRIVER_XE);
 
-	xe_for_each_engine(fd, hwe) {
-		if (hwe->engine_class != class || hwe->gt_id != gt)
-			continue;
-
-		eci[num_placements++] = *hwe;
-	}
+	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
 	if (num_placements < 2)
 		return;
 

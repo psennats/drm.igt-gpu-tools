@@ -22,6 +22,7 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"
+#include "xe/xe_util.h"
 #include <string.h>
 
 /**
@@ -52,16 +53,10 @@ static void test_all_active(int fd, int gt, int class)
 		struct xe_spin spin;
 	} *data;
 	struct xe_spin_opts spin_opts = { .preempt = false };
-	struct drm_xe_engine_class_instance *hwe;
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	int i, num_placements = 0;
+	int i, num_placements;
 
-	xe_for_each_engine(fd, hwe) {
-		if (hwe->engine_class != class || hwe->gt_id != gt)
-			continue;
-
-		eci[num_placements++] = *hwe;
-	}
+	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
 	if (num_placements < 2)
 		return;
 
@@ -184,18 +179,12 @@ test_exec(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint64_t pad;
 		uint32_t data;
 	} *data;
-	struct drm_xe_engine_class_instance *hwe;
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	int i, j, b, num_placements = 0;
+	int i, j, b, num_placements;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
-	xe_for_each_engine(fd, hwe) {
-		if (hwe->engine_class != class || hwe->gt_id != gt)
-			continue;
-
-		eci[num_placements++] = *hwe;
-	}
+	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
 	if (num_placements < 2)
 		return;
 
@@ -403,19 +392,13 @@ test_cm(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint64_t exec_sync;
 		uint32_t data;
 	} *data;
-	struct drm_xe_engine_class_instance *hwe;
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	int i, j, b, num_placements = 0;
+	int i, j, b, num_placements;
 	int map_fd = -1;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
-	xe_for_each_engine(fd, hwe) {
-		if (hwe->engine_class != class || hwe->gt_id != gt)
-			continue;
-
-		eci[num_placements++] = *hwe;
-	}
+	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
 	if (num_placements < 2)
 		return;
 

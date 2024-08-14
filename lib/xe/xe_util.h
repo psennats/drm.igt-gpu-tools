@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <xe_drm.h>
 
+#include "xe_query.h"
+
 #define XE_IS_SYSMEM_MEMORY_REGION(fd, region) \
 	(xe_region_class(fd, region) == DRM_XE_MEM_REGION_CLASS_SYSMEM)
 #define XE_IS_VRAM_MEMORY_REGION(fd, region) \
@@ -46,5 +48,10 @@ void xe_bind_unbind_async(int fd, uint32_t vm, uint32_t bind_engine,
 			  uint32_t sync_in, uint32_t sync_out);
 
 bool xe_is_gt_in_c6(int fd, int gt);
+
+int xe_gt_fill_engines_by_class(int fd, int gt, int class,
+				struct drm_xe_engine_class_instance eci[static XE_MAX_ENGINE_INSTANCE]);
+int xe_gt_count_engines_by_class(int fd, int gt, int class);
+
 
 #endif /* XE_UTIL_H */

@@ -22,6 +22,7 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"
+#include "xe/xe_util.h"
 #include <string.h>
 
 #define MAX_N_EXEC_QUEUES	16
@@ -64,9 +65,8 @@ test_balancer(int fd, int gt, uint32_t vm, uint64_t addr, uint64_t userptr,
 		uint64_t pad;
 		uint32_t data;
 	} *data;
-	struct drm_xe_engine_class_instance *hwe;
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	int i, j, b, num_placements = 0;
+	int i, j, b, num_placements;
 	bool owns_vm = false, owns_fd = false;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
@@ -81,12 +81,7 @@ test_balancer(int fd, int gt, uint32_t vm, uint64_t addr, uint64_t userptr,
 		owns_vm = true;
 	}
 
-	xe_for_each_engine(fd, hwe) {
-		if (hwe->engine_class != class || hwe->gt_id != gt)
-			continue;
-
-		eci[num_placements++] = *hwe;
-	}
+	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
 	igt_assert_lt(1, num_placements);
 
 	bo_size = sizeof(*data) * n_execs;
@@ -961,14 +956,7 @@ static void threads(int fd, int flags)
 	if (flags & BALANCER) {
 		xe_for_each_gt(fd, gt)
 			xe_for_each_engine_class(class) {
-				int num_placements = 0;
-
-				xe_for_each_engine(fd, hwe) {
-					if (hwe->engine_class != class ||
-					    hwe->gt_id != gt)
-						continue;
-					++num_placements;
-				}
+				int num_placements = xe_gt_count_engines_by_class(fd, gt, class);
 
 				if (num_placements > 1)
 					n_engines += 2;
@@ -1019,16 +1007,10 @@ static void threads(int fd, int flags)
 	if (flags & BALANCER) {
 		xe_for_each_gt(fd, gt)
 			xe_for_each_engine_class(class) {
-				int num_placements = 0;
+				int num_placements;
 				int *data_flags = (int[]){ VIRTUAL, PARALLEL, -1 };
 
-				xe_for_each_engine(fd, hwe) {
-					if (hwe->engine_class != class ||
-					    hwe->gt_id != gt)
-						continue;
-					++num_placements;
-				}
-
+				num_placements = xe_gt_count_engines_by_class(fd, gt, class);
 				if (num_placements <= 1)
 					continue;
 
