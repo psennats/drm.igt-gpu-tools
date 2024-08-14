@@ -163,8 +163,8 @@ typedef struct igt_sysfs_rw_attr {
 
 void igt_sysfs_rw_attr_verify(igt_sysfs_rw_attr_t *rw);
 
-void igt_sysfs_engines(int xe, int engines, const char **property,
-		       void (*test)(int, int, const char **));
+void igt_sysfs_engines(int xe, int engines, int gt, bool all, const char **property,
+		       void (*test)(int, int, const char **, uint16_t, int));
 
 char *xe_sysfs_gt_path(int xe_device, int gt, char *path, int pathlen);
 int xe_sysfs_gt_open(int xe_device, int gt);

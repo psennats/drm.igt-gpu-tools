@@ -1211,6 +1211,32 @@ void igt_sysfs_rw_attr_verify(igt_sysfs_rw_attr_t *rw)
 }
 
 /**
+ * xe_get_engine_class:
+ * @name: de_d_name that we get from igt_sysfs_engine.
+ *
+ * It returns engine class corresponding to the engine dir from igt_sysfs_engines.
+ *
+ */
+static uint16_t xe_get_engine_class(char *name)
+{
+	uint16_t class;
+
+	if (strcmp(name, "rcs") == 0) {
+		class = DRM_XE_ENGINE_CLASS_RENDER;
+	} else if (strcmp(name, "bcs") == 0) {
+		class = DRM_XE_ENGINE_CLASS_COPY;
+	} else if (strcmp(name, "vcs") == 0) {
+		class = DRM_XE_ENGINE_CLASS_VIDEO_DECODE;
+	} else if (strcmp(name, "vecs") == 0) {
+		class = DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE;
+	} else if (strcmp(name, "ccs") == 0) {
+		class = DRM_XE_ENGINE_CLASS_COMPUTE;
+	}
+
+	return class;
+}
+
+/**
  * igt_sysfs_engines:
  * @xe: fd of the device
  * @engines: fd of the directory engine
@@ -1220,11 +1246,12 @@ void igt_sysfs_rw_attr_verify(igt_sysfs_rw_attr_t *rw)
  * It iterates over sysfs/engines and runs a dynamic engine test.
  *
  */
-void igt_sysfs_engines(int xe, int engines, const char **property,
-		       void (*test)(int, int, const char **))
+void igt_sysfs_engines(int xe, int engines, int gt, bool all, const char **property,
+		       void (*test)(int, int, const char **, uint16_t, int))
 {
 	struct dirent *de;
 	DIR *dir;
+	uint16_t class;
 
 	lseek(engines, 0, SEEK_SET);
 
@@ -1251,7 +1278,13 @@ void igt_sysfs_engines(int xe, int engines, const char **property,
 				igt_require(fstatat(engine_fd, property[2], &st, 0) == 0);
 			}
 			errno = 0;
-			test(xe, engine_fd, property);
+
+			if (all) {
+				class = xe_get_engine_class(de->d_name);
+				test(xe, engine_fd, property, class, gt);
+			} else {
+				test(xe, engine_fd, property, 0, 0);
+			}
 		}
 		close(engine_fd);
 	}

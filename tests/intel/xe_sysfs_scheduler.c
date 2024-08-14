@@ -37,7 +37,8 @@
 #include "xe_drm.h"
 #include "xe/xe_query.h"
 
-static void test_invalid(int xe, int engine, const char **property)
+static void test_invalid(int xe, int engine, const char **property,
+			 uint16_t class, int gt)
 {
 	unsigned int saved, set;
 	unsigned int min, max;
@@ -57,7 +58,8 @@ static void test_invalid(int xe, int engine, const char **property)
 	igt_assert_eq(set, saved);
 }
 
-static void test_min_max(int xe, int engine, const char **property)
+static void test_min_max(int xe, int engine, const char **property,
+			 uint16_t class, int gt)
 {
 	unsigned int default_max, max;
 	unsigned int default_min, min;
@@ -113,7 +115,7 @@ igt_main
 {
 	static const struct {
 		const char *name;
-		void (*fn)(int, int, const char **);
+		void (*fn)(int, int, const char **, uint16_t, int);
 	} tests[] = {
 		{ "invalid", test_invalid },
 		{ "min-max", test_min_max },
@@ -150,7 +152,7 @@ igt_main
 					engines_fd = openat(gt_fd, "engines", O_RDONLY);
 					igt_require(engines_fd != -1);
 
-					igt_sysfs_engines(xe, engines_fd, property[i], t->fn);
+					igt_sysfs_engines(xe, engines_fd, 0, 0, property[i], t->fn);
 					close(engines_fd);
 					close(gt_fd);
 				}

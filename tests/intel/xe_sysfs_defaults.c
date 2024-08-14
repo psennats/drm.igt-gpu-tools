@@ -28,7 +28,8 @@
 #include "xe_drm.h"
 #include "xe/xe_query.h"
 
-static void test_defaults(int xe, int engine, const char **property)
+static void test_defaults(int xe, int engine, const char **property,
+			  uint16_t class, int gt)
 {
 	struct dirent *de;
 	uint64_t property_value;
@@ -81,7 +82,7 @@ igt_main
 			engines_fd = openat(gt_fd, "engines", O_RDONLY);
 			igt_require(engines_fd != -1);
 
-			igt_sysfs_engines(xe, engines_fd, NULL, test_defaults);
+			igt_sysfs_engines(xe, engines_fd, 0, 0, NULL, test_defaults);
 
 			close(engines_fd);
 			 close(gt_fd);
