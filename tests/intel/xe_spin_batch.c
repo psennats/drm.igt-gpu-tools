@@ -15,8 +15,6 @@
  * Test category: functionality test
  */
 
-#define MAX_INSTANCE 9
-
 /**
  * SUBTEST: spin-basic
  * Description: Basic test to submit spin batch submissons on copy engine.
@@ -97,10 +95,10 @@ static void spin_basic_all(int fd)
 static void spin_all(int fd, int gt, int class)
 {
 	uint64_t ahnd;
-	uint32_t exec_queues[MAX_INSTANCE], vm;
+	uint32_t exec_queues[XE_MAX_ENGINE_INSTANCE], vm;
 	int i, num_placements = 0;
-	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
-	igt_spin_t *spin[MAX_INSTANCE];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
+	igt_spin_t *spin[XE_MAX_ENGINE_INSTANCE];
 	struct drm_xe_engine_class_instance *hwe;
 
 	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);

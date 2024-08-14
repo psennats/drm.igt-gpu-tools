@@ -105,7 +105,6 @@ static void test_spin(int fd, struct drm_xe_engine_class_instance *eci,
 }
 
 #define MAX_N_EXECQUEUES	16
-#define MAX_INSTANCE		9
 #define GT_RESET			(0x1 << 0)
 #define CLOSE_FD			(0x1 << 1)
 #define CLOSE_EXEC_QUEUES	(0x1 << 2)
@@ -164,7 +163,7 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
 	} *data;
 	struct xe_spin_opts spin_opts = { .preempt = false };
 	struct drm_xe_engine_class_instance *hwe;
-	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
 	int i, j, b, num_placements = 0, bad_batches = 1;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
@@ -213,7 +212,7 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
 		uint64_t sdi_addr = base_addr + sdi_offset;
 		uint64_t exec_addr;
-		uint64_t batches[MAX_INSTANCE];
+		uint64_t batches[XE_MAX_ENGINE_INSTANCE];
 		int e = i % n_exec_queues;
 
 		for (j = 0; j < num_placements && flags & PARALLEL; ++j)
@@ -792,15 +791,15 @@ igt_main
 		igt_subtest_f("%s-cat-error", s->name)
 			xe_for_each_gt(fd, gt)
 				xe_for_each_engine_class(class)
-					test_balancer(fd, gt, class, MAX_INSTANCE + 1,
-						      MAX_INSTANCE + 1,
+					test_balancer(fd, gt, class, XE_MAX_ENGINE_INSTANCE + 1,
+						      XE_MAX_ENGINE_INSTANCE + 1,
 						      CAT_ERROR | s->flags);
 
 		igt_subtest_f("%s-gt-reset", s->name)
 			xe_for_each_gt(fd, gt)
 				xe_for_each_engine_class(class)
-					test_balancer(fd, gt, class, MAX_INSTANCE + 1,
-						      MAX_INSTANCE + 1,
+					test_balancer(fd, gt, class, XE_MAX_ENGINE_INSTANCE + 1,
+						      XE_MAX_ENGINE_INSTANCE + 1,
 						      GT_RESET | s->flags);
 
 		igt_subtest_f("%s-close-fd-no-exec", s->name)

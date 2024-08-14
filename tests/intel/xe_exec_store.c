@@ -21,7 +21,6 @@
  * Test category: functionality test
  */
 
-#define MAX_INSTANCE 9
 #define STORE 0
 #define COND_BATCH 1
 

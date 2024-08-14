@@ -25,7 +25,6 @@
 #include <string.h>
 
 #define MAX_N_EXEC_QUEUES	16
-#define MAX_INSTANCE	9
 #define USERPTR		(0x1 << 0)
 #define REBIND		(0x1 << 1)
 #define INVALIDATE	(0x1 << 2)
@@ -66,7 +65,7 @@ test_balancer(int fd, int gt, uint32_t vm, uint64_t addr, uint64_t userptr,
 		uint32_t data;
 	} *data;
 	struct drm_xe_engine_class_instance *hwe;
-	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
 	int i, j, b, num_placements = 0;
 	bool owns_vm = false, owns_fd = false;
 
@@ -139,7 +138,7 @@ test_balancer(int fd, int gt, uint32_t vm, uint64_t addr, uint64_t userptr,
 		uint64_t batch_addr = addr + batch_offset;
 		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
 		uint64_t sdi_addr = addr + sdi_offset;
-		uint64_t batches[MAX_INSTANCE];
+		uint64_t batches[XE_MAX_ENGINE_INSTANCE];
 		int e = i % n_exec_queues;
 
 		for (j = 0; j < num_placements && flags & PARALLEL; ++j)

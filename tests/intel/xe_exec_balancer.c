@@ -24,8 +24,6 @@
 #include "xe/xe_spin.h"
 #include <string.h>
 
-#define MAX_INSTANCE 9
-
 /**
  * SUBTEST: virtual-all-active
  * Description:
@@ -46,8 +44,8 @@ static void test_all_active(int fd, int gt, int class)
 		.num_syncs = 2,
 		.syncs = to_user_pointer(sync),
 	};
-	uint32_t exec_queues[MAX_INSTANCE];
-	uint32_t syncobjs[MAX_INSTANCE];
+	uint32_t exec_queues[XE_MAX_ENGINE_INSTANCE];
+	uint32_t syncobjs[XE_MAX_ENGINE_INSTANCE];
 	size_t bo_size;
 	uint32_t bo = 0;
 	struct {
@@ -55,7 +53,7 @@ static void test_all_active(int fd, int gt, int class)
 	} *data;
 	struct xe_spin_opts spin_opts = { .preempt = false };
 	struct drm_xe_engine_class_instance *hwe;
-	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
 	int i, num_placements = 0;
 
 	xe_for_each_engine(fd, hwe) {
@@ -187,7 +185,7 @@ test_exec(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint32_t data;
 	} *data;
 	struct drm_xe_engine_class_instance *hwe;
-	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
 	int i, j, b, num_placements = 0;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
@@ -244,7 +242,7 @@ test_exec(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint64_t batch_addr = addr + batch_offset;
 		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
 		uint64_t sdi_addr = addr + sdi_offset;
-		uint64_t batches[MAX_INSTANCE];
+		uint64_t batches[XE_MAX_ENGINE_INSTANCE];
 		int e = i % n_exec_queues;
 
 		for (j = 0; j < num_placements && flags & PARALLEL; ++j)
@@ -406,7 +404,7 @@ test_cm(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint32_t data;
 	} *data;
 	struct drm_xe_engine_class_instance *hwe;
-	struct drm_xe_engine_class_instance eci[MAX_INSTANCE];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
 	int i, j, b, num_placements = 0;
 	int map_fd = -1;
 
@@ -467,7 +465,7 @@ test_cm(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		uint64_t batch_addr = addr + batch_offset;
 		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
 		uint64_t sdi_addr = addr + sdi_offset;
-		uint64_t batches[MAX_INSTANCE];
+		uint64_t batches[XE_MAX_ENGINE_INSTANCE];
 		int e = i % n_exec_queues;
 
 		for (j = 0; j < num_placements && flags & PARALLEL; ++j)

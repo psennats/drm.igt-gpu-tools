@@ -76,6 +76,12 @@ struct xe_device {
 #define XE_IS_CLASS_SYSMEM(__region) ((__region)->mem_class == DRM_XE_MEM_REGION_CLASS_SYSMEM)
 #define XE_IS_CLASS_VRAM(__region) ((__region)->mem_class == DRM_XE_MEM_REGION_CLASS_VRAM)
 
+/*
+ * Max possible engine instance in drm_xe_engine_class_instance::engine_instance. Only
+ * used to declare arrays of drm_xe_engine_class_instance
+ */
+#define XE_MAX_ENGINE_INSTANCE	9
+
 unsigned int xe_number_gt(int fd);
 uint64_t all_memory_regions(int fd);
 uint64_t system_memory(int fd);
