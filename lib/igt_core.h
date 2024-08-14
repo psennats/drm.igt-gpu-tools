@@ -1505,10 +1505,10 @@ void igt_kmsg(const char *format, ...);
 #define le32_to_cpu(x)  (x)
 #endif
 
-#define MSEC_PER_SEC (1000)
-#define USEC_PER_SEC (1000*MSEC_PER_SEC)
-#define USEC_PER_DECISEC (100*MSEC_PER_SEC)
-#define NSEC_PER_SEC (1000*USEC_PER_SEC)
+#define MSEC_PER_SEC (1000u)
+#define USEC_PER_SEC (1000u * MSEC_PER_SEC)
+#define USEC_PER_DECISEC (100u * MSEC_PER_SEC)
+#define NSEC_PER_SEC (1000u * USEC_PER_SEC)
 
 #define for_if(expr__) if (!(expr__)) {} else
 
