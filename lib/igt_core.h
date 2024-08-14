@@ -1509,6 +1509,8 @@ void igt_kmsg(const char *format, ...);
 #define USEC_PER_SEC (1000u * MSEC_PER_SEC)
 #define USEC_PER_DECISEC (100u * MSEC_PER_SEC)
 #define NSEC_PER_SEC (1000u * USEC_PER_SEC)
+#define USEC_PER_MSEC (1000u)
+#define NSEC_PER_MSEC (1000u * USEC_PER_MSEC)
 
 #define for_if(expr__) if (!(expr__)) {} else
 

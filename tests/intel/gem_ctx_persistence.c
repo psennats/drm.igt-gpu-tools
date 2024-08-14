@@ -122,7 +122,6 @@
 
 #define RESET_TIMEOUT_MS 2 * MSEC_PER_SEC; /* default: 640ms */
 static unsigned long reset_timeout_ms = RESET_TIMEOUT_MS;
-#define NSEC_PER_MSEC (1000 * 1000ull)
 
 static void cleanup(int i915)
 {

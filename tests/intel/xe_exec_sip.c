@@ -31,8 +31,6 @@
 
 #define SHADER_CANARY 0x01010101
 
-#define NSEC_PER_MSEC (1000 * 1000ull)
-
 static struct intel_buf *
 create_fill_buf(int fd, int width, int height, uint8_t color)
 {
