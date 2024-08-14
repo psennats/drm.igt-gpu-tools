@@ -1564,6 +1564,13 @@ execute_test_process(int outfd, int errfd, int socketfd,
 		}
 	}
 
+	if (settings->hook_str) {
+		arg = strdup("--hook");
+		igt_vec_push(&arg_vec, &arg);
+		arg = strdup(settings->hook_str);
+		igt_vec_push(&arg_vec, &arg);
+	}
+
 	arg = NULL;
 	igt_vec_push(&arg_vec, &arg);
 
