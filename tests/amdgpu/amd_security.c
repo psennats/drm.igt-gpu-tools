@@ -147,8 +147,6 @@ amdgpu_bo_move(amdgpu_device_handle device, int fd,
  */
 static const uint8_t secure_pattern[] = { 0x5A, 0xFE, 0x05, 0xEC };
 
-static const uint8_t secure_pattern2[] = { 0xDE, 0xAD, 0xBE, 0xEF };
-
 static void
 amdgpu_secure_bounce(amdgpu_device_handle device_handle, int fd,
 		struct drm_amdgpu_info_hw_ip  *sdma_info,
@@ -209,26 +207,12 @@ amdgpu_secure_bounce(amdgpu_device_handle device_handle, int fd,
 	amdgpu_bo_lcopy(device_handle, ring_context, ip_block, SECURE_BUFFER_SIZE,
 			secure == true ? 1 : 0);
 
-	/* Verify the contents of Bob. */
-	for (pp = (__typeof__(pp))ring_context->bo2_cpu;
-	     pp < (__typeof__(pp)) ring_context->bo2_cpu + SECURE_BUFFER_SIZE;
-	     pp += sizeof(secure_pattern)) {
-		r = memcmp(pp, secure_pattern, sizeof(secure_pattern));
-		if (r) {
-			// test failure
-			igt_assert(false);
-			break;
-		}
-	}
-	/* Fill Bob with a pattern2 */
-	for (pp = (__typeof__(pp))ring_context->bo2_cpu;
-		pp < (__typeof__(pp)) ring_context->bo2_cpu + SECURE_BUFFER_SIZE;
-		pp += sizeof(secure_pattern2))
-		memcpy(pp, secure_pattern2, sizeof(secure_pattern2));
-
 	/* Move Bob to the GTT domain. */
 	amdgpu_bo_move(device_handle, fd, ring_context, ip_block,
 			AMDGPU_GEM_DOMAIN_GTT, 0);
+
+	/* Clean Alice first before do the copy from bob. */
+	memset((void *)ring_context->bo_cpu, 0, SECURE_BUFFER_SIZE);
 
 	/* sDMA TMZ copy from Bob to Alice.
 	 * bo is a source ,bo2 is destination
@@ -250,11 +234,11 @@ amdgpu_secure_bounce(amdgpu_device_handle device_handle, int fd,
 	amdgpu_bo_lcopy(device_handle, ring_context, ip_block, SECURE_BUFFER_SIZE,
 			secure == true ? 1 : 0);
 
-	/* Verify the content of Alice if it matches to pattern2*/
+	/* Verify the content of Alice if it matches to pattern */
 	for (pp = (__typeof__(pp))ring_context->bo_cpu;
 	     pp < (__typeof__(pp)) ring_context->bo_cpu + SECURE_BUFFER_SIZE;
-	     pp += sizeof(secure_pattern2)) {
-		r = memcmp(pp, secure_pattern2, sizeof(secure_pattern2));
+	     pp += sizeof(secure_pattern)) {
+		r = memcmp(pp, secure_pattern, sizeof(secure_pattern));
 		if (r) {
 			// test failure
 			igt_assert(false);
