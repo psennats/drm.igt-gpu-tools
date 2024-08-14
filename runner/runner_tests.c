@@ -202,7 +202,14 @@ static void assert_settings_equal(struct settings *one, struct settings *two)
 	igt_assert_eq(one->piglit_style_dmesg, two->piglit_style_dmesg);
 	igt_assert_eq(one->dmesg_warn_level, two->dmesg_warn_level);
 	igt_assert_eq(one->prune_mode, two->prune_mode);
-	igt_assert_eqstr(one->hook_str, two->hook_str);
+
+	igt_assert_eq(igt_vec_length(&one->hook_strs), igt_vec_length(&two->hook_strs));
+	for (size_t i = 0; i < igt_vec_length(&one->hook_strs); i++) {
+		char **hook_str_one = igt_vec_elem(&one->hook_strs, i);
+		char **hook_str_two = igt_vec_elem(&two->hook_strs, i);
+
+		igt_assert_eqstr(*hook_str_one, *hook_str_two);
+	}
 }
 
 static void assert_job_list_equal(struct job_list *one, struct job_list *two)
@@ -294,6 +301,7 @@ igt_main
 		igt_assert_eq(settings->include_regexes.size, 0);
 		igt_assert_eq(settings->exclude_regexes.size, 0);
 		igt_assert(igt_list_empty(&settings->env_vars));
+		igt_assert(!igt_vec_length(&settings->hook_strs));
 		igt_assert(!settings->sync);
 		igt_assert_eq(settings->log_level, LOG_LEVEL_NORMAL);
 		igt_assert(!settings->overwrite);
@@ -303,7 +311,6 @@ igt_main
 		igt_assert_eq(settings->overall_timeout, 0);
 		igt_assert(!settings->use_watchdog);
 		igt_assert_eq(settings->prune_mode, 0);
-		igt_assert(!settings->hook_str);
 		igt_assert(strstr(settings->test_root, "test-root-dir") != NULL);
 		igt_assert(strstr(settings->results_path, "path-to-results") != NULL);
 
@@ -467,6 +474,7 @@ igt_main
 				       "--coverage-per-test",
 				       "--collect-script", "/usr/bin/true",
 				       "--hook", "echo hello",
+				       "--hook", "echo world",
 				       "--prune-mode=keep-subtests",
 				       "test-root-dir",
 				       "path-to-results",
@@ -506,6 +514,10 @@ igt_main
 		igt_assert_eqstr(env_var->key, "ENVS_WITH_JUST_KEYS");
 		igt_assert_eqstr(env_var->value, "SHOULD_WORK");
 
+		igt_assert_eq(igt_vec_length(&settings->hook_strs), 2);
+		igt_assert_eqstr(*((char **)igt_vec_elem(&settings->hook_strs, 0)), "echo hello");
+		igt_assert_eqstr(*((char **)igt_vec_elem(&settings->hook_strs, 1)), "echo world");
+
 		igt_assert(settings->sync);
 		igt_assert_eq(settings->log_level, LOG_LEVEL_VERBOSE);
 		igt_assert(settings->overwrite);
@@ -514,7 +526,6 @@ igt_main
 		igt_assert_eq(settings->per_test_timeout, 72);
 		igt_assert_eq(settings->overall_timeout, 360);
 		igt_assert(settings->use_watchdog);
-		igt_assert_eqstr(settings->hook_str, "echo hello");
 		igt_assert_eq(settings->prune_mode, PRUNE_KEEP_SUBTESTS);
 		igt_assert(strstr(settings->test_root, "test-root-dir") != NULL);
 		igt_assert(strstr(settings->results_path, "path-to-results") != NULL);
@@ -966,6 +977,8 @@ igt_main
 					       "--piglit-style-dmesg",
 					       "--prune-mode=keep-all",
 					       "--hook", "echo hello",
+					       "--hook", "echo hello\necho newline",
+					       "--hook", "echo hello\necho newline\\still the second line",
 					       testdatadir,
 					       dirname,
 			};

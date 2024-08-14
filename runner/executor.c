@@ -1564,10 +1564,10 @@ execute_test_process(int outfd, int errfd, int socketfd,
 		}
 	}
 
-	if (settings->hook_str) {
+	for (size_t i = 0; i < igt_vec_length(&settings->hook_strs); i++) {
 		arg = strdup("--hook");
 		igt_vec_push(&arg_vec, &arg);
-		arg = strdup(settings->hook_str);
+		arg = strdup(*((char **)igt_vec_elem(&settings->hook_strs, i)));
 		igt_vec_push(&arg_vec, &arg);
 	}
 

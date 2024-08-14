@@ -1,4 +1,5 @@
 #include "igt_hook.h"
+#include "igt_vec.h"
 #include "settings.h"
 #include "version.h"
 
@@ -84,6 +85,7 @@ static struct {
 
 static const char settings_filename[] = "metadata.txt";
 static const char env_filename[] = "environment.txt";
+static const char hooks_filename[] = "hooks.txt";
 
 static bool set_log_level(struct settings* settings, const char *level)
 {
@@ -518,6 +520,13 @@ static void free_env_vars(struct igt_list_head *env_vars) {
 	}
 }
 
+static void free_hook_strs(struct igt_vec *hook_strs)
+{
+	for (size_t i = 0; i < igt_vec_length(hook_strs); i++)
+		free(*((char **)igt_vec_elem(hook_strs, i)));
+	igt_vec_fini(hook_strs);
+}
+
 static bool file_exists_at(int dirfd, const char *filename)
 {
 	return faccessat(dirfd, filename, F_OK, 0) == 0;
@@ -620,6 +629,7 @@ void init_settings(struct settings *settings)
 {
 	memset(settings, 0, sizeof(*settings));
 	IGT_INIT_LIST_HEAD(&settings->env_vars);
+	igt_vec_init(&settings->hook_strs, sizeof(char *));
 }
 
 void clear_settings(struct settings *settings)
@@ -632,6 +642,7 @@ void clear_settings(struct settings *settings)
 	free_regexes(&settings->include_regexes);
 	free_regexes(&settings->exclude_regexes);
 	free_env_vars(&settings->env_vars);
+	free_hook_strs(&settings->hook_strs);
 
 	init_settings(settings);
 }
@@ -641,6 +652,7 @@ bool parse_options(int argc, char **argv,
 {
 	int c;
 	char *env_test_root;
+	char *hook_str;
 
 	static struct option long_options[] = {
 		{"version", no_argument, NULL, OPT_VERSION},
@@ -751,15 +763,8 @@ bool parse_options(int argc, char **argv,
 			settings->code_coverage_script = bin_path(optarg);
 			break;
 		case OPT_HOOK:
-			/* FIXME: In order to allow line breaks, we should
-			 * change the format of settings serialization. Maybe
-			 * use JSON instead of our own format? */
-			if (strchr(optarg, '\n')) {
-				fprintf(stderr, "Newlines in --hook are currently unsupported.\n");
-				goto error;
-			}
-			/* FIXME: Allow as many options as allowed by test binaries. */
-			settings->hook_str = optarg;
+			hook_str = strdup(optarg);
+			igt_vec_push(&settings->hook_strs, &hook_str);
 			break;
 		case OPT_HELP_HOOK:
 			igt_hook_print_help(stdout, "--hook");
@@ -993,6 +998,49 @@ static bool serialize_environment(struct settings *settings, int dirfd)
 	return true;
 }
 
+static bool serialize_hook_strs(struct settings *settings, int dirfd)
+{
+	FILE *f;
+
+	if (file_exists_at(dirfd, hooks_filename) && !settings->overwrite) {
+		usage(stderr, "%s already exists, not overwriting", hooks_filename);
+		return false;
+	}
+
+	if ((f = fopenat_create(dirfd, hooks_filename, settings->overwrite)) == NULL)
+		return false;
+
+	for (size_t i = 0; i < igt_vec_length(&settings->hook_strs); i++) {
+		const char *s = *((char **)igt_vec_elem(&settings->hook_strs, i));
+		size_t len;
+
+		while (*s) {
+			len = strcspn(s, "\\\n");
+
+			if (len > 0)
+				fwrite(s, len, 1, f);
+
+			s += len;
+			if (!*s)
+				break;
+
+			fputc('\\', f);
+			fputc(*s, f);
+			s++;
+		}
+		fputc('\n', f);
+		fputc('\n', f);
+	}
+
+	if (settings->sync) {
+		fflush(f);
+		fsync(fileno(f));
+	}
+
+	fclose(f);
+	return true;
+}
+
 bool serialize_settings(struct settings *settings)
 {
 #define SERIALIZE_LINE(f, s, name, format) fprintf(f, "%s : " format "\n", #name, s->name)
@@ -1062,7 +1110,6 @@ bool serialize_settings(struct settings *settings)
 	SERIALIZE_LINE(f, settings, enable_code_coverage, "%d");
 	SERIALIZE_LINE(f, settings, cov_results_per_test, "%d");
 	SERIALIZE_LINE(f, settings, code_coverage_script, "%s");
-	SERIALIZE_LINE(f, settings, hook_str, "%s");
 
 	if (settings->sync) {
 		fflush(f);
@@ -1073,6 +1120,13 @@ bool serialize_settings(struct settings *settings)
 
 	if (!igt_list_empty(&settings->env_vars)) {
 		if (!serialize_environment(settings, dirfd)) {
+			close(dirfd);
+			return false;
+		}
+	}
+
+	if (igt_vec_length(&settings->hook_strs)) {
+		if (!serialize_hook_strs(settings, dirfd)) {
 			close(dirfd);
 			return false;
 		}
@@ -1126,7 +1180,6 @@ bool read_settings_from_file(struct settings *settings, FILE *f)
 		PARSE_LINE(settings, name, val, enable_code_coverage, numval);
 		PARSE_LINE(settings, name, val, cov_results_per_test, numval);
 		PARSE_LINE(settings, name, val, code_coverage_script, val ? strdup(val) : NULL);
-		PARSE_LINE(settings, name, val, hook_str, val ? strdup(val) : NULL);
 
 		printf("Warning: Unknown field in settings file: %s = %s\n",
 		       name, val);
@@ -1196,6 +1249,82 @@ static bool read_env_vars_from_file(struct igt_list_head *env_vars, FILE *f)
 	return true;
 }
 
+static bool read_hook_strs_from_file(struct igt_vec *hook_strs, FILE *f)
+{
+	char *line = NULL;
+	ssize_t line_length;
+	size_t line_size = 0;
+	char *buf;
+	size_t buf_len = 0;
+	size_t buf_capacity = 128;
+
+	buf = malloc(buf_capacity);
+
+	while ((line_length = getline(&line, &line_size, f) != -1)) {
+		char *s = line;
+
+		if (buf_len == 0) {
+			while (isspace(*s)) {
+				line_length--;
+				s++;
+			}
+
+			if (*s == '\0' || *s == '#')
+				continue;
+		}
+
+		if (line_length + 1 > buf_capacity - buf_len) {
+			while (line_length + 1 > buf_capacity - buf_len)
+				buf_capacity *= 2;
+
+			buf = realloc(buf, buf_capacity);
+		}
+
+		while (true) {
+			if (*s == '\0' || *s == '\n') {
+				char *buf_copy;
+
+				if (!buf_len)
+					break;
+
+				/* Reached the end of a hook string. */
+				buf[buf_len] = '\0';
+				buf_copy = strdup(buf);
+				igt_vec_push(hook_strs, &buf_copy);
+				buf_len = 0;
+				break;
+			}
+
+			if (*s == '\\') {
+				s++;
+
+				if (*s == '\0')
+					/* Weird case of backslash being the
+					 * last character of the file. */
+					s--;
+			}
+
+			buf[buf_len++] = *s++;
+
+			if (*s == '\0' || *s == '\n')
+				break;
+		}
+	}
+
+	if (buf_len) {
+		char *buf_copy;
+
+		buf[buf_len] = '\0';
+		buf_copy = strdup(buf);
+		igt_vec_push(hook_strs, &buf_copy);
+	}
+
+	free(buf);
+	free(line);
+
+	return true;
+}
+
 bool read_settings_from_dir(struct settings *settings, int dirfd)
 {
 	FILE *f;
@@ -1219,6 +1348,19 @@ bool read_settings_from_dir(struct settings *settings, int dirfd)
 			return false;
 
 		if (!read_env_vars_from_file(&settings->env_vars, f)) {
+			fclose(f);
+			return false;
+		}
+
+		fclose(f);
+	}
+
+	/* hooks file may not exist if no --hook was passed */
+	if (file_exists_at(dirfd, hooks_filename)) {
+		if ((f = fopenat_read(dirfd, hooks_filename)) == NULL)
+			return false;
+
+		if (!read_hook_strs_from_file(&settings->hook_strs, f)) {
 			fclose(f);
 			return false;
 		}

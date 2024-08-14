@@ -8,6 +8,7 @@
 #include <glib.h>
 
 #include "igt_list.h"
+#include "igt_vec.h"
 
 enum {
 	LOG_LEVEL_NORMAL = 0,
@@ -55,6 +56,7 @@ struct settings {
 	struct regex_list include_regexes;
 	struct regex_list exclude_regexes;
 	struct igt_list_head env_vars;
+	struct igt_vec hook_strs;
 	bool sync;
 	int log_level;
 	bool overwrite;
@@ -72,7 +74,6 @@ struct settings {
 	char *code_coverage_script;
 	bool enable_code_coverage;
 	bool cov_results_per_test;
-	char *hook_str;
 };
 
 /**
