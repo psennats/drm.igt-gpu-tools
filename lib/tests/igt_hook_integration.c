@@ -3,6 +3,7 @@
  * Copyright(c) 2024 Intel Corporation. All rights reserved.
  */
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,11 +12,9 @@
 
 #include "igt_tests_common.h"
 
-char prog[] = "igt_hook_integration";
-char hook_opt[] = "--hook";
-char hook_str[128];
-char *fake_argv[] = {prog, hook_opt, hook_str};
-int fake_argc = sizeof(fake_argv) / sizeof(fake_argv[0]);
+char fake_argv_buffer[1024];
+char *fake_argv[64];
+int fake_argc;
 
 #define ENV_ARRAY(evt_name, fullname_suffix, subtest, dyn_subtest, result) \
 { \
@@ -51,6 +50,29 @@ const char *post_test_env[] = TEST_ENV("post-test", "FAIL");
 
 #define num_env_vars (sizeof(pre_test_env) / sizeof(pre_test_env[0]))
 
+static void set_fake_argv(const char *arg0, ...)
+{
+	va_list ap;
+	const char *arg;
+	size_t buf_size;
+
+	fake_argc = 0;
+	buf_size = 0;
+
+	va_start(ap, arg0);
+
+	for (arg = arg0; arg != NULL; arg = va_arg(ap, typeof(arg))) {
+		internal_assert(buf_size + strlen(arg) < sizeof(fake_argv_buffer));
+		internal_assert((size_t)fake_argc < sizeof(fake_argv) / sizeof(fake_argv[0]));
+
+		strcpy(fake_argv_buffer + buf_size, arg);
+		fake_argv[fake_argc++] = fake_argv_buffer + buf_size;
+		buf_size += strlen(arg) + 1;
+	}
+
+	va_end(ap);
+}
+
 __noreturn static void fake_main(void)
 {
 	igt_subtest_init(fake_argc, fake_argv);
@@ -85,7 +107,7 @@ static void test_invalid_hook_str(void)
 	static char err[4096];
 	int errfd;
 
-	sprintf(hook_str, "invalid-event:echo hello");
+	set_fake_argv("igt_hook_integration", "--hook", "invalid-event:echo hello", NULL);
 
 	pid = do_fork_bg_with_pipes(fake_main, NULL, &errfd);
 
@@ -196,6 +218,7 @@ static void run_tests_and_match_env(const char *evt_descriptors, const char **ex
 	int ret;
 	int pipefd[2];
 	pid_t pid;
+	char hook_str[128];
 	FILE *f;
 
 	ret = pipe(pipefd);
@@ -204,10 +227,13 @@ static void run_tests_and_match_env(const char *evt_descriptors, const char **ex
 	/* Use grep to filter only env var set by us. This should ensure that
 	 * writing to the pipe will not block due to capacity, since we only
 	 * read from the pipe after the shell command is done. */
-	sprintf(hook_str,
-		"%1$s:printenv -0 | grep -z ^IGT_HOOK >&%2$d; printf -- ---\\\\00 >&%2$d",
-		evt_descriptors,
-		pipefd[1]);
+	ret = snprintf(hook_str, sizeof(hook_str),
+		     "%1$s:printenv -0 | grep -z ^IGT_HOOK >&%2$d; printf -- ---\\\\00 >&%2$d",
+		     evt_descriptors,
+		     pipefd[1]);
+	internal_assert(0 < ret && ret < sizeof(hook_str));
+
+	set_fake_argv("igt_hook_integration", "--hook", hook_str, NULL);
 
 	pid = do_fork_bg_with_pipes(fake_main, NULL, NULL);
 	internal_assert(safe_wait(pid, &ret) != -1);
