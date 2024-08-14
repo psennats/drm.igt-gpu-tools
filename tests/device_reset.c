@@ -200,6 +200,17 @@ static void init_device_fds(struct device_fds *dev)
 		igt_require_gem(dev->fds.dev);
 
 	igt_assert(device_sysfs_path(dev->fds.dev, dev_path));
+
+	/*
+	 * Platform devices do not support reset at the bus level, as
+	 * there is no actual bus.
+	 *
+	 * For other bus types, other than PCI, whether and how bus
+	 * level reset is supported is left as an exercise for the
+	 * reader.
+	 */
+	igt_require(strstr(dev_path, "/sys/devices/pci") == dev_path);
+
 	addr_pos = strrchr(dev_path, '/');
 	igt_assert(addr_pos);
 	igt_assert_eq(sizeof(dev->dev_bus_addr) - 1,
