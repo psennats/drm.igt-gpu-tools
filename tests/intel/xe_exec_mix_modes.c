@@ -29,7 +29,6 @@
 
 #define NUM_INTERRUPTING_JOBS	5
 #define USER_FENCE_VALUE	0xdeadbeefdeadbeefull
-#define ONE_SEC			MS_TO_NS(1000)
 #define VM_DATA			0
 #define SPIN_DATA		1
 #define EXEC_DATA		2
@@ -121,7 +120,7 @@ run_job(int fd, struct drm_xe_engine_class_instance *hwe,
 
 	store_dword_batch(data, addr, value);
 	if (engine_execution_mode == EXEC_MODE_LR) {
-		xe_wait_ufence(fd, &data[VM_DATA].vm_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+		xe_wait_ufence(fd, &data[VM_DATA].vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 		sync[0].addr = addr + (char *)&data[EXEC_DATA].exec_sync - (char *)data;
 	} else if (engine_execution_mode == EXEC_MODE_DMA_FENCE) {
 		igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
@@ -178,9 +177,9 @@ run_job(int fd, struct drm_xe_engine_class_instance *hwe,
 
 	if (engine_execution_mode == EXEC_MODE_LR) {
 		if (job_type == SPINNER_INTERRUPTED)
-			xe_wait_ufence(fd, &data[SPIN_DATA].exec_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+			xe_wait_ufence(fd, &data[SPIN_DATA].exec_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 		else if (job_type == SIMPLE_BATCH_STORE)
-			xe_wait_ufence(fd, &data[EXEC_DATA].exec_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+			xe_wait_ufence(fd, &data[EXEC_DATA].exec_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 	} else if (engine_execution_mode == EXEC_MODE_DMA_FENCE) {
 		igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
 		syncobj_destroy(fd, sync[0].handle);

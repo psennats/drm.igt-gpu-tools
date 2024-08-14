@@ -190,10 +190,8 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 					 to_user_pointer(data), addr,
 					 bo_size, sync, 1);
 	}
-#define ONE_SEC	MS_TO_NS(1000)
-#define HUNDRED_SEC	MS_TO_NS(100000)
 
-	fence_timeout = igt_run_in_simulation() ? HUNDRED_SEC : ONE_SEC;
+	fence_timeout = (igt_run_in_simulation() ? 100 : 1) * NSEC_PER_SEC;
 
 	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE,
 		       bind_exec_queues[0], fence_timeout);
@@ -326,7 +324,6 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
  * Description: Fill the ring and check we get expected errors.
  * Test category: functionality test
  */
-#define ONE_SEC	MS_TO_NS(1000)
 #define VM_DATA		0
 #define SPIN_DATA	1
 #define EXEC_DATA	2
@@ -378,7 +375,7 @@ static void non_block(int fd, int expect)
 	sync[0].addr = to_user_pointer(&data[VM_DATA].vm_sync);
 	xe_vm_bind_async(fd, vm, engine->instance.gt_id, bo, 0,
 			       addr, bo_size, sync, 1);
-	xe_wait_ufence(fd, &data[VM_DATA].vm_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &data[VM_DATA].vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 	data[VM_DATA].vm_sync = 0;
 
 	spin_opts.addr = addr + (char *)&data[SPIN_DATA].spin - (char *)data;
@@ -414,16 +411,16 @@ static void non_block(int fd, int expect)
 	igt_assert_eq(errno, expect);
 
 	xe_spin_end(&data[SPIN_DATA].spin);
-	xe_wait_ufence(fd, &data[SPIN_DATA].exec_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &data[SPIN_DATA].exec_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 	usleep(50000);
 
 	exec.num_syncs = 1;
 	xe_exec(fd, &exec);
-	xe_wait_ufence(fd, &data[EXEC_DATA].exec_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &data[EXEC_DATA].exec_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 
 	sync[0].addr = to_user_pointer(&data[VM_DATA].vm_sync);
 	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
-	xe_wait_ufence(fd, &data[VM_DATA].vm_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &data[VM_DATA].vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 	munmap(data, bo_size);
 	gem_close(fd, bo);
 
@@ -473,7 +470,7 @@ static void lr_mode_workload(int fd)
 
 	sync.addr = to_user_pointer(&vm_sync);
 	xe_vm_bind_async(fd, vm, engine->instance.gt_id, bo, 0, spin_addr, bo_size, &sync, 1);
-	xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 
 	xe_spin_init_opts(spin, .addr = spin_addr, .write_timestamp = true);
 	sync.addr = spin_addr + (char *)&spin->exec_sync - (char *)spin;
@@ -490,7 +487,7 @@ static void lr_mode_workload(int fd)
 	igt_assert_neq_u32(ts_1, ts_2);
 
 	xe_spin_end(spin);
-	xe_wait_ufence(fd, &spin->exec_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &spin->exec_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 
 	/* Check timestamps to make sure spinner is stopped */
 	ts_1 = spin->timestamp;
@@ -500,7 +497,7 @@ static void lr_mode_workload(int fd)
 
 	sync.addr = to_user_pointer(&vm_sync);
 	xe_vm_unbind_async(fd, vm, 0, 0, spin_addr, bo_size, &sync, 1);
-	xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, ONE_SEC);
+	xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 	munmap(spin, bo_size);
 	gem_close(fd, bo);
 

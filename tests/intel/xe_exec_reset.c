@@ -509,8 +509,7 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 	sync[0].addr = to_user_pointer(&data[0].vm_sync);
 	xe_vm_bind_async(fd, vm, 0, bo, 0, addr, bo_size, sync, 1);
 
-#define THREE_SEC	MS_TO_NS(3000)
-	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, THREE_SEC);
+	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, 3 * NSEC_PER_SEC);
 	data[0].vm_sync = 0;
 
 	for (i = 0; i < n_execs; i++) {
@@ -563,7 +562,7 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 	}
 
 	for (i = 1; i < n_execs; i++) {
-		int64_t timeout = THREE_SEC;
+		int64_t timeout = 3 * NSEC_PER_SEC;
 		int err;
 
 		err = __xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
@@ -577,7 +576,7 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 
 	sync[0].addr = to_user_pointer(&data[0].vm_sync);
 	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
-	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, THREE_SEC);
+	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, 3 * NSEC_PER_SEC);
 
 	if (!(flags & GT_RESET)) {
 		for (i = 1; i < n_execs; i++)

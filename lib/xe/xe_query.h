@@ -109,6 +109,4 @@ uint16_t xe_gt_get_tile_id(int fd, int gt);
 struct xe_device *xe_device_get(int fd);
 void xe_device_put(int fd);
 
-#define MS_TO_NS(ms) (((int64_t)ms) * 1000000)
-
 #endif	/* XE_QUERY_H */

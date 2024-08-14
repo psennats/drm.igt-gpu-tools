@@ -110,14 +110,14 @@ waitfence(int fd, enum waittype wt)
 	do_bind(fd, vm, bo_7, 0, 0xeffff0000, 0x10000, 7);
 
 	if (wt == RELTIME) {
-		timeout = xe_wait_ufence(fd, &wait_fence, 7, 0, MS_TO_NS(10));
+		timeout = xe_wait_ufence(fd, &wait_fence, 7, 0, 10 * NSEC_PER_MSEC);
 		igt_debug("wait type: RELTIME - timeout: %ld, timeout left: %ld\n",
-			  MS_TO_NS(10), timeout);
+			  (int64_t)10 * NSEC_PER_MSEC, timeout);
 	} else if (wt == ENGINE) {
 		exec_queue = xe_exec_queue_create_class(fd, vm, DRM_XE_ENGINE_CLASS_COPY);
 		clock_gettime(CLOCK_MONOTONIC, &ts);
 		current = ts.tv_sec * 1e9 + ts.tv_nsec;
-		timeout = current + MS_TO_NS(10);
+		timeout = current + 10 * NSEC_PER_MSEC;
 		signalled = wait_ufence_abstime(fd, &wait_fence, 7,
 						  exec_queue, timeout,
 						  DRM_XE_UFENCE_WAIT_FLAG_ABSTIME);
@@ -128,7 +128,7 @@ waitfence(int fd, enum waittype wt)
 	} else {
 		clock_gettime(CLOCK_MONOTONIC, &ts);
 		current = ts.tv_sec * 1e9 + ts.tv_nsec;
-		timeout = current + MS_TO_NS(10);
+		timeout = current + 10 * NSEC_PER_MSEC;
 		signalled = wait_ufence_abstime(fd, &wait_fence, 7, 0,
 						   timeout, 0);
 		igt_debug("wait type: ABSTIME - timeout: %" PRId64

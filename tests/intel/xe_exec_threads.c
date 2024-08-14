@@ -318,10 +318,8 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 	else
 		xe_vm_bind_userptr_async(fd, vm, 0, to_user_pointer(data), addr,
 					 bo_size, sync, 1);
-#define THREE_SEC	MS_TO_NS(3000)
-#define THIRTY_SEC	MS_TO_NS(30000)
 
-	fence_timeout = igt_run_in_simulation() ? THIRTY_SEC : THREE_SEC;
+	fence_timeout = (igt_run_in_simulation() ? 30 : 3) * NSEC_PER_SEC;
 
 	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, fence_timeout);
 	data[0].vm_sync = 0;
