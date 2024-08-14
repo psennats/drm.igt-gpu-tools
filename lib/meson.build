@@ -110,6 +110,7 @@ lib_sources = [
 	'veboxcopy_gen12.c',
 	'igt_msm.c',
 	'igt_dsc.c',
+	'igt_hook.c',
 	'xe/xe_gt.c',
 	'xe/xe_ioctl.c',
 	'xe/xe_mmio.c',

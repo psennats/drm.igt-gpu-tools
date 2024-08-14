@@ -70,6 +70,7 @@
 
 #include "igt_core.h"
 #include "igt_aux.h"
+#include "igt_hook.h"
 #include "igt_sysfs.h"
 #include "igt_sysrq.h"
 #include "igt_rc.h"
@@ -241,6 +242,9 @@
  * - '*,!basic*' match any subtest not starting basic
  * - 'basic*,!basic-render*' match any subtest starting basic but not starting basic-render
  *
+ * It is possible to run a shell script at certain points of test execution with
+ * "--hook". See the usage description with "--help-hook" for details.
+ *
  * # Configuration
  *
  * Some of IGT's behavior can be configured through a configuration file.
@@ -272,6 +276,8 @@ jmp_buf igt_dynamic_jmpbuf;
 static unsigned int exit_handler_count;
 const char *igt_interactive_debug;
 bool igt_skip_crc_compare;
+
+static struct igt_hook *igt_hook = NULL;
 
 /* subtests helpers */
 static bool show_testlist = false;
@@ -338,6 +344,8 @@ enum {
 	OPT_INTERACTIVE_DEBUG,
 	OPT_SKIP_CRC,
 	OPT_TRACE_OOPS,
+	OPT_HOOK,
+	OPT_HELP_HOOK,
 	OPT_DEVICE,
 	OPT_VERSION,
 	OPT_HELP = 'h'
@@ -810,6 +818,8 @@ static void common_exit_handler(int sig)
 		bind_fbcon(true);
 	}
 
+	igt_hook_free(igt_hook);
+
 	/* When not killed by a signal check that igt_exit() has been properly
 	 * called. */
 	assert(sig != 0 || igt_exit_called || igt_is_aborting);
@@ -907,6 +917,8 @@ static void print_usage(const char *help_str, bool output_on_stderr)
 		   "  --interactive-debug[=domain]\n"
 		   "  --skip-crc-compare\n"
 		   "  --trace-on-oops\n"
+		   "  --hook [<events>:]<cmd>\n"
+		   "  --help-hook\n"
 		   "  --help-description\n"
 		   "  --describe\n"
 		   "  --device filters\n"
@@ -1090,6 +1102,8 @@ static int common_init(int *argc, char **argv,
 		{"interactive-debug", optional_argument, NULL, OPT_INTERACTIVE_DEBUG},
 		{"skip-crc-compare",  no_argument,       NULL, OPT_SKIP_CRC},
 		{"trace-on-oops",     no_argument,       NULL, OPT_TRACE_OOPS},
+		{"hook",              required_argument, NULL, OPT_HOOK},
+		{"help-hook",         no_argument,       NULL, OPT_HELP_HOOK},
 		{"device",            required_argument, NULL, OPT_DEVICE},
 		{"version",           no_argument,       NULL, OPT_VERSION},
 		{"help",              no_argument,       NULL, OPT_HELP},
@@ -1225,6 +1239,24 @@ static int common_init(int *argc, char **argv,
 		case OPT_TRACE_OOPS:
 			show_ftrace = true;
 			break;
+		case OPT_HOOK:
+			assert(optarg);
+			if (igt_hook) {
+				igt_warn("Overriding previous hook descriptor\n");
+				igt_hook_free(igt_hook);
+			}
+			ret = igt_hook_create(optarg, &igt_hook);
+			if (ret) {
+				igt_critical("Failed to initialize hook data: %s\n",
+					     igt_hook_error_str(ret));
+				ret = -2;
+				goto out;
+			}
+			break;
+		case OPT_HELP_HOOK:
+			igt_hook_print_help(stdout, "--hook");
+			ret = -1;
+			goto out;
 		case OPT_DEVICE:
 			assert(optarg);
 			/* if set by env IGT_DEVICE we need to free it */
@@ -1274,15 +1306,25 @@ out:
 			exit(IGT_EXIT_INVALID);
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		if (igt_hook) {
+			igt_hook_free(igt_hook);
+			igt_hook = NULL;
+		}
+
 		/* exit with no error for -h/--help */
 		exit(ret == -1 ? 0 : IGT_EXIT_INVALID);
+	}
 
 	if (!igt_only_list_subtests()) {
 		bind_fbcon(false);
 		igt_kmsg(KMSG_INFO "%s: executing\n", command_str);
 		print_version();
 		igt_srandom();
+
+		igt_hook_event_notify(igt_hook, &(struct igt_hook_evt){
+			.evt_type = IGT_HOOK_PRE_TEST,
+			.target_name = command_str });
 
 		sync();
 		oom_adjust_for_doom();
@@ -1487,6 +1529,11 @@ bool __igt_run_subtest(const char *subtest_name, const char *file, const int lin
 	igt_thread_clear_fail_state();
 
 	igt_gettime(&subtest_time);
+
+	igt_hook_event_notify(igt_hook, &(struct igt_hook_evt){
+		.evt_type = IGT_HOOK_PRE_SUBTEST,
+		.target_name = subtest_name });
+
 	return (in_subtest = subtest_name);
 }
 
@@ -1517,6 +1564,11 @@ bool __igt_run_dynamic_subtest(const char *dynamic_subtest_name)
 	_igt_dynamic_tests_executed++;
 
 	igt_gettime(&dynamic_subtest_time);
+
+	igt_hook_event_notify(igt_hook, &(struct igt_hook_evt){
+		.evt_type = IGT_HOOK_PRE_DYN_SUBTEST,
+		.target_name = dynamic_subtest_name });
+
 	return (in_dynamic_subtest = dynamic_subtest_name);
 }
 
@@ -1601,6 +1653,12 @@ __noreturn static void exit_subtest(const char *result)
 	const char **subtest_name = in_dynamic_subtest ? &in_dynamic_subtest : &in_subtest;
 	struct timespec *thentime = in_dynamic_subtest ? &dynamic_subtest_time : &subtest_time;
 	jmp_buf *jmptarget = in_dynamic_subtest ? &igt_dynamic_jmpbuf : &igt_subtest_jmpbuf;
+
+	igt_hook_event_notify(igt_hook, &(struct igt_hook_evt){
+		.evt_type = (in_dynamic_subtest
+				? IGT_HOOK_POST_DYN_SUBTEST
+				: IGT_HOOK_POST_SUBTEST),
+		.result = result });
 
 	if (!igt_thread_is_main()) {
 		igt_thread_fail();
@@ -2274,6 +2332,7 @@ void __igt_abort(const char *domain, const char *file, const int line,
 void igt_exit(void)
 {
 	int tmp;
+	const char *result;
 
 	if (!test_with_subtests)
 		igt_thread_assert_no_failures();
@@ -2318,12 +2377,7 @@ void igt_exit(void)
 
 	assert(waitpid(-1, &tmp, WNOHANG) == -1 && errno == ECHILD);
 
-	if (!test_with_subtests) {
-		struct timespec now;
-		const char *result;
-
-		igt_gettime(&now);
-
+	if (!test_with_subtests || igt_hook) {
 		switch (igt_exitcode) {
 			case IGT_EXIT_SUCCESS:
 				result = "SUCCESS";
@@ -2334,6 +2388,12 @@ void igt_exit(void)
 			default:
 				result = "FAIL";
 		}
+	}
+
+	if (!test_with_subtests) {
+		struct timespec now;
+
+		igt_gettime(&now);
 
 		if (test_multi_fork_child) /* parent will do the yelling */
 			_log_line_fprintf(stdout, "dyn_child pid:%d (%.3fs) ends with err=%d\n",
@@ -2343,6 +2403,10 @@ void igt_exit(void)
 			_log_line_fprintf(stdout, "%s (%.3fs)\n",
 					  result, igt_time_elapsed(&subtest_time, &now));
 	}
+
+	igt_hook_event_notify(igt_hook, &(struct igt_hook_evt){
+		.evt_type = IGT_HOOK_POST_TEST,
+		.result = result });
 
 	exit(igt_exitcode);
 }

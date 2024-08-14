@@ -10,6 +10,8 @@ lib_tests = [
 	'igt_exit_handler',
 	'igt_fork',
 	'igt_fork_helper',
+	'igt_hook',
+	'igt_hook_integration',
         'igt_ktap_parser',
 	'igt_list_only',
 	'igt_invalid_subtest_name',
