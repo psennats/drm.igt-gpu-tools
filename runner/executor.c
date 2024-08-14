@@ -31,6 +31,7 @@
 #include "igt_aux.h"
 #include "igt_core.h"
 #include "igt_taints.h"
+#include "igt_vec.h"
 #include "executor.h"
 #include "output_strings.h"
 #include "runnercomms.h"
@@ -1506,7 +1507,8 @@ execute_test_process(int outfd, int errfd, int socketfd,
 		     struct settings *settings,
 		     struct job_list_entry *entry)
 {
-	char *argv[6] = {};
+	struct igt_vec arg_vec;
+	char *arg;
 	size_t rootlen;
 
 	dup2(outfd, STDOUT_FILENO);
@@ -1514,32 +1516,31 @@ execute_test_process(int outfd, int errfd, int socketfd,
 
 	setpgid(0, 0);
 
+	igt_vec_init(&arg_vec, sizeof(char *));
+
 	rootlen = strlen(settings->test_root);
-	argv[0] = malloc(rootlen + strlen(entry->binary) + 2);
-	strcpy(argv[0], settings->test_root);
-	argv[0][rootlen] = '/';
-	strcpy(argv[0] + rootlen + 1, entry->binary);
+	arg = malloc(rootlen + strlen(entry->binary) + 2);
+	strcpy(arg, settings->test_root);
+	arg[rootlen] = '/';
+	strcpy(arg + rootlen + 1, entry->binary);
+	igt_vec_push(&arg_vec, &arg);
 
 	if (entry->subtest_count) {
 		size_t argsize;
 		const char *dynbegin;
 		size_t i;
 
-		argv[1] = strdup("--run-subtest");
+		arg = strdup("--run-subtest");
+		igt_vec_push(&arg_vec, &arg);
 
 		if ((dynbegin = strchr(entry->subtests[0], '@')) != NULL)
 			argsize = dynbegin - entry->subtests[0];
 		else
 			argsize = strlen(entry->subtests[0]);
 
-		argv[2] = malloc(argsize + 1);
-		memcpy(argv[2], entry->subtests[0], argsize);
-		argv[2][argsize] = '\0';
-
-		if (dynbegin) {
-			argv[3] = strdup("--dynamic-subtest");
-			argv[4] = strdup(dynbegin + 1);
-		}
+		arg = malloc(argsize + 1);
+		memcpy(arg, entry->subtests[0], argsize);
+		arg[argsize] = '\0';
 
 		for (i = 1; i < entry->subtest_count; i++) {
 			char *sub = entry->subtests[i];
@@ -1547,22 +1548,35 @@ execute_test_process(int outfd, int errfd, int socketfd,
 
 			assert(dynbegin == NULL);
 
-			argv[2] = realloc(argv[2], argsize + sublen + 2);
-			argv[2][argsize] = ',';
-			strcpy(argv[2] + argsize + 1, sub);
+			arg = realloc(arg, argsize + sublen + 2);
+			arg[argsize] = ',';
+			strcpy(arg + argsize + 1, sub);
 			argsize += sublen + 1;
 		}
+
+		igt_vec_push(&arg_vec, &arg);
+
+		if (dynbegin) {
+			arg = strdup("--dynamic-subtest");
+			igt_vec_push(&arg_vec, &arg);
+			arg = strdup(dynbegin + 1);
+			igt_vec_push(&arg_vec, &arg);
+		}
 	}
+
+	arg = NULL;
+	igt_vec_push(&arg_vec, &arg);
 
 	if (socketfd >= 0) {
 		struct runnerpacket *packet;
 
-		packet = runnerpacket_exec(argv);
+		packet = runnerpacket_exec(arg_vec.elems);
 		write(socketfd, packet, packet->size);
 	}
 
-	execv(argv[0], argv);
-	fprintf(stderr, "Cannot execute %s\n", argv[0]);
+	arg = *((char **)igt_vec_elem(&arg_vec, 0));
+	execv(arg, arg_vec.elems);
+	fprintf(stderr, "Cannot execute %s\n", arg);
 	exit(IGT_EXIT_INVALID);
 }
 
