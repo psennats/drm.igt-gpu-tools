@@ -89,6 +89,7 @@ static void print_usage(void)
 {
 	printf("Usage: dpcd_reg [OPTION ...] COMMAND\n\n");
 	printf("COMMAND is one of:\n");
+	printf("  dump:		Dump dpcd data (default command)\n");
 	printf("  read:		Read [count] bytes dpcd reg at an offset\n");
 	printf("  write:	Write a dpcd reg at an offset\n\n");
 	printf("Options for the above COMMANDS are\n");
