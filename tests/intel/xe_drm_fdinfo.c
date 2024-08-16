@@ -28,6 +28,15 @@
  * SUBTEST: basic-engine-utilization
  * Description: Check if basic fdinfo content is present for engine utilization
  *
+ * SUBTEST: drm-idle
+ * Description: Check that engines show no load when idle
+ *
+ * SUBTEST: drm-busy-idle
+ * Description: Check that engines show load when idle after busy
+ *
+ * SUBTEST: drm-busy-idle-isolation
+ * Description: Check that engine load does not spill over to other drm clients
+ *
  * SUBTEST: drm-total-resident
  * Description: Create and compare total and resident memory consumption by client
  *
@@ -42,6 +51,18 @@ IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine u
 
 #define BO_SIZE (65536)
 
+/* flag masks */
+#define TEST_BUSY		(1 << 0)
+#define TEST_TRAILING_IDLE	(1 << 1)
+#define TEST_ISOLATION		(1 << 2)
+
+struct pceu_cycles {
+	uint64_t cycles;
+	uint64_t total_cycles;
+};
+
+const unsigned long batch_duration_ns = (1 * NSEC_PER_SEC) / 2;
+
 static const char *engine_map[] = {
 	"rcs",
 	"bcs",
@@ -49,6 +70,21 @@ static const char *engine_map[] = {
 	"vecs",
 	"ccs",
 };
+
+static void read_engine_cycles(int xe, struct pceu_cycles *pceu)
+{
+	struct drm_client_fdinfo info = { };
+	int class;
+
+	igt_assert(pceu);
+	igt_assert(igt_parse_drm_fdinfo(xe, &info, engine_map,
+					ARRAY_SIZE(engine_map), NULL, 0));
+
+	xe_for_each_engine_class(class) {
+		pceu[class].cycles = info.cycles[class];
+		pceu[class].total_cycles = info.total_cycles[class];
+	}
+}
 
 /* Subtests */
 static void test_active(int fd, struct drm_xe_engine *engine)
@@ -310,8 +346,182 @@ static void basic_engine_utilization(int xe)
 	igt_require(info.num_engines);
 }
 
+struct spin_ctx {
+	uint32_t vm;
+	uint64_t addr;
+	struct drm_xe_sync sync[2];
+	struct drm_xe_exec exec;
+	uint32_t exec_queue;
+	size_t bo_size;
+	uint32_t bo;
+	struct xe_spin *spin;
+	struct xe_spin_opts spin_opts;
+	bool ended;
+	uint16_t class;
+};
+
+static struct spin_ctx *
+spin_ctx_init(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm)
+{
+	struct spin_ctx *ctx = calloc(1, sizeof(*ctx));
+
+	ctx->class = hwe->engine_class;
+	ctx->vm = vm;
+	ctx->addr = 0x100000;
+
+	ctx->exec.num_batch_buffer = 1;
+	ctx->exec.num_syncs = 2;
+	ctx->exec.syncs = to_user_pointer(ctx->sync);
+
+	ctx->sync[0].type = DRM_XE_SYNC_TYPE_SYNCOBJ;
+	ctx->sync[0].flags = DRM_XE_SYNC_FLAG_SIGNAL;
+	ctx->sync[0].handle = syncobj_create(fd, 0);
+
+	ctx->sync[1].type = DRM_XE_SYNC_TYPE_SYNCOBJ;
+	ctx->sync[1].flags = DRM_XE_SYNC_FLAG_SIGNAL;
+	ctx->sync[1].handle = syncobj_create(fd, 0);
+
+	ctx->bo_size = sizeof(struct xe_spin);
+	ctx->bo_size = xe_bb_size(fd, ctx->bo_size);
+	ctx->bo = xe_bo_create(fd, ctx->vm, ctx->bo_size,
+			       vram_if_possible(fd, hwe->gt_id),
+			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	ctx->spin = xe_bo_map(fd, ctx->bo, ctx->bo_size);
+
+	igt_assert_eq(__xe_exec_queue_create(fd, ctx->vm, 1, 1,
+					     hwe, 0, &ctx->exec_queue), 0);
+
+	xe_vm_bind_async(fd, ctx->vm, 0, ctx->bo, 0, ctx->addr, ctx->bo_size,
+			 ctx->sync, 1);
+
+	return ctx;
+}
+
+static void
+spin_sync_start(int fd, struct spin_ctx *ctx)
+{
+	if (!ctx)
+		return;
+
+	ctx->spin_opts.addr = ctx->addr;
+	ctx->spin_opts.preempt = true;
+	xe_spin_init(ctx->spin, &ctx->spin_opts);
+
+	/* re-use sync[0] for exec */
+	ctx->sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
+
+	ctx->exec.exec_queue_id = ctx->exec_queue;
+	ctx->exec.address = ctx->addr;
+	xe_exec(fd, &ctx->exec);
+
+	xe_spin_wait_started(ctx->spin);
+	igt_assert(!syncobj_wait(fd, &ctx->sync[1].handle, 1, 1, 0, NULL));
+
+	igt_debug("%s: spinner started\n", engine_map[ctx->class]);
+}
+
+static void
+spin_sync_end(int fd, struct spin_ctx *ctx)
+{
+	if (!ctx || ctx->ended)
+		return;
+
+	xe_spin_end(ctx->spin);
+
+	igt_assert(syncobj_wait(fd, &ctx->sync[1].handle, 1, INT64_MAX, 0, NULL));
+	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
+
+	ctx->sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
+	xe_vm_unbind_async(fd, ctx->vm, 0, 0, ctx->addr, ctx->bo_size, ctx->sync, 1);
+	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
+
+	ctx->ended = true;
+	igt_debug("%s: spinner ended\n", engine_map[ctx->class]);
+}
+
+static void
+spin_ctx_destroy(int fd, struct spin_ctx *ctx)
+{
+	if (!ctx)
+		return;
+
+	syncobj_destroy(fd, ctx->sync[0].handle);
+	syncobj_destroy(fd, ctx->sync[1].handle);
+	xe_exec_queue_destroy(fd, ctx->exec_queue);
+
+	munmap(ctx->spin, ctx->bo_size);
+	gem_close(fd, ctx->bo);
+
+	free(ctx);
+}
+
+static void
+check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
+	      int class, unsigned int flags)
+{
+	double percent;
+
+	igt_debug("%s: sample 1: cycles %lu, total_cycles %lu\n",
+		  engine_map[class], s1[class].cycles, s1[class].total_cycles);
+	igt_debug("%s: sample 2: cycles %lu, total_cycles %lu\n",
+		  engine_map[class], s2[class].cycles, s2[class].total_cycles);
+
+	percent = ((s2[class].cycles - s1[class].cycles) * 100) /
+		  ((s2[class].total_cycles + 1) - s1[class].total_cycles);
+
+	igt_debug("%s: percent: %f\n", engine_map[class], percent);
+
+	if (flags & TEST_BUSY)
+		igt_assert(percent >= 95 && percent <= 100);
+	else
+		igt_assert(!percent);
+}
+
+static void
+single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int flags)
+{
+	struct pceu_cycles pceu1[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct pceu_cycles pceu2[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct spin_ctx *ctx = NULL;
+	uint32_t vm;
+	int new_fd;
+
+	if (flags & TEST_ISOLATION)
+		new_fd = drm_reopen_driver(fd);
+
+	vm = xe_vm_create(fd, 0, 0);
+	if (flags & TEST_BUSY) {
+		ctx = spin_ctx_init(fd, hwe, vm);
+		spin_sync_start(fd, ctx);
+	}
+
+	read_engine_cycles(fd, pceu1[0]);
+	if (flags & TEST_ISOLATION)
+		read_engine_cycles(new_fd, pceu1[1]);
+
+	usleep(batch_duration_ns / 1000);
+	if (flags & TEST_TRAILING_IDLE)
+		spin_sync_end(fd, ctx);
+
+	read_engine_cycles(fd, pceu2[0]);
+	if (flags & TEST_ISOLATION)
+		read_engine_cycles(new_fd, pceu2[1]);
+
+	check_results(pceu1[0], pceu2[0], hwe->engine_class, flags);
+
+	if (flags & TEST_ISOLATION) {
+		check_results(pceu1[1], pceu2[1], hwe->engine_class, 0);
+		close(new_fd);
+	}
+
+	spin_sync_end(fd, ctx);
+	spin_ctx_destroy(fd, ctx);
+	xe_vm_destroy(fd, vm);
+}
+
 igt_main
 {
+	struct drm_xe_engine_class_instance *hwe;
 	int xe;
 
 	igt_fixture {
@@ -329,6 +539,18 @@ igt_main
 	igt_describe("Check if basic fdinfo content is present for engine utilization");
 	igt_subtest("basic-engine-utilization")
 		basic_engine_utilization(xe);
+
+	igt_subtest("drm-idle")
+		xe_for_each_engine(xe, hwe)
+			single(xe, hwe, 0);
+
+	igt_subtest("drm-busy-idle")
+		xe_for_each_engine(xe, hwe)
+			single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE);
+
+	igt_subtest("drm-busy-idle-isolation")
+		xe_for_each_engine(xe, hwe)
+			single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE | TEST_ISOLATION);
 
 	igt_describe("Create and compare total and resident memory consumption by client");
 	igt_subtest("drm-total-resident")
