@@ -30,6 +30,7 @@
 #define SHARED_CHILD_DESCRIPTOR 3
 
 #define SHARED_MEM_NAME  "/queue_reset_shm"
+#define TEST_TIMEOUT 100 //100 seconds
 
 enum  process_type {
 	PROCESS_UNKNOWN,
@@ -49,12 +50,13 @@ enum error_code_bits {
 };
 
 enum reset_code_bits {
+	NO_RESET_SET_BIT,
 	QUEUE_RESET_SET_BIT,
 	GPU_RESET_BEGIN_SET_BIT,
 	GPU_RESET_END_SUCCESS_SET_BIT,
 	GPU_RESET_END_FAILURE_SET_BIT,
 
-	ALL_RESET_BITS = 0xf,
+	ALL_RESET_BITS = 0x1f,
 };
 
 struct shmbuf {
@@ -308,6 +310,8 @@ static void set_next_test_to_run(struct shmbuf *sh_mem, unsigned int error,
 	sync_point_enter(sh_mem);
 	wait_for_complete_iteration(sh_mem);
 	sync_point_exit(sh_mem);
+	igt_warn_on_f(sh_mem->reset_flags == 1U << NO_RESET_SET_BIT,
+		"Testing does not trigger reset \n");
 }
 
 static int
@@ -474,6 +478,9 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 	int state_machine = 0;
 	int error_code;
 	unsigned int flags;
+	int64_t cnt = 0;
+	time_t start, end;
+	double elapsed = 0;
 
 	after_reset_state = after_reset_hangs = 0;
 	init_flags = in_process_flags = 0;
@@ -488,6 +495,7 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 		error_code = 0;
 		flags = 0;
 		set_reset_state(sh_mem, false, ALL_RESET_BITS);
+		time(&start);
 		while (1) {
 			if (state_machine == 0) {
 				amdgpu_cs_query_reset_state2(arr_context[test_counter], &init_flags);
@@ -534,7 +542,17 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 					break;
 				}
 			}
+			cnt++;
+			if (cnt % 1000000 == 0) {
+				time(&end);
+				elapsed = difftime(end, start);
+				if ( elapsed >= TEST_TIMEOUT) {
+					set_reset_state(sh_mem, true, NO_RESET_SET_BIT);
+					break;
+				}
+			}
 		}
+		elapsed = 0;
 		sync_point_exit(sh_mem);
 		num_of_tests--;
 		test_counter++;
@@ -628,7 +646,7 @@ run_background(amdgpu_device_handle device, struct shmbuf *sh_mem,
 				igt_assert_eq(r, 0);
 			/*
 			 * TODO we have issue during gpu reset the return code assert we put after we check the
-			 * test is completed othewise the job is failed due to
+			 * test is completed otherwise the job is failed due to
 			 * amdgpu_job_run Skip job if VRAM is lost
 			 * if (job->generation != amdgpu_vm_generation(adev, job->vm)
 			 */
