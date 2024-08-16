@@ -290,6 +290,7 @@ static void set_next_test_to_run(struct shmbuf *sh_mem, unsigned int error,
 	bool is_dispatch;
 
 	is_dispatch_shader_test(error, error_str, &is_dispatch);
+
 	get_ip_type(ip_good, ip_good_str);
 	get_ip_type(ip_bad, ip_bad_str);
 
@@ -852,33 +853,72 @@ free_contexts(amdgpu_device_handle device, amdgpu_context_handle *p_contexts,
 }
 
 static bool
-get_next_rings(unsigned int ring_begin, struct drm_amdgpu_info_hw_ip info[],
-		unsigned int *good_job_ring, unsigned int *bad_job_ring,  unsigned int order)
+adjust_begin_index(unsigned int *ring_begin, unsigned int available_good_rings)
 {
-	unsigned int ring_id;
+	unsigned int ring_id = *ring_begin;
 
-	/* Check good job ring is available. By default good job run on compute ring */
-	for (ring_id = ring_begin; (1 << ring_id) & info[0].available_rings; ring_id++) {
-		if ((1 << *good_job_ring) & info[0].available_rings) {
-			*good_job_ring = ring_id;
-			/* check bad job ring is available */
-			for (ring_id = ring_begin; (1 << ring_id) & info[order].available_rings; ring_id++) {
-				/* if order is 0, bad job run on compute ring,
-				 * It should skip good ring and find next ring to run bad job.
-				 */
-				if (!order)
-					*bad_job_ring = *good_job_ring + 1;
-				else
-					*bad_job_ring = ring_id;
-				if ((1 << *bad_job_ring) & info[order].available_rings) {
+	if (!((1 << ring_id) & available_good_rings)) {
+		*ring_begin = 0;
+		return true;
+	}
+	return false;
+}
+
+static bool
+allow_same_ring_id(bool are_rings_of_differant_ip, unsigned int ring_id_bad, unsigned int ring_id_good)
+{
+	if (are_rings_of_differant_ip == true)
+		return true;
+
+	return ring_id_bad != ring_id_good;
+}
+
+static bool
+get_next_rings(unsigned int *ring_begin_good, unsigned int *ring_begin_bad,
+			unsigned int available_good_rings, unsigned int available_bad_rings,
+			bool are_rings_of_differant_ip, unsigned int *good_job_ring,
+			unsigned int *bad_job_ring)
+{
+	unsigned int ring_id_good, ring_id_bad;
+
+	for (ring_id_good = *ring_begin_good; ring_id_good < 32; ring_id_good++) {
+		if ((1 << ring_id_good) & available_good_rings) {
+			*good_job_ring = ring_id_good;
+
+			for (ring_id_bad = *ring_begin_bad; ring_id_bad < 32; ring_id_bad++) {
+				if ((1 << ring_id_bad) & available_bad_rings &&
+					allow_same_ring_id(are_rings_of_differant_ip, ring_id_bad, ring_id_good)) {
+					*bad_job_ring = ring_id_bad;
+
+					// Update the starting points for the next call
+					*ring_begin_good = ring_id_good + 1;
+					*ring_begin_bad = ring_id_bad + 1;
+
+					if (adjust_begin_index(ring_begin_bad, available_bad_rings))
+						*ring_begin_good += 1;
+
+					adjust_begin_index(ring_begin_good, available_good_rings);
+
 					return true;
 				}
 			}
 
+			// Reset ring_begin_bad for the next good ring
+			*ring_begin_bad = 0;
 		}
 	}
 
 	return false;
+}
+
+static void
+reset_rings_numbers(unsigned int *ring_id_good, unsigned int *ring_id_bad,
+						unsigned int *ring_id_job_good, unsigned int *ring_id_job_bad)
+{
+	*ring_id_good = 0;
+	*ring_id_bad = 0;
+	*ring_id_job_good = 0;
+	*ring_id_job_bad = 0;
 }
 
 igt_main
@@ -901,8 +941,10 @@ igt_main
 
 	int r;
 	bool arr_cap[AMD_IP_MAX] = {0};
-	unsigned int ring_id_good = 0;
-	unsigned int ring_id_bad = 1;
+	unsigned int ring_id_good;
+	unsigned int ring_id_bad;
+	unsigned int ring_id_job_good;
+	unsigned int ring_id_job_bad;
 
 	enum amd_ip_block_type ip_tests[2] = {AMD_IP_COMPUTE/*keep first*/, AMD_IP_GFX};
 	enum amd_ip_block_type ip_background = AMD_IP_COMPUTE;
@@ -926,7 +968,7 @@ igt_main
 			//	"Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR, "BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
-			//TODO  KGQ cannot revocer by queue reset, it maybe need a fw bugfix on naiv31
+			//TODO  KGQ cannot recover by queue reset, it maybe need a fw bugfix on naiv31
 			//{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,"BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING",
 			//	"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_USER_DATA, "BACKEND_SE_GC_SHADER_INVALID_USER_DATA",
@@ -996,12 +1038,15 @@ igt_main
 	}
 
 	for (int i = 0; i < ARRAY_SIZE(ip_tests); i++) {
+		reset_rings_numbers(&ring_id_good, &ring_id_bad, &ring_id_job_good, &ring_id_job_bad);
 		for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
-			igt_describe("Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes");
-			igt_subtest_with_dynamic_f("amdgpu-%s-%s", ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GRAFIX", it->name) {
-				if (arr_cap[ip_tests[i]] && get_next_rings(ring_id_good, info, &ring_id_good, &ring_id_bad, i)) {
-					igt_dynamic_f("amdgpu-%s-ring-good-%d-bad-%d-%s", it->name,ring_id_good, ring_id_bad, ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GRAFIX")
-					set_next_test_to_run(sh_mem, it->test, ip_background, ip_tests[i], ring_id_good, ring_id_bad);
+			igt_describe("Stressful-and-multiple-cs-of-bad-and-good-length-operations-using-multiple-processes");
+			igt_subtest_with_dynamic_f("amdgpu-%s-%s", ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GFX", it->name) {
+				if (arr_cap[ip_tests[i]] && get_next_rings(&ring_id_good, &ring_id_bad, info[0].available_rings,
+						info[i].available_rings, ip_background != ip_tests[i], &ring_id_job_good, &ring_id_job_bad)) {
+					igt_dynamic_f("amdgpu-%s-ring-good-%d-bad-%d-%s", it->name, ring_id_job_good, ring_id_job_bad,
+							ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GFX")
+					set_next_test_to_run(sh_mem, it->test, ip_background, ip_tests[i], ring_id_job_good, ring_id_job_bad);
 				}
 			}
 		}
