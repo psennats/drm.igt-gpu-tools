@@ -314,6 +314,7 @@ intel_xe_progs = [
 	'xe_waitfence',
 	'xe_spin_batch',
 	'xe_sysfs_defaults',
+	'xe_sysfs_preempt_timeout',
 	'xe_sysfs_scheduler',
 ]
 
