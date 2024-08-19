@@ -143,7 +143,7 @@ static void invalid_dimensions_test(int fd)
 	memset(&create, 0, sizeof(create));
 	create.width = 4032;
 	create.height = 2016;
-	create.bpp = 24;
+	create.bpp = 0;
 	igt_assert_eq(__dumb_create(fd, &create), -EINVAL);
 
 	create.bpp = 32;
