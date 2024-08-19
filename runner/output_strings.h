@@ -55,6 +55,14 @@ static const char STARTING_SUBTEST_DMESG[] = ": starting subtest ";
 static const char STARTING_DYNAMIC_SUBTEST_DMESG[] = ": starting dynamic subtest ";
 
 /*
+ * Output in dmesg when a test wants runner to dynamically ignore error or warn.
+ *
+ * Example:
+ * [IGT] add ignored dmesg regex: CRITICAL: Xe has declared device [0-9:.]* as wedged
+ */
+static const char IGT_ADD_IGNORED_REGEX_DMESG[] = "add ignored dmesg regex: ";
+
+/*
  * Output when a test process is executed.
  *
  * Example:

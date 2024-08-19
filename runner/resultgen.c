@@ -829,21 +829,63 @@ static const char igt_dmesg_whitelist[] =
 static const char igt_piglit_style_dmesg_blacklist[] =
 	"(\\[drm:|drm_|intel_|i915_|\\[drm\\])";
 
-static bool init_regex_whitelist(struct settings* settings, GRegex **re)
+static bool init_dmesg_regex(GRegex **re, const char *regex, const char *msg)
 {
 	GError *err = NULL;
-	const char *regex = settings->piglit_style_dmesg ?
-		igt_piglit_style_dmesg_blacklist :
-		igt_dmesg_whitelist;
 
 	*re = g_regex_new(regex, G_REGEX_OPTIMIZE, 0, &err);
 	if (err) {
-		fprintf(stderr, "Cannot compile dmesg regexp\n");
+		fprintf(stderr, "Cannot compile %s : %s\n",
+			msg, err->message);
 		g_error_free(err);
+
 		return false;
 	}
 
 	return true;
+}
+
+static bool init_regex_whitelist(struct settings *settings, GRegex **re)
+{
+	const char *regex = settings->piglit_style_dmesg ?
+		igt_piglit_style_dmesg_blacklist :
+		igt_dmesg_whitelist;
+	const char *what = settings->piglit_style_dmesg ?
+		"piglit style dmesg blocklist" :
+		"igt dmesg whitelist";
+
+	return init_dmesg_regex(re, regex, what);
+}
+
+static bool not_ignored(GRegex *re, const char *msg)
+{
+	if (!re)
+		return true;
+
+	return !g_regex_match(re, msg, 0, NULL);
+}
+
+static void clean_regex(GRegex **re)
+{
+	if (*re)
+		g_regex_unref(*re);
+
+	*re = NULL;
+}
+
+static void add_ignored_regex(GRegex **re, char *src)
+{
+	char *s;
+
+	s = strchr(src, '\n');
+	if (s)
+		*s = 0;
+
+	if (*re)
+		g_regex_unref(*re);
+
+	init_dmesg_regex(re, src, "ignore match");
+	fprintf(stderr, "igt_resultgen: Added ignore regex '%s'\n", src);
 }
 
 static bool parse_dmesg_line(char* line,
@@ -979,6 +1021,7 @@ static bool fill_from_dmesg(int fd,
 	char dynamic_piglit_name[256];
 	size_t i;
 	GRegex *re;
+	GRegex *re_ignore; /* regex for dynamically ignored dmesg line */
 
 	if (!f) {
 		return false;
@@ -989,12 +1032,13 @@ static bool fill_from_dmesg(int fd,
 		return false;
 	}
 
+	re_ignore = NULL;
 	while (getline(&line, &linelen, f) > 0) {
 		char *formatted;
 		unsigned flags;
 		unsigned long long ts_usec;
 		char continuation;
-		char *message, *subtest, *dynamic_subtest;
+		char *message, *subtest, *dynamic_subtest, *ignore;
 
 		if (!parse_dmesg_line(line, &flags, &ts_usec, &continuation, &message))
 			continue;
@@ -1024,6 +1068,7 @@ static bool fill_from_dmesg(int fd,
 			subtest += strlen(STARTING_SUBTEST_DMESG);
 			generate_piglit_name(binary, subtest, piglit_name, sizeof(piglit_name));
 			current_test = get_or_create_json_object(tests, piglit_name);
+			clean_regex(&re_ignore);
 		}
 
 		if (current_test != NULL &&
@@ -1041,18 +1086,24 @@ static bool fill_from_dmesg(int fd,
 			dynamic_subtest += strlen(STARTING_DYNAMIC_SUBTEST_DMESG);
 			generate_piglit_name_for_dynamic(piglit_name, dynamic_subtest, dynamic_piglit_name, sizeof(dynamic_piglit_name));
 			current_dynamic_test = get_or_create_json_object(tests, dynamic_piglit_name);
+			clean_regex(&re_ignore);
 		}
+
+		if ((ignore = strstr(message, IGT_ADD_IGNORED_REGEX_DMESG)) != NULL)
+			add_ignored_regex(&re_ignore, ignore + strlen(IGT_ADD_IGNORED_REGEX_DMESG));
 
 		if (settings->piglit_style_dmesg) {
 			if ((flags & 0x07) <= settings->dmesg_warn_level && continuation != 'c' &&
-			    g_regex_match(re, message, 0, NULL)) {
+			    g_regex_match(re, message, 0, NULL) &&
+			    not_ignored(re_ignore, message)) {
 				append_line(&warnings, &warningslen, formatted);
 				if (current_test != NULL)
 					append_line(&dynamic_warnings, &dynamic_warnings_len, formatted);
 			}
 		} else {
 			if ((flags & 0x07) <= settings->dmesg_warn_level && continuation != 'c' &&
-			    !g_regex_match(re, message, 0, NULL)) {
+			    !g_regex_match(re, message, 0, NULL) &&
+			    not_ignored(re_ignore, message)) {
 				append_line(&warnings, &warningslen, formatted);
 				if (current_test != NULL)
 					append_line(&dynamic_warnings, &dynamic_warnings_len, formatted);
@@ -1099,6 +1150,7 @@ static bool fill_from_dmesg(int fd,
 	free(dynamic_dmesg);
 	free(warnings);
 	free(dynamic_warnings);
+	clean_regex(&re_ignore);
 	g_regex_unref(re);
 	fclose(f);
 	return true;
