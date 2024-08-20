@@ -34,7 +34,7 @@
  * Too many intermediate components and steps before freq is adjusted
  * Specially if workload is under execution, so let's wait 100 ms.
  */
-#define ACT_FREQ_LATENCY_US 100000
+#define SLPC_FREQ_LATENCY_US 100000
 
 static int set_freq(int fd, int gt_id, const char *freq_name, uint32_t freq)
 {
@@ -194,7 +194,7 @@ static void test_freq_fixed(int fd, int gt_id, bool gt_idle)
 	 */
 	igt_assert_lt(0, set_freq(fd, gt_id, "min", rpn));
 	igt_assert_lt(0, set_freq(fd, gt_id, "max", rpn));
-	usleep(ACT_FREQ_LATENCY_US);
+	usleep(SLPC_FREQ_LATENCY_US);
 	igt_assert_eq_u32(get_freq(fd, gt_id, "cur"), rpn);
 
 	if (gt_idle) {
@@ -208,7 +208,7 @@ static void test_freq_fixed(int fd, int gt_id, bool gt_idle)
 
 	igt_assert_lt(0, set_freq(fd, gt_id, "min", rpmid));
 	igt_assert_lt(0, set_freq(fd, gt_id, "max", rpmid));
-	usleep(ACT_FREQ_LATENCY_US);
+	usleep(SLPC_FREQ_LATENCY_US);
 	cur_freq = get_freq(fd, gt_id, "cur");
 	/* If rpmid is around RPe, we could see SLPC follow it */
 	igt_assert_lte_u32((rpmid - FREQ_UNIT_MHZ), cur_freq);
@@ -224,7 +224,7 @@ static void test_freq_fixed(int fd, int gt_id, bool gt_idle)
 
 	igt_assert_lt(0, set_freq(fd, gt_id, "min", rp0));
 	igt_assert_lt(0, set_freq(fd, gt_id, "max", rp0));
-	usleep(ACT_FREQ_LATENCY_US);
+	usleep(SLPC_FREQ_LATENCY_US);
 	/*
 	 * It is unlikely that PCODE will *always* respect any request above RPe
 	 * So for this level let's only check if GuC PC is doing its job
@@ -259,7 +259,7 @@ static void test_freq_range(int fd, int gt_id, bool gt_idle)
 
 	igt_assert_lt(0, set_freq(fd, gt_id, "min", rpn));
 	igt_assert_lt(0, set_freq(fd, gt_id, "max", rpmid));
-	usleep(ACT_FREQ_LATENCY_US);
+	usleep(SLPC_FREQ_LATENCY_US);
 	cur = get_freq(fd, gt_id, "cur");
 	igt_assert(rpn <= cur && cur <= rpmid + FREQ_UNIT_MHZ);
 
@@ -292,7 +292,7 @@ static void test_freq_low_max(int fd, int gt_id)
 	 */
 	igt_assert_lt(0, set_freq(fd, gt_id, "min", rpmid));
 	igt_assert_lt(0, set_freq(fd, gt_id, "max", rpn));
-	usleep(ACT_FREQ_LATENCY_US);
+	usleep(SLPC_FREQ_LATENCY_US);
 
 	/* Cur freq will follow RPe, which could be higher than min freq */
 	igt_assert_lte_u32((rpmid - FREQ_UNIT_MHZ),
@@ -310,7 +310,7 @@ static void test_suspend(int fd, int gt_id)
 
 	igt_assert_lt(0, set_freq(fd, gt_id, "min", rpn));
 	igt_assert_lt(0, set_freq(fd, gt_id, "max", rpn));
-	usleep(ACT_FREQ_LATENCY_US);
+	usleep(SLPC_FREQ_LATENCY_US);
 	igt_assert_eq_u32(get_freq(fd, gt_id, "cur"), rpn);
 
 	igt_system_suspend_autoresume(SUSPEND_STATE_S3,
@@ -337,7 +337,7 @@ static void test_reset(int fd, int gt_id, int cycles)
 			     "Failed after %d good cycles\n", i);
 		igt_assert_f(set_freq(fd, gt_id, "max", rpn) > 0,
 			     "Failed after %d good cycles\n", i);
-		usleep(ACT_FREQ_LATENCY_US);
+		usleep(SLPC_FREQ_LATENCY_US);
 		igt_assert_f(get_freq(fd, gt_id, "cur") == rpn,
 			     "Failed after %d good cycles\n", i);
 
