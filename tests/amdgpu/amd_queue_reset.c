@@ -26,7 +26,9 @@
 #include "lib/amdgpu/amd_deadlock_helpers.h"
 #include "lib/amdgpu/amd_dispatch.h"
 
+
 #define NUM_CHILD_PROCESSES 4
+
 #define SHARED_CHILD_DESCRIPTOR 3
 
 #define SHARED_MEM_NAME  "/queue_reset_shm"
@@ -403,10 +405,12 @@ error:
 }
 
 static bool
-is_queue_reset_tests_enable(const struct amdgpu_gpu_info *gpu_info)
+is_queue_reset_tests_enable(const struct amdgpu_gpu_info *gpu_info, uint32_t version)
 {
 	bool enable = true;
-	// TO DO
+
+	if (version < 9)
+		enable = false;
 
 	return enable;
 }
@@ -946,8 +950,8 @@ igt_main
 	char **argv = NULL;
 	char *path = NULL;
 	enum  process_type process = PROCESS_UNKNOWN;
-	pid_t pid_background;
-	pid_t monitor_child, test_child;
+	pid_t pid_background = 0;
+	pid_t monitor_child = 0, test_child = 0;
 	int testExitMethod, monitorExitMethod, backgrounExitMethod;
 	posix_spawn_file_actions_t action;
 	amdgpu_device_handle device;
@@ -1012,16 +1016,6 @@ igt_main
 		else
 			const_num_of_tests = (sizeof(arr_err)/sizeof(struct dynamic_test) - 1) * ARRAY_SIZE(ip_tests);
 
-		if (!is_background_parameter_found(argc, argv)) {
-			add_background_parameter(&argc, argv);
-			fd_shm = shared_mem_create(&sh_mem);
-			igt_require(fd_shm != -1);
-			launch_background_process(argc, argv, path, &pid_background, fd_shm);
-			process = PROCESS_TEST;
-		} else {
-			process = PROCESS_BACKGROUND;
-		}
-
 		fd = drm_open_driver(DRIVER_AMDGPU);
 
 		err = amdgpu_device_initialize(fd, &major, &minor, &device);
@@ -1032,6 +1026,7 @@ igt_main
 
 		r = amdgpu_query_gpu_info(device, &gpu_info);
 		igt_assert_eq(r, 0);
+
 		for (int i = 0; i < ARRAY_SIZE(ip_tests); i++) {
 			r = amdgpu_query_hw_ip_info(device, ip_tests[i], 0, &info[i]);
 			igt_assert_eq(r, 0);
@@ -1041,7 +1036,17 @@ igt_main
 		igt_assert_eq(r, 0);
 
 		asic_rings_readness(device, 1, arr_cap);
-		igt_skip_on(!is_queue_reset_tests_enable(&gpu_info));
+		igt_skip_on(!is_queue_reset_tests_enable(&gpu_info, info[1].hw_ip_version_major));
+
+		if (!is_background_parameter_found(argc, argv)) {
+			add_background_parameter(&argc, argv);
+			fd_shm = shared_mem_create(&sh_mem);
+			igt_require(fd_shm != -1);
+			launch_background_process(argc, argv, path, &pid_background, fd_shm);
+			process = PROCESS_TEST;
+		} else {
+			process = PROCESS_BACKGROUND;
+		}
 		if (process == PROCESS_TEST)
 			create_contexts(device, &arr_context_handle, const_num_of_tests);
 		else if (process == PROCESS_BACKGROUND)
