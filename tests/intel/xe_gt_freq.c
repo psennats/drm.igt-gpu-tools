@@ -342,6 +342,7 @@ static void test_reset(int fd, int gt_id, int cycles)
 			     "Failed after %d good cycles\n", i);
 
 		xe_force_gt_reset_async(fd, gt_id);
+		usleep(SLPC_FREQ_LATENCY_US);
 
 		igt_assert_f(get_freq(fd, gt_id, "min") == rpn,
 			     "Failed after %d good cycles\n", i);
