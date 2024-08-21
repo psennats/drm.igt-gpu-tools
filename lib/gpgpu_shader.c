@@ -281,6 +281,8 @@ void gpgpu_shader__write_dword(struct gpgpu_shader *shdr, uint32_t value,
 			       uint32_t y_offset)
 {
 	emit_iga64_code(shdr, media_block_write, "				\n\
+	// Clear message header							\n\
+(W)	mov (16|M0)              r4.0<1>:ud    0x0:ud				\n\
 	// Payload								\n\
 (W)	mov (1|M0)               r5.0<1>:ud    ARG(3):ud			\n\
 (W)	mov (1|M0)               r5.1<1>:ud    ARG(4):ud			\n\
@@ -303,8 +305,6 @@ void gpgpu_shader__write_dword(struct gpgpu_shader *shdr, uint32_t value,
 	// Load r2.4-7 with tg id Y + ARG(1):ud					\n\
 (W)	mov (1|M0)               r2.1<1>:ud    r0.6<0;1,0>:ud			\n\
 (W)	add (1|M0)               r2.1<1>:ud    r2.1<0;1,0>:ud    ARG(1):ud	\n\
-	// payload setup							\n\
-(W)	mov (16|M0)              r4.0<1>:ud    0x0:ud				\n\
 	// Store X and Y block start (160:191 and 192:223)			\n\
 (W)	mov (2|M0)               r4.5<1>:ud    r2.0<2;2,1>:ud			\n\
 	// Store X and Y block max_size (224:231 and 232:239)			\n\
