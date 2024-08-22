@@ -629,9 +629,10 @@ static struct blt_copy_object *blt_fb_init(const struct igt_fb *fb,
 	return blt;
 }
 
-static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb)
+static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb,
+					int color_plane)
 {
-	switch (fb->plane_bpp[0]) {
+	switch (fb->plane_bpp[color_plane]) {
 	case 8:
 		return CD_8bit;
 	case 16:
@@ -706,18 +707,18 @@ static void xe2_ccs_blit(data_t *data, struct igt_fb *fb, struct igt_fb *temp_fb
 		dst = blt_fb_init(dst_fb, i, mem_region, intel_get_pat_idx_wt(dst_fb->fd));
 
 		blt_copy_init(src_fb->fd, &blt);
-		blt.color_depth = blt_get_bpp(src_fb);
+		blt.color_depth = blt_get_bpp(src_fb, i);
 		blt_set_copy_object(&blt.src, src);
 		blt_set_copy_object(&blt.dst, dst);
 
 		blt_set_object_ext(&ext.src,
 				blt_compression_format(&blt, src_fb),
-				src_fb->width, src_fb->height,
+				src_fb->plane_width[i], src_fb->plane_height[i],
 				SURFACE_TYPE_2D);
 
 		blt_set_object_ext(&ext.dst,
 				blt_compression_format(&blt, dst_fb),
-				dst_fb->width, dst_fb->height,
+				dst_fb->plane_width[i], dst_fb->plane_height[i],
 				SURFACE_TYPE_2D);
 
 		pext = &ext;
