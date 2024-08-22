@@ -45,11 +45,22 @@ enum  cmd_error_type {
 	BACKEND_SE_GC_SHADER_INVALID_USER_DATA /* COMPUTE_USER_DATA */
 };
 
+#define _MAX_NUM_ASIC_ID_EXCLUDE_FILTER 3
+
+struct asic_id_filter
+{
+	int family_id;
+	int chip_id_begin;
+	int chip_id_end;
+};
+
 struct dynamic_test{
 	enum cmd_error_type test;
 	const char *name;
 	const char *describe;
+	struct asic_id_filter exclude_filter[_MAX_NUM_ASIC_ID_EXCLUDE_FILTER];
 };
+
 #define for_each_test(t, T) for(typeof(*T) *t = T; t->name; t++)
 
 /* aux struct to hold misc parameters for convenience to maintain */

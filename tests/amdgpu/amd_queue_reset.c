@@ -25,6 +25,7 @@
 #include "lib/amdgpu/amd_command_submission.h"
 #include "lib/amdgpu/amd_deadlock_helpers.h"
 #include "lib/amdgpu/amd_dispatch.h"
+#include "lib/amdgpu/amdgpu_asic_addr.h"
 
 
 #define NUM_CHILD_PROCESSES 4
@@ -67,7 +68,8 @@ struct shmbuf {
 	sem_t sync_sem_enter;
 	sem_t sync_sem_exit;
 	int count;
-	bool test_completed;
+	bool sub_test_completed;
+	bool sub_test_is_skipped;
 	unsigned int test_flags;
 	int test_error_code;
 	bool reset_completed;
@@ -123,10 +125,30 @@ get_reset_state(struct shmbuf *sh_mem, unsigned int *flags)
 	bool reset_state;
 
 	sem_wait(&sh_mem->sem_state_mutex);
-	reset_state = sh_mem->reset_completed;
+	reset_state = sh_mem->reset_completed || sh_mem->sub_test_is_skipped;
 	*flags = sh_mem->reset_flags;
 	sem_post(&sh_mem->sem_state_mutex);
 	return reset_state;
+}
+
+static bool
+is_subtest_skipped(struct shmbuf *sh_mem)
+{
+	bool skipped;
+
+	sem_wait(&sh_mem->sem_state_mutex);
+	skipped = sh_mem->sub_test_is_skipped;
+	sem_post(&sh_mem->sem_state_mutex);
+
+	return skipped;
+}
+
+static void
+skip_sub_test(struct shmbuf *sh_mem)
+{
+	sem_wait(&sh_mem->sem_state_mutex);
+	sh_mem->sub_test_is_skipped = true;
+	sem_post(&sh_mem->sem_state_mutex);
 }
 
 static void
@@ -134,7 +156,7 @@ set_test_state(struct shmbuf *sh_mem, bool test_state,
 		int error_code, enum error_code_bits bit)
 {
 	sem_wait(&sh_mem->sem_state_mutex);
-	sh_mem->test_completed = test_state;
+	sh_mem->sub_test_completed = test_state;
 	sh_mem->test_error_code = error_code;
 	if (test_state)
 		set_bit(bit, &sh_mem->test_flags);
@@ -143,15 +165,13 @@ set_test_state(struct shmbuf *sh_mem, bool test_state,
 	sem_post(&sh_mem->sem_state_mutex);
 }
 
-
-
 static bool
 get_test_state(struct shmbuf *sh_mem, int *error_code, unsigned int *flags)
 {
 	bool test_state;
 
 	sem_wait(&sh_mem->sem_state_mutex);
-	test_state = sh_mem->test_completed;
+	test_state = sh_mem->sub_test_completed || sh_mem->sub_test_is_skipped;
 	*error_code = sh_mem->test_error_code;
 	*flags = sh_mem->test_flags;
 	sem_post(&sh_mem->sem_state_mutex);
@@ -306,6 +326,7 @@ static void set_next_test_to_run(struct shmbuf *sh_mem, unsigned int error,
 	sh_mem->good_job.error = CMD_STREAM_EXEC_SUCCESS;
 	sh_mem->good_job.ip = ip_good;
 	sh_mem->good_job.ring_id = ring_id_good;
+	sh_mem->sub_test_is_skipped = false;
 	sem_post(&sh_mem->sem_state_mutex);
 
 	//sync and wait for complete
@@ -314,6 +335,14 @@ static void set_next_test_to_run(struct shmbuf *sh_mem, unsigned int error,
 	sync_point_exit(sh_mem);
 	igt_warn_on_f(sh_mem->reset_flags == 1U << NO_RESET_SET_BIT,
 		"Testing does not trigger reset \n");
+}
+
+static void set_next_test_to_skip(struct shmbuf *sh_mem)
+{
+	skip_sub_test(sh_mem);
+	sync_point_enter(sh_mem);
+	wait_for_complete_iteration(sh_mem);
+	sync_point_exit(sh_mem);
 }
 
 static int
@@ -373,8 +402,9 @@ shared_mem_create(struct shmbuf **ppbuf)
 		goto error;
 
 	shmp->count = 0;
-	shmp->test_completed = false;
+	shmp->sub_test_completed = false;
 	shmp->reset_completed = false;
+	shmp->sub_test_is_skipped = false;
 
 	*ppbuf = shmp;
 	return shm_fd;
@@ -411,6 +441,37 @@ is_queue_reset_tests_enable(const struct amdgpu_gpu_info *gpu_info, uint32_t ver
 
 	if (version < 9)
 		enable = false;
+
+	return enable;
+}
+
+static bool
+is_sub_test_queue_reset_enable(const struct amdgpu_gpu_info *gpu_info,
+		struct asic_id_filter exclude_filter[_MAX_NUM_ASIC_ID_EXCLUDE_FILTER],
+		const struct dynamic_test *it)
+{
+	int i;
+	bool enable = true;
+	int chip_id;
+	char error_str[128];
+	bool is_dispatch;
+
+	for (i = 0; i < _MAX_NUM_ASIC_ID_EXCLUDE_FILTER; i++) {
+		if (gpu_info->family_id == exclude_filter[i].family_id) {
+			chip_id = gpu_info->chip_external_rev - gpu_info->chip_rev;
+			if (chip_id >= exclude_filter[i].chip_id_begin &&
+				chip_id < exclude_filter[i].chip_id_end) {
+				enable = false;
+				is_dispatch_shader_test(it->test, error_str, &is_dispatch);
+				igt_info("PID %d SKIP subtest %s CHIP family (%s) %d chip %d, begin end [%d %d] excluded\n",
+						getpid(), error_str, g_pChip->name,
+						gpu_info->family_id, chip_id,
+						exclude_filter[i].chip_id_begin,
+						exclude_filter[i].chip_id_end);
+				break;
+			}
+		}
+	}
 
 	return enable;
 }
@@ -501,6 +562,9 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 		set_reset_state(sh_mem, false, ALL_RESET_BITS);
 		time(&start);
 		while (1) {
+			if (is_subtest_skipped(sh_mem))
+				break;
+
 			if (state_machine == 0) {
 				amdgpu_cs_query_reset_state2(arr_context[test_counter], &init_flags);
 
@@ -550,7 +614,7 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 			if (cnt % 1000000 == 0) {
 				time(&end);
 				elapsed = difftime(end, start);
-				if ( elapsed >= TEST_TIMEOUT) {
+				if (elapsed >= TEST_TIMEOUT) {
 					set_reset_state(sh_mem, true, NO_RESET_SET_BIT);
 					break;
 				}
@@ -582,6 +646,12 @@ run_test_child(amdgpu_device_handle device, amdgpu_context_handle *arr_context,
 
 	while (num_of_tests > 0) {
 		sync_point_enter(sh_mem);
+		if (is_subtest_skipped(sh_mem)) {
+			sync_point_exit(sh_mem);
+			num_of_tests--;
+			test_counter++;
+			continue;
+		}
 		set_test_state(sh_mem, false, 0, ERROR_CODE_SET_BIT);
 		read_next_job(sh_mem, &job, false);
 		bool_ret = is_dispatch_shader_test(job.error,  error_str, &is_dispatch);
@@ -631,6 +701,11 @@ run_background(amdgpu_device_handle device, struct shmbuf *sh_mem,
 
 	while (num_of_tests > 0) {
 		sync_point_enter(sh_mem);
+		if (is_subtest_skipped(sh_mem)) {
+			sync_point_exit(sh_mem);
+			num_of_tests--;
+			continue;
+		}
 		read_next_job(sh_mem, &job, true);
 		ip_block_test = get_ip_block(device, job.ip);
 		is_dispatch_shader_test(job.error,  error_str, &is_dispatch);
@@ -979,9 +1054,11 @@ igt_main
 	 */
 	struct dynamic_test arr_err[] = {
 			{CMD_STREAM_EXEC_INVALID_PACKET_LENGTH, "CMD_STREAM_EXEC_INVALID_PACKET_LENGTH",
-				"Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes"},
+				"Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes",
+				{ {FAMILY_UNKNOWN, 0x1, 0x10 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } },
 			{CMD_STREAM_EXEC_INVALID_OPCODE, "CMD_STREAM_EXEC_INVALID_OPCODE",
-				"Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes"},
+				"Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes",
+				{ {FAMILY_UNKNOWN, -1, -1 }, {FAMILY_UNKNOWN, -1, -1 }, {FAMILY_UNKNOWN, -1, -1 } } },
 			//TODO  not job timeout, debug why for n31.
 			//{CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,"CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC",
 			//	"Stressful-and-multiple-cs-of-bad and good mem-sync-operations-using-multiple-processes"},
@@ -989,14 +1066,17 @@ igt_main
 			//{CMD_STREAM_TRANS_BAD_REG_ADDRESS,"CMD_STREAM_TRANS_BAD_REG_ADDRESS",
 			//	"Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR, "BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR",
-				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
+				{ {FAMILY_UNKNOWN, 0x1, 0x10 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } },
 			//TODO  KGQ cannot recover by queue reset, it maybe need a fw bugfix on naiv31
 			//{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,"BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING",
 			//	"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_USER_DATA, "BACKEND_SE_GC_SHADER_INVALID_USER_DATA",
-				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
+				{ {FAMILY_UNKNOWN, -1, -1 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } },
 			{BACKEND_SE_GC_SHADER_INVALID_SHADER, "BACKEND_SE_GC_SHADER_INVALID_SHADER",
-				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
+				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
+				{ {FAMILY_UNKNOWN, 0x1, 0x10 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } },
 			{}
 	};
 
@@ -1020,9 +1100,6 @@ igt_main
 
 		err = amdgpu_device_initialize(fd, &major, &minor, &device);
 		igt_require(err == 0);
-
-		igt_info("Initialized amdgpu, driver version %d.%d\n",
-			 major, minor);
 
 		r = amdgpu_query_gpu_info(device, &gpu_info);
 		igt_assert_eq(r, 0);
@@ -1065,16 +1142,18 @@ igt_main
 		for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
 			igt_describe("Stressful-and-multiple-cs-of-bad-and-good-length-operations-using-multiple-processes");
 			igt_subtest_with_dynamic_f("amdgpu-%s-%s", ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GFX", it->name) {
-				if (arr_cap[ip_tests[i]] && get_next_rings(&ring_id_good, &ring_id_bad, info[0].available_rings,
+				if (arr_cap[ip_tests[i]] && is_sub_test_queue_reset_enable(&gpu_info, it->exclude_filter, it) &&
+						get_next_rings(&ring_id_good, &ring_id_bad, info[0].available_rings,
 						info[i].available_rings, ip_background != ip_tests[i], &ring_id_job_good, &ring_id_job_bad)) {
 					igt_dynamic_f("amdgpu-%s-ring-good-%d-bad-%d-%s", it->name, ring_id_job_good, ring_id_job_bad,
 							ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GFX")
 					set_next_test_to_run(sh_mem, it->test, ip_background, ip_tests[i], ring_id_job_good, ring_id_job_bad);
+				} else {
+					set_next_test_to_skip(sh_mem);
 				}
 			}
 		}
 	}
-
 	igt_fixture {
 		if (process == PROCESS_TEST) {
 			waitpid(monitor_child, &monitorExitMethod, 0);
