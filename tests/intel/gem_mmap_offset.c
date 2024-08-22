@@ -56,6 +56,7 @@
  * SUBTEST: close-race
  * SUBTEST: isolation
  * SUBTEST: mmap-boundaries
+ * SUBTEST: mmap-unmap
  * SUBTEST: oob-read
  * SUBTEST: open-flood
  * SUBTEST: partial-mmap
@@ -1016,6 +1017,110 @@ static void test_mmap_boundaries(int i915, struct gem_memory_region *r)
 	gem_close(i915, handle);
 }
 
+static void __test_mmap_unmap(int i915, struct gem_memory_region *r,
+			      int limit, uint64_t obj_size, uint64_t map_addr,
+			      uint64_t map_size, uint64_t poke_addr, int flags,
+			      bool is_main)
+{
+	struct drm_i915_gem_mmap_offset mmap_offset_arg = { };
+	uint32_t handle;
+
+	handle = gem_create_in_memory_region_list(i915, obj_size, 0, &r->ci, 1);
+	make_resident(i915, 0, handle);
+
+	mmap_offset_arg.handle = handle;
+	mmap_offset_arg.flags = flags;
+	mmap_offset_ioctl(i915, &mmap_offset_arg);
+
+	for (int i = 0; i < limit; i++) {
+		void *errp;
+		int err;
+
+		errp = mmap(from_user_pointer(map_addr),
+			    map_size,
+			    PROT_READ | PROT_WRITE,
+			    MAP_SHARED | MAP_FIXED_NOREPLACE,
+			    i915,
+			    mmap_offset_arg.offset);
+
+		if (errp == MAP_FAILED)
+			continue;
+
+		if (is_main)
+			*(volatile char *)from_user_pointer(poke_addr - SZ_1K);
+
+		err = munmap(from_user_pointer(map_addr), map_size);
+		igt_assert_f(err >= 0, "Failed to unmap\n");
+	}
+	gem_close(i915, handle);
+}
+
+struct flipper_thread_args {
+	int i915;
+	struct gem_memory_region *r;
+	int limit;
+	uint64_t map_addr;
+	uint64_t map_size;
+	uint64_t flags;
+};
+
+static void *flipper_thread_fn(void *data)
+{
+	struct flipper_thread_args *args;
+
+	args = data;
+	__test_mmap_unmap(args->i915,
+			  args->r,
+			  args->limit,
+			  args->map_size, /* obj_size == map_size in flipper */
+			  args->map_addr,
+			  args->map_size,
+			  args->map_addr,  /* we ignore the poke in flipper thread */
+			  args->flags,
+			  false);
+	return NULL;
+}
+
+/* This test's failure is detected by checking the dmesg. */
+static void test_mmap_unmap(int i915, int limit, struct gem_memory_region *r)
+{
+	struct flipper_thread_args data;
+	pthread_t flipper_thread;
+
+	uint64_t flipper_map_addr;
+	uint64_t flipper_map_size;
+	uint64_t main_map_size;
+	uint64_t main_map_addr;
+	uint64_t poke_addr;
+	uint64_t obj_size;
+
+	flipper_map_addr = 0x8000000000;
+	flipper_map_size = SZ_2M;
+	main_map_size = SZ_128M - SZ_512K;
+	main_map_addr = flipper_map_addr - main_map_size;
+	poke_addr = flipper_map_addr;
+	obj_size = 1060 * SZ_1M;
+
+	data.i915 = i915;
+	data.r = r;
+	data.limit = limit;
+	data.map_addr = flipper_map_addr;
+	data.map_size = flipper_map_size;
+
+	for_each_mmap_offset_type(i915, t) {
+		int err;
+
+		data.flags = t->type;
+		err = pthread_create(&flipper_thread, NULL, flipper_thread_fn, &data);
+		igt_assert_f(err == 0, "Failed to create flipper\n");
+
+		__test_mmap_unmap(i915, r, limit, obj_size, main_map_addr,
+				  main_map_size, poke_addr, t->type, true);
+
+		pthread_join(flipper_thread, NULL);
+	}
+}
+
 static int mmap_gtt_version(int i915)
 {
 	int gtt_version = -1;
@@ -1114,6 +1219,14 @@ igt_main
 		for_each_memory_region(r, i915) {
 			igt_dynamic_f("%s", r->name)
 				test_mmap_boundaries(i915, r);
+		}
+	}
+
+	igt_describe("Check for UAF if one VMA faults while an adjacent one unmaps");
+	igt_subtest_with_dynamic("mmap-unmap") {
+		for_each_memory_region(r, i915) {
+			igt_dynamic_f("%s", r->name)
+				test_mmap_unmap(i915, 10000, r);
 		}
 	}
 
