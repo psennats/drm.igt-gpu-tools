@@ -57,6 +57,9 @@
  * SUBTEST: isolation
  * SUBTEST: oob-read
  * SUBTEST: open-flood
+ * SUBTEST: partial-mmap
+ * SUBTEST: partial-unmap
+ * SUBTEST: partial-remap
  * SUBTEST: perf
  * SUBTEST: pf-nonblock
  * SUBTEST: ptrace
@@ -875,6 +878,117 @@ static void blt_coherency(int i915)
 	igt_assert_f(compare_ok, "Problem with coherency, flush is too late\n");
 }
 
+static void partial_mmap(int i915, struct gem_memory_region *r)
+{
+	uint32_t handle;
+
+	handle = gem_create_in_memory_region_list(i915, SZ_2M, 0, &r->ci, 1);
+	make_resident(i915, 0, handle);
+
+	for_each_mmap_offset_type(i915, t) {
+		struct drm_i915_gem_mmap_offset arg = {
+			.handle = handle,
+			.flags = t->type,
+		};
+		uint32_t *ptr;
+
+		if (mmap_offset_ioctl(i915, &arg))
+			continue;
+
+		ptr = mmap(0, SZ_4K, PROT_WRITE, MAP_SHARED, i915, arg.offset);
+		if (ptr == MAP_FAILED)
+			continue;
+
+		memset(ptr, 0xcc, SZ_4K);
+		munmap(ptr, SZ_4K);
+
+		ptr = mmap(0, SZ_4K, PROT_READ, MAP_SHARED, i915, arg.offset + SZ_2M - SZ_4K);
+		igt_assert(ptr != MAP_FAILED);
+
+		for (uint32_t i = 0; i < SZ_4K / sizeof(uint32_t); i++)
+			igt_assert_eq_u32(ptr[i], 0);
+
+		munmap(ptr, SZ_4K);
+	}
+
+	gem_close(i915, handle);
+}
+
+static void partial_unmap(int i915, struct gem_memory_region *r)
+{
+	uint32_t handle;
+
+	handle = gem_create_in_memory_region_list(i915, SZ_2M, 0, &r->ci, 1);
+	make_resident(i915, 0, handle);
+
+	for_each_mmap_offset_type(i915, t) {
+		uint8_t *ptr_a, *ptr_b;
+
+		/* mmap the same GEM BO twice */
+		ptr_a = __mmap_offset(i915, handle, 0, SZ_2M,
+				      PROT_READ | PROT_WRITE,
+				t->type);
+		if (!ptr_a)
+			continue;
+
+		ptr_b = __mmap_offset(i915, handle, 0, SZ_2M,
+				      PROT_READ | PROT_WRITE,
+				t->type);
+		if (!ptr_b)
+			continue;
+
+		/* unmap the first mapping but the last 4k */
+		munmap(ptr_a, SZ_2M - SZ_4K);
+
+		/* memset that remaining 4k with 0xcc */
+		memset(ptr_a + SZ_2M - SZ_4K, 0xcc, SZ_4K);
+
+		/* memset the first page of the 2Mb with 0xdd */
+		memset(ptr_b, 0xdd, SZ_4K);
+
+		for (uint32_t i = 0; i < SZ_4K; i++)
+			igt_assert_eq_u32(ptr_a[SZ_2M - SZ_4K + i], 0xcc);
+
+		munmap(ptr_a + SZ_2M - SZ_4K, SZ_4K);
+		memset(ptr_b, 0, SZ_2M);
+		munmap(ptr_b, SZ_2M);
+	}
+
+	gem_close(i915, handle);
+}
+
+static void partial_remap(int i915, struct gem_memory_region *r)
+{
+	uint32_t handle;
+
+	handle = gem_create_in_memory_region_list(i915, SZ_2M, 0, &r->ci, 1);
+	make_resident(i915, 0, handle);
+
+	for_each_mmap_offset_type(i915, t) {
+		long tail = SZ_2M - SZ_4K;
+		uint8_t *ptr;
+
+		ptr = __mmap_offset(i915, handle, 0, SZ_2M,
+				    PROT_READ | PROT_WRITE,
+				t->type);
+		if (!ptr)
+			continue;
+
+		igt_assert_eq_u32(ptr[0], 0);
+		igt_assert(munmap(ptr, tail) == 0);
+
+		ptr = mremap(ptr + tail, SZ_4K, SZ_4K, MREMAP_MAYMOVE | MREMAP_FIXED, SZ_4K);
+		igt_info("Testing remap(%s), tail of 2M object at ptr=%p\n",
+			 t->name, ptr);
+		igt_assert(ptr == (uint8_t *)SZ_4K);
+
+		igt_assert_eq_u32(ptr[0], 0);
+		munmap(ptr, SZ_4K);
+	}
+
+	gem_close(i915, handle);
+}
+
 static int mmap_gtt_version(int i915)
 {
 	int gtt_version = -1;
@@ -931,6 +1045,25 @@ igt_main
 
 	igt_subtest_f("open-flood")
 		open_flood(i915, 20);
+
+	igt_subtest_with_dynamic("partial-mmap") {
+		for_each_memory_region(r, i915) {
+			igt_dynamic_f("%s", r->name)
+				partial_mmap(i915, r);
+		}
+	}
+	igt_subtest_with_dynamic("partial-unmap") {
+		for_each_memory_region(r, i915) {
+			igt_dynamic_f("%s", r->name)
+				partial_unmap(i915, r);
+		}
+	}
+	igt_subtest_with_dynamic("partial-remap") {
+		for_each_memory_region(r, i915) {
+			igt_dynamic_f("%s", r->name)
+				partial_remap(i915, r);
+		}
+	}
 
 	igt_subtest_with_dynamic("clear") {
 		for_each_memory_region(r, i915) {
