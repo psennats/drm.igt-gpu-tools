@@ -140,6 +140,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	int i, j, b;
 	int map_fd = -1;
 
+	igt_debug("%s running on: %s\n", __func__, xe_engine_class_string(eci->engine_class));
 	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 
 	if (flags & ENABLE_SCRATCH)
