@@ -100,7 +100,8 @@
  *
  * arg[2]:
  *
- * @4-tiled-xe2-ccs:           4 tiled xe2 pat controlled ccs
+ * @4-tiled-bmg-ccs:           4 tiled xe2 pat controlled ccs
+ * @4-tiled-lnl-ccs:           4 tiled xe2 pat controlled ccs
  * @4-tiled-dg2-mc-ccs:        4 tiled mc ccs
  * @4-tiled-dg2-rc-ccs:        4 tiled dg2 rc ccs
  * @4-tiled-dg2-rc-ccs-cc:     4 tiled dg2 rc ccs cc
@@ -126,7 +127,8 @@
  *
  * arg[2]:
  *
- * @4-tiled-xe2-ccs:           4 tiled xe2 pat controlled ccs
+ * @4-tiled-bmg-ccs:           4 tiled xe2 pat controlled ccs
+ * @4-tiled-lnl-ccs:           4 tiled xe2 pat controlled ccs
  * @4-tiled-dg2-mc-ccs:        4 tiled mc ccs
  * @4-tiled-dg2-rc-ccs:        4 tiled dg2 rc ccs
  * @4-tiled-dg2-rc-ccs-cc:     4 tiled dg2 rc ccs cc
@@ -219,7 +221,8 @@ static const struct {
 	{I915_FORMAT_MOD_4_TILED_MTL_RC_CCS, "4-tiled-mtl-rc-ccs"},
 	{I915_FORMAT_MOD_4_TILED_MTL_MC_CCS, "4-tiled-mtl-mc-ccs"},
 	{I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC, "4-tiled-mtl-rc-ccs-cc"},
-	{I915_FORMAT_MOD_4_TILED, "4-tiled-xe2-ccs"},
+	{I915_FORMAT_MOD_4_TILED_BMG_CCS, "4-tiled-bmg-ccs"},
+	{I915_FORMAT_MOD_4_TILED_LNL_CCS, "4-tiled-lnl-ccs"},
 };
 
 static bool check_ccs_planes;
@@ -758,13 +761,9 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 		if (do_fast_clear && (fb_flags & FB_COMPRESSED)) {
 			fast_clear_fb(data->drm_fd, fb, cc_color);
 		} else {
-			if (modifier == I915_FORMAT_MOD_4_TILED) {
+			if (modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
+			    modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS) {
 				struct igt_fb temp_fb;
-				/* tile4 is used as ccs modifier
-				 * on Xe2 where compression is handled
-				 * through PAT indexes.
-				 */
-
 				// non compressed temporary pattern image
 				if (do_solid_fill)
 					igt_create_color_fb(data->drm_fd, width, height,
@@ -969,14 +968,16 @@ static void test_output(data_t *data, const int testnum)
 		    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC) &&
 		    tests[testnum].flags & TEST_BAD_CCS_PLANE) ||
 		    (tests[testnum].flags & TEST_FAIL_ON_ADDFB2 &&
-		    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED))
+		    (ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
+		    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS)))
 			continue;
 
 		data->ccs_modifier = ccs_modifiers[i].modifier;
 
 		igt_describe(tests[testnum].description);
 		igt_subtest_with_dynamic_f("%s-%s", tests[testnum].testname, ccs_modifiers[i].str) {
-			if (ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED) {
+			if (ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
+			    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS) {
 				igt_require_f(AT_LEAST_GEN(dev_id, 20),
 					      "Xe2 platform needed.\n");
 			} else {
