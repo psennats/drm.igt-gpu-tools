@@ -651,19 +651,29 @@ static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb,
 }
 
 static uint32_t blt_compression_format(struct blt_copy_data *blt,
-				       const struct igt_fb *fb)
+				       const struct igt_fb *fb,
+				       int color_plane)
 {
-	switch (fb->drm_format) {
-	case DRM_FORMAT_XRGB8888:
+	switch (igt_reduce_format(fb->drm_format)) {
+	case DRM_FORMAT_XRGB16161616F:
+		return 0x7; /* CMF_R16_G16_B16_A16 */
 	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_P010:
-	case DRM_FORMAT_P012:
-	case DRM_FORMAT_P016:
-	case DRM_FORMAT_YUYV:
-		return 8;
+		return 0x3; /* CMF_R10_G10_B10_A2 */
+	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XYUV8888:
+		return 0x2; /* CMF_R8_G8_B8_A8 */
+	case DRM_FORMAT_YUYV:
+		return 0x1; /* CMF_R8_G8 (treated as 16bpp format) */
 	case DRM_FORMAT_NV12:
-		return 9;
+		if (color_plane)
+			return 0x1; /* CMF_R8_G8 */
+		else
+			return 0x0; /* CMF_R8 */
+	case DRM_FORMAT_P010:
+		if (color_plane)
+			return 0x6; /* CMF_R16_G16 */
+		else
+			return 0x5; /* CMF_R16 */
 	default:
 		igt_assert_f(0, "Unknown format\n");
 	}
@@ -712,12 +722,12 @@ static void xe2_ccs_blit(data_t *data, struct igt_fb *fb, struct igt_fb *temp_fb
 		blt_set_copy_object(&blt.dst, dst);
 
 		blt_set_object_ext(&ext.src,
-				blt_compression_format(&blt, src_fb),
+				blt_compression_format(&blt, src_fb, i),
 				src_fb->plane_width[i], src_fb->plane_height[i],
 				SURFACE_TYPE_2D);
 
 		blt_set_object_ext(&ext.dst,
-				blt_compression_format(&blt, dst_fb),
+				blt_compression_format(&blt, dst_fb, i),
 				dst_fb->plane_width[i], dst_fb->plane_height[i],
 				SURFACE_TYPE_2D);
 
