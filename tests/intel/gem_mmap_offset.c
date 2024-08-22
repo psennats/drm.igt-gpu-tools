@@ -55,6 +55,7 @@
  * SUBTEST: clear
  * SUBTEST: close-race
  * SUBTEST: isolation
+ * SUBTEST: mmap-boundaries
  * SUBTEST: oob-read
  * SUBTEST: open-flood
  * SUBTEST: partial-mmap
@@ -989,6 +990,32 @@ static void partial_remap(int i915, struct gem_memory_region *r)
 	gem_close(i915, handle);
 }
 
+/* This test's failure is detected by checking the dmesg. */
+static void test_mmap_boundaries(int i915, struct gem_memory_region *r)
+{
+	const uint64_t map_size = SZ_128M - SZ_512K;
+	uint32_t handle;
+
+	handle = gem_create_in_memory_region_list(i915, SZ_2G, 0, &r->ci, 1);
+	make_resident(i915, 0, handle);
+
+	for_each_mmap_offset_type(i915, t) {
+		uint8_t *map;
+
+		map = __mmap_offset(i915, handle, 0, map_size,
+				    PROT_READ | PROT_WRITE, t->type);
+		if (!map)
+			continue;
+
+		memset(map + map_size - SZ_1K, 0xab, SZ_1K);
+		for (uint64_t i = 0; i < SZ_1K; i++)
+			igt_assert_eq(map[map_size - SZ_1K + i], 0xab);
+
+		munmap(map, map_size);
+	}
+	gem_close(i915, handle);
+}
+
 static int mmap_gtt_version(int i915)
 {
 	int gtt_version = -1;
@@ -1081,6 +1108,14 @@ igt_main
 
 	igt_subtest_f("blt-coherency")
 		blt_coherency(i915);
+
+	igt_describe("Check for proper boundary calculation during mmap");
+	igt_subtest_with_dynamic("mmap-boundaries") {
+		for_each_memory_region(r, i915) {
+			igt_dynamic_f("%s", r->name)
+				test_mmap_boundaries(i915, r);
+		}
+	}
 
 	igt_fixture {
 		drm_close_driver(i915);
