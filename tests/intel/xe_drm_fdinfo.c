@@ -46,6 +46,9 @@
  * SUBTEST: drm-all-busy-idle-check-all
  * Description: Check that all engines show busy when all are loaded
  *
+ * SUBTEST: drm-busy-exec-queue-destroy-idle
+ * Description: Destroy exec queue before idle and ensure load is accurate
+ *
  * SUBTEST: drm-total-resident
  * Description: Create and compare total and resident memory consumption by client
  *
@@ -559,6 +562,32 @@ busy_check_all(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int fl
 }
 
 static void
+single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hwe)
+{
+	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct spin_ctx *ctx = NULL;
+	uint32_t vm;
+
+	vm = xe_vm_create(fd, 0, 0);
+	ctx = spin_ctx_init(fd, hwe, vm);
+	spin_sync_start(fd, ctx);
+
+	read_engine_cycles(fd, pceu1);
+	usleep(batch_duration_ns / 1000);
+
+	/* destroy queue before sampling again */
+	spin_sync_end(fd, ctx);
+	spin_ctx_destroy(fd, ctx);
+
+	read_engine_cycles(fd, pceu2);
+
+	xe_vm_destroy(fd, vm);
+
+	check_results(pceu1, pceu2, hwe->engine_class, TEST_BUSY);
+}
+
+static void
 most_busy_check_all(int fd, struct drm_xe_engine_class_instance *hwe,
 		    unsigned int flags)
 {
@@ -688,6 +717,10 @@ igt_main
 
 	igt_subtest("drm-all-busy-idle-check-all")
 		all_busy_check_all(xe, TEST_BUSY | TEST_TRAILING_IDLE);
+
+	igt_subtest("drm-busy-exec-queue-destroy-idle")
+		xe_for_each_engine(xe, hwe)
+			single_destroy_queue(xe, hwe);
 
 	igt_describe("Create and compare total and resident memory consumption by client");
 	igt_subtest("drm-total-resident")
