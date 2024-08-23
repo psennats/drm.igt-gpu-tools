@@ -917,7 +917,7 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 	} *data;
 	int i, b;
 
-	bind_ops = malloc(sizeof(*bind_ops) * n_execs);
+	bind_ops = calloc(n_execs, sizeof(*bind_ops));
 	igt_assert(bind_ops);
 
 	vm = xe_vm_create(fd, 0, 0);
@@ -935,15 +935,10 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 
 	for (i = 0; i < n_execs; ++i) {
 		bind_ops[i].obj = bo;
-		bind_ops[i].obj_offset = 0;
 		bind_ops[i].range = bo_size;
 		bind_ops[i].addr = addr;
 		bind_ops[i].op = DRM_XE_VM_BIND_OP_MAP;
-		bind_ops[i].flags = 0;
-		bind_ops[i].prefetch_mem_region_instance = 0;
 		bind_ops[i].pat_index = intel_get_pat_idx_wb(fd);
-		bind_ops[i].reserved[0] = 0;
-		bind_ops[i].reserved[1] = 0;
 
 		addr += bo_size;
 	}
