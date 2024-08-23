@@ -35,15 +35,17 @@
  * Test category: functionality test
  */
 
-#include "igt.h"
-#include <limits.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <libgen.h> /* for POSIX basename */
+#include <limits.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
+
+#include "igt.h"
 #include "igt_device.h"
 #include "igt_device_scan.h"
 
