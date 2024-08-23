@@ -31,6 +31,7 @@
 #include "drmtest.h"
 
 #include "gpgpu_fill.h"
+#include "gpgpu_shader.h"
 #include "gpu_cmds.h"
 
 /* lib/i915/shaders/gpgpu/gpgpu_fill.gxa */
@@ -97,43 +98,6 @@ static const uint32_t gen12_gpgpu_kernel[][4] = {
 	{ 0x00049031, 0x00000000, 0xc0000414, 0x02a00000 },
 	{ 0x00030061, 0x70050220, 0x00460005, 0x00000000 },
 	{ 0x00040131, 0x00000004, 0x7020700c, 0x10000000 },
-};
-
-static const uint32_t xehp_gpgpu_kernel[][4] = {
-	{ 0x00020061, 0x01050000, 0x00000104, 0x00000000 },
-	{ 0x00000069, 0x02058220, 0x02000024, 0x00000004 },
-	{ 0x00000061, 0x02250220, 0x000000c4, 0x00000000 },
-	{ 0x00030061, 0x04050220, 0x00460005, 0x00000000 },
-	{ 0x00011a61, 0x04050220, 0x00220205, 0x00000000 },
-	{ 0x00000061, 0x04454220, 0x00000000, 0x0000000f },
-	{ 0x00041e61, 0x05050220, 0x00000104, 0x00000000 },
-	{ 0x80001901, 0x00010000, 0x00000000, 0x00000000 },
-	{ 0x00044031, 0x00000000, 0xc0000414, 0x02a00000 },
-	{ 0x00030031, 0x00000004, 0x3000500c, 0x00000000 },
-};
-
-static const uint32_t xehpc_gpgpu_kernel[][4] = {
-	{ 0x00080061, 0x01050000, 0x00000104, 0x00000000 },
-	{ 0x00000069, 0x02058220, 0x02000014, 0x00000004 },
-	{ 0x00000061, 0x02150220, 0x00000064, 0x00000000 },
-	{ 0x000c0061, 0x04050220, 0x00460005, 0x00000000 },
-	{ 0x00041a61, 0x04050220, 0x00220205, 0x00000000 },
-	{ 0x00000061, 0x04254220, 0x00000000, 0x0000000f },
-	{ 0x00101e61, 0x05050220, 0x00000104, 0x00000000 },
-	{ 0x00132031, 0x00000000, 0xc0000414, 0x02a00000 },
-	{ 0x000c0031, 0x00000004, 0x3000500c, 0x00000000 },
-};
-
-static const uint32_t xe2lpg_gpgpu_kernel[][4] = {
-	{ 0x00080061, 0x01050000, 0x00000104, 0x00000000 },
-	{ 0x00000069, 0x02058220, 0x02000014, 0x00000004 },
-	{ 0x00000061, 0x02150220, 0x00000064, 0x00000000 },
-	{ 0x00100061, 0x04054220, 0x00000000, 0x00000000 },
-	{ 0x00041a61, 0x04550220, 0x00220205, 0x00000000 },
-	{ 0x00000061, 0x04754550, 0x00000000, 0x000f000f },
-	{ 0x00101e61, 0x05050220, 0x00000104, 0x00000000 },
-	{ 0x00132031, 0x00000000, 0xd00e0494, 0x04000000 },
-	{ 0x000c0031, 0x00000004, 0x3000500c, 0x00000000 },
 };
 
 /*
@@ -317,15 +281,66 @@ __gen9_gpgpu_fillfunc(int i915,
 	intel_bb_destroy(ibb);
 }
 
-static void
-__xehp_gpgpu_fillfunc(int i915,
-		      struct intel_buf *buf,
-		      unsigned int x, unsigned int y,
-		      unsigned int width, unsigned int height,
-		      uint8_t color, const uint32_t kernel[][4],
-		      size_t kernel_size)
+static struct gpgpu_shader *__xehp_gpgpu_kernel(int i915)
+{
+	struct gpgpu_shader *kernel = gpgpu_shader_create(i915);
+
+	emit_iga64_code(kernel, gpgpu_fill, "					\n\
+// fill up r1 with target colour						\n\
+mov (4|M0)		r1.0<1>:ub	r1.0<0;1,0>:ub				\n\
+// prepare block x offset (Thread Group Id X * 16)				\n\
+shl (1|M0)		r2.0<1>:ud	r0.1<0;1,0>:ud	0x4:ud			\n\
+// prepare block y offset (Thread Group Id Y)					\n\
+mov (1|M0)		r2.1<1>:ud	r0.6<0;1,0>:ud				\n\
+// zero message header payload							\n\
+mov (8|M0)		r4.0<1>:ud	0x0:ud					\n\
+// fill up message payload with target colour					\n\
+mov (16|M0)		r5.0<1>:ud	r1.0<0;1,0>:ud				\n\
+#if GEN_VER < 2000								\n\
+// load block offsets into message header payload				\n\
+mov (2|M0)		r4.0<1>:ud	r2.0<2;2,1>:ud				\n\
+// load block width								\n\
+mov (1|M0)		r4.2<1>:ud	0xF:ud					\n\
+// load FFTID from R0 header							\n\
+mov (1|M0)		r4.4<1>:ud	r0.5<0;1,0>:ud				\n\
+// Media block write to bti[0] surface						\n\
+// Message Descriptor								\n\
+//	0x40A8000:								\n\
+//	[28:25]		Mlen: 2							\n\
+//	[24:20]		Rlen: 0							\n\
+//	[19]		Header: 1 (included)					\n\
+//	[18:14]		MessageType: 0xA (media block write)			\n\
+//	[7:0]		BTI: 0							\n\
+send.dc1 (16|M0)	null	r4	src1_null	0x0	0x40A8000	\n\
+#else										\n\
+// load block offsets into message header payload				\n\
+mov (2|M0)		r4.5<1>:ud	r2.0<2;2,1>:ud				\n\
+// load block width								\n\
+mov (1|M0)		 r4.14<1>:w	0xF:w					\n\
+// Typed 2D block store to bti[0] surface					\n\
+// Message Descriptor								\n\
+//	0x6400007:								\n\
+//	[30:29]		AddrType: 3 (BTI)					\n\
+//	[28:25]		Mlen: 2							\n\
+//	[24:20]		Rlen: 0							\n\
+//	[19:17]		Caching: 0  (use state settings for both L1 and L3)	\n\
+//	[5:0]		Opcode: 0x07  (store_block2d)				\n\
+send.tgm (16|M0)	null	r4	null	0x0	0x64000007		\n\
+#endif										\n\
+	");
+
+	gpgpu_shader__eot(kernel);
+	return kernel;
+}
+
+void xehp_gpgpu_fillfunc(int i915,
+			 struct intel_buf *buf,
+			 unsigned int x, unsigned int y,
+			 unsigned int width, unsigned int height,
+			 uint8_t color)
 {
 	struct intel_bb *ibb;
+	struct gpgpu_shader *kernel;
 	struct xehp_interface_descriptor_data idd;
 
 	ibb = intel_bb_create(i915, PAGE_SIZE);
@@ -333,8 +348,10 @@ __xehp_gpgpu_fillfunc(int i915,
 
 	intel_bb_ptr_set(ibb, BATCH_STATE_SPLIT);
 
-	xehp_fill_interface_descriptor(ibb, buf,
-				       kernel, kernel_size, &idd);
+	kernel = __xehp_gpgpu_kernel(i915);
+	xehp_fill_interface_descriptor(ibb, buf, kernel->instr,
+				       kernel->size * 4, &idd);
+	gpgpu_shader_destroy(kernel);
 
 	intel_bb_ptr_set(ibb, 0);
 
@@ -387,37 +404,4 @@ void gen12_gpgpu_fillfunc(int i915,
 	__gen9_gpgpu_fillfunc(i915, buf, x, y, width, height, color,
 			      gen12_gpgpu_kernel,
 			      sizeof(gen12_gpgpu_kernel));
-}
-
-void xehp_gpgpu_fillfunc(int i915,
-			 struct intel_buf *buf,
-			 unsigned int x, unsigned int y,
-			 unsigned int width, unsigned int height,
-			 uint8_t color)
-{
-	__xehp_gpgpu_fillfunc(i915, buf, x, y, width, height, color,
-			      xehp_gpgpu_kernel,
-			      sizeof(xehp_gpgpu_kernel));
-}
-
-void xehpc_gpgpu_fillfunc(int i915,
-			  struct intel_buf *buf,
-			  unsigned int x, unsigned int y,
-			  unsigned int width, unsigned int height,
-			  uint8_t color)
-{
-	__xehp_gpgpu_fillfunc(i915, buf, x, y, width, height, color,
-			      xehpc_gpgpu_kernel,
-			      sizeof(xehpc_gpgpu_kernel));
-}
-
-void xe2lpg_gpgpu_fillfunc(int i915,
-			   struct intel_buf *buf,
-			   unsigned int x, unsigned int y,
-			   unsigned int width, unsigned int height,
-			   uint8_t color)
-{
-	__xehp_gpgpu_fillfunc(i915, buf, x, y, width, height, color,
-			      xe2lpg_gpgpu_kernel,
-			      sizeof(xe2lpg_gpgpu_kernel));
 }
