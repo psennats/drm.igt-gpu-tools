@@ -279,11 +279,11 @@ static const char *usage_str =
 	"                        results that are removed from the final results set.\n"
 	"                        Possible options:\n"
 	"                         keep-dynamic-subtests  - Remove subtests that have dynamic\n"
-	"                                                  subtests. (default)\n"
+	"                                                  subtests.\n"
 	"                         keep-dynamic           - Alias for the above\n"
 	"                         keep-subtests          - Remove dynamic subtests,\n"
 	"                                                  leaving just the parent subtest.\n"
-	"                         keep-all               - Don't remove anything\n"
+	"                         keep-all               - Don't remove anything (default)\n"
 	"                         keep-requested         - Remove reported results that are\n"
 	"                                                  not in the requested test set.\n"
 	"                                                  Useful when you have a hand-written\n"
@@ -693,6 +693,7 @@ bool parse_options(int argc, char **argv,
 	optind = 1;
 
 	settings->dmesg_warn_level = -1;
+	settings->prune_mode = -1;
 
 	while ((c = getopt_long(argc, argv, "hn:dt:x:e:sl:omb:L",
 				long_options, NULL)) != -1) {
@@ -817,6 +818,9 @@ bool parse_options(int argc, char **argv,
 
 	if (settings->dmesg_warn_level < 0)
 		settings->dmesg_warn_level = 4; /* KERN_WARN */
+
+	if (settings->prune_mode < 0)
+		settings->prune_mode = PRUNE_KEEP_ALL;
 
 	if (settings->list_all) { /* --list-all doesn't require results path */
 		switch (argc - optind) {

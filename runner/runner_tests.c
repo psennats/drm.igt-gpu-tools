@@ -310,7 +310,7 @@ igt_main
 		igt_assert_eq(settings->per_test_timeout, 0);
 		igt_assert_eq(settings->overall_timeout, 0);
 		igt_assert(!settings->use_watchdog);
-		igt_assert_eq(settings->prune_mode, 0);
+		igt_assert_eq(settings->prune_mode, PRUNE_KEEP_ALL);
 		igt_assert(strstr(settings->test_root, "test-root-dir") != NULL);
 		igt_assert(strstr(settings->results_path, "path-to-results") != NULL);
 
