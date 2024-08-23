@@ -37,6 +37,15 @@
  * SUBTEST: drm-busy-idle-isolation
  * Description: Check that engine load does not spill over to other drm clients
  *
+ * SUBTEST: drm-busy-idle-check-all
+ * Description: Check that only the target engine shows load when idle after busy
+ *
+ * SUBTEST: drm-most-busy-idle-check-all
+ * Description: Check that only the target engine shows idle and all others are busy
+ *
+ * SUBTEST: drm-all-busy-idle-check-all
+ * Description: Check that all engines show busy when all are loaded
+ *
  * SUBTEST: drm-total-resident
  * Description: Create and compare total and resident memory consumption by client
  *
@@ -367,7 +376,7 @@ spin_ctx_init(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm)
 
 	ctx->class = hwe->engine_class;
 	ctx->vm = vm;
-	ctx->addr = 0x100000;
+	ctx->addr = 0x100000 + 0x100000 * hwe->engine_class;
 
 	ctx->exec.num_batch_buffer = 1;
 	ctx->exec.num_syncs = 2;
@@ -519,6 +528,123 @@ single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int flags)
 	xe_vm_destroy(fd, vm);
 }
 
+static void
+busy_check_all(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int flags)
+{
+	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct spin_ctx *ctx = NULL;
+	uint32_t vm;
+	int class;
+
+	vm = xe_vm_create(fd, 0, 0);
+	if (flags & TEST_BUSY) {
+		ctx = spin_ctx_init(fd, hwe, vm);
+		spin_sync_start(fd, ctx);
+	}
+
+	read_engine_cycles(fd, pceu1);
+	usleep(batch_duration_ns / 1000);
+	if (flags & TEST_TRAILING_IDLE)
+		spin_sync_end(fd, ctx);
+	read_engine_cycles(fd, pceu2);
+
+	xe_for_each_engine_class(class)
+		check_results(pceu1, pceu2, class,
+			      hwe->engine_class == class ? flags : 0);
+
+	spin_sync_end(fd, ctx);
+	spin_ctx_destroy(fd, ctx);
+	xe_vm_destroy(fd, vm);
+}
+
+static void
+most_busy_check_all(int fd, struct drm_xe_engine_class_instance *hwe,
+		    unsigned int flags)
+{
+	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct spin_ctx *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
+	struct drm_xe_engine_class_instance *_hwe;
+	uint32_t vm;
+	int class;
+
+	vm = xe_vm_create(fd, 0, 0);
+	if (flags & TEST_BUSY) {
+		/* spin on one hwe per class except the target class hwes */
+		xe_for_each_engine(fd, _hwe) {
+			int _class = _hwe->engine_class;
+
+			if (_class == hwe->engine_class || ctx[_class])
+				continue;
+
+			ctx[_class] = spin_ctx_init(fd, _hwe, vm);
+			spin_sync_start(fd, ctx[_class]);
+		}
+	}
+
+	read_engine_cycles(fd, pceu1);
+	usleep(batch_duration_ns / 1000);
+	if (flags & TEST_TRAILING_IDLE)
+		xe_for_each_engine_class(class)
+			spin_sync_end(fd, ctx[class]);
+	read_engine_cycles(fd, pceu2);
+
+	xe_for_each_engine_class(class) {
+		if (!ctx[class])
+			continue;
+
+		check_results(pceu1, pceu2, class,
+			      hwe->engine_class == class ? 0 : flags);
+		spin_sync_end(fd, ctx[class]);
+		spin_ctx_destroy(fd, ctx[class]);
+	}
+
+	xe_vm_destroy(fd, vm);
+}
+
+static void
+all_busy_check_all(int fd, unsigned int flags)
+{
+	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct spin_ctx *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
+	struct drm_xe_engine_class_instance *hwe;
+	uint32_t vm;
+	int class;
+
+	vm = xe_vm_create(fd, 0, 0);
+	if (flags & TEST_BUSY) {
+		/* spin on one hwe per class */
+		xe_for_each_engine(fd, hwe) {
+			class = hwe->engine_class;
+
+			if (ctx[class])
+				continue;
+
+			ctx[class] = spin_ctx_init(fd, hwe, vm);
+			spin_sync_start(fd, ctx[class]);
+		}
+	}
+
+	read_engine_cycles(fd, pceu1);
+	usleep(batch_duration_ns / 1000);
+	if (flags & TEST_TRAILING_IDLE)
+		xe_for_each_engine_class(class)
+			spin_sync_end(fd, ctx[class]);
+	read_engine_cycles(fd, pceu2);
+
+	xe_for_each_engine_class(class) {
+		if (!ctx[class])
+			continue;
+
+		check_results(pceu1, pceu2, class, flags);
+		spin_sync_end(fd, ctx[class]);
+		spin_ctx_destroy(fd, ctx[class]);
+	}
+
+	xe_vm_destroy(fd, vm);
+}
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe;
@@ -551,6 +677,17 @@ igt_main
 	igt_subtest("drm-busy-idle-isolation")
 		xe_for_each_engine(xe, hwe)
 			single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE | TEST_ISOLATION);
+
+	igt_subtest("drm-busy-idle-check-all")
+		xe_for_each_engine(xe, hwe)
+			busy_check_all(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE);
+
+	igt_subtest("drm-most-busy-idle-check-all")
+		xe_for_each_engine(xe, hwe)
+			most_busy_check_all(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE);
+
+	igt_subtest("drm-all-busy-idle-check-all")
+		all_busy_check_all(xe, TEST_BUSY | TEST_TRAILING_IDLE);
 
 	igt_describe("Create and compare total and resident memory consumption by client");
 	igt_subtest("drm-total-resident")
