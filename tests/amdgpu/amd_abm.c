@@ -39,9 +39,75 @@
 
 typedef struct data {
 	igt_display_t display;
+	igt_plane_t *primary;
+	igt_output_t *output;
+	igt_pipe_t *pipe;
 	int drm_fd;
+	drmModeModeInfo *mode;
+	enum pipe pipe_id;
+	int w, h;
+	igt_fb_t ref_fb;
 } data_t;
 
+/* Common test setup. */
+static void test_init(data_t *data)
+{
+	igt_display_t *display = &data->display;
+	drmModeConnectorPtr conn;
+	bool has_edp = false;
+	int i;
+
+	/* Skip test if no eDP connected. */
+	for (i = 0; i < display->n_outputs; i++) {
+		conn = display->outputs[i].config.connector;
+
+		if (conn->connector_type == DRM_MODE_CONNECTOR_eDP &&
+		    conn->connection == DRM_MODE_CONNECTED) {
+			has_edp = true;
+		}
+	}
+	if (!has_edp)
+		igt_skip("No eDP connector found\n");
+
+	/* It doesn't matter which pipe we choose on amdpgu. */
+	data->pipe_id = PIPE_A;
+	data->pipe = &data->display.pipes[data->pipe_id];
+
+	igt_display_reset(display);
+
+	data->output = igt_get_single_output_for_pipe(display, data->pipe_id);
+	igt_require(data->output);
+	igt_info("output %s\n", data->output->name);
+
+	data->mode = igt_output_get_mode(data->output);
+	igt_assert(data->mode);
+	kmstest_dump_mode(data->mode);
+
+	data->primary =
+		 igt_pipe_get_plane_type(data->pipe, DRM_PLANE_TYPE_PRIMARY);
+
+	igt_output_set_pipe(data->output, data->pipe_id);
+
+	data->w = data->mode->hdisplay;
+	data->h = data->mode->vdisplay;
+
+	data->ref_fb.fb_id = 0;
+
+	igt_create_color_fb(data->drm_fd, data->mode->hdisplay,
+		data->mode->vdisplay, DRM_FORMAT_XRGB8888, 0, 0.0, 0.6, 0.6, &data->ref_fb);
+}
+
+/* Common test cleanup. */
+static void test_fini(data_t *data)
+{
+	igt_display_t *display = &data->display;
+
+	igt_display_reset(display);
+	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, 0);
+
+	if (data->ref_fb.fb_id)
+		igt_remove_fb(data->drm_fd, &data->ref_fb);
+}
 
 
 static int read_current_backlight_pwm(int drm_fd, char *connector_name)
@@ -121,14 +187,9 @@ static void set_abm_level(data_t *data, igt_output_t *output, int level)
 
 	igt_assert_eq(close(fd), 0);
 
-	/**
-	 * We need to trigger a full modeset to have the new ABM level take effect.
-	 * DPMS off -> on transition is one of many approaches.
-	 */
-	kmstest_set_connector_dpms(data->drm_fd, output->config.connector,
-			 DRM_MODE_DPMS_OFF);
-	kmstest_set_connector_dpms(data->drm_fd, output->config.connector,
-			 DRM_MODE_DPMS_ON);
+	igt_output_set_pipe(data->output, data->pipe_id);
+	igt_plane_set_fb(data->primary, &data->ref_fb);
+	igt_display_commit_atomic(&data->display, 0, 0);
 }
 
 static int backlight_read_max_brightness(int *result)
@@ -155,25 +216,6 @@ static int backlight_read_max_brightness(int *result)
 	*result = strtol(dst, NULL, 10);
 	return errno;
 }
-
-static void test_init(data_t *data)
-{
-	igt_display_t *display = &data->display;
-	drmModeConnectorPtr conn;
-	int i;
-
-	for (i = 0; i < display->n_outputs; i++) {
-		conn = display->outputs[i].config.connector;
-
-		if (conn->connector_type == DRM_MODE_CONNECTOR_eDP &&
-		    conn->connection == DRM_MODE_CONNECTED) {
-			return;
-		}
-	}
-
-	igt_skip("No eDP connector found\n");
-}
-
 
 static void backlight_dpms_cycle(data_t *data)
 {
@@ -354,7 +396,7 @@ static void abm_gradual(data_t *data)
 
 igt_main
 {
-	data_t data = {};
+	data_t data = {0};
 	igt_skip_on_simulation();
 
 	igt_fixture {
@@ -382,6 +424,7 @@ igt_main
 		abm_gradual(&data);
 
 	igt_fixture {
+		test_fini(&data);
 		igt_display_fini(&data.display);
 		drm_close_driver(data.drm_fd);
 	}
