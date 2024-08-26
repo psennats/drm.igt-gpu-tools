@@ -60,19 +60,68 @@ struct uc_css_header {
 	u32 header_info;
 };
 
-#define HUC_GSC_VERSION_HI_DW		44
-#define   HUC_GSC_MAJOR_VER_HI_MASK	(0xFF << 0)
-#define   HUC_GSC_MINOR_VER_HI_MASK	(0xFF << 16)
-#define HUC_GSC_VERSION_LO_DW		45
-#define   HUC_GSC_PATCH_VER_LO_MASK	(0xFF << 0)
+/* Code partition directory (CPD) structures */
+#define GSC_CPD_HEADER_MARKER 0x44504324
+struct gsc_cpd_header_v2 {
+	u32 header_marker;
 
-// Add a fake definition for the GSC's header so this script can still
-// check the version
+	u32 num_of_entries;
+	u8 header_version;
+	u8 entry_version;
+	u8 header_length; /* in bytes */
+	u8 flags;
+	u32 partition_name;
+	u32 crc32;
+};
 
-struct uc_huc_gsc_header {
-	u32 rsvd[HUC_GSC_VERSION_HI_DW];
-	u32 ver_hi;
-	u32 ver_lo;
+// Added as python code
+// #define GSC_CPD_ENTRY_OFFSET_MASK GENMASK(24, 0)
+
+struct gsc_version {
+	u16 major;
+	u16 minor;
+	u16 hotfix;
+	u16 build;
+};
+
+struct gsc_cpd_entry {
+	u8 name[12];
+
+	/*
+	 * Bits 0-24: offset from the beginning of the code partition
+	 * Bit 25: huffman compressed
+	 * Bits 26-31: reserved
+	 */
+	u32 offset;
+
+	/*
+	 * Module/Item length, in bytes. For Huffman-compressed modules, this
+	 * refers to the uncompressed size. For software-compressed modules,
+	 * this refers to the compressed size.
+	 */
+	u32 length;
+
+	u8 reserved[4];
+};
+
+struct gsc_manifest_header {
+	u32 header_type; /* 0x4 for manifest type */
+	u32 header_length; /* in dwords */
+	u32 header_version;
+	u32 flags;
+	u32 vendor;
+	u32 date;
+	u32 size; /* In dwords, size of entire manifest (header + extensions) */
+	u32 header_id;
+	u32 internal_data;
+	struct gsc_version fw_version;
+	u32 security_version;
+	struct gsc_version meu_kit_version;
+	u32 meu_manifest_version;
+	u8 general_data[4];
+	u8 reserved3[56];
+	u32 modulus_size; /* in dwords */
+	u32 exponent_size; /* in dwords */
 };
 
 struct magic {
@@ -89,6 +138,9 @@ except ImportError as e:
         "Could not import dissect.cstruct module. See https://github.com/fox-it/dissect.cstruct for installation options"
     )
     raise SystemExit(1) from e
+
+
+GSC_CPD_ENTRY_OFFSET_MASK = 0x1FFFFFF
 
 
 def ffs(x: int) -> int:
@@ -181,17 +233,28 @@ class FwGsc(Fw):
 
     def decode(self):
         self.f.seek(0, 0)
-        self.fw = self.cparser.uc_huc_gsc_header(self.f)
+        cpd_hdr = self.cparser.gsc_cpd_header_v2(self.f)
 
         data = ["header-type: GSC"]
 
-        HUC_GSC_MINOR_VER_HI_MASK = 0xFF << 16
-        HUC_GSC_MAJOR_VER_HI_MASK = 0xFF
-        HUC_GSC_PATCH_VER_LO_MASK = 0xFF
-        major = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, self.fw.ver_hi)
-        minor = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, self.fw.ver_hi)
-        patch = FIELD_GET(HUC_GSC_PATCH_VER_LO_MASK, self.fw.ver_lo)
-        data += [f"version: {major}.{minor}.{patch}"]
+        # find manifest entry
+        self.f.seek(cpd_hdr.header_length, 0)
+        for _ in range(cpd_hdr.num_of_entries):
+            entry = self.cparser.gsc_cpd_entry(self.f)
+            s = "".join(map(chr, entry.name)).rstrip("\x00")
+            if s == "HUCP.man":
+                offset = entry.offset & GSC_CPD_ENTRY_OFFSET_MASK
+                self.f.seek(offset, 0)
+                break
+        else:
+            logging.fatal("Unknown/corrupted firmware - no manifest available")
+            sys.exit(1)
+
+        self.fw = self.cparser.gsc_manifest_header(self.f)
+        major = self.fw.fw_version.major
+        minor = self.fw.fw_version.minor
+        hotfix = self.fw.fw_version.hotfix
+        data += [f"version: {major}.{minor}.{hotfix}"]
 
         return data
 
