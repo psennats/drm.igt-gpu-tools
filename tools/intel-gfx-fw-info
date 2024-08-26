@@ -150,10 +150,12 @@ def parse_args(argv: typing.List[str]) -> argparse.Namespace:
     description = "Dump GuC/HuC firmware information"
     parser = argparse.ArgumentParser(prog="intel-gfx-fw-info", description=description)
 
-    parser.add_argument("-x", "--raw", action="store_true",
-                        help="Also print raw header content")
-    parser.add_argument("-c", "--checksum", action="store_true",
-                        help="Also print checksum")
+    parser.add_argument(
+        "-x", "--raw", action="store_true", help="Also print raw header content"
+    )
+    parser.add_argument(
+        "-c", "--checksum", action="store_true", help="Also print checksum"
+    )
 
     parser.add_argument("filename", help="GuC/HuC firmware file")
 
