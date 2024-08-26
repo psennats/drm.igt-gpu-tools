@@ -105,8 +105,38 @@ def FIELD_GET(mask: int, value: int) -> int:
 
 
 class Fw(abc.ABC):
-    def __init__(self, fw):
-        self.fw = fw
+    def __init__(self, cparser, f):
+        self.f = f
+        self.cparser = cparser
+        self.fw = None
+
+    def checksum(self):
+        self.f.seek(0, 0)
+        return hashlib.sha256(self.f.read()).hexdigest()
+
+    def dump(self, **kw):
+        cstruct.dumpstruct(self.fw, **kw)
+
+    @classmethod
+    def create(cls, f):
+        cparser = cstruct.cstruct()
+        cparser.load(CDEF)
+
+        magic = cparser.magic(f).data
+
+        constructor = None
+
+        for s in cls.__subclasses__():
+            if s.MAGIC is None:
+                constructor = s
+            elif s.MAGIC == magic:
+                constructor = s
+                break
+
+        if constructor:
+            return constructor(cparser, f)
+
+        return None
 
     @abc.abstractmethod
     def decode(self):
@@ -114,8 +144,13 @@ class Fw(abc.ABC):
 
 
 class FwCss(Fw):
+    MAGIC = None
+
     def decode(self):
-        data = []
+        self.f.seek(0, 0)
+        self.fw = self.cparser.uc_css_header(self.f)
+
+        data = ["header-type: CSS"]
 
         CSS_SW_VERSION_UC_MAJOR = 0xFF << 16
         CSS_SW_VERSION_UC_MINOR = 0xFF << 8
@@ -137,8 +172,13 @@ class FwCss(Fw):
 
 
 class FwGsc(Fw):
+    MAGIC = b"$CPD"
+
     def decode(self):
-        data = []
+        self.f.seek(0, 0)
+        self.fw = self.cparser.uc_huc_gsc_header(self.f)
+
+        data = ["header-type: GSC"]
 
         HUC_GSC_MINOR_VER_HI_MASK = 0xFF << 16
         HUC_GSC_MAJOR_VER_HI_MASK = 0xFF
@@ -167,40 +207,30 @@ def parse_args(argv: typing.List[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def calculate_checksum(f: typing.BinaryIO) -> str:
-    return hashlib.sha256(f.read()).hexdigest()
-
-
 def main(argv: typing.List[str]) -> int:
     args = parse_args(argv)
-
-    cparser = cstruct.cstruct()
-    cparser.load(CDEF)
 
     checksum = None
 
     try:
         with open(args.filename, mode="rb") as f:
-            magic = cparser.magic(f)
-            f.seek(0, 0)
-            if magic.data == b"$CPD":
-                fw = FwGsc(cparser.uc_huc_gsc_header(f))
-            else:
-                fw = FwCss(cparser.uc_css_header(f))
+            fw = Fw.create(f)
+            if not fw:
+                logging.fatal(f"Unknown firmware type in '{args.filename}'")
+                sys.exit(1)
 
+            decoded_data = fw.decode()
             if args.checksum:
-                f.seek(0, 0)
-                checksum = calculate_checksum(f)
-
+                checksum = fw.checksum()
     except FileNotFoundError as e:
         logging.fatal(e)
         return 1
 
-    print(*fw.decode(), sep="\n")
+    print(*decoded_data, sep="\n")
 
     if args.raw:
         print("raw dump:", end="")
-        cstruct.dumpstruct(fw.fw, color=sys.stdout.isatty())
+        fw.dump(color=sys.stdout.isatty())
 
     if checksum:
         print(f"checksum: {checksum}")
