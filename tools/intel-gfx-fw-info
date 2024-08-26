@@ -23,8 +23,6 @@ import typing
 #          dumpstruct(): give it a name
 
 CDEF = """
-typedef uint32 u32;
-
 struct uc_css_header {
 	u32 module_type;
 	/*
@@ -120,6 +118,13 @@ class Fw(abc.ABC):
     @classmethod
     def create(cls, f):
         cparser = cstruct.cstruct()
+        # cstruct defines some "convenience types" that are not very convenient
+        # when parsing a kernel header - e.g. we don't want u16 to be parsed as
+        # uint128
+        cparser.add_type("u8", "uint8_t", replace=True)
+        cparser.add_type("u16", "uint16_t", replace=True)
+        cparser.add_type("u32", "uint32_t", replace=True)
+        cparser.add_type("u64", "uint64_t", replace=True)
         cparser.load(CDEF)
 
         magic = cparser.magic(f).data
