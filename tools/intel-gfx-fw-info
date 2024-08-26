@@ -4,6 +4,7 @@
 #
 # Copyright (C) 2023 Intel Corporation
 
+import abc
 import argparse
 import logging
 import hashlib
@@ -103,9 +104,13 @@ def FIELD_GET(mask: int, value: int) -> int:
     return (value & mask) >> ffs(mask)
 
 
-class Fw:
+class Fw(abc.ABC):
     def __init__(self, fw):
         self.fw = fw
+
+    @abc.abstractmethod
+    def decode(self):
+        raise NotImplementedError()
 
 
 class FwCss(Fw):
