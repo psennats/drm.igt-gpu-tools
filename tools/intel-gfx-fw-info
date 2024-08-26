@@ -84,11 +84,11 @@ logging.basicConfig(format="%(levelname)s: %(message)s")
 
 try:
     from dissect import cstruct
-except:
+except ImportError as e:
     logging.critical(
         "Could not import dissect.cstruct module. See https://github.com/fox-it/dissect.cstruct for installation options"
     )
-    raise SystemExit(1)
+    raise SystemExit(1) from e
 
 
 def ffs(x: int) -> int:
