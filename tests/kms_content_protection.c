@@ -638,7 +638,7 @@ test_content_protection_mst(int content_type)
 	int valid_outputs = 0, dp_mst_outputs = 0, ret, count, max_pipe = 0, i;
 	enum pipe pipe;
 	bool pipe_found;
-	igt_output_t *mst_output[IGT_MAX_PIPES], *hdcp_mst_output[IGT_MAX_PIPES];
+	igt_output_t *hdcp_mst_output[IGT_MAX_PIPES];
 
 	for_each_pipe(display, pipe)
 		max_pipe++;
@@ -662,10 +662,13 @@ test_content_protection_mst(int content_type)
 
 		igt_output_set_pipe(output, pipe);
 		prepare_modeset_on_mst_output(output);
-		mst_output[dp_mst_outputs++] = output;
+		dp_mst_outputs++;
+		if (output_hdcp_capable(output, content_type))
+			hdcp_mst_output[valid_outputs++] = output;
 	}
 
 	igt_require_f(dp_mst_outputs > 1, "No DP MST set up with >= 2 outputs found in a single topology\n");
+	igt_require_f(valid_outputs > 1, "DP MST outputs do not have the required HDCP support\n");
 
 	if (igt_display_try_commit_atomic(display,
 				DRM_MODE_ATOMIC_TEST_ONLY |
@@ -674,21 +677,12 @@ test_content_protection_mst(int content_type)
 		bool found = igt_override_all_active_output_modes_to_fit_bw(display);
 		igt_require_f(found, "No valid mode combo found for MST modeset\n");
 
-		for (count = 0; count < dp_mst_outputs; count++)
-			prepare_modeset_on_mst_output(mst_output[count]);
+		for (count = 0; count < valid_outputs; count++)
+			prepare_modeset_on_mst_output(hdcp_mst_output[count]);
 	}
 
 	ret = igt_display_try_commit2(display, COMMIT_ATOMIC);
 	igt_require_f(ret == 0, "Commit failure during MST modeset\n");
-
-	for (count = 0; count < dp_mst_outputs; count++) {
-		if (!output_hdcp_capable(mst_output[count], content_type))
-			continue;
-
-		hdcp_mst_output[valid_outputs++] = mst_output[count];
-	}
-
-	igt_require_f(valid_outputs > 1, "DP MST outputs do not have the required HDCP support\n");
 
 	for (count = 0; count < valid_outputs; count++) {
 		igt_output_set_prop_value(hdcp_mst_output[count], IGT_CONNECTOR_CONTENT_PROTECTION, CP_DESIRED);
