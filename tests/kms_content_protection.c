@@ -679,10 +679,10 @@ test_content_protection_mst(int content_type)
 
 		for (count = 0; count < valid_outputs; count++)
 			prepare_modeset_on_mst_output(hdcp_mst_output[count]);
-	}
 
-	ret = igt_display_try_commit2(display, COMMIT_ATOMIC);
-	igt_require_f(ret == 0, "Commit failure during MST modeset\n");
+		ret = igt_display_try_commit2(display, COMMIT_ATOMIC);
+		igt_require_f(ret == 0, "Commit failure during MST modeset\n");
+	}
 
 	for (count = 0; count < valid_outputs; count++) {
 		igt_output_set_prop_value(hdcp_mst_output[count], IGT_CONNECTOR_CONTENT_PROTECTION, CP_DESIRED);
