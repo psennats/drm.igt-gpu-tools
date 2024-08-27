@@ -70,6 +70,7 @@ struct shmbuf {
 	int count;
 	bool sub_test_completed;
 	bool sub_test_is_skipped;
+	bool sub_test_is_existed;
 	unsigned int test_flags;
 	int test_error_code;
 	bool reset_completed;
@@ -148,6 +149,7 @@ skip_sub_test(struct shmbuf *sh_mem)
 {
 	sem_wait(&sh_mem->sem_state_mutex);
 	sh_mem->sub_test_is_skipped = true;
+	sh_mem->sub_test_is_existed = true;
 	sem_post(&sh_mem->sem_state_mutex);
 }
 
@@ -327,6 +329,7 @@ static void set_next_test_to_run(struct shmbuf *sh_mem, unsigned int error,
 	sh_mem->good_job.ip = ip_good;
 	sh_mem->good_job.ring_id = ring_id_good;
 	sh_mem->sub_test_is_skipped = false;
+	sh_mem->sub_test_is_existed = true;
 	sem_post(&sh_mem->sem_state_mutex);
 
 	//sync and wait for complete
@@ -405,6 +408,7 @@ shared_mem_create(struct shmbuf **ppbuf)
 	shmp->sub_test_completed = false;
 	shmp->reset_completed = false;
 	shmp->sub_test_is_skipped = false;
+	shmp->sub_test_is_existed = false;
 
 	*ppbuf = shmp;
 	return shm_fd;
@@ -1128,7 +1132,6 @@ igt_main
 			create_contexts(device, &arr_context_handle, const_num_of_tests);
 		else if (process == PROCESS_BACKGROUND)
 			fd_shm = shared_mem_open(&sh_mem);
-
 		igt_require(fd_shm != -1);
 		igt_require(sh_mem != NULL);
 
@@ -1136,7 +1139,6 @@ igt_main
 			process, sh_mem, const_num_of_tests, info[0].hw_ip_version_major,
 			&monitor_child, &test_child);
 	}
-
 	for (int i = 0; i < ARRAY_SIZE(ip_tests); i++) {
 		reset_rings_numbers(&ring_id_good, &ring_id_bad, &ring_id_job_good, &ring_id_job_bad);
 		for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
@@ -1154,6 +1156,10 @@ igt_main
 			}
 		}
 	}
+
+	if (sh_mem && (!sh_mem->sub_test_is_existed))
+		set_next_test_to_skip(sh_mem);
+
 	igt_fixture {
 		if (process == PROCESS_TEST) {
 			waitpid(monitor_child, &monitorExitMethod, 0);
