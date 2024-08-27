@@ -124,6 +124,7 @@ struct data {
 #define LIC_PERIOD_MSEC				(4 * 1000)
 /* Kernel retry count=3, Max time per authentication allowed = 6Sec */
 #define KERNEL_AUTH_TIME_ALLOWED_MSEC		(3 *  6 * 1000)
+#define KERNEL_AUTH_TIME_ADDITIONAL_MSEC	100
 #define KERNEL_DISABLE_TIME_ALLOWED_MSEC	(1 * 1000)
 #define FLIP_EVENT_POLLING_TIMEOUT_MSEC		1000
 
@@ -276,6 +277,36 @@ static bool test_cp_enable(igt_output_t *output, enum igt_commit_style commit_st
 	}
 
 	return ret;
+}
+
+static void test_mst_cp_disable(igt_output_t *hdcp_mst_output[],
+				enum igt_commit_style commit_style,
+				int valid_outputs)
+{
+	igt_display_t *display = &data.display;
+	igt_plane_t *primary;
+	bool ret;
+	int count;
+	u64 val;
+
+	for (count = 0; count < valid_outputs; count++) {
+		primary = igt_output_get_plane_type(hdcp_mst_output[count], DRM_PLANE_TYPE_PRIMARY);
+		igt_plane_set_fb(primary, &data.red);
+		igt_output_set_prop_value(hdcp_mst_output[count], IGT_CONNECTOR_CONTENT_PROTECTION,
+					  CP_UNDESIRED);
+	}
+
+	igt_display_commit2(display, commit_style);
+
+	ret = wait_for_prop_value(hdcp_mst_output[0], CP_UNDESIRED,
+				  KERNEL_DISABLE_TIME_ALLOWED_MSEC);
+	for (count = 1; count < valid_outputs; count++) {
+		val = igt_output_get_prop(hdcp_mst_output[count],
+					  IGT_CONNECTOR_CONTENT_PROTECTION);
+		ret &= (val == CP_UNDESIRED);
+	}
+
+	igt_assert_f(ret, "Content Protection not cleared on all MST outputs\n");
 }
 
 static void test_cp_disable(igt_output_t *output, enum igt_commit_style commit_style)
@@ -631,6 +662,46 @@ static void test_cp_lic_on_mst(igt_output_t *mst_outputs[], int valid_outputs, b
 	}
 }
 
+static bool
+test_mst_cp_enable_with_retry(igt_output_t *hdcp_mst_output[], int valid_outputs,
+			      int retries, int content_type)
+{
+	igt_display_t *display = &data.display;
+	int retry_orig = retries, count;
+	bool ret;
+
+	do {
+		if (retry_orig != retries)
+			test_mst_cp_disable(hdcp_mst_output, COMMIT_ATOMIC, valid_outputs);
+
+		for (count = 0; count < valid_outputs; count++) {
+			igt_output_set_prop_value(hdcp_mst_output[count],
+						  IGT_CONNECTOR_CONTENT_PROTECTION, CP_DESIRED);
+
+			if (hdcp_mst_output[count]->props[IGT_CONNECTOR_HDCP_CONTENT_TYPE])
+				igt_output_set_prop_value(hdcp_mst_output[count],
+							  IGT_CONNECTOR_HDCP_CONTENT_TYPE,
+							  content_type);
+		}
+
+		igt_display_commit2(display, COMMIT_ATOMIC);
+
+		ret = wait_for_prop_value(hdcp_mst_output[0], CP_ENABLED,
+					  KERNEL_AUTH_TIME_ALLOWED_MSEC);
+		for (count = 1; count < valid_outputs; count++)
+			ret &= wait_for_prop_value(hdcp_mst_output[count], CP_ENABLED,
+						  KERNEL_AUTH_TIME_ADDITIONAL_MSEC);
+
+		retries -= 1;
+		if (!ret || retries)
+			igt_debug("Retry %d/3\n", 3 - retries);
+	} while (retries && !ret);
+
+	igt_assert_f(ret, "Content Protection not enabled on MST outputs\n");
+
+	return ret;
+}
+
 static void
 test_content_protection_mst(int content_type)
 {
@@ -685,19 +756,9 @@ test_content_protection_mst(int content_type)
 		igt_require_f(ret == 0, "Commit failure during MST modeset\n");
 	}
 
-	for (count = 0; count < valid_outputs; count++) {
-		igt_output_set_prop_value(hdcp_mst_output[count], IGT_CONNECTOR_CONTENT_PROTECTION, CP_DESIRED);
-
-		if (output->props[IGT_CONNECTOR_HDCP_CONTENT_TYPE])
-			igt_output_set_prop_value(hdcp_mst_output[count], IGT_CONNECTOR_HDCP_CONTENT_TYPE, content_type);
-	}
-
 	igt_display_commit2(display, COMMIT_ATOMIC);
 
-	for (count = 0; count < valid_outputs; count++) {
-		ret = wait_for_prop_value(hdcp_mst_output[count], CP_ENABLED, KERNEL_AUTH_TIME_ALLOWED_MSEC);
-		igt_assert_f(ret, "Content Protection not enabled on %s\n", hdcp_mst_output[count]->name);
-	}
+	ret = test_mst_cp_enable_with_retry(hdcp_mst_output, valid_outputs, 2, content_type);
 
 	if (data.cp_tests & CP_LIC)
 		test_cp_lic_on_mst(hdcp_mst_output, valid_outputs, 0);
