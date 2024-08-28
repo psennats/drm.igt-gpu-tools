@@ -24,11 +24,6 @@
 #ifndef __AMD_DEADLOCK_HELPERS_H__
 #define __AMD_DEADLOCK_HELPERS_H__
 
-enum  hang_type {
-	DMA_CORRUPTED_HEADER_HANG,
-	DMA_SLOW_LINEARCOPY_HANG
-};
-
 void
 amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int ip_type);
 

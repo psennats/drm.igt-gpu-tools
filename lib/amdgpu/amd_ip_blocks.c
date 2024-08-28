@@ -58,6 +58,56 @@ sdma_ring_write_linear(const struct amdgpu_ip_funcs *func,
 }
 
 static int
+sdma_ring_bad_write_linear(const struct amdgpu_ip_funcs *func,
+		       const struct amdgpu_ring_context *ring_context,
+		       uint32_t *pm4_dw, unsigned int cmd_error)
+{
+	uint32_t i, j, stream_length;
+	uint32_t opcode;
+
+	i = 0;
+	j = 0;
+
+	if (cmd_error == CMD_STREAM_EXEC_INVALID_PACKET_LENGTH)
+		stream_length = ring_context->write_length / 16;
+	else
+		stream_length = ring_context->write_length;
+
+	if (cmd_error == CMD_STREAM_EXEC_INVALID_OPCODE)
+		opcode = 0xf2;
+	else
+		opcode = SDMA_OPCODE_WRITE;
+
+	if (func->family_id == AMDGPU_FAMILY_SI)
+		ring_context->pm4[i++] = SDMA_PACKET_SI(opcode, 0, 0, 0,
+					 ring_context->write_length);
+	else
+		ring_context->pm4[i++] = SDMA_PACKET(opcode,
+					 SDMA_WRITE_SUB_OPCODE_LINEAR,
+					 ring_context->secure ? SDMA_ATOMIC_TMZ(1) : 0);
+	if (cmd_error == CMD_STREAM_TRANS_BAD_MEM_ADDRESS) {
+		ring_context->pm4[i++] = lower_32_bits(0xdeadbee0);
+		ring_context->pm4[i++] = upper_32_bits(0xdeadbee0);
+	} else if (cmd_error == CMD_STREAM_TRANS_BAD_REG_ADDRESS) {
+		ring_context->pm4[i++] = lower_32_bits(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR);
+		ring_context->pm4[i++] = upper_32_bits(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR);
+	} else {
+		ring_context->pm4[i++] = lower_32_bits(ring_context->bo_mc);
+		ring_context->pm4[i++] = upper_32_bits(ring_context->bo_mc);
+	}
+	if (func->family_id >= AMDGPU_FAMILY_AI)
+		ring_context->pm4[i++] = ring_context->write_length - 1;
+	else
+		ring_context->pm4[i++] = ring_context->write_length;
+
+	while (j++ < stream_length)
+		ring_context->pm4[i++] = func->deadbeaf;
+	*pm4_dw = i;
+
+	return 0;
+}
+
+static int
 sdma_ring_atomic(const struct amdgpu_ip_funcs *func,
 		       const struct amdgpu_ring_context *ring_context,
 		       uint32_t *pm4_dw)
@@ -429,6 +479,7 @@ static struct amdgpu_ip_funcs sdma_v3_x_ip_funcs = {
 	.deadbeaf = 0xdeadbeaf,
 	.pattern = 0xaaaaaaaa,
 	.write_linear = sdma_ring_write_linear,
+	.bad_write_linear = sdma_ring_bad_write_linear,
 	.write_linear_atomic = sdma_ring_atomic,
 	.const_fill = sdma_ring_const_fill,
 	.copy_linear = sdma_ring_copy_linear,
