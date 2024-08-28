@@ -127,6 +127,42 @@ igt_main
 		}
 	}
 
+	igt_describe("Test-GPU-reset-by-sdma-badop-with-jobs");
+	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-badop-test") {
+		if (arr_cap[AMD_IP_DMA]) {
+			igt_dynamic_f("amdgpu-deadlock-sdma-badop-test")
+			bad_access_helper(device, CMD_STREAM_EXEC_INVALID_OPCODE,
+					AMDGPU_HW_IP_DMA);
+		}
+	}
+
+	igt_describe("Test-GPU-reset-by-sdma-bad-mem-with-jobs");
+	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-mem-test") {
+		if (arr_cap[AMD_IP_DMA]) {
+			igt_dynamic_f("amdgpu-deadlock-sdma-bad-mem-test")
+			bad_access_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
+					AMDGPU_HW_IP_DMA);
+		}
+	}
+
+	igt_describe("Test-GPU-reset-by-sdma-bad-reg-with-jobs");
+	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-reg-test") {
+		if (arr_cap[AMD_IP_DMA]) {
+			igt_dynamic_f("amdgpu-deadlock-sdma-bad-reg-test")
+			bad_access_helper(device, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
+					AMDGPU_HW_IP_DMA);
+		}
+	}
+
+	igt_describe("Test-GPU-reset-by-sdma-bad-length-with-jobs");
+	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-length-test") {
+		if (arr_cap[AMD_IP_DMA]) {
+			igt_dynamic_f("amdgpu-deadlock-sdma-bad-length-test")
+			bad_access_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
+					AMDGPU_HW_IP_DMA);
+		}
+	}
+
 	igt_fixture {
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
