@@ -485,10 +485,12 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 
 	igt_debug("%s: percent: %f\n", engine_map[class], percent);
 
-	if (flags & TEST_BUSY)
-		igt_assert(percent >= 95 && percent <= 105);
-	else
+	if (flags & TEST_BUSY) {
+		igt_assert_lt_double(95.0, percent);
+		igt_assert_lt_double(percent, 105.0);
+	} else {
 		igt_assert(!percent);
+	}
 }
 
 static void
