@@ -1530,29 +1530,41 @@ void igt_kmsg(const char *format, ...);
  * igt_pci_system_init:
  * IGT wrapper around pci_system_init()
  *
- * Runs pci_system_init() and installs pci_system_cleanup() as IGT exit handler when
- * called first per thread, subsequent calls are noop.  Tests should use this wrapper
+ * Runs pci_system_init() and installs igt_pci_system_cleanup() as IGT exit handler when
+ * called first per thread, subsequent calls are noop. Tests should use this wrapper
  * instead of pci_system_init() to avoid memory leaking which happens each time a call
  * to pci_system_init() is repeated not preceded by pci_system_cleanup() (may easily
  * happen in consequence of long jumps performed by IGT flow control functions).
  *
- * Return value: equal return value of pthread_once() (return value of pci_system_init()
- *		 can't be passed through pthread_once())
+ * Return:
+ * Return value of pci_system_init() or 0 if pci system is already initialized.
  */
 int igt_pci_system_init(void);
 
 /**
- * igt_pci_system_cleanup():
- * IGT replacement for pci_system_cleanup()
+ * igt_pci_system_reinit:
+ * Reinitialize libpciaccess global data.
  *
- * For use in IGT library and tests to avoid destroying libpciaccess global data.
- * Direct calls to pci_system_cleanup() should be either dropped or replaced with this
- * wrapper (for code clarity), otherwise subsequent access to libpciaccess global data
- * may be lost unless preceded by direct call to pci_system_init() (not recommended).
+ * Executes igt_pci_system_cleanup() and igt_pci_system_init() to refresh
+ * the PCI system state, typically needed after PCI devices are added or
+ * removed.
+ *
+ * Note: All previously obtained handles (pci_dev, mmio) become invalid
+ * after this call. Do not use old handles post-reinitialization.
+ *
+ * Return: Outcome of igt_pci_system_init().
  */
-static inline void igt_pci_system_cleanup(void)
-{
-}
+int igt_pci_system_reinit(void);
+
+/**
+ * igt_pci_system_cleanup():
+ * IGT wrapper around pci_system_cleanup()
+ *
+ * Runs pci_system_cleanup() if igt_pci_system_init() was successfully called
+ * before. This allows to refresh the libpciaccess global data when followed
+ * by igt_pci_system_init(), see igt_pci_system_reinit().
+ */
+void igt_pci_system_cleanup(void);
 
 void igt_emit_ignore_dmesg_regex(const char *ignore_dmesg_regex);
 

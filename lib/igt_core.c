@@ -3483,23 +3483,51 @@ void igt_srandom(void)
 }
 
 /* IGT wrappers around libpciaccess init/cleanup functions */
+static bool pci_system_initialized;
+static pthread_mutex_t pci_system_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void igt_pci_system_cleanup(void)
+{
+	pthread_mutex_lock(&pci_system_mutex);
+	if (pci_system_initialized) {
+		pci_system_cleanup();
+		pci_system_initialized = false;
+	}
+	pthread_mutex_unlock(&pci_system_mutex);
+}
 
 static void pci_system_exit_handler(int sig)
 {
-	pci_system_cleanup();
-}
-
-static void __pci_system_init(void)
-{
-	if (!igt_warn_on_f(pci_system_init(), "Could not initialize libpciaccess global data\n"))
-		igt_install_exit_handler(pci_system_exit_handler);
+	igt_pci_system_cleanup();
 }
 
 int igt_pci_system_init(void)
 {
-	static pthread_once_t once_control = PTHREAD_ONCE_INIT;
+	int ret = 0;
+	bool install_handler = false;
 
-	return pthread_once(&once_control, __pci_system_init);
+	pthread_mutex_lock(&pci_system_mutex);
+	if (!pci_system_initialized) {
+		ret = igt_warn_on_f(pci_system_init(),
+				    "Could not initialize libpciaccess global data\n");
+		if (!ret) {
+			pci_system_initialized = true;
+			install_handler = true;
+		}
+	}
+	pthread_mutex_unlock(&pci_system_mutex);
+
+	if (install_handler)
+		igt_install_exit_handler(pci_system_exit_handler);
+
+	return ret;
+}
+
+int igt_pci_system_reinit(void)
+{
+	igt_pci_system_cleanup();
+
+	return igt_pci_system_init();
 }
 
 /**
