@@ -416,6 +416,7 @@ spin_sync_start(int fd, struct spin_ctx *ctx)
 		return;
 
 	ctx->spin_opts.addr = ctx->addr;
+	ctx->spin_opts.write_timestamp = true;
 	ctx->spin_opts.preempt = true;
 	xe_spin_init(ctx->spin, &ctx->spin_opts);
 
@@ -448,7 +449,8 @@ spin_sync_end(int fd, struct spin_ctx *ctx)
 	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
 
 	ctx->ended = true;
-	igt_debug("%s: spinner ended\n", engine_map[ctx->class]);
+	igt_debug("%s: spinner ended (timestamp=%u)\n", engine_map[ctx->class],
+		  ctx->spin->timestamp);
 }
 
 static void
