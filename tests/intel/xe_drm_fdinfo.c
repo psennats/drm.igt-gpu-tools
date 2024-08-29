@@ -474,14 +474,16 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 	      int class, unsigned int flags)
 {
 	double percent;
+	u64 den, num;
 
 	igt_debug("%s: sample 1: cycles %lu, total_cycles %lu\n",
 		  engine_map[class], s1[class].cycles, s1[class].total_cycles);
 	igt_debug("%s: sample 2: cycles %lu, total_cycles %lu\n",
 		  engine_map[class], s2[class].cycles, s2[class].total_cycles);
 
-	percent = ((s2[class].cycles - s1[class].cycles) * 100) /
-		  ((s2[class].total_cycles + 1) - s1[class].total_cycles);
+	num = s2[class].cycles - s1[class].cycles;
+	den = s2[class].total_cycles - s1[class].total_cycles;
+	percent = (num * 100.0) / (den + 1);
 
 	igt_debug("%s: percent: %f\n", engine_map[class], percent);
 
@@ -489,7 +491,7 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 		igt_assert_lt_double(95.0, percent);
 		igt_assert_lt_double(percent, 105.0);
 	} else {
-		igt_assert(!percent);
+		igt_assert_eq(num, 0);
 	}
 }
 
