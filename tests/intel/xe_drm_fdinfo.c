@@ -68,6 +68,11 @@ IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine u
 #define TEST_TRAILING_IDLE	(1 << 1)
 #define TEST_ISOLATION		(1 << 2)
 
+enum expected_load {
+	EXPECTED_LOAD_IDLE,
+	EXPECTED_LOAD_FULL,
+};
+
 struct pceu_cycles {
 	uint64_t cycles;
 	uint64_t total_cycles;
@@ -471,7 +476,7 @@ spin_ctx_destroy(int fd, struct spin_ctx *ctx)
 
 static void
 check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
-	      int class, unsigned int flags)
+	      int class, enum expected_load expected_load)
 {
 	double percent;
 	u64 den, num;
@@ -487,11 +492,18 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 
 	igt_debug("%s: percent: %f\n", engine_map[class], percent);
 
-	if (flags & TEST_BUSY) {
+	switch (expected_load) {
+	case EXPECTED_LOAD_IDLE:
+		igt_assert_eq(num, 0);
+		break;
+	case EXPECTED_LOAD_FULL:
+		/*
+		 * We are still relying on CPU sleep time and there could be
+		 * some imprecision when calculating the load. Use a 5% margin.
+		 */
 		igt_assert_lt_double(95.0, percent);
 		igt_assert_lt_double(percent, 105.0);
-	} else {
-		igt_assert_eq(num, 0);
+		break;
 	}
 }
 
@@ -501,6 +513,7 @@ single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int flags)
 	struct pceu_cycles pceu1[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct spin_ctx *ctx = NULL;
+	enum expected_load expected_load;
 	uint32_t vm;
 	int new_fd;
 
@@ -525,10 +538,16 @@ single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int flags)
 	if (flags & TEST_ISOLATION)
 		read_engine_cycles(new_fd, pceu2[1]);
 
-	check_results(pceu1[0], pceu2[0], hwe->engine_class, flags);
+	expected_load = flags & TEST_BUSY ?
+	       EXPECTED_LOAD_FULL : EXPECTED_LOAD_IDLE;
+	check_results(pceu1[0], pceu2[0], hwe->engine_class, expected_load);
 
 	if (flags & TEST_ISOLATION) {
-		check_results(pceu1[1], pceu2[1], hwe->engine_class, 0);
+		/*
+		 * Load from one client shouldn't spill on another,
+		 * so check for idle
+		 */
+		check_results(pceu1[1], pceu2[1], hwe->engine_class, EXPECTED_LOAD_IDLE);
 		close(new_fd);
 	}
 
@@ -557,9 +576,10 @@ busy_check_all(int fd, struct drm_xe_engine_class_instance *hwe)
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
-		bool idle = hwe->engine_class != class;
+		enum expected_load expected_load = hwe->engine_class != class ?
+			EXPECTED_LOAD_IDLE : EXPECTED_LOAD_FULL;
 
-		check_results(pceu1, pceu2, class, idle ? 0 : TEST_BUSY);
+		check_results(pceu1, pceu2, class, expected_load);
 	}
 
 	spin_sync_end(fd, ctx);
@@ -590,7 +610,7 @@ single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hwe)
 
 	xe_vm_destroy(fd, vm);
 
-	check_results(pceu1, pceu2, hwe->engine_class, TEST_BUSY);
+	check_results(pceu1, pceu2, hwe->engine_class, EXPECTED_LOAD_FULL);
 }
 
 static void
@@ -623,12 +643,13 @@ most_busy_check_all(int fd, struct drm_xe_engine_class_instance *hwe)
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
-		bool idle = hwe->engine_class == class;
+		enum expected_load expected_load = hwe->engine_class == class ?
+			EXPECTED_LOAD_IDLE : EXPECTED_LOAD_FULL;
 
 		if (!ctx[class])
 			continue;
 
-		check_results(pceu1, pceu2, class, idle ? 0 : TEST_BUSY);
+		check_results(pceu1, pceu2, class, expected_load);
 		spin_sync_end(fd, ctx[class]);
 		spin_ctx_destroy(fd, ctx[class]);
 	}
@@ -668,7 +689,7 @@ all_busy_check_all(int fd)
 		if (!ctx[class])
 			continue;
 
-		check_results(pceu1, pceu2, class, TEST_BUSY);
+		check_results(pceu1, pceu2, class, EXPECTED_LOAD_FULL);
 		spin_sync_end(fd, ctx[class]);
 		spin_ctx_destroy(fd, ctx[class]);
 	}
