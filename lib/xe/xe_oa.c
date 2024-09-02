@@ -112,16 +112,15 @@ unsupported_xe_oa_platform(struct intel_xe_perf *perf)
 	return NULL;
 }
 
+#define DEVID(_id) (_id)
+
 static bool
 is_acm_gt1(const struct intel_xe_perf_devinfo *devinfo)
 {
-#undef INTEL_VGA_DEVICE
-#define INTEL_VGA_DEVICE(_id, _info) _id
 	static const uint32_t devids[] = {
-		XE_DG2_G11_IDS(INTEL_VGA_DEVICE, NULL),
-		XE_ATS_M75_IDS(INTEL_VGA_DEVICE, NULL),
+		XE_DG2_G11_IDS(DEVID),
+		XE_ATS_M75_IDS(DEVID),
 	};
-#undef INTEL_VGA_DEVICE
 	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
 		if (devids[i] == devinfo->devid)
 			return true;
@@ -133,12 +132,9 @@ is_acm_gt1(const struct intel_xe_perf_devinfo *devinfo)
 static bool
 is_acm_gt2(const struct intel_xe_perf_devinfo *devinfo)
 {
-#undef INTEL_VGA_DEVICE
-#define INTEL_VGA_DEVICE(_id, _info) _id
 	static const uint32_t devids[] = {
-		XE_DG2_G12_IDS(INTEL_VGA_DEVICE, NULL),
+		XE_DG2_G12_IDS(DEVID),
 	};
-#undef INTEL_VGA_DEVICE
 	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
 		if (devids[i] == devinfo->devid)
 			return true;
@@ -150,13 +146,10 @@ is_acm_gt2(const struct intel_xe_perf_devinfo *devinfo)
 static bool
 is_acm_gt3(const struct intel_xe_perf_devinfo *devinfo)
 {
-#undef INTEL_VGA_DEVICE
-#define INTEL_VGA_DEVICE(_id, _info) _id
 	static const uint32_t devids[] = {
-		XE_DG2_G10_IDS(INTEL_VGA_DEVICE, NULL),
-		XE_ATS_M150_IDS(INTEL_VGA_DEVICE, NULL),
+		XE_DG2_G10_IDS(DEVID),
+		XE_ATS_M150_IDS(DEVID),
 	};
-#undef INTEL_VGA_DEVICE
 	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
 		if (devids[i] == devinfo->devid)
 			return true;
@@ -164,6 +157,8 @@ is_acm_gt3(const struct intel_xe_perf_devinfo *devinfo)
 
 	return false;
 }
+
+#undef DEVID
 
 struct intel_xe_perf *
 intel_xe_perf_for_devinfo(uint32_t device_id,
