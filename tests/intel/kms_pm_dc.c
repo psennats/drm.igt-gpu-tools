@@ -592,7 +592,9 @@ static unsigned int read_pkgc_counter(int debugfs_root_fd)
 static void test_deep_pkgc_state(data_t *data)
 {
 	unsigned int pre_val = 0, cur_val = 0;
-	time_t start = time(NULL), duration = 2, delay;
+	time_t start = time(NULL);
+	time_t duration = (4 * SEC);
+	time_t delay;
 	enum pipe pipe;
 	bool pkgc_flag = false;
 	bool flip = true;
