@@ -158,7 +158,7 @@ igt_main
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-length-test") {
 		if (arr_cap[AMD_IP_DMA]) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-bad-length-test")
-			bad_access_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
+			bad_access_helper(device, CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
 					AMDGPU_HW_IP_DMA);
 		}
 	}
