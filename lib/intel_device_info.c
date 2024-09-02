@@ -527,116 +527,125 @@ static const struct intel_device_info intel_battlemage_info = {
 	.cmds_info = &xe2_cmds_info,
 };
 
+#define INTEL_PCI_ID_INIT(_id, _info) { \
+	.vendor_id = 0x8086, .device_id = (_id), \
+	.subvendor_id = PCI_MATCH_ANY, .subdevice_id = PCI_MATCH_ANY, \
+	.device_class = 0x03 << 16, .device_class_mask = 0xff << 16, \
+	.match_data = (intptr_t)(_info), \
+}
+
 static const struct pci_id_match intel_device_match[] = {
-	INTEL_I810_IDS(INTEL_VGA_DEVICE, &intel_i810_info),
-	INTEL_I815_IDS(INTEL_VGA_DEVICE, &intel_i815_info),
+	INTEL_I810_IDS(INTEL_PCI_ID_INIT, &intel_i810_info),
+	INTEL_I815_IDS(INTEL_PCI_ID_INIT, &intel_i815_info),
 
-	INTEL_I830_IDS(INTEL_VGA_DEVICE, &intel_i830_info),
-	INTEL_I845G_IDS(INTEL_VGA_DEVICE, &intel_i845_info),
-	INTEL_I85X_IDS(INTEL_VGA_DEVICE, &intel_i855_info),
-	INTEL_I865G_IDS(INTEL_VGA_DEVICE, &intel_i865_info),
+	INTEL_I830_IDS(INTEL_PCI_ID_INIT, &intel_i830_info),
+	INTEL_I845G_IDS(INTEL_PCI_ID_INIT, &intel_i845_info),
+	INTEL_I85X_IDS(INTEL_PCI_ID_INIT, &intel_i855_info),
+	INTEL_I865G_IDS(INTEL_PCI_ID_INIT, &intel_i865_info),
 
-	INTEL_I915G_IDS(INTEL_VGA_DEVICE, &intel_i915_info),
-	INTEL_I915GM_IDS(INTEL_VGA_DEVICE, &intel_i915m_info),
-	INTEL_I945G_IDS(INTEL_VGA_DEVICE, &intel_i945_info),
-	INTEL_I945GM_IDS(INTEL_VGA_DEVICE, &intel_i945m_info),
+	INTEL_I915G_IDS(INTEL_PCI_ID_INIT, &intel_i915_info),
+	INTEL_I915GM_IDS(INTEL_PCI_ID_INIT, &intel_i915m_info),
+	INTEL_I945G_IDS(INTEL_PCI_ID_INIT, &intel_i945_info),
+	INTEL_I945GM_IDS(INTEL_PCI_ID_INIT, &intel_i945m_info),
 
-	INTEL_G33_IDS(INTEL_VGA_DEVICE, &intel_g33_info),
-	INTEL_PNV_G_IDS(INTEL_VGA_DEVICE, &intel_pineview_g_info),
-	INTEL_PNV_M_IDS(INTEL_VGA_DEVICE, &intel_pineview_m_info),
+	INTEL_G33_IDS(INTEL_PCI_ID_INIT, &intel_g33_info),
+	INTEL_PNV_G_IDS(INTEL_PCI_ID_INIT, &intel_pineview_g_info),
+	INTEL_PNV_M_IDS(INTEL_PCI_ID_INIT, &intel_pineview_m_info),
 
-	INTEL_I965G_IDS(INTEL_VGA_DEVICE, &intel_i965_info),
-	INTEL_I965GM_IDS(INTEL_VGA_DEVICE, &intel_i965m_info),
+	INTEL_I965G_IDS(INTEL_PCI_ID_INIT, &intel_i965_info),
+	INTEL_I965GM_IDS(INTEL_PCI_ID_INIT, &intel_i965m_info),
 
-	INTEL_G45_IDS(INTEL_VGA_DEVICE, &intel_g45_info),
-	INTEL_GM45_IDS(INTEL_VGA_DEVICE, &intel_gm45_info),
+	INTEL_G45_IDS(INTEL_PCI_ID_INIT, &intel_g45_info),
+	INTEL_GM45_IDS(INTEL_PCI_ID_INIT, &intel_gm45_info),
 
-	INTEL_ILK_D_IDS(INTEL_VGA_DEVICE, &intel_ironlake_info),
-	INTEL_ILK_M_IDS(INTEL_VGA_DEVICE, &intel_ironlake_m_info),
+	INTEL_ILK_D_IDS(INTEL_PCI_ID_INIT, &intel_ironlake_info),
+	INTEL_ILK_M_IDS(INTEL_PCI_ID_INIT, &intel_ironlake_m_info),
 
-	INTEL_SNB_D_IDS(INTEL_VGA_DEVICE, &intel_sandybridge_info),
-	INTEL_SNB_M_IDS(INTEL_VGA_DEVICE, &intel_sandybridge_m_info),
+	INTEL_SNB_D_IDS(INTEL_PCI_ID_INIT, &intel_sandybridge_info),
+	INTEL_SNB_M_IDS(INTEL_PCI_ID_INIT, &intel_sandybridge_m_info),
 
-	INTEL_IVB_D_IDS(INTEL_VGA_DEVICE, &intel_ivybridge_info),
-	INTEL_IVB_M_IDS(INTEL_VGA_DEVICE, &intel_ivybridge_m_info),
+	INTEL_IVB_D_IDS(INTEL_PCI_ID_INIT, &intel_ivybridge_info),
+	INTEL_IVB_M_IDS(INTEL_PCI_ID_INIT, &intel_ivybridge_m_info),
 
-	INTEL_HSW_GT1_IDS(INTEL_VGA_DEVICE, &intel_haswell_gt1_info),
-	INTEL_HSW_GT2_IDS(INTEL_VGA_DEVICE, &intel_haswell_gt2_info),
-	INTEL_HSW_GT3_IDS(INTEL_VGA_DEVICE, &intel_haswell_gt3_info),
+	INTEL_HSW_GT1_IDS(INTEL_PCI_ID_INIT, &intel_haswell_gt1_info),
+	INTEL_HSW_GT2_IDS(INTEL_PCI_ID_INIT, &intel_haswell_gt2_info),
+	INTEL_HSW_GT3_IDS(INTEL_PCI_ID_INIT, &intel_haswell_gt3_info),
 
-	INTEL_VLV_IDS(INTEL_VGA_DEVICE, &intel_valleyview_info),
+	INTEL_VLV_IDS(INTEL_PCI_ID_INIT, &intel_valleyview_info),
 
-	INTEL_BDW_GT1_IDS(INTEL_VGA_DEVICE, &intel_broadwell_gt1_info),
-	INTEL_BDW_GT2_IDS(INTEL_VGA_DEVICE, &intel_broadwell_gt2_info),
-	INTEL_BDW_GT3_IDS(INTEL_VGA_DEVICE, &intel_broadwell_gt3_info),
-	INTEL_BDW_RSVD_IDS(INTEL_VGA_DEVICE, &intel_broadwell_unknown_info),
+	INTEL_BDW_GT1_IDS(INTEL_PCI_ID_INIT, &intel_broadwell_gt1_info),
+	INTEL_BDW_GT2_IDS(INTEL_PCI_ID_INIT, &intel_broadwell_gt2_info),
+	INTEL_BDW_GT3_IDS(INTEL_PCI_ID_INIT, &intel_broadwell_gt3_info),
+	INTEL_BDW_RSVD_IDS(INTEL_PCI_ID_INIT, &intel_broadwell_unknown_info),
 
-	INTEL_CHV_IDS(INTEL_VGA_DEVICE, &intel_cherryview_info),
+	INTEL_CHV_IDS(INTEL_PCI_ID_INIT, &intel_cherryview_info),
 
-	INTEL_SKL_GT1_IDS(INTEL_VGA_DEVICE, &intel_skylake_gt1_info),
-	INTEL_SKL_GT2_IDS(INTEL_VGA_DEVICE, &intel_skylake_gt2_info),
-	INTEL_SKL_GT3_IDS(INTEL_VGA_DEVICE, &intel_skylake_gt3_info),
-	INTEL_SKL_GT4_IDS(INTEL_VGA_DEVICE, &intel_skylake_gt4_info),
+	INTEL_SKL_GT1_IDS(INTEL_PCI_ID_INIT, &intel_skylake_gt1_info),
+	INTEL_SKL_GT2_IDS(INTEL_PCI_ID_INIT, &intel_skylake_gt2_info),
+	INTEL_SKL_GT3_IDS(INTEL_PCI_ID_INIT, &intel_skylake_gt3_info),
+	INTEL_SKL_GT4_IDS(INTEL_PCI_ID_INIT, &intel_skylake_gt4_info),
 
-	INTEL_BXT_IDS(INTEL_VGA_DEVICE, &intel_broxton_info),
+	INTEL_BXT_IDS(INTEL_PCI_ID_INIT, &intel_broxton_info),
 
-	INTEL_KBL_GT1_IDS(INTEL_VGA_DEVICE, &intel_kabylake_gt1_info),
-	INTEL_KBL_GT2_IDS(INTEL_VGA_DEVICE, &intel_kabylake_gt2_info),
-	INTEL_KBL_GT3_IDS(INTEL_VGA_DEVICE, &intel_kabylake_gt3_info),
-	INTEL_KBL_GT4_IDS(INTEL_VGA_DEVICE, &intel_kabylake_gt4_info),
-	INTEL_AML_KBL_GT2_IDS(INTEL_VGA_DEVICE, &intel_kabylake_gt2_info),
+	INTEL_KBL_GT1_IDS(INTEL_PCI_ID_INIT, &intel_kabylake_gt1_info),
+	INTEL_KBL_GT2_IDS(INTEL_PCI_ID_INIT, &intel_kabylake_gt2_info),
+	INTEL_KBL_GT3_IDS(INTEL_PCI_ID_INIT, &intel_kabylake_gt3_info),
+	INTEL_KBL_GT4_IDS(INTEL_PCI_ID_INIT, &intel_kabylake_gt4_info),
+	INTEL_AML_KBL_GT2_IDS(INTEL_PCI_ID_INIT, &intel_kabylake_gt2_info),
 
-	INTEL_GLK_IDS(INTEL_VGA_DEVICE, &intel_geminilake_info),
+	INTEL_GLK_IDS(INTEL_PCI_ID_INIT, &intel_geminilake_info),
 
-	INTEL_CFL_S_GT1_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt1_info),
-	INTEL_CFL_S_GT2_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt2_info),
-	INTEL_CFL_H_GT1_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt1_info),
-	INTEL_CFL_H_GT2_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt2_info),
-	INTEL_CFL_U_GT2_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt2_info),
-	INTEL_CFL_U_GT3_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt3_info),
-	INTEL_WHL_U_GT1_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt1_info),
-	INTEL_WHL_U_GT2_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt2_info),
-	INTEL_WHL_U_GT3_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt3_info),
-	INTEL_AML_CFL_GT2_IDS(INTEL_VGA_DEVICE, &intel_coffeelake_gt2_info),
+	INTEL_CFL_S_GT1_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt1_info),
+	INTEL_CFL_S_GT2_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt2_info),
+	INTEL_CFL_H_GT1_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt1_info),
+	INTEL_CFL_H_GT2_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt2_info),
+	INTEL_CFL_U_GT2_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt2_info),
+	INTEL_CFL_U_GT3_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt3_info),
+	INTEL_WHL_U_GT1_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt1_info),
+	INTEL_WHL_U_GT2_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt2_info),
+	INTEL_WHL_U_GT3_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt3_info),
+	INTEL_AML_CFL_GT2_IDS(INTEL_PCI_ID_INIT, &intel_coffeelake_gt2_info),
 
-	INTEL_CML_GT1_IDS(INTEL_VGA_DEVICE, &intel_cometlake_gt1_info),
-	INTEL_CML_GT2_IDS(INTEL_VGA_DEVICE, &intel_cometlake_gt2_info),
-	INTEL_CML_U_GT1_IDS(INTEL_VGA_DEVICE, &intel_cometlake_gt1_info),
-	INTEL_CML_U_GT2_IDS(INTEL_VGA_DEVICE, &intel_cometlake_gt2_info),
+	INTEL_CML_GT1_IDS(INTEL_PCI_ID_INIT, &intel_cometlake_gt1_info),
+	INTEL_CML_GT2_IDS(INTEL_PCI_ID_INIT, &intel_cometlake_gt2_info),
+	INTEL_CML_U_GT1_IDS(INTEL_PCI_ID_INIT, &intel_cometlake_gt1_info),
+	INTEL_CML_U_GT2_IDS(INTEL_PCI_ID_INIT, &intel_cometlake_gt2_info),
 
-	INTEL_CNL_IDS(INTEL_VGA_DEVICE, &intel_cannonlake_info),
+	INTEL_CNL_IDS(INTEL_PCI_ID_INIT, &intel_cannonlake_info),
 
-	INTEL_ICL_IDS(INTEL_VGA_DEVICE, &intel_icelake_info),
+	INTEL_ICL_IDS(INTEL_PCI_ID_INIT, &intel_icelake_info),
 
-	INTEL_EHL_IDS(INTEL_VGA_DEVICE, &intel_elkhartlake_info),
-	INTEL_JSL_IDS(INTEL_VGA_DEVICE, &intel_jasperlake_info),
+	INTEL_EHL_IDS(INTEL_PCI_ID_INIT, &intel_elkhartlake_info),
+	INTEL_JSL_IDS(INTEL_PCI_ID_INIT, &intel_jasperlake_info),
 
-	INTEL_TGL_GT1_IDS(INTEL_VGA_DEVICE, &intel_tigerlake_gt1_info),
-	INTEL_TGL_GT2_IDS(INTEL_VGA_DEVICE, &intel_tigerlake_gt2_info),
-	INTEL_RKL_IDS(INTEL_VGA_DEVICE, &intel_rocketlake_info),
+	INTEL_TGL_GT1_IDS(INTEL_PCI_ID_INIT, &intel_tigerlake_gt1_info),
+	INTEL_TGL_GT2_IDS(INTEL_PCI_ID_INIT, &intel_tigerlake_gt2_info),
+	INTEL_RKL_IDS(INTEL_PCI_ID_INIT, &intel_rocketlake_info),
 
-	INTEL_DG1_IDS(INTEL_VGA_DEVICE, &intel_dg1_info),
-	INTEL_DG2_IDS(INTEL_VGA_DEVICE, &intel_dg2_info),
+	INTEL_DG1_IDS(INTEL_PCI_ID_INIT, &intel_dg1_info),
+	INTEL_DG2_IDS(INTEL_PCI_ID_INIT, &intel_dg2_info),
 
-	INTEL_ADLS_IDS(INTEL_VGA_DEVICE, &intel_alderlake_s_info),
-	INTEL_RPLS_IDS(INTEL_VGA_DEVICE, &intel_raptorlake_s_info),
-	INTEL_ADLP_IDS(INTEL_VGA_DEVICE, &intel_alderlake_p_info),
-	INTEL_RPLU_IDS(INTEL_VGA_DEVICE, &intel_alderlake_p_info),
-	INTEL_RPLP_IDS(INTEL_VGA_DEVICE, &intel_alderlake_p_info),
-	INTEL_ADLN_IDS(INTEL_VGA_DEVICE, &intel_alderlake_n_info),
+	INTEL_ADLS_IDS(INTEL_PCI_ID_INIT, &intel_alderlake_s_info),
+	INTEL_RPLS_IDS(INTEL_PCI_ID_INIT, &intel_raptorlake_s_info),
+	INTEL_ADLP_IDS(INTEL_PCI_ID_INIT, &intel_alderlake_p_info),
+	INTEL_RPLU_IDS(INTEL_PCI_ID_INIT, &intel_alderlake_p_info),
+	INTEL_RPLP_IDS(INTEL_PCI_ID_INIT, &intel_alderlake_p_info),
+	INTEL_ADLN_IDS(INTEL_PCI_ID_INIT, &intel_alderlake_n_info),
 
-	INTEL_ATS_M_IDS(INTEL_VGA_DEVICE, &intel_ats_m_info),
+	INTEL_ATS_M_IDS(INTEL_PCI_ID_INIT, &intel_ats_m_info),
 
-	INTEL_MTL_IDS(INTEL_VGA_DEVICE, &intel_meteorlake_info),
+	INTEL_MTL_IDS(INTEL_PCI_ID_INIT, &intel_meteorlake_info),
 
-	INTEL_PVC_IDS(INTEL_VGA_DEVICE, &intel_pontevecchio_info),
+	INTEL_PVC_IDS(INTEL_PCI_ID_INIT, &intel_pontevecchio_info),
 
-	XE_LNL_IDS(INTEL_VGA_DEVICE, &intel_lunarlake_info),
+	XE_LNL_IDS(INTEL_PCI_ID_INIT, &intel_lunarlake_info),
 
-	XE_BMG_IDS(INTEL_VGA_DEVICE, &intel_battlemage_info),
+	XE_BMG_IDS(INTEL_PCI_ID_INIT, &intel_battlemage_info),
 
-	INTEL_VGA_DEVICE(PCI_MATCH_ANY, &intel_generic_info),
+	INTEL_PCI_ID_INIT(PCI_MATCH_ANY, &intel_generic_info),
 };
+
+#undef INTEL_PCI_ID_INIT
 
 /**
  * intel_get_device_info:
