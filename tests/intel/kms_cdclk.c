@@ -402,6 +402,9 @@ igt_main
 			      "Hardware doesn't support crawling/squashing.\n");
 		igt_display_require(&data.display, data.drm_fd);
 		igt_display_require_output(&data.display);
+
+		/* Wa_15015413771: Only single possible cdclk value in XE2_HPD */
+		igt_require(!IS_BATTLEMAGE(data.devid));
 	}
 
 	igt_describe("Plane scaling test to validate cdclk frequency change.");
