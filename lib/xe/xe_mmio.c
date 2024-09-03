@@ -25,7 +25,7 @@ void xe_mmio_vf_access_init(int pf_fd, int vf_id, struct xe_mmio *mmio)
 
 	intel_mmio_use_pci_bar(&mmio->intel_mmio, pci_dev);
 
-	igt_assert(!mmio->intel_mmio.igt_mmio);
+	igt_assert(mmio->intel_mmio.igt_mmio);
 
 	mmio->fd = pf_fd;
 	mmio->intel_mmio.safe = false;
