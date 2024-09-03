@@ -55,7 +55,6 @@ void xe_mmio_access_fini(struct xe_mmio *mmio)
 {
 	mmio->intel_mmio.pci_device_id = 0;
 	intel_mmio_unmap_pci_bar(&mmio->intel_mmio);
-	igt_pci_system_cleanup();
 }
 
 /**
