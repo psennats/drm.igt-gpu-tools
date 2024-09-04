@@ -1,3 +1,104 @@
+Release 1.29 (2024-09-04)
+-------------------------
+
+General changes:
+
+- Added gcc warns: dangling-pointer, int-conversion (Bhanuprakash Modem)
+
+- More guidelines in CONTRIBUTING. (Louis Chauvet, Kamil Konieczny)
+
+- Reorganized Tests: Moved all vendor specific tests to their own dir
+  (Bhanuprakash Modem)
+
+- Fix musl/uclibc build (Bernd Kuhls, Stefano Ragni)
+
+Benchmarks changes:
+
+- New KMS framebuffer stress benchmark. (Arthur Grillo)
+
+- Added basic Xe support in gem_wsim. (Marcin Bernatowicz)
+
+Documentation changes:
+
+- Add documentation about cross-builds. (Mauro Carvalho Chehab)
+
+- Improve tests documentation. (Katarzyna Piecielska)
+
+Library changes:
+
+- Add Battlemage (BMG) support in xe_pciids.h (Andrzej Hajda)
+
+- Add amdgpu GFX1152, GFX1150 and gfx12. (Jesse Zhang and Tim Huang)
+
+- Added inline support for iga64 assembly in GPGPU shader. (Andrzej Hajda)
+
+- Improved KUnit support. (Janusz Krzysztofik)
+
+- Enable igt run on security enhanced distros (like Gentoo/Hardened)
+  (Matt Turner)
+
+- Use blitter as a default for all KMS tests. (Juha-Pekka Heikkila and
+  Bhanuprakash Modem)
+
+- Increased MAX supported pipes to 16 (Pipe-A to Pipe-P) (Vignesh Raman)
+
+- Added generic way to reset sysfs/debugfs attrs to default values upon
+  exit. (Ville Syrjälä)
+
+Runner changes:
+
+- Added hook scripts to igt_runner. (Gustavo Sousa)
+
+Test changes:
+
+- Added support for Xe in KMS tests. (Swati Sharma, Bhanuprakash Modem et al)
+
+- Added new subtests and improvements to VRR. (Bhanuprakash Modem, Jeevan B,
+  Manasi Navare, Sean Paul et al)
+
+- Added new subtests to force joiner. (Kunal Joshi)
+
+- Added fbdev tests to Xe. (Bhanuprakash Modem)
+
+- Added amdgpu fuzzing tests. (Vitaly Prosyak)
+
+- Added syncobj_eventfd test. (Simon Ser)
+
+- Added basic Single-Root IO Virtualization (SRIOV) test. (Katarzyna Dec et al)
+
+- Added prime test for vmwgfx. (Zack Rusin)
+
+- Improved core_getversion. (Rob Clark, Helen Koike, Kamil Konieczny)
+
+- Improved kms_atomic on non-mutable planes. (Melissa Wen)
+
+- Added and improved Xe tests. (Rodrigo Vivi, Matthew Auld, Zbigniew Kempczyński,
+  Francois Dugast, Nirmoy Das, Lucas De Marchi, Janga Rahul Kumar et al)
+
+Tools and scripts changes:
+
+- New Xe perf/OA tools. (Ashutosh Dixit)
+
+- New intel_tiling_detect tool. (Zbigniew Kempczyński)
+
+- New option in lsgpu for printing GPU on PCI bus, working also
+  in case when no gpu driver is loaded. (Zbigniew Kempczyński)
+
+- Added sysfs profiling knob to gputop. (Adrián Larumbe)
+
+- Support for Xe in gputop. (Lucas De Marchi)
+
+- Improved generating test lists at compilation time.(Mauro Carvalho Chehab)
+
+- Improved code coverage. (Mauro Carvalho Chehab)
+
+- Improved intel_vbt_decode and other intel tools. (Ville Syrjälä,
+  Lucas De Marchi, Jani Nikula, Tvrtko Ursulin, Gustavo Sousa et al)
+
+
+And many other bug fixes, improvements, cleanups and new tests.
+
+
 Release 1.28 (2023-09-13)
 -------------------------
 
