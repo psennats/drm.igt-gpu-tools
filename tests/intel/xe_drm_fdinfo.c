@@ -12,6 +12,8 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"
+#include "xe/xe_util.h"
+
 /**
  * TEST: xe drm fdinfo
  * Description: Read and verify drm client memory consumption and engine utilization using fdinfo
@@ -67,6 +69,8 @@ IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine u
 #define TEST_BUSY		(1 << 0)
 #define TEST_TRAILING_IDLE	(1 << 1)
 #define TEST_ISOLATION		(1 << 2)
+#define TEST_VIRTUAL		(1 << 3)
+#define TEST_PARALLEL		(1 << 4)
 
 enum expected_load {
 	EXPECTED_LOAD_IDLE,
@@ -715,10 +719,102 @@ utilization_all_full_load(int fd)
 
 	xe_vm_destroy(fd, vm);
 }
+
+/**
+ * SUBTEST: %s-utilization-single-idle
+ * Description: Check that each engine shows no load
+ *
+ * SUBTEST: %s-utilization-single-full-load
+ * Description: Check that each engine shows full load
+ *
+ * SUBTEST: %s-utilization-single-full-load-isolation
+ * Description: Check that each engine load does not spill over to other drm clients
+ *
+ * arg[1]:
+ *
+ * @virtual:			virtual
+ * @parallel:			parallel
+ */
+static void
+utilization_multi(int fd, int gt, int class, unsigned int flags)
+{
+	struct pceu_cycles pceu[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct pceu_cycles pceu_spill[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
+	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
+	struct spin_ctx *ctx = NULL;
+	enum expected_load expected_load;
+	int fd_spill, num_placements;
+	uint32_t vm;
+	bool virtual = flags & TEST_VIRTUAL;
+	bool parallel = flags & TEST_PARALLEL;
+	uint16_t width;
+
+	igt_assert(virtual ^ parallel);
+
+	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
+	if (num_placements < 2)
+		return;
+
+	if (parallel) {
+		width = num_placements;
+		num_placements = 1;
+	} else {
+		width = 1;
+	}
+
+	if (flags & TEST_ISOLATION)
+		fd_spill = drm_reopen_driver(fd);
+
+	vm = xe_vm_create(fd, 0, 0);
+	if (flags & TEST_BUSY) {
+		ctx = spin_ctx_init(fd, eci, vm, width, num_placements);
+		spin_sync_start(fd, ctx);
+	}
+
+	read_engine_cycles(fd, pceu[0]);
+	if (flags & TEST_ISOLATION)
+		read_engine_cycles(fd_spill, pceu_spill[0]);
+
+	usleep(batch_duration_usec);
+	if (flags & TEST_TRAILING_IDLE)
+		spin_sync_end(fd, ctx);
+
+	read_engine_cycles(fd, pceu[1]);
+	if (flags & TEST_ISOLATION)
+		read_engine_cycles(fd_spill, pceu_spill[1]);
+
+	expected_load = flags & TEST_BUSY ?
+	       EXPECTED_LOAD_FULL : EXPECTED_LOAD_IDLE;
+	check_results(pceu[0], pceu[1], class, width, expected_load);
+
+	if (flags & TEST_ISOLATION) {
+		/*
+		 * Load from one client shouldn't spill on another,
+		 * so check for idle
+		 */
+		check_results(pceu_spill[0], pceu_spill[1], class, width,
+			      EXPECTED_LOAD_IDLE);
+		close(fd_spill);
+	}
+
+	spin_sync_end(fd, ctx);
+	spin_ctx_destroy(fd, ctx);
+
+	xe_vm_destroy(fd, vm);
+}
+
 igt_main
 {
+	const struct section {
+		const char *name;
+		unsigned int flags;
+	} sections[] = {
+		{ .name = "virtual", .flags = TEST_VIRTUAL },
+		{ .name = "parallel", .flags = TEST_PARALLEL },
+		{ }
+	};
 	struct drm_xe_engine_class_instance *hwe;
-	int xe;
+	int xe, gt, class;
 
 	igt_fixture {
 		struct drm_client_fdinfo info = { };
@@ -774,6 +870,32 @@ igt_main
 
 	igt_subtest("utilization-all-full-load")
 		utilization_all_full_load(xe);
+
+
+	for (const struct section *s = sections; s->name; s++) {
+		igt_subtest_f("%s-utilization-single-idle", s->name)
+			xe_for_each_gt(xe, gt)
+				xe_for_each_engine_class(class)
+					utilization_multi(xe, gt, class, s->flags);
+
+		igt_subtest_f("%s-utilization-single-full-load", s->name)
+			xe_for_each_gt(xe, gt)
+				xe_for_each_engine_class(class)
+					utilization_multi(xe, gt, class,
+							  s->flags |
+							  TEST_BUSY |
+							  TEST_TRAILING_IDLE);
+
+		igt_subtest_f("%s-utilization-single-full-load-isolation",
+			      s->name)
+			xe_for_each_gt(xe, gt)
+				xe_for_each_engine_class(class)
+					utilization_multi(xe, gt, class,
+							  s->flags |
+							  TEST_BUSY |
+							  TEST_TRAILING_IDLE |
+							  TEST_ISOLATION);
+	}
 
 	igt_fixture {
 		drm_close_driver(xe);
