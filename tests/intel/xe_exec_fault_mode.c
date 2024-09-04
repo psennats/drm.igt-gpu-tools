@@ -324,9 +324,19 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE,
 		       bind_exec_queues[0], NSEC_PER_SEC);
 
-	if (!(flags & INVALID_FAULT) && !(flags & INVALID_VA)) {
+	if (flags & INVALID_FAULT) {
+		for (i = 0; i < n_execs; i++) {
+			int ret;
+			int64_t timeout = NSEC_PER_SEC;
+
+			ret = __xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
+					       exec_queues[i % n_exec_queues], &timeout);
+			igt_assert(ret == -EIO || ret == 0);
+		}
+	} else if (!(flags & INVALID_VA)) {
 		for (i = j; i < n_execs; i++)
-				igt_assert_eq(data[i].data, 0xc0ffee);
+			igt_assert_eq(data[i].data, 0xc0ffee);
+
 	}
 
 	for (i = 0; i < n_exec_queues; i++) {
