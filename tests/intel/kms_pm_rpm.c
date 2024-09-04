@@ -27,6 +27,7 @@
 #endif
 
 #include <dirent.h>
+#include <libgen.h>
 
 #include "config.h"
 #include "i915/gem.h"
