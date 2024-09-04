@@ -309,7 +309,7 @@ struct intel_bb *
 intel_bb_create_full(int fd, uint32_t ctx, uint32_t vm,
 		     const intel_ctx_cfg_t *cfg, uint32_t size, uint64_t start,
 		     uint64_t end, uint64_t alignment, uint8_t allocator_type,
-		     enum allocator_strategy strategy);
+		     enum allocator_strategy strategy, uint64_t region);
 struct intel_bb *
 intel_bb_create_with_allocator(int fd, uint32_t ctx, uint32_t vm,
 			       const intel_ctx_cfg_t *cfg, uint32_t size,
@@ -318,6 +318,9 @@ struct intel_bb *intel_bb_create(int fd, uint32_t size);
 struct intel_bb *
 intel_bb_create_with_context(int fd, uint32_t ctx, uint32_t vm,
 			     const intel_ctx_cfg_t *cfg, uint32_t size);
+struct intel_bb *
+intel_bb_create_with_context_in_region(int fd, uint32_t ctx, uint32_t vm,
+				       const intel_ctx_cfg_t *cfg, uint32_t size, uint64_t region);
 struct intel_bb *intel_bb_create_with_relocs(int fd, uint32_t size);
 struct intel_bb *
 intel_bb_create_with_relocs_and_context(int fd, uint32_t ctx,

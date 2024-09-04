@@ -384,7 +384,7 @@ static void pat_index_render(struct xe_pat_param *p)
 	ibb = intel_bb_create_full(fd, 0, 0, NULL, xe_get_default_alignment(fd),
 				   0, 0, p->size->alignment,
 				   INTEL_ALLOCATOR_SIMPLE,
-				   ALLOC_STRATEGY_HIGH_TO_LOW);
+				   ALLOC_STRATEGY_HIGH_TO_LOW, vram_if_possible(fd, 0));
 
 	size = width * height * bpp / 8;
 	stride = width * 4;
@@ -479,7 +479,7 @@ static void pat_index_dw(struct xe_pat_param *p)
 	ibb = intel_bb_create_full(fd, ctx, vm, NULL, xe_get_default_alignment(fd),
 				   0, 0, p->size->alignment,
 				   INTEL_ALLOCATOR_SIMPLE,
-				   ALLOC_STRATEGY_LOW_TO_HIGH);
+				   ALLOC_STRATEGY_LOW_TO_HIGH, vram_if_possible(fd, 0));
 
 	size = width * height * bpp / 8;
 	stride = width * 4;
