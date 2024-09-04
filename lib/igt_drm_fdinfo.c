@@ -281,6 +281,11 @@ __igt_parse_drm_fdinfo(int dir, const char *fd, struct drm_client_fdinfo *info,
 			idx = parse_region(l + keylen, info,
 					   region_map, region_entries, &val);
 			UPDATE_REGION(idx, resident, val);
+		} else if (strstartswith(l, "drm-memory-", &keylen)) {
+			/* amdgpu legacy key */
+			idx = parse_region(l + keylen, info,
+					   region_map, region_entries, &val);
+			UPDATE_REGION(idx, resident, val);
 		} else if (strstartswith(l, "drm-purgeable-", &keylen)) {
 			idx = parse_region(l + keylen, info,
 					   region_map, region_entries, &val);
