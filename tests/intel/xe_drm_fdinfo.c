@@ -365,7 +365,7 @@ static void basic_engine_utilization(int xe)
 
 struct spin_ctx {
 	uint32_t vm;
-	uint64_t addr;
+	uint64_t addr[XE_MAX_ENGINE_INSTANCE];
 	struct drm_xe_sync sync[2];
 	struct drm_xe_exec exec;
 	uint32_t exec_queue;
@@ -375,18 +375,29 @@ struct spin_ctx {
 	struct xe_spin_opts spin_opts;
 	bool ended;
 	uint16_t class;
+	uint16_t width;
+	uint16_t num_placements;
 };
 
 static struct spin_ctx *
-spin_ctx_init(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm)
+spin_ctx_init(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm,
+	      uint16_t width, uint16_t num_placements)
 {
 	struct spin_ctx *ctx = calloc(1, sizeof(*ctx));
 
-	ctx->class = hwe->engine_class;
-	ctx->vm = vm;
-	ctx->addr = 0x100000 + 0x100000 * hwe->engine_class;
+	igt_assert(width && num_placements &&
+		   (width == 1 || num_placements == 1));
+	igt_assert_lt(width, XE_MAX_ENGINE_INSTANCE);
 
-	ctx->exec.num_batch_buffer = 1;
+	ctx->class = hwe->engine_class;
+	ctx->width = width;
+	ctx->num_placements = num_placements;
+	ctx->vm = vm;
+
+	for (unsigned int i = 0; i < width; i++)
+		ctx->addr[i] = 0x100000 + 0x100000 * hwe->engine_class;
+
+	ctx->exec.num_batch_buffer = width;
 	ctx->exec.num_syncs = 2;
 	ctx->exec.syncs = to_user_pointer(ctx->sync);
 
@@ -405,10 +416,10 @@ spin_ctx_init(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm)
 			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	ctx->spin = xe_bo_map(fd, ctx->bo, ctx->bo_size);
 
-	igt_assert_eq(__xe_exec_queue_create(fd, ctx->vm, 1, 1,
+	igt_assert_eq(__xe_exec_queue_create(fd, ctx->vm, width, num_placements,
 					     hwe, 0, &ctx->exec_queue), 0);
 
-	xe_vm_bind_async(fd, ctx->vm, 0, ctx->bo, 0, ctx->addr, ctx->bo_size,
+	xe_vm_bind_async(fd, ctx->vm, 0, ctx->bo, 0, ctx->addr[0], ctx->bo_size,
 			 ctx->sync, 1);
 
 	return ctx;
@@ -420,7 +431,7 @@ spin_sync_start(int fd, struct spin_ctx *ctx)
 	if (!ctx)
 		return;
 
-	ctx->spin_opts.addr = ctx->addr;
+	ctx->spin_opts.addr = ctx->addr[0];
 	ctx->spin_opts.write_timestamp = true;
 	ctx->spin_opts.preempt = true;
 	xe_spin_init(ctx->spin, &ctx->spin_opts);
@@ -429,7 +440,12 @@ spin_sync_start(int fd, struct spin_ctx *ctx)
 	ctx->sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 
 	ctx->exec.exec_queue_id = ctx->exec_queue;
-	ctx->exec.address = ctx->addr;
+
+	if (ctx->width > 1)
+		ctx->exec.address = to_user_pointer(ctx->addr);
+	else
+		ctx->exec.address = ctx->addr[0];
+
 	xe_exec(fd, &ctx->exec);
 
 	xe_spin_wait_started(ctx->spin);
@@ -450,7 +466,7 @@ spin_sync_end(int fd, struct spin_ctx *ctx)
 	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
 
 	ctx->sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-	xe_vm_unbind_async(fd, ctx->vm, 0, 0, ctx->addr, ctx->bo_size, ctx->sync, 1);
+	xe_vm_unbind_async(fd, ctx->vm, 0, 0, ctx->addr[0], ctx->bo_size, ctx->sync, 1);
 	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
 
 	ctx->ended = true;
@@ -476,7 +492,7 @@ spin_ctx_destroy(int fd, struct spin_ctx *ctx)
 
 static void
 check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
-	      int class, enum expected_load expected_load)
+	      int class, int width, enum expected_load expected_load)
 {
 	double percent;
 	u64 den, num;
@@ -489,6 +505,9 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 	num = s2[class].cycles - s1[class].cycles;
 	den = s2[class].total_cycles - s1[class].total_cycles;
 	percent = (num * 100.0) / (den + 1);
+
+	/* for parallel submission scale the busyness with width */
+	percent /= width;
 
 	igt_debug("%s: percent: %f\n", engine_map[class], percent);
 
@@ -522,7 +541,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	vm = xe_vm_create(fd, 0, 0);
 	if (flags & TEST_BUSY) {
-		ctx = spin_ctx_init(fd, hwe, vm);
+		ctx = spin_ctx_init(fd, hwe, vm, 1, 1);
 		spin_sync_start(fd, ctx);
 	}
 
@@ -540,14 +559,14 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	expected_load = flags & TEST_BUSY ?
 	       EXPECTED_LOAD_FULL : EXPECTED_LOAD_IDLE;
-	check_results(pceu1[0], pceu2[0], hwe->engine_class, expected_load);
+	check_results(pceu1[0], pceu2[0], hwe->engine_class, 1, expected_load);
 
 	if (flags & TEST_ISOLATION) {
 		/*
 		 * Load from one client shouldn't spill on another,
 		 * so check for idle
 		 */
-		check_results(pceu1[1], pceu2[1], hwe->engine_class, EXPECTED_LOAD_IDLE);
+		check_results(pceu1[1], pceu2[1], hwe->engine_class, 1, EXPECTED_LOAD_IDLE);
 		close(new_fd);
 	}
 
@@ -565,7 +584,7 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 	uint32_t vm;
 
 	vm = xe_vm_create(fd, 0, 0);
-	ctx = spin_ctx_init(fd, hwe, vm);
+	ctx = spin_ctx_init(fd, hwe, vm, 1, 1);
 	spin_sync_start(fd, ctx);
 
 	read_engine_cycles(fd, pceu1);
@@ -579,7 +598,7 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 
 	xe_vm_destroy(fd, vm);
 
-	check_results(pceu1, pceu2, hwe->engine_class, EXPECTED_LOAD_FULL);
+	check_results(pceu1, pceu2, hwe->engine_class, 1, EXPECTED_LOAD_FULL);
 }
 
 static void
@@ -593,7 +612,7 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 
 	vm = xe_vm_create(fd, 0, 0);
 
-	ctx = spin_ctx_init(fd, hwe, vm);
+	ctx = spin_ctx_init(fd, hwe, vm, 1, 1);
 	spin_sync_start(fd, ctx);
 
 	read_engine_cycles(fd, pceu1);
@@ -605,7 +624,7 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 		enum expected_load expected_load = hwe->engine_class != class ?
 			EXPECTED_LOAD_IDLE : EXPECTED_LOAD_FULL;
 
-		check_results(pceu1, pceu2, class, expected_load);
+		check_results(pceu1, pceu2, class, 1, expected_load);
 	}
 
 	spin_sync_end(fd, ctx);
@@ -632,7 +651,7 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 		if (_class == hwe->engine_class || ctx[_class])
 			continue;
 
-		ctx[_class] = spin_ctx_init(fd, _hwe, vm);
+		ctx[_class] = spin_ctx_init(fd, _hwe, vm, 1, 1);
 		spin_sync_start(fd, ctx[_class]);
 	}
 
@@ -649,7 +668,7 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 		if (!ctx[class])
 			continue;
 
-		check_results(pceu1, pceu2, class, expected_load);
+		check_results(pceu1, pceu2, class, 1, expected_load);
 		spin_sync_end(fd, ctx[class]);
 		spin_ctx_destroy(fd, ctx[class]);
 	}
@@ -675,7 +694,7 @@ utilization_all_full_load(int fd)
 		if (ctx[class])
 			continue;
 
-		ctx[class] = spin_ctx_init(fd, hwe, vm);
+		ctx[class] = spin_ctx_init(fd, hwe, vm, 1, 1);
 		spin_sync_start(fd, ctx[class]);
 	}
 
@@ -689,7 +708,7 @@ utilization_all_full_load(int fd)
 		if (!ctx[class])
 			continue;
 
-		check_results(pceu1, pceu2, class, EXPECTED_LOAD_FULL);
+		check_results(pceu1, pceu2, class, 1, EXPECTED_LOAD_FULL);
 		spin_sync_end(fd, ctx[class]);
 		spin_ctx_destroy(fd, ctx[class]);
 	}
