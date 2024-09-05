@@ -311,15 +311,20 @@ static struct intel_xe_perf_metric_set *metric_set(const struct drm_xe_engine_cl
 	struct intel_xe_perf_metric_set *metric_set_iter;
 	struct intel_xe_perf_metric_set *test_set = NULL;
 
-	if (hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER ||
-	    hwe->engine_class == DRM_XE_ENGINE_CLASS_COMPUTE)
-		test_set_name = "TestOa";
-	else if ((hwe->engine_class == DRM_XE_ENGINE_CLASS_VIDEO_DECODE ||
-		  hwe->engine_class == DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE) &&
-		 HAS_OAM(devid))
-		test_set_name = "MediaSet1";
-	else
-		igt_assert(!"reached");
+	switch (hwe->engine_class) {
+	case DRM_XE_ENGINE_CLASS_RENDER:
+		test_set_name = "RenderBasic";
+		break;
+	case DRM_XE_ENGINE_CLASS_COMPUTE:
+		test_set_name = "ComputeBasic";
+		break;
+	case DRM_XE_ENGINE_CLASS_VIDEO_DECODE:
+	case DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE:
+		if (HAS_OAM(devid))
+			test_set_name = "MediaSet1";
+	default:
+		igt_assert(!"missing");
+	}
 
 	igt_list_for_each_entry(metric_set_iter, &intel_xe_perf->metric_sets, link) {
 		if (strcmp(metric_set_iter->symbol_name, test_set_name) == 0) {
