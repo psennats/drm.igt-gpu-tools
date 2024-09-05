@@ -23,7 +23,7 @@ amdgpu_stable_pstate_test(amdgpu_device_handle device_handle)
 					AMDGPU_CTX_OP_GET_STABLE_PSTATE,
 					0, &current_pstate);
 	igt_assert_eq(r, 0);
-	igt_assert_eq(new_pstate, AMDGPU_CTX_STABLE_PSTATE_NONE);
+	igt_assert_eq(current_pstate, AMDGPU_CTX_STABLE_PSTATE_NONE);
 	r = amdgpu_cs_ctx_stable_pstate(context_handle,
 					AMDGPU_CTX_OP_SET_STABLE_PSTATE,
 					AMDGPU_CTX_STABLE_PSTATE_PEAK, NULL);
