@@ -1529,6 +1529,8 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 				for_each_pipe(&data.display, pipe) {
 					igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
 						for_each_valid_output_on_pipe(&data.display, pipe, output) {
+							igt_info("Trying on %s\n",
+								 igt_output_name(output));
 							if (!pipe_output_combo_valid(&data.display, pipe, output))
 								continue;
 							if (get_num_scalers(&data.display, pipe) < 2)
@@ -1540,6 +1542,8 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 								scaler_with_2_planes_tests[index].test_type);
 							if (ret == 0)
 								break;
+							igt_info("Required Scaling operation not supported on %s trying on next output\n",
+								 igt_output_name(output));
 						}
 						igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
 							      "Unsupported scaling operation in driver with return value %s\n",
