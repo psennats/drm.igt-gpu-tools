@@ -566,15 +566,16 @@ static void cleanup_crtc(data_t *data)
 	cleanup_fbs(data);
 }
 
-static void check_scaling_pipe_plane_rot(data_t *d, igt_plane_t *plane,
-					 uint32_t pixel_format,
-					 uint64_t modifier,
-					 double sf_plane,
-					 bool is_clip_clamp,
-					 bool is_upscale,
-					 enum pipe pipe,
-					 igt_output_t *output,
-					 igt_rotation_t rot)
+static uint32_t
+check_scaling_pipe_plane_rot(data_t *d, igt_plane_t *plane,
+			     uint32_t pixel_format,
+			     uint64_t modifier,
+			     double sf_plane,
+			     bool is_clip_clamp,
+			     bool is_upscale,
+			     enum pipe pipe,
+			     igt_output_t *output,
+			     igt_rotation_t rot)
 {
 	igt_display_t *display = &d->display;
 	drmModeModeInfo *mode;
@@ -634,11 +635,7 @@ static void check_scaling_pipe_plane_rot(data_t *d, igt_plane_t *plane,
 		if (commit_ret == 0)
 			break;
 	}
-
-	igt_skip_on_f(commit_ret == -ERANGE || commit_ret == -EINVAL,
-		      "Unsupported scaling operation in driver with return value %s\n",
-		      (commit_ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
-	igt_assert_eq(commit_ret, 0);
+	return commit_ret;
 }
 
 static const igt_rotation_t rotations[] = {
@@ -710,16 +707,18 @@ static const uint64_t modifiers[] = {
 	I915_FORMAT_MOD_4_TILED
 };
 
-static void test_scaler_with_modifier_pipe(data_t *d,
-					   double sf_plane,
-					   bool is_clip_clamp,
-					   bool is_upscale,
-					   enum pipe pipe,
-					   igt_output_t *output)
+static uint32_t
+test_scaler_with_modifier_pipe(data_t *d,
+			       double sf_plane,
+			       bool is_clip_clamp,
+			       bool is_upscale,
+			       enum pipe pipe,
+			       igt_output_t *output)
 {
 	igt_display_t *display = &d->display;
 	unsigned format = DRM_FORMAT_XRGB8888;
 	igt_plane_t *plane;
+	uint32_t ret;
 
 	cleanup_crtc(d);
 
@@ -733,28 +732,33 @@ static void test_scaler_with_modifier_pipe(data_t *d,
 			uint64_t modifier = modifiers[i];
 
 			if (igt_plane_has_format_mod(plane, format, modifier))
-				check_scaling_pipe_plane_rot(d, plane,
-							     format, modifier,
-							     sf_plane,
-							     is_clip_clamp,
-							     is_upscale,
-							     pipe, output,
-							     IGT_ROTATION_0);
+				ret = check_scaling_pipe_plane_rot(d, plane,
+								   format, modifier,
+								   sf_plane,
+								   is_clip_clamp,
+								   is_upscale,
+								   pipe, output,
+								   IGT_ROTATION_0);
+			if (ret != 0)
+				return ret;
 		}
 	}
+	return ret;
 }
 
-static void test_scaler_with_rotation_pipe(data_t *d,
-					   double sf_plane,
-					   bool is_clip_clamp,
-					   bool is_upscale,
-					   enum pipe pipe,
-					   igt_output_t *output)
+static uint32_t
+test_scaler_with_rotation_pipe(data_t *d,
+			       double sf_plane,
+			       bool is_clip_clamp,
+			       bool is_upscale,
+			       enum pipe pipe,
+			       igt_output_t *output)
 {
 	igt_display_t *display = &d->display;
 	unsigned format = DRM_FORMAT_XRGB8888;
 	uint64_t modifier = DRM_FORMAT_MOD_LINEAR;
 	igt_plane_t *plane;
+	uint32_t ret;
 
 	cleanup_crtc(d);
 
@@ -768,26 +772,31 @@ static void test_scaler_with_rotation_pipe(data_t *d,
 			igt_rotation_t rot = rotations[i];
 
 			if (igt_plane_has_rotation(plane, rot))
-				check_scaling_pipe_plane_rot(d, plane,
-							     format, modifier,
-							     sf_plane,
-							     is_clip_clamp,
-							     is_upscale,
-							     pipe, output,
-							     rot);
+				ret = check_scaling_pipe_plane_rot(d, plane,
+								   format, modifier,
+								   sf_plane,
+								   is_clip_clamp,
+								   is_upscale,
+								   pipe, output,
+								   rot);
+			if (ret != 0)
+				return ret;
 		}
 	}
+	return ret;
 }
 
-static void test_scaler_with_pixel_format_pipe(data_t *d, double sf_plane,
-					       bool is_clip_clamp,
-					       bool is_upscale,
-					       enum pipe pipe,
-					       igt_output_t *output)
+static uint32_t
+test_scaler_with_pixel_format_pipe(data_t *d, double sf_plane,
+				   bool is_clip_clamp,
+				   bool is_upscale,
+				   enum pipe pipe,
+				   igt_output_t *output)
 {
 	igt_display_t *display = &d->display;
 	uint64_t modifier = DRM_FORMAT_MOD_LINEAR;
 	igt_plane_t *plane;
+	uint32_t ret;
 
 	cleanup_crtc(d);
 
@@ -810,17 +819,21 @@ static void test_scaler_with_pixel_format_pipe(data_t *d, double sf_plane,
 			if (test_format(d, &tested_formats, format) &&
 			    igt_plane_has_format_mod(plane, format, modifier) &&
 			    can_scale(d, format))
-			    check_scaling_pipe_plane_rot(d, plane,
-							 format, modifier,
-							 sf_plane,
-							 is_clip_clamp,
-							 is_upscale,
-							 pipe, output,
-							 IGT_ROTATION_0);
+				ret = check_scaling_pipe_plane_rot(d, plane,
+								   format, modifier,
+								   sf_plane,
+								   is_clip_clamp,
+								   is_upscale,
+								   pipe, output,
+								   IGT_ROTATION_0);
+			if (ret != 0) {
+				igt_vec_fini(&tested_formats);
+				return ret;
+			}
 		}
-
 		igt_vec_fini(&tested_formats);
 	}
+	return ret;
 }
 
 static enum pipe
@@ -1327,6 +1340,7 @@ static data_t data;
 igt_main_args("", long_opts, help_str, opt_handler, &data)
 {
 	enum pipe pipe;
+	uint32_t ret = -EINVAL;
 
 	igt_fixture {
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
@@ -1343,21 +1357,24 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 			igt_describe(scaler_with_pixel_format_tests[index].describe);
 			igt_subtest_with_dynamic(scaler_with_pixel_format_tests[index].name) {
 				for_each_pipe(&data.display, pipe) {
-					for_each_valid_output_on_pipe(&data.display, pipe, output) {
-						if (!pipe_output_combo_valid(&data.display, pipe, output))
-							continue;
-						if (get_num_scalers(&data.display, pipe) < 1)
-							continue;
+					igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
+						for_each_valid_output_on_pipe(&data.display, pipe, output) {
+							if (!pipe_output_combo_valid(&data.display, pipe, output))
+								continue;
+							if (get_num_scalers(&data.display, pipe) < 1)
+								continue;
 
-						igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
-
-							test_scaler_with_pixel_format_pipe(&data,
+							ret = test_scaler_with_pixel_format_pipe(&data,
 									scaler_with_pixel_format_tests[index].sf,
 									false,
 									scaler_with_pixel_format_tests[index].is_upscale,
 									pipe, output);
+							if (ret == 0)
+								break;
 						}
-						break;
+						igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
+							      "Unsupported scaling operation in driver with return value %s\n",
+							      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 					}
 				}
 			}
@@ -1367,21 +1384,24 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 			igt_describe(scaler_with_rotation_tests[index].describe);
 			igt_subtest_with_dynamic(scaler_with_rotation_tests[index].name) {
 				for_each_pipe(&data.display, pipe) {
-					for_each_valid_output_on_pipe(&data.display, pipe, output) {
-						if (!pipe_output_combo_valid(&data.display, pipe, output))
-							continue;
-						if (get_num_scalers(&data.display, pipe) < 1)
-							continue;
+					igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
+						for_each_valid_output_on_pipe(&data.display, pipe, output) {
+							if (!pipe_output_combo_valid(&data.display, pipe, output))
+								continue;
+							if (get_num_scalers(&data.display, pipe) < 1)
+								continue;
 
-						igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
-
-							test_scaler_with_rotation_pipe(&data,
+							ret = test_scaler_with_rotation_pipe(&data,
 									scaler_with_rotation_tests[index].sf,
 									false,
 									scaler_with_rotation_tests[index].is_upscale,
 									pipe, output);
+							if (ret == 0)
+								break;
 						}
-						break;
+						igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
+							      "Unsupported scaling operation in driver with return value %s\n",
+							      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 					}
 				}
 			}
@@ -1391,21 +1411,24 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 			igt_describe(scaler_with_modifiers_tests[index].describe);
 			igt_subtest_with_dynamic(scaler_with_modifiers_tests[index].name) {
 				for_each_pipe(&data.display, pipe) {
-					for_each_valid_output_on_pipe(&data.display, pipe, output) {
-						if (!pipe_output_combo_valid(&data.display, pipe, output))
-							continue;
-						if (get_num_scalers(&data.display, pipe) < 1)
-							continue;
+					igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
+						for_each_valid_output_on_pipe(&data.display, pipe, output) {
+							if (!pipe_output_combo_valid(&data.display, pipe, output))
+								continue;
+							if (get_num_scalers(&data.display, pipe) < 1)
+								continue;
 
-						igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
-
-							test_scaler_with_modifier_pipe(&data,
+							ret = test_scaler_with_modifier_pipe(&data,
 									scaler_with_modifiers_tests[index].sf,
 									false,
 									scaler_with_modifiers_tests[index].is_upscale,
 									pipe, output);
+							if (ret == 0)
+								break;
 						}
-						break;
+						igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
+							      "Unsupported scaling operation in driver with return value %s\n",
+							      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 					}
 				}
 			}
@@ -1414,39 +1437,46 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 		igt_describe("Tests scaling with clipping and clamping, pixel formats.");
 		igt_subtest_with_dynamic("plane-scaler-with-clipping-clamping-pixel-formats") {
 			for_each_pipe(&data.display, pipe) {
-				for_each_valid_output_on_pipe(&data.display, pipe, output) {
-					if (!pipe_output_combo_valid(&data.display, pipe, output))
-						continue;
-					if (get_num_scalers(&data.display, pipe) < 1)
-						continue;
+				igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
+					for_each_valid_output_on_pipe(&data.display, pipe, output) {
+						if (!pipe_output_combo_valid(&data.display, pipe, output))
+							continue;
+						if (get_num_scalers(&data.display, pipe) < 1)
+							continue;
 
-					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
-
-						test_scaler_with_pixel_format_pipe(&data, 0.0, true,
-										   false, pipe,
-										   output);
+						ret = test_scaler_with_pixel_format_pipe(&data, 0.0, true,
+											 false, pipe,
+											 output);
+						if (ret == 0)
+							break;
 					}
-					break;
+					igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
+						      "Unsupported scaling operation in driver with return value %s\n",
+						      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 				}
 			}
 		}
 
+
 		igt_describe("Tests scaling with clipping and clamping, rotation.");
 		igt_subtest_with_dynamic("plane-scaler-with-clipping-clamping-rotation") {
 			for_each_pipe(&data.display, pipe) {
-				for_each_valid_output_on_pipe(&data.display, pipe, output) {
-					if (!pipe_output_combo_valid(&data.display, pipe, output))
-						continue;
-					if (get_num_scalers(&data.display, pipe) < 1)
-						continue;
+				igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
+					for_each_valid_output_on_pipe(&data.display, pipe, output) {
+						if (!pipe_output_combo_valid(&data.display, pipe, output))
+							continue;
+						if (get_num_scalers(&data.display, pipe) < 1)
+							continue;
 
-					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
-
-						test_scaler_with_rotation_pipe(&data, 0.0, true,
-										false, pipe,
-										output);
+						ret = test_scaler_with_rotation_pipe(&data, 0.0, true,
+										     false, pipe,
+										     output);
+						if (ret == 0)
+							break;
 					}
-					break;
+					igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
+						      "Unsupported scaling operation in driver with return value %s\n",
+						      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 				}
 			}
 		}
@@ -1454,18 +1484,22 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 		igt_describe("Tests scaling with clipping and clamping, modifiers.");
 		igt_subtest_with_dynamic("plane-scaler-with-clipping-clamping-modifiers") {
 			for_each_pipe(&data.display, pipe) {
-				for_each_valid_output_on_pipe(&data.display, pipe, output) {
-					if (!pipe_output_combo_valid(&data.display, pipe, output))
-						continue;
-					if (get_num_scalers(&data.display, pipe) < 1)
-						continue;
+				igt_dynamic_f("pipe-%s", kmstest_pipe_name(pipe)) {
+					for_each_valid_output_on_pipe(&data.display, pipe, output) {
+						if (!pipe_output_combo_valid(&data.display, pipe, output))
+							continue;
+						if (get_num_scalers(&data.display, pipe) < 1)
+							continue;
 
-					igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), igt_output_name(output)) {
-						test_scaler_with_modifier_pipe(&data, 0.0, true,
-										false, pipe,
-										output);
+						ret = test_scaler_with_modifier_pipe(&data, 0.0, true,
+										     false, pipe,
+										     output);
+						if (ret == 0)
+							break;
 					}
-					break;
+					igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
+						      "Unsupported scaling operation in driver with return value %s\n",
+						      (ret == -EINVAL) ? "-EINVAL" : "-ERANGE");
 				}
 			}
 		}
