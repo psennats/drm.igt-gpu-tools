@@ -138,7 +138,7 @@ def generate_metric_sets(args, gen):
                     metric_set->c_offset = metric_set->b_offset + 8;
                     metric_set->perfcnt_offset = metric_set->c_offset + 8;
                 """))
-        elif gen.chipset == "lnl":
+        elif gen.chipset == "lnl" or gen.chipset == "bmg":
             c(textwrap.dedent("""\
                 metric_set->perf_oa_format = XE_OA_FORMAT_PEC64u64;
 

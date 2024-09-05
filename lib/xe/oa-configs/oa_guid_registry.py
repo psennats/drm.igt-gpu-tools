@@ -102,6 +102,7 @@ class Registry:
                            'PVC',
                            'MTL',
                            'LNL',
+                           'BMG',
                           )
         if name in known_chipsets:
             return name

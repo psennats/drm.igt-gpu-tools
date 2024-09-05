@@ -417,6 +417,7 @@ xe_oa_hardware = [
   'pvc',
   'mtlgt2', 'mtlgt3',
   'lnl',
+  'bmg',
 ]
 
 xe_xml_files = []
