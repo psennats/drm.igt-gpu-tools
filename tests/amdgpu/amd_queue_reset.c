@@ -32,7 +32,6 @@
 
 #define SHARED_CHILD_DESCRIPTOR 3
 
-#define SHARED_MEM_NAME  "/queue_reset_shm"
 #define TEST_TIMEOUT 100 //100 seconds
 
 enum  process_type {
@@ -349,7 +348,7 @@ static void set_next_test_to_skip(struct shmbuf *sh_mem)
 }
 
 static int
-shared_mem_destroy(struct shmbuf *shmp, int shm_fd, bool unmap)
+shared_mem_destroy(struct shmbuf *shmp, int shm_fd, bool unmap, char shm_name[256])
 {
 	int ret = 0;
 
@@ -363,20 +362,20 @@ shared_mem_destroy(struct shmbuf *shmp, int shm_fd, bool unmap)
 	if (shm_fd > 0)
 		close(shm_fd);
 
-	shm_unlink(SHARED_MEM_NAME);
+	shm_unlink(shm_name);
 
 	return ret;
 }
 
 static int
-shared_mem_create(struct shmbuf **ppbuf)
+shared_mem_create(struct shmbuf **ppbuf, char shm_name[256])
 {
 	int shm_fd = -1;
 	struct shmbuf *shmp = NULL;
 	bool unmap = false;
 
 	// Create a shared memory object
-	shm_fd = shm_open(SHARED_MEM_NAME, O_CREAT | O_RDWR, 0666);
+	shm_fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);
 	if (shm_fd == -1)
 		goto error;
 
@@ -414,7 +413,7 @@ shared_mem_create(struct shmbuf **ppbuf)
 	return shm_fd;
 
 error:
-	shared_mem_destroy(shmp,  shm_fd,  unmap);
+	shared_mem_destroy(shmp,  shm_fd,  unmap, shm_name);
 	return shm_fd;
 }
 
@@ -877,6 +876,29 @@ is_run_subtest_parameter_found(int argc, char **argv)
 	return ret;
 }
 
+#define ONDEVICE	"--device"
+static int
+is_run_device_parameter_found(int argc, char **argv)
+{
+	int i;
+	int res = 0;
+	char *p = NULL;
+
+	for (i = 1; i < argc; i++) {
+		if (strcmp(ONDEVICE, argv[i]) == 0) {
+			/* Get the sum for a specific device as a unique identifier */
+			p = argv[i+1];
+			while(*p){
+			  res += *p;
+			  p++;
+			}
+			break;
+		}
+	}
+
+	return res;
+}
+
 
 static bool
 add_background_parameter(int *pargc, char **argv)
@@ -1041,6 +1063,7 @@ igt_main
 	struct shmbuf *sh_mem = NULL;
 
 	int r;
+	char shm_name[256] = {0};
 	bool arr_cap[AMD_IP_MAX] = {0};
 	unsigned int ring_id_good;
 	unsigned int ring_id_bad;
@@ -1100,6 +1123,9 @@ igt_main
 		else
 			const_num_of_tests = (sizeof(arr_err)/sizeof(struct dynamic_test) - 1) * ARRAY_SIZE(ip_tests);
 
+		r = is_run_device_parameter_found(argc, argv);
+		snprintf(shm_name,sizeof(shm_name),"/queue_reset_shm_%d",r);
+
 		fd = drm_open_driver(DRIVER_AMDGPU);
 
 		err = amdgpu_device_initialize(fd, &major, &minor, &device);
@@ -1121,7 +1147,7 @@ igt_main
 
 		if (!is_background_parameter_found(argc, argv)) {
 			add_background_parameter(&argc, argv);
-			fd_shm = shared_mem_create(&sh_mem);
+			fd_shm = shared_mem_create(&sh_mem, shm_name);
 			igt_require(fd_shm != -1);
 			launch_background_process(argc, argv, path, &pid_background, fd_shm);
 			process = PROCESS_TEST;
@@ -1169,7 +1195,7 @@ igt_main
 		free_contexts(device, arr_context_handle, const_num_of_tests);
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
-		shared_mem_destroy(sh_mem, fd_shm, true);
+		shared_mem_destroy(sh_mem, fd_shm, true, shm_name);
 		posix_spawn_file_actions_destroy(&action);
 
 		free_command_line(argc, argv, path);
