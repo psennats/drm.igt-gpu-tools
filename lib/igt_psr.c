@@ -79,8 +79,9 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 		c = output->config.connector;
 	}
 
-	if ((mode == PR_MODE || mode == PR_MODE_SEL_FETCH) &&
-	    c && c->connector_type == DRM_MODE_CONNECTOR_eDP)
+	if (c->connector_type == DRM_MODE_CONNECTOR_DisplayPort)
+		state = "SRDENT_ON";
+	else if (mode == PR_MODE || mode == PR_MODE_SEL_FETCH)
 		state = "SLEEP";
 	else if (mode == PSR_MODE_1 || mode == PR_MODE || mode == PR_MODE_SEL_FETCH)
 		state = "SRDENT";
