@@ -50,7 +50,7 @@ void dump_hex_debug(void *buffer, int len)
 /* Please reflect intel_hwconfig_types.h changes below
  * static_asserti_value + get_hwconfig_name
  *   Thanks :-) */
-static_assert(INTEL_HWCONFIG_MAX_GSC + 1 == __INTEL_HWCONFIG_KEY_LIMIT, "");
+static_assert(INTEL_HWCONFIG_NUM_XECU + 1 == __INTEL_HWCONFIG_KEY_LIMIT, "");
 
 #define CASE_STRINGIFY(A) case INTEL_HWCONFIG_##A: return #A;
 const char* get_hwconfig_name(int param)
@@ -137,6 +137,8 @@ const char* get_hwconfig_name(int param)
 	CASE_STRINGIFY(MIN_MESH_URB_ENTRIES);
 	CASE_STRINGIFY(MAX_MESH_URB_ENTRIES);
 	CASE_STRINGIFY(MAX_GSC);
+	CASE_STRINGIFY(SYNC_NUM_RT_STACKS_PER_DSS);
+	CASE_STRINGIFY(NUM_XECU);
 	}
 	igt_assert_lt(param, __INTEL_HWCONFIG_KEY_LIMIT);
 	igt_assert(!"Missing config table enum");

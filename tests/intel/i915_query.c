@@ -1340,6 +1340,8 @@ static const char * const hwconfig_keys[] = {
 	[INTEL_HWCONFIG_MIN_MESH_URB_ENTRIES] = "Min Mesh URB Entries",
 	[INTEL_HWCONFIG_MAX_MESH_URB_ENTRIES] = "Max Mesh URB Entries",
 	[INTEL_HWCONFIG_MAX_GSC] = "MaxGSC",
+	[INTEL_HWCONFIG_SYNC_NUM_RT_STACKS_PER_DSS] = "Sync Num RT Stacks Per DSS",
+	[INTEL_HWCONFIG_NUM_XECU] = "Num of XeCU",
 };
 
 static const char * const hwconfig_memtypes[] = {
