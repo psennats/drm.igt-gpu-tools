@@ -2715,10 +2715,11 @@ static void do_status_assertions(int flags)
 						   prim_mode_params.pipe));
 	}
 
-	if (flags & ASSERT_PSR_ENABLED)
+	if (flags & ASSERT_PSR_ENABLED) {
 		igt_assert_f(psr_wait_entry(drm.debugfs, PSR_MODE_1, NULL),
 			     "PSR still disabled\n");
-	else if (flags & ASSERT_PSR_DISABLED)
+		psr_sink_error_check(drm.debugfs, PSR_MODE_1, prim_mode_params.output);
+	} else if (flags & ASSERT_PSR_DISABLED)
 		igt_assert_f(psr_wait_update(drm.debugfs, PSR_MODE_1, NULL),
 			     "PSR still enabled\n");
 }
