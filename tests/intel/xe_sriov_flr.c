@@ -6,6 +6,10 @@
 #include "drmtest.h"
 #include "igt_core.h"
 #include "igt_sriov_device.h"
+#include "intel_chipset.h"
+#include "linux_scaffold.h"
+#include "xe/xe_mmio.h"
+#include "xe/xe_query.h"
 
 /**
  * TEST: xe_sriov_flr
@@ -287,9 +291,282 @@ disable_vfs:
 		igt_skip("No checks executed\n");
 }
 
+#define GEN12_VF_CAP_REG			0x1901f8
+#define GGTT_PTE_TEST_FIELD_MASK		GENMASK_ULL(19, 12)
+#define GGTT_PTE_ADDR_SHIFT			12
+#define PRE_1250_IP_VER_GGTT_PTE_VFID_MASK	GENMASK_ULL(4, 2)
+#define GGTT_PTE_VFID_MASK			GENMASK_ULL(11, 2)
+#define GGTT_PTE_VFID_SHIFT			2
+
+#define for_each_pte_offset(pte_offset__, ggtt_offset_range__) \
+	for ((pte_offset__) = ((ggtt_offset_range__)->begin);  \
+	     (pte_offset__) < ((ggtt_offset_range__)->end);    \
+	     (pte_offset__) += sizeof(xe_ggtt_pte_t))
+
+struct ggtt_ops {
+	void (*set_pte)(struct xe_mmio *mmio, int gt, uint32_t pte_offset, xe_ggtt_pte_t pte);
+	xe_ggtt_pte_t (*get_pte)(struct xe_mmio *mmio, int gt, uint32_t pte_offset);
+};
+
+struct ggtt_provisioned_offset_range {
+	uint32_t begin;
+	uint32_t end;
+};
+
+struct ggtt_data {
+	struct subcheck_data base;
+	struct ggtt_provisioned_offset_range *pte_offsets;
+	struct xe_mmio *mmio;
+	struct ggtt_ops ggtt;
+};
+
+static xe_ggtt_pte_t intel_get_pte(struct xe_mmio *mmio, int gt, uint32_t pte_offset)
+{
+	return xe_mmio_ggtt_read(mmio, gt, pte_offset);
+}
+
+static void intel_set_pte(struct xe_mmio *mmio, int gt, uint32_t pte_offset, xe_ggtt_pte_t pte)
+{
+	xe_mmio_ggtt_write(mmio, gt, pte_offset, pte);
+}
+
+static void intel_mtl_set_pte(struct xe_mmio *mmio, int gt, uint32_t pte_offset, xe_ggtt_pte_t pte)
+{
+	xe_mmio_ggtt_write(mmio, gt, pte_offset, pte);
+
+	/* force flush by read some MMIO register */
+	xe_mmio_gt_read32(mmio, gt, GEN12_VF_CAP_REG);
+}
+
+static bool set_pte_gpa(struct ggtt_ops *ggtt, struct xe_mmio *mmio, int gt, uint32_t pte_offset,
+			uint8_t gpa, xe_ggtt_pte_t *out)
+{
+	xe_ggtt_pte_t pte;
+
+	pte = ggtt->get_pte(mmio, gt, pte_offset);
+	pte &= ~GGTT_PTE_TEST_FIELD_MASK;
+	pte |= ((xe_ggtt_pte_t)gpa << GGTT_PTE_ADDR_SHIFT) & GGTT_PTE_TEST_FIELD_MASK;
+	ggtt->set_pte(mmio, gt, pte_offset, pte);
+	*out = ggtt->get_pte(mmio, gt, pte_offset);
+
+	return *out == pte;
+}
+
+static bool check_pte_gpa(struct ggtt_ops *ggtt, struct xe_mmio *mmio, int gt, uint32_t pte_offset,
+			  uint8_t expected_gpa, xe_ggtt_pte_t *out)
+{
+	uint8_t val;
+
+	*out = ggtt->get_pte(mmio, gt, pte_offset);
+	val = (uint8_t)((*out & GGTT_PTE_TEST_FIELD_MASK) >> GGTT_PTE_ADDR_SHIFT);
+
+	return val == expected_gpa;
+}
+
+static bool is_intel_mmio_initialized(const struct intel_mmio_data *mmio)
+{
+	return mmio->dev;
+}
+
+static uint64_t get_vfid_mask(int pf_fd)
+{
+	uint16_t dev_id = intel_get_drm_devid(pf_fd);
+
+	return (intel_graphics_ver(dev_id) >= IP_VER(12, 50)) ?
+		GGTT_PTE_VFID_MASK : PRE_1250_IP_VER_GGTT_PTE_VFID_MASK;
+}
+
+static bool pte_contains_vfid(const xe_ggtt_pte_t pte, const unsigned int vf_id,
+			      const uint64_t vfid_mask)
+{
+	return ((pte & vfid_mask) >> GGTT_PTE_VFID_SHIFT) == vf_id;
+}
+
+static bool is_offset_in_range(uint32_t offset,
+			       const struct ggtt_provisioned_offset_range *ranges,
+			       size_t num_ranges)
+{
+	for (size_t i = 0; i < num_ranges; i++)
+		if (offset >= ranges[i].begin && offset < ranges[i].end)
+			return true;
+
+	return false;
+}
+
+static void find_ggtt_provisioned_ranges(struct ggtt_data *gdata)
+{
+	uint32_t limit = gdata->mmio->intel_mmio.mmio_size - SZ_8M > SZ_8M ?
+				 SZ_8M :
+				 gdata->mmio->intel_mmio.mmio_size - SZ_8M;
+	uint64_t vfid_mask = get_vfid_mask(gdata->base.pf_fd);
+	xe_ggtt_pte_t pte;
+
+	gdata->pte_offsets = calloc(gdata->base.num_vfs + 1, sizeof(*gdata->pte_offsets));
+	igt_assert(gdata->pte_offsets);
+
+	for (int vf_id = 1; vf_id <= gdata->base.num_vfs; vf_id++) {
+		uint32_t range_begin = 0;
+		int adjacent = 0;
+		int num_ranges = 0;
+
+		for (uint32_t offset = 0; offset < limit; offset += sizeof(xe_ggtt_pte_t)) {
+			/* Skip already found ranges */
+			if (is_offset_in_range(offset, gdata->pte_offsets, vf_id))
+				continue;
+
+			pte = xe_mmio_ggtt_read(gdata->mmio, gdata->base.gt, offset);
+
+			if (pte_contains_vfid(pte, vf_id, vfid_mask)) {
+				if (adjacent == 0)
+					range_begin = offset;
+
+				adjacent++;
+			} else if (adjacent > 0) {
+				uint32_t range_end = range_begin +
+						     adjacent * sizeof(xe_ggtt_pte_t);
+
+				igt_debug("Found VF%d ggtt range begin=%#x end=%#x num_ptes=%d\n",
+					  vf_id, range_begin, range_end, adjacent);
+
+				if (adjacent > gdata->pte_offsets[vf_id].end -
+					       gdata->pte_offsets[vf_id].begin) {
+					gdata->pte_offsets[vf_id].begin = range_begin;
+					gdata->pte_offsets[vf_id].end = range_end;
+				}
+
+				adjacent = 0;
+				num_ranges++;
+			}
+		}
+
+		if (adjacent > 0) {
+			uint32_t range_end = range_begin + adjacent * sizeof(xe_ggtt_pte_t);
+
+			igt_debug("Found VF%d ggtt range begin=%#x end=%#x num_ptes=%d\n",
+				  vf_id, range_begin, range_end, adjacent);
+
+			if (adjacent > gdata->pte_offsets[vf_id].end -
+				       gdata->pte_offsets[vf_id].begin) {
+				gdata->pte_offsets[vf_id].begin = range_begin;
+				gdata->pte_offsets[vf_id].end = range_end;
+			}
+			num_ranges++;
+		}
+
+		if (num_ranges == 0) {
+			set_fail_reason(&gdata->base,
+					"Failed to find VF%d provisioned ggtt range\n", vf_id);
+			return;
+		}
+		igt_warn_on_f(num_ranges > 1, "Found %d ranges for VF%d\n", num_ranges, vf_id);
+	}
+}
+
+static void ggtt_subcheck_init(struct subcheck_data *data)
+{
+	struct ggtt_data *gdata = (struct ggtt_data *)data;
+
+	if (xe_is_media_gt(data->pf_fd, data->gt)) {
+		set_skip_reason(data, "GGTT unavailable on media GT\n");
+		return;
+	}
+
+	gdata->ggtt.get_pte = intel_get_pte;
+	if (IS_METEORLAKE(intel_get_drm_devid(data->pf_fd)))
+		gdata->ggtt.set_pte = intel_mtl_set_pte;
+	else
+		gdata->ggtt.set_pte = intel_set_pte;
+
+	if (gdata->mmio) {
+		if (!is_intel_mmio_initialized(&gdata->mmio->intel_mmio))
+			xe_mmio_vf_access_init(data->pf_fd, 0 /*PF*/, gdata->mmio);
+
+		find_ggtt_provisioned_ranges(gdata);
+	} else {
+		set_fail_reason(data, "xe_mmio is NULL\n");
+	}
+}
+
+static void ggtt_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
+{
+	struct ggtt_data *gdata = (struct ggtt_data *)data;
+	xe_ggtt_pte_t pte;
+	uint32_t pte_offset;
+
+	if (data->stop_reason)
+		return;
+
+	igt_debug("Prepare gpa on VF%u offset range [%#x-%#x]\n", vf_id,
+		  gdata->pte_offsets[vf_id].begin,
+		  gdata->pte_offsets[vf_id].end);
+
+	for_each_pte_offset(pte_offset, &gdata->pte_offsets[vf_id]) {
+		if (!set_pte_gpa(&gdata->ggtt, gdata->mmio, data->gt, pte_offset,
+				 (uint8_t)vf_id, &pte)) {
+			set_fail_reason(data,
+					"Prepare VF%u failed, unexpected gpa: Read PTE: %#lx at offset: %#x\n",
+					vf_id, pte, pte_offset);
+			return;
+		}
+	}
+}
+
+static void ggtt_subcheck_verify_vf(int vf_id, int flr_vf_id, struct subcheck_data *data)
+{
+	struct ggtt_data *gdata = (struct ggtt_data *)data;
+	uint8_t expected = (vf_id == flr_vf_id) ? 0 : vf_id;
+	xe_ggtt_pte_t pte;
+	uint32_t pte_offset;
+
+	if (data->stop_reason)
+		return;
+
+	for_each_pte_offset(pte_offset, &gdata->pte_offsets[vf_id]) {
+		if (!check_pte_gpa(&gdata->ggtt, gdata->mmio, data->gt, pte_offset,
+				   expected, &pte)) {
+			set_fail_reason(data,
+					"GGTT check after VF%u FLR failed on VF%u: Read PTE: %#lx at offset: %#x\n",
+					flr_vf_id, vf_id, pte, pte_offset);
+			return;
+		}
+	}
+}
+
+static void ggtt_subcheck_cleanup(struct subcheck_data *data)
+{
+	struct ggtt_data *gdata = (struct ggtt_data *)data;
+
+	free(gdata->pte_offsets);
+	if (gdata->mmio && is_intel_mmio_initialized(&gdata->mmio->intel_mmio))
+		xe_mmio_access_fini(gdata->mmio);
+}
+
 static void clear_tests(int pf_fd, int num_vfs)
 {
-	verify_flr(pf_fd, num_vfs, NULL, 0);
+	struct xe_mmio xemmio = { };
+	const unsigned int num_gts = xe_number_gt(pf_fd);
+	struct ggtt_data gdata[num_gts];
+	const unsigned int num_checks = num_gts;
+	struct subcheck checks[num_checks];
+	int i;
+
+	for (i = 0; i < num_gts; ++i) {
+		gdata[i] = (struct ggtt_data){
+			.base = { .pf_fd = pf_fd, .num_vfs = num_vfs, .gt = i },
+			.mmio = &xemmio
+		};
+		checks[i] = (struct subcheck){
+			.data = (struct subcheck_data *)&gdata[i],
+			.name = "clear-ggtt",
+			.init = ggtt_subcheck_init,
+			.prepare_vf = ggtt_subcheck_prepare_vf,
+			.verify_vf = ggtt_subcheck_verify_vf,
+			.cleanup = ggtt_subcheck_cleanup
+		};
+	}
+	igt_assert_eq(i, num_checks);
+
+	verify_flr(pf_fd, num_vfs, checks, num_checks);
 }
 
 igt_main
