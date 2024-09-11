@@ -131,12 +131,30 @@ bool psr_wait_entry(int debugfs_fd, enum psr_mode mode, igt_output_t *output)
 
 bool psr_wait_update(int debugfs_fd, enum psr_mode mode, igt_output_t *output)
 {
-	return igt_wait(!psr_active_check(debugfs_fd, mode, output), 40, 1);
+	/*
+	 * TODO: After enabling Panel Replay on DP2.1, observe that the SRD status
+	 * remains in the SRDENT_ON state. Remove the polling mechanism for the SRD
+	 * status change for the DP2.1 output.
+	 */
+	if (output != NULL &&
+	    output->config.connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort)
+		return igt_wait(psr_active_check(debugfs_fd, mode, output), 40, 1);
+	else
+		return igt_wait(!psr_active_check(debugfs_fd, mode, output), 40, 1);
 }
 
 bool psr_long_wait_update(int debugfs_fd, enum psr_mode mode, igt_output_t *output)
 {
-	return igt_wait(!psr_active_check(debugfs_fd, mode, output), 500, 1);
+	/*
+	 * TODO: After enabling Panel Replay on DP2.1, observe that the SRD status
+	 * remains in the SRDENT_ON state. Remove the polling mechanism for the SRD
+	 * status change for the DP2.1 output.
+	 */
+	if (output != NULL &&
+	    output->config.connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort)
+		return igt_wait(psr_active_check(debugfs_fd, mode, output), 500, 1);
+	else
+		return igt_wait(!psr_active_check(debugfs_fd, mode, output), 500, 1);
 }
 
 static ssize_t psr_write(int debugfs_fd, const char *buf, igt_output_t *output)
