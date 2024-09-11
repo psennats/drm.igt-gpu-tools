@@ -3,6 +3,8 @@
  * Copyright(c) 2024 Intel Corporation. All rights reserved.
  */
 
+#include <fcntl.h>
+#include <sys/stat.h>
 #include "drmtest.h"
 #include "igt_core.h"
 #include "igt_sriov_device.h"
@@ -541,12 +543,211 @@ static void ggtt_subcheck_cleanup(struct subcheck_data *data)
 		xe_mmio_access_fini(gdata->mmio);
 }
 
+struct lmem_data {
+	struct subcheck_data base;
+	size_t *vf_lmem_size;
+};
+
+struct lmem_info {
+	/* pointer to the mapped area */
+	char *addr;
+	/* size of mapped area */
+	size_t size;
+};
+
+const size_t STEP = SZ_1M;
+
+static void *mmap_vf_lmem(int pf_fd, int vf_num, size_t length, int prot, off_t offset)
+{
+	int open_flags = ((prot & PROT_WRITE) != 0) ? O_RDWR : O_RDONLY;
+	struct stat st;
+	int sysfs, fd;
+	void *addr;
+
+	sysfs = igt_sriov_device_sysfs_open(pf_fd, vf_num);
+	if (sysfs < 0) {
+		igt_debug("Failed to open sysfs for VF%d: %s\n", vf_num, strerror(errno));
+		return NULL;
+	}
+
+	fd = openat(sysfs, "resource2", open_flags | O_SYNC);
+	close(sysfs);
+	if (fd < 0) {
+		igt_debug("Failed to open resource2 for VF%d: %s\n", vf_num, strerror(errno));
+		return NULL;
+	}
+
+	if (fstat(fd, &st)) {
+		igt_debug("Failed to stat resource2 for VF%d: %s\n", vf_num, strerror(errno));
+		close(fd);
+		return NULL;
+	}
+
+	if (st.st_size < length) {
+		igt_debug("Mapping length (%lu) exceeds BAR2 size (%lu)\n", length, st.st_size);
+		close(fd);
+		return NULL;
+	}
+
+	addr = mmap(NULL, length, prot, MAP_SHARED, fd, offset);
+	close(fd);
+	if (addr == MAP_FAILED) {
+		igt_debug("Failed mmap resource2 for VF%d: %s\n", vf_num, strerror(errno));
+		return NULL;
+	}
+
+	return addr;
+}
+
+static uint64_t get_vf_lmem_size(int pf_fd, int vf_num)
+{
+	/* limit to first two pages
+	 * TODO: Extend to full range when the proper interface (lmem_provisioned) is added
+	 */
+	return SZ_4M;
+}
+
+static void munmap_vf_lmem(struct lmem_info *lmem)
+{
+	igt_debug_on_f(munmap(lmem->addr, lmem->size),
+		       "Failed munmap %p: %s\n", lmem->addr, strerror(errno));
+}
+
+static char lmem_read(const char *addr, size_t idx)
+{
+	return READ_ONCE(*(addr + idx));
+}
+
+static char lmem_write_readback(char *addr, size_t idx, char value)
+{
+	WRITE_ONCE(*(addr + idx), value);
+	return lmem_read(addr, idx);
+}
+
+static bool lmem_write_pattern(struct lmem_info *lmem, char value, size_t start, size_t step)
+{
+	char read;
+
+	for (; start < lmem->size; start += step) {
+		read = lmem_write_readback(lmem->addr, start, value);
+		if (igt_debug_on_f(read != value, "LMEM[%lu]=%u != %u\n", start, read, value))
+			return false;
+	}
+	return true;
+}
+
+static bool lmem_contains_expected_values_(struct lmem_info *lmem,
+					   char expected, size_t start,
+					   size_t step)
+{
+	char read;
+
+	for (; start < lmem->size; start += step) {
+		read = lmem_read(lmem->addr, start);
+		if (igt_debug_on_f(read != expected,
+				   "LMEM[%lu]=%u != %u\n", start, read, expected))
+			return false;
+	}
+	return true;
+}
+
+static bool lmem_contains_expected_values(int pf_fd, int vf_num, size_t length,
+					  char expected)
+{
+	struct lmem_info lmem = { .size = length };
+	bool result;
+
+	lmem.addr = mmap_vf_lmem(pf_fd, vf_num, length, PROT_READ | PROT_WRITE, 0);
+	if (igt_debug_on(!lmem.addr))
+		return false;
+
+	result = lmem_contains_expected_values_(&lmem, expected, 0, STEP);
+	munmap_vf_lmem(&lmem);
+
+	return result;
+}
+
+static bool lmem_mmap_write_munmap(int pf_fd, int vf_num, size_t length, char value)
+{
+	struct lmem_info lmem;
+	bool result;
+
+	lmem.size = length;
+	lmem.addr = mmap_vf_lmem(pf_fd, vf_num, length, PROT_READ | PROT_WRITE, 0);
+	if (igt_debug_on(!lmem.addr))
+		return false;
+	result = lmem_write_pattern(&lmem, value, 0, STEP);
+	munmap_vf_lmem(&lmem);
+
+	return result;
+}
+
+static void lmem_subcheck_init(struct subcheck_data *data)
+{
+	struct lmem_data *ldata = (struct lmem_data *)data;
+
+	igt_assert_fd(data->pf_fd);
+	igt_assert(data->num_vfs);
+
+	if (!xe_has_vram(data->pf_fd)) {
+		set_skip_reason(data, "No LMEM\n");
+		return;
+	}
+
+	ldata->vf_lmem_size = calloc(data->num_vfs + 1, sizeof(size_t));
+	igt_assert(ldata->vf_lmem_size);
+
+	for (int vf_id = 1; vf_id <= data->num_vfs; ++vf_id)
+		ldata->vf_lmem_size[vf_id] = get_vf_lmem_size(ldata->base.pf_fd, vf_id);
+}
+
+static void lmem_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
+{
+	struct lmem_data *ldata = (struct lmem_data *)data;
+
+	if (data->stop_reason)
+		return;
+
+	igt_assert(vf_id > 0 && vf_id <= data->num_vfs);
+
+	if (!lmem_mmap_write_munmap(data->pf_fd, vf_id,
+				    ldata->vf_lmem_size[vf_id], vf_id)) {
+		set_fail_reason(data, "LMEM write failed on VF%u\n", vf_id);
+	}
+}
+
+static void lmem_subcheck_verify_vf(int vf_id, int flr_vf_id, struct subcheck_data *data)
+{
+	struct lmem_data *ldata = (struct lmem_data *)data;
+	char expected = (vf_id == flr_vf_id) ? 0 : vf_id;
+
+	if (data->stop_reason)
+		return;
+
+	if (!lmem_contains_expected_values(data->pf_fd, vf_id,
+					   ldata->vf_lmem_size[vf_id], expected)) {
+		set_fail_reason(data,
+				"LMEM check after VF%u FLR failed on VF%u\n",
+				flr_vf_id, vf_id);
+	}
+}
+
+static void lmem_subcheck_cleanup(struct subcheck_data *data)
+{
+	struct lmem_data *ldata = (struct lmem_data *)data;
+
+	free(ldata->vf_lmem_size);
+}
+
 static void clear_tests(int pf_fd, int num_vfs)
 {
 	struct xe_mmio xemmio = { };
 	const unsigned int num_gts = xe_number_gt(pf_fd);
 	struct ggtt_data gdata[num_gts];
-	const unsigned int num_checks = num_gts;
+	struct lmem_data ldata = {
+		.base = { .pf_fd = pf_fd, .num_vfs = num_vfs }
+	};
+	const unsigned int num_checks = num_gts + 1;
 	struct subcheck checks[num_checks];
 	int i;
 
@@ -564,6 +765,13 @@ static void clear_tests(int pf_fd, int num_vfs)
 			.cleanup = ggtt_subcheck_cleanup
 		};
 	}
+	checks[i++] = (struct subcheck) {
+		.data = (struct subcheck_data *)&ldata,
+		.name = "clear-lmem",
+		.init = lmem_subcheck_init,
+		.prepare_vf = lmem_subcheck_prepare_vf,
+		.verify_vf = lmem_subcheck_verify_vf,
+		.cleanup = lmem_subcheck_cleanup };
 	igt_assert_eq(i, num_checks);
 
 	verify_flr(pf_fd, num_vfs, checks, num_checks);
