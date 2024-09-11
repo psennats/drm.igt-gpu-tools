@@ -344,6 +344,7 @@ static void run(data_t *data)
 
 	/* Check if after all this stress the PSR is still in the same state */
 	igt_assert(psr_get_mode(data->debugfs_fd, NULL) == data->initial_state);
+	psr_sink_error_check(data->debugfs_fd, data->initial_state, data->output);
 }
 
 igt_main

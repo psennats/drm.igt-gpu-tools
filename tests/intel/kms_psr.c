@@ -650,6 +650,8 @@ static void test_cleanup(data_t *data)
 {
 	igt_plane_t *primary;
 
+	psr_sink_error_check(data->debugfs_fd, data->op_psr_mode, data->output);
+
 	igt_output_override_mode(data->output, NULL);
 
 	primary = igt_output_get_plane_type(data->output,

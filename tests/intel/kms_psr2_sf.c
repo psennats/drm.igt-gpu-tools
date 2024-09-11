@@ -972,6 +972,8 @@ static void run(data_t *data)
 	default:
 		igt_assert(false);
 	}
+
+	psr_sink_error_check(data->debugfs_fd, data->psr_mode, data->output);
 }
 
 static void cleanup(data_t *data)

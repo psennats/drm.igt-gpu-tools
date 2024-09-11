@@ -273,6 +273,8 @@ static void run(data_t *data, igt_output_t *output)
 
 	igt_assert_f(result,
 		     "No matching selective update blocks read from debugfs\n");
+
+	psr_sink_error_check(data->debugfs_fd, PSR_MODE_2, output);
 }
 
 static void cleanup(data_t *data, igt_output_t *output)
