@@ -52,6 +52,19 @@ bool selective_fetch_check(int debugfs_fd, igt_output_t *output)
 
 	return strstr(buf, "PSR2 selective fetch: enabled");
 }
+static bool psr_active_sink_check(int debugfs_fd, igt_output_t *output)
+{
+	char debugfs_file[128] = {0};
+	char buf[PSR_STATUS_MAX_LEN];
+	int ret;
+
+	sprintf(debugfs_file, "%s/i915_psr_sink_status", output->name);
+	ret = igt_debugfs_simple_read(debugfs_fd, debugfs_file, buf,
+				      sizeof(buf));
+	igt_assert_f(ret >= 1, "Failed to read sink status\n");
+
+	return strstr(buf, "0x2 [active, display from RFB]");
+}
 
 /*
  * Checks if Early Transport is enabled in PSR status by reading the debugfs.
@@ -72,6 +85,7 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 	char buf[PSR_STATUS_MAX_LEN];
 	drmModeConnector *c;
 	const char *state;
+	bool active;
 	int ret;
 
 	if (mode == PR_MODE || mode == PR_MODE_SEL_FETCH) {
@@ -100,7 +114,11 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 
 	igt_skip_on(strstr(buf, "PSR sink not reliable: yes"));
 
-	return strstr(buf, state);
+	active = strstr(buf, state);
+	if (active && output)
+		active = psr_active_sink_check(debugfs_fd, output);
+
+	return active;
 }
 
 /*
@@ -295,6 +313,38 @@ bool psr_sink_support(int device, int debugfs_fd, enum psr_mode mode, igt_output
 		igt_assert_f(false, "Invalid psr mode\n");
 		return false;
 	}
+}
+
+/**
+ * psr_sink_error_check
+ * Check and assert on PSR errors detected by panel
+ *
+ * Returns:
+ * None
+ */
+void psr_sink_error_check(int debugfs_fd, enum psr_mode mode, igt_output_t *output)
+{
+	char *line;
+	char debugfs_file[128] = {0};
+	char buf[PSR_STATUS_MAX_LEN];
+	int ret;
+
+	sprintf(debugfs_file, "%s/i915_psr_sink_status", output->name);
+	ret = igt_debugfs_simple_read(debugfs_fd, debugfs_file, buf,
+				      sizeof(buf));
+	igt_assert_f(ret >= 1, "Failed to read sink status\n");
+
+	line = strstr(buf, "error status: 0x0");
+
+	/*
+	 * On certain PSR1 panels we are seeing "PSR VSC SDP
+	 * uncorrectable error" bit set even it is applicable for PSR1
+	 * only
+	 */
+	if (!line && mode == PSR_MODE_1)
+		line = strstr(buf, "Sink PSR error status: 0x4");
+
+	igt_assert_f(line, "Sink detected PSR error(s):\n%s\n", buf);
 }
 
 #define PSR2_SU_BLOCK_STR_LOOKUP "PSR2 SU blocks:\n0\t"
