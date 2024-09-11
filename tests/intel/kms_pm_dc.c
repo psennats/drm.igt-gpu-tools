@@ -407,6 +407,7 @@ static void test_dc_state_psr(data_t *data, int dc_flag)
 	igt_require(!psr_disabled_check(data->debugfs_fd));
 	igt_assert(psr_wait_entry(data->debugfs_fd, data->op_psr_mode, NULL));
 	check_dc_counter(data, dc_flag, dc_counter_before_psr);
+	psr_sink_error_check(data->debugfs_fd, data->op_psr_mode, data->output);
 	cleanup_dc_psr(data);
 }
 
@@ -693,6 +694,7 @@ static void test_pkgc_state_psr(data_t *data)
 	igt_wait((cur_value = read_pkgc_counter(data->debugfs_root_fd)) > prev_value,
 		  timeout_sec * 1000, 100);
 	igt_assert_f(cur_value > prev_value, "PKGC10 is not achieved.\n");
+	psr_sink_error_check(data->debugfs_fd, data->op_psr_mode, data->output);
 	psr_dpms(data, DRM_MODE_DPMS_ON);
 	cleanup_dc_psr(data);
 }
