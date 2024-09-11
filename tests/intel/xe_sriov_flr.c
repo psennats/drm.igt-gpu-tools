@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include "drmtest.h"
 #include "igt_core.h"
+#include "igt_device.h"
 #include "igt_sriov_device.h"
 #include "intel_chipset.h"
 #include "linux_scaffold.h"
@@ -739,6 +740,95 @@ static void lmem_subcheck_cleanup(struct subcheck_data *data)
 	free(ldata->vf_lmem_size);
 }
 
+#define SCRATCH_REG		0x190240
+#define SCRATCH_REG_COUNT	4
+#define MED_SCRATCH_REG		0x190310
+#define MED_SCRATCH_REG_COUNT	4
+
+struct regs_data {
+	struct subcheck_data base;
+	struct intel_mmio_data *mmio;
+	uint32_t reg_addr;
+	int reg_count;
+};
+
+static void regs_subcheck_init(struct subcheck_data *data)
+{
+	struct regs_data *rdata = (struct regs_data *)data;
+
+	if (!xe_has_media_gt(data->pf_fd) &&
+	    rdata->reg_addr == MED_SCRATCH_REG) {
+		set_skip_reason(data, "No media GT\n");
+	}
+}
+
+static void regs_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
+{
+	struct regs_data *rdata = (struct regs_data *)data;
+	uint32_t reg;
+	int i;
+
+	if (data->stop_reason)
+		return;
+
+	if (!is_intel_mmio_initialized(&rdata->mmio[vf_id])) {
+		struct pci_device *pci_dev = __igt_device_get_pci_device(data->pf_fd, vf_id);
+
+		if (!pci_dev) {
+			set_fail_reason(data, "No PCI device found for VF%u\n", vf_id);
+			return;
+		}
+
+		if (intel_register_access_init(&rdata->mmio[vf_id], pci_dev, false)) {
+			set_fail_reason(data, "Failed to get access to VF%u MMIO\n", vf_id);
+			return;
+		}
+	}
+
+	for (i = 0; i < rdata->reg_count; i++) {
+		reg = rdata->reg_addr + i * 4;
+
+		intel_register_write(&rdata->mmio[vf_id], reg, vf_id);
+		if (intel_register_read(&rdata->mmio[vf_id], reg) != vf_id) {
+			set_fail_reason(data, "Registers write/read check failed on VF%u\n", vf_id);
+			return;
+		}
+	}
+}
+
+static void regs_subcheck_verify_vf(int vf_id, int flr_vf_id, struct subcheck_data *data)
+{
+	struct regs_data *rdata = (struct regs_data *)data;
+	uint32_t expected = (vf_id == flr_vf_id) ? 0 : vf_id;
+	uint32_t reg;
+	int i;
+
+	if (data->stop_reason)
+		return;
+
+	for (i = 0; i < rdata->reg_count; i++) {
+		reg = rdata->reg_addr + i * 4;
+
+		if (intel_register_read(&rdata->mmio[vf_id], reg) != expected) {
+			set_fail_reason(data,
+					"Registers check after VF%u FLR failed on VF%u\n",
+					flr_vf_id, vf_id);
+			return;
+		}
+	}
+}
+
+static void regs_subcheck_cleanup(struct subcheck_data *data)
+{
+	struct regs_data *rdata = (struct regs_data *)data;
+	int i;
+
+	if (rdata->mmio)
+		for (i = 1; i <= data->num_vfs; ++i)
+			if (is_intel_mmio_initialized(&rdata->mmio[i]))
+				intel_register_access_fini(&rdata->mmio[i]);
+}
+
 static void clear_tests(int pf_fd, int num_vfs)
 {
 	struct xe_mmio xemmio = { };
@@ -747,9 +837,24 @@ static void clear_tests(int pf_fd, int num_vfs)
 	struct lmem_data ldata = {
 		.base = { .pf_fd = pf_fd, .num_vfs = num_vfs }
 	};
-	const unsigned int num_checks = num_gts + 1;
+	struct intel_mmio_data mmio[num_vfs + 1];
+	struct regs_data scratch_data = {
+		.base = { .pf_fd = pf_fd, .num_vfs = num_vfs },
+		.mmio = mmio,
+		.reg_addr = SCRATCH_REG,
+		.reg_count = SCRATCH_REG_COUNT
+	};
+	struct regs_data media_scratch_data = {
+		.base = { .pf_fd = pf_fd, .num_vfs = num_vfs },
+		.mmio = mmio,
+		.reg_addr = MED_SCRATCH_REG,
+		.reg_count = MED_SCRATCH_REG_COUNT
+	};
+	const unsigned int num_checks = num_gts + 3;
 	struct subcheck checks[num_checks];
 	int i;
+
+	memset(mmio, 0, sizeof(mmio));
 
 	for (i = 0; i < num_gts; ++i) {
 		gdata[i] = (struct ggtt_data){
@@ -772,6 +877,21 @@ static void clear_tests(int pf_fd, int num_vfs)
 		.prepare_vf = lmem_subcheck_prepare_vf,
 		.verify_vf = lmem_subcheck_verify_vf,
 		.cleanup = lmem_subcheck_cleanup };
+	checks[i++] = (struct subcheck) {
+		.data = (struct subcheck_data *)&scratch_data,
+		.name = "clear-scratch-regs",
+		.init = regs_subcheck_init,
+		.prepare_vf = regs_subcheck_prepare_vf,
+		.verify_vf = regs_subcheck_verify_vf,
+		.cleanup = regs_subcheck_cleanup };
+	checks[i++] = (struct subcheck) {
+		.data = (struct subcheck_data *)&media_scratch_data,
+		.name = "clear-media-scratch-regs",
+		.init = regs_subcheck_init,
+		.prepare_vf = regs_subcheck_prepare_vf,
+		.verify_vf = regs_subcheck_verify_vf,
+		.cleanup = regs_subcheck_cleanup
+	};
 	igt_assert_eq(i, num_checks);
 
 	verify_flr(pf_fd, num_vfs, checks, num_checks);
