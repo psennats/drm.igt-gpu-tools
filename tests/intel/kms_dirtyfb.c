@@ -145,7 +145,7 @@ static void enable_feature(data_t *data)
 	}
 }
 
-static void check_feature(data_t *data)
+static void check_feature_enabled(data_t *data)
 {
 	switch (data->feature) {
 	case FEATURE_NONE:
@@ -159,6 +159,33 @@ static void check_feature(data_t *data)
 		igt_require(!psr_disabled_check(data->debugfs_fd));
 		igt_assert_f(psr_wait_entry(data->debugfs_fd, PSR_MODE_1, NULL),
 			     "PSR still disabled\n");
+		break;
+	case FEATURE_DRRS:
+		igt_assert_f(!intel_is_drrs_inactive(data->drm_fd, data->pipe),
+			     "DRRS INACTIVE\n");
+		break;
+	case FEATURE_DEFAULT:
+		break;
+	default:
+		igt_assert(false);
+	}
+}
+
+static void check_feature(data_t *data)
+{
+	switch (data->feature) {
+	case FEATURE_NONE:
+		break;
+	case FEATURE_FBC:
+		igt_assert_f(intel_fbc_wait_until_enabled(data->drm_fd,
+							  data->pipe),
+			     "FBC disabled\n");
+		/* TODO: Add compression check here */
+		break;
+	case FEATURE_PSR:
+		igt_assert_f(psr_wait_entry(data->debugfs_fd, PSR_MODE_1, data->output),
+			     "No PSR entry\n");
+		psr_sink_error_check(data->debugfs_fd, PSR_MODE_1, data->output);
 		break;
 	case FEATURE_DRRS:
 		igt_assert_f(!intel_is_drrs_inactive(data->drm_fd, data->pipe),
@@ -232,7 +259,7 @@ static void prepare(data_t *data)
 
 	igt_display_commit2(&data->display, COMMIT_ATOMIC);
 
-	check_feature(data);
+	check_feature_enabled(data);
 }
 
 static void cleanup(data_t *data)
@@ -297,6 +324,8 @@ static void run_test(data_t *data)
 
 	igt_pipe_crc_collect_crc(data->pipe_crc, &crc);
 	igt_assert_crc_equal(&crc, &data->ref_crc);
+
+	check_feature(data);
 
 	igt_spin_free(data->drm_fd, spin);
 	intel_bb_destroy(ibb);
