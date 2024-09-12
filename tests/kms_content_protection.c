@@ -667,7 +667,7 @@ test_mst_cp_enable_with_retry(igt_output_t *hdcp_mst_output[], int valid_outputs
 			      int retries, int content_type)
 {
 	igt_display_t *display = &data.display;
-	int retry_orig = retries, count;
+	int retry_orig = retries, count, i;
 	bool ret;
 
 	do {
@@ -693,8 +693,14 @@ test_mst_cp_enable_with_retry(igt_output_t *hdcp_mst_output[], int valid_outputs
 						  KERNEL_AUTH_TIME_ADDITIONAL_MSEC);
 
 		retries -= 1;
+
 		if (!ret || retries)
 			igt_debug("Retry %d/3\n", 3 - retries);
+
+		for (i = 0; i < valid_outputs; i++)
+			prepare_modeset_on_mst_output(hdcp_mst_output[i], ret);
+
+		igt_display_commit2(display, COMMIT_ATOMIC);
 	} while (retries && !ret);
 
 	igt_assert_f(ret, "Content Protection not enabled on MST outputs\n");
@@ -759,13 +765,6 @@ test_content_protection_mst(int content_type)
 	igt_display_commit2(display, COMMIT_ATOMIC);
 
 	ret = test_mst_cp_enable_with_retry(hdcp_mst_output, valid_outputs, 2, content_type);
-
-	if (ret) {
-		for (i = 0; i < valid_outputs; i++)
-			prepare_modeset_on_mst_output(hdcp_mst_output[i], true);
-
-		igt_display_commit2(display, COMMIT_ATOMIC);
-	}
 
 	if (data.cp_tests & CP_LIC)
 		test_cp_lic_on_mst(hdcp_mst_output, valid_outputs, 0);
