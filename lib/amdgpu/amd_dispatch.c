@@ -161,10 +161,13 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 
 int
 amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
-			    uint32_t ip_type, uint32_t ring, uint32_t version,
-			    enum cmd_error_type hang)
+				amdgpu_context_handle context_handle_param,
+				uint32_t ip_type, uint32_t ring, uint32_t version,
+				enum cmd_error_type hang,
+				struct amdgpu_cs_err_codes *err_codes)
 {
-	amdgpu_context_handle context_handle;
+	amdgpu_context_handle context_handle_free = NULL;
+	amdgpu_context_handle context_handle_in_use = NULL;
 	amdgpu_bo_handle bo_src, bo_dst, bo_shader, bo_cmd, resources[4];
 	volatile unsigned char *ptr_dst;
 	void *ptr_shader;
@@ -184,8 +187,13 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	struct amdgpu_cs_fence fence_status = {0};
 	struct amdgpu_cmd_base *base_cmd = get_cmd_base();
 
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
-	igt_assert_eq(r, 0);
+	if (context_handle_param == NULL) {
+		r = amdgpu_cs_ctx_create(device_handle, &context_handle_in_use);
+		context_handle_free = context_handle_in_use;
+		igt_assert_eq(r, 0);
+	} else {
+		context_handle_in_use = context_handle_param;
+	}
 
 	r = amdgpu_bo_alloc_and_map(device_handle, bo_cmd_size, 4096,
 				    AMDGPU_GEM_DOMAIN_GTT, 0,
@@ -300,19 +308,22 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	ibs_request.number_of_ibs = 1;
 	ibs_request.ibs = &ib_info;
 	ibs_request.fence_info.handle = NULL;
-	r = amdgpu_cs_submit(context_handle, 0, &ibs_request, 1);
-	igt_assert_eq(r, 0);
+	r = amdgpu_cs_submit(context_handle_in_use, 0, &ibs_request, 1);
+	if (err_codes)
+		err_codes->err_code_cs_submit = r;
 
 	fence_status.ip_type = ip_type;
 	fence_status.ip_instance = 0;
 	fence_status.ring = ring;
-	fence_status.context = context_handle;
+	fence_status.context = context_handle_in_use;
 	fence_status.fence = ibs_request.seq_no;
 
 	/* wait for IB accomplished */
 	r = amdgpu_cs_query_fence_status(&fence_status,
 					 AMDGPU_TIMEOUT_INFINITE,
 					 0, &expired);
+	if (err_codes)
+		err_codes->err_code_wait_for_fence = r;
 
 	if (!hang) {
 		igt_assert_eq(r, 0);
@@ -326,7 +337,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 			i++;
 		}
 	} else {
-		r2 = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
+		r2 = amdgpu_cs_query_reset_state(context_handle_in_use, &hang_state, &hangs);
 		igt_assert_eq(r2, 0);
 	}
 
@@ -336,7 +347,10 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	amdgpu_bo_unmap_and_free(bo_cmd, va_cmd, mc_address_cmd, bo_cmd_size);
 	amdgpu_bo_unmap_and_free(bo_shader, va_shader, mc_address_shader,
 				 bo_shader_size);
-	amdgpu_cs_ctx_free(context_handle);
+
+	if(context_handle_free)
+		amdgpu_cs_ctx_free(context_handle_free);
+
 
 	return r;
 }
@@ -538,13 +552,13 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 		return;
 	}
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
-		amdgpu_memcpy_dispatch_test(device_handle, ip_type,
-					    ring_id,  version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS);
+		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type,
+					    ring_id,  version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
 		amdgpu_memcpy_dispatch_hang_slow_test(device_handle, ip_type,
 						      ring_id, version, AMDGPU_CTX_UNKNOWN_RESET);
 
-		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id,
-					    version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS);
+		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id,
+					    version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
 	}
 }
 
@@ -570,8 +584,8 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memset_dispatch_test(device_handle, ip_type, ring_id,
 					    version);
-		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id,
-					    version, hang);
+		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id,
+					    version, hang, NULL);
 	}
 }
 

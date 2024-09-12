@@ -74,6 +74,7 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 
 	/* submit CS */
 	r = amdgpu_cs_submit(ring_context->context_handle, 0, &ring_context->ibs_request, 1);
+	ring_context->err_codes.err_code_cs_submit = r;
 	if (expect_failure)
 		igt_info("amdgpu_cs_submit %d PID %d\n", r, getpid());
 	else {
@@ -95,6 +96,7 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 	r = amdgpu_cs_query_fence_status(&fence_status,
 					 AMDGPU_TIMEOUT_INFINITE,
 					 0, &expired);
+	ring_context->err_codes.err_code_wait_for_fence = r;
 	if (expect_failure) {
 		igt_info("EXPECT FAILURE amdgpu_cs_query_fence_status %d expired %d PID %d\n", r,  expired, getpid());
 	} else {

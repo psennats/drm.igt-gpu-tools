@@ -31,10 +31,12 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle,
 			      uint32_t ip_type, enum cmd_error_type hang);
 
 int amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
+					amdgpu_context_handle context_handle,
 					uint32_t ip_type,
 					uint32_t ring,
 					uint32_t version,
-					enum cmd_error_type hang);
+					enum cmd_error_type hang,
+					struct amdgpu_cs_err_codes *err_codes);
 
 void amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 				      uint32_t ip_type);

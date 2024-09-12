@@ -57,14 +57,28 @@ struct asic_id_filter
 	int chip_id_end;
 };
 
+/* expected reset result for differant ip's */
+struct reset_err_result {
+	int compute_reset_result;
+	int gfx_reset_result;
+	int sdma_reset_result;
+};
+
 struct dynamic_test{
 	enum cmd_error_type test;
 	const char *name;
 	const char *describe;
 	struct asic_id_filter exclude_filter[_MAX_NUM_ASIC_ID_EXCLUDE_FILTER];
+	struct reset_err_result result;
 };
 
 #define for_each_test(t, T) for(typeof(*T) *t = T; t->name; t++)
+
+/* set during execution */
+struct amdgpu_cs_err_codes {
+	int err_code_cs_submit;
+	int err_code_wait_for_fence;
+};
 
 /* aux struct to hold misc parameters for convenience to maintain */
 struct amdgpu_ring_context {
@@ -112,6 +126,7 @@ struct amdgpu_ring_context {
 
 	struct amdgpu_cs_ib_info ib_info;     /* amdgpu_bo_list_create */
 	struct amdgpu_cs_request ibs_request; /* amdgpu_cs_query_fence_status */
+	struct amdgpu_cs_err_codes err_codes;
 };
 
 
