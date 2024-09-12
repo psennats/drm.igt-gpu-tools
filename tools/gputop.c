@@ -39,6 +39,9 @@ enum utilization_type {
 
 static const char *bars[] = { " ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█" };
 
+#define ANSI_HEADER "\033[7m"
+#define ANSI_RESET "\033[0m"
+
 static void n_spaces(const unsigned int n)
 {
 	unsigned int i;
@@ -82,7 +85,7 @@ print_client_header(struct igt_drm_client *c, int lines, int con_w, int con_h,
 	if (lines++ >= con_h)
 		return lines;
 
-	printf("\033[7m");
+	printf(ANSI_HEADER);
 	ret = printf("DRM minor %u", c->drm_minor);
 	n_spaces(con_w - ret);
 
@@ -123,7 +126,7 @@ print_client_header(struct igt_drm_client *c, int lines, int con_w, int con_h,
 		}
 	}
 
-	printf(" %-*s\033[0m\n", con_w - len - 1, "NAME");
+	printf(" %-*s" ANSI_RESET "\n", con_w - len - 1, "NAME");
 
 	return lines;
 }
@@ -446,6 +449,13 @@ int main(int argc, char **argv)
 
 		update_console_size(&con_w, &con_h);
 		clrscr();
+
+		if (!clients->num_clients) {
+			const char *msg = " (No GPU clients yet. Start workload to see stats)";
+
+			printf(ANSI_HEADER "%-*s" ANSI_RESET "\n",
+			       (int)(con_w - strlen(msg) - 1), msg);
+		}
 
 		igt_for_each_drm_client(clients, c, i) {
 			assert(c->status != IGT_DRM_CLIENT_PROBE);
