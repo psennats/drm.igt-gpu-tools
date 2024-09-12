@@ -662,7 +662,7 @@ static void test_cp_lic_on_mst(igt_output_t *mst_outputs[], int valid_outputs, i
 	}
 }
 
-static bool
+static void
 test_mst_cp_enable_with_retry(igt_output_t *hdcp_mst_output[], int valid_outputs,
 			      int retries, int content_type)
 {
@@ -704,8 +704,6 @@ test_mst_cp_enable_with_retry(igt_output_t *hdcp_mst_output[], int valid_outputs
 	} while (retries && !ret);
 
 	igt_assert_f(ret, "Content Protection not enabled on MST outputs\n");
-
-	return ret;
 }
 
 static void
@@ -764,7 +762,7 @@ test_content_protection_mst(int content_type)
 
 	igt_display_commit2(display, COMMIT_ATOMIC);
 
-	ret = test_mst_cp_enable_with_retry(hdcp_mst_output, valid_outputs, 2, content_type);
+	test_mst_cp_enable_with_retry(hdcp_mst_output, valid_outputs, 2, content_type);
 
 	if (data.cp_tests & CP_LIC)
 		test_cp_lic_on_mst(hdcp_mst_output, valid_outputs, 0);
