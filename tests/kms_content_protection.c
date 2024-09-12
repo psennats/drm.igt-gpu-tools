@@ -646,7 +646,7 @@ static bool output_is_dp_mst(igt_output_t *output, int i)
 	return true;
 }
 
-static void test_cp_lic_on_mst(igt_output_t *mst_outputs[], int valid_outputs, bool first_output)
+static void test_cp_lic_on_mst(igt_output_t *mst_outputs[], int valid_outputs, int first_output)
 {
 	int ret, count;
 	uint64_t val;
