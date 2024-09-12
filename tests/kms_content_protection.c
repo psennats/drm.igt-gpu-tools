@@ -653,7 +653,8 @@ static void test_cp_lic_on_mst(igt_output_t *mst_outputs[], int valid_outputs, i
 
 	/* Only wait for the first output, this optimizes the test execution time */
 	ret = wait_for_prop_value(mst_outputs[first_output], CP_DESIRED, LIC_PERIOD_MSEC);
-	igt_assert_f(!ret, "Content Protection LIC Failed on %s\n", mst_outputs[0]->name);
+	igt_assert_f(!ret, "Content Protection LIC Failed on %s\n",
+		     mst_outputs[first_output]->name);
 
 	for (count = first_output + 1; count < valid_outputs; count++) {
 		val = igt_output_get_prop(mst_outputs[count], IGT_CONNECTOR_CONTENT_PROTECTION);
