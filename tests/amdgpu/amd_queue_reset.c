@@ -1090,6 +1090,7 @@ igt_main
 	unsigned int ring_id_bad;
 	unsigned int ring_id_job_good;
 	unsigned int ring_id_job_bad;
+	int expect_error;
 
 	enum amd_ip_block_type ip_tests[2] = {AMD_IP_COMPUTE/*keep first*/, AMD_IP_GFX};
 	enum amd_ip_block_type ip_background = AMD_IP_COMPUTE;
@@ -1146,7 +1147,6 @@ igt_main
 
 		r = is_run_device_parameter_found(argc, argv);
 		snprintf(shm_name,sizeof(shm_name),"/queue_reset_shm_%d",r);
-
 		fd = drm_open_driver(DRIVER_AMDGPU);
 
 		err = amdgpu_device_initialize(fd, &major, &minor, &device);
@@ -1186,6 +1186,17 @@ igt_main
 			process, sh_mem, const_num_of_tests, info[0].hw_ip_version_major,
 			&monitor_child, &test_child);
 	}
+	//print expect error table for each test
+	if(!argc)  {// --list-subtests arg is 0
+		for (int i = 0; i < ARRAY_SIZE(ip_tests); i++)
+			for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
+				expect_error = ip_tests[i] == AMD_IP_COMPUTE ?
+						it->result.compute_reset_result : it->result.gfx_reset_result;
+				printf("test ip: %s,  test: %s,  expected error:%d \n",
+					ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GFX", it->name, expect_error);
+			}
+	}
+
 	for (int i = 0; i < ARRAY_SIZE(ip_tests); i++) {
 		reset_rings_numbers(&ring_id_good, &ring_id_bad, &ring_id_job_good, &ring_id_job_bad);
 		for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
