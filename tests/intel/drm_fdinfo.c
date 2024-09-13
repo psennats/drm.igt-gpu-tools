@@ -107,12 +107,18 @@ static const char *engine_map[] = {
 };
 
 #define __assert_within_epsilon(x, ref, tol_up, tol_down) \
-	igt_assert_f((double)(x) <= (1.0 + (tol_up)) * (double)(ref) && \
-		     (double)(x) >= (1.0 - (tol_down)) * (double)(ref), \
-		     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n",\
-		     #x, #ref, (double)(x), \
-		     (tol_up) * 100.0, (tol_down) * 100.0, \
-		     (double)(ref))
+	do { \
+		igt_assert_f((double)(x) <= (1.0 + (tol_up)) * (double)(ref) && \
+			     (double)(x) >= (1.0 - (tol_down)) * (double)(ref), \
+			     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n",\
+			     #x, #ref, (double)(x), \
+			     (tol_up) * 100.0, (tol_down) * 100.0, \
+			     (double)(ref)); \
+		igt_debug("%f within +%.1f%%/-%.1f%% tolerance of %f\n",\
+			  (double)(x), \
+			  (tol_up) * 100.0, (tol_down) * 100.0, \
+			  (double)(ref)); \
+	} while (0)
 
 #define assert_within_epsilon(x, ref, tolerance) \
 	__assert_within_epsilon(x, ref, tolerance, tolerance)
@@ -241,10 +247,8 @@ single(int gem_fd, const intel_ctx_t *ctx,
 	else
 		end_spin(spin_fd, spin, FLAG_SYNC);
 
-	assert_within_epsilon(val,
-			      (flags & TEST_BUSY) && !(flags & TEST_ISOLATION) ?
-			      slept : 0.0f,
-			      tolerance);
+	assert_within_epsilon((flags & TEST_BUSY) && !(flags & TEST_ISOLATION) ? val : slept - val,
+			      slept, tolerance);
 
 	/* Check for idle after hang. */
 	if (flags & FLAG_HANG) {
@@ -255,7 +259,7 @@ single(int gem_fd, const intel_ctx_t *ctx,
 		slept = measured_usleep(batch_duration_ns / 1000);
 		val = read_engine_time(gem_fd, e->class) - val;
 
-		assert_within_epsilon(val, 0, tolerance);
+		assert_within_epsilon(slept - val, slept, tolerance);
 	}
 
 	igt_spin_free(spin_fd, spin);
@@ -328,11 +332,8 @@ busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 
 	log_busy(num_classes, val);
 
-	for (i = 0; i < num_classes; i++) {
-		double target = i == e->class ? slept : 0.0f;
-
-		assert_within_epsilon(val[i], target, tolerance);
-	}
+	for (i = 0; i < num_classes; i++)
+		assert_within_epsilon(i == e->class ? val[i] : slept - val[i], slept, tolerance);
 
 	gem_quiescent_gpu(gem_fd);
 }
@@ -405,9 +406,9 @@ most_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	log_busy(num_classes, val);
 
 	for (i = 0; i < num_classes; i++) {
-		double target = slept * busy_class[i];
+		double target = slept * busy_class[i] ?: slept;
 
-		assert_within_epsilon(val[i], target, tolerance);
+		assert_within_epsilon(busy_class[i] ? val[i] : slept - val[i], target, tolerance);
 	}
 	gem_quiescent_gpu(gem_fd);
 }
@@ -460,9 +461,9 @@ all_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	log_busy(num_classes, val);
 
 	for (i = 0; i < num_classes; i++) {
-		double target = slept * busy_class[i];
+		double target = slept * busy_class[i] ?: slept;
 
-		assert_within_epsilon(val[i], target, tolerance);
+		assert_within_epsilon(busy_class[i] ? val[i] : slept - val[i], target, tolerance);
 	}
 	gem_quiescent_gpu(gem_fd);
 }
@@ -601,10 +602,8 @@ virtual(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 			else
 				end_spin(i915, spin, FLAG_SYNC);
 
-			assert_within_epsilon(val,
-					      flags & TEST_BUSY ?
-					      slept : 0.0f,
-					      tolerance);
+			assert_within_epsilon(flags & TEST_BUSY ? val : slept - val,
+					      slept, tolerance);
 
 			/* Check for idle after hang. */
 			if (flags & FLAG_HANG) {
@@ -616,7 +615,7 @@ virtual(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 							1000);
 				val = read_engine_time(i915, class) - val;
 
-				assert_within_epsilon(val, 0, tolerance);
+				assert_within_epsilon(slept - val, slept, tolerance);
 			}
 
 			igt_spin_free(i915, spin);
@@ -724,7 +723,7 @@ virtual_all(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 						1000);
 			val = read_engine_time(i915, class) - val;
 
-			assert_within_epsilon(val, 0, tolerance);
+			assert_within_epsilon(slept - val, slept, tolerance);
 		}
 
 		igt_spin_free(i915, spin);
