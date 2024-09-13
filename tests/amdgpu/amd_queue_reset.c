@@ -32,7 +32,7 @@
 
 #define SHARED_CHILD_DESCRIPTOR 3
 
-#define TEST_TIMEOUT 100 //100 seconds
+#define TEST_TIMEOUT 20 //100 seconds
 
 enum  process_type {
 	PROCESS_UNKNOWN,
@@ -79,6 +79,52 @@ struct shmbuf {
 	struct job_struct good_job;
 
 };
+
+// Local memory structure for communication between child process and worker thread
+struct localbuf {
+	pthread_mutex_t mutex;		// Mutex for condition variable
+	pthread_cond_t cond_var;	// Condition variable to signal context availability
+	int context_ready;			// Flag to indicate if the context is ready
+	amdgpu_context_handle amdgpu_context;// Pointer to amdgpu context
+};
+
+struct thread_params {
+	amdgpu_device_handle device;
+	struct shmbuf *sh_mem;
+	int num_of_tests;
+	struct localbuf local_mem;
+
+};
+
+static struct thread_params*
+allocate_thread_param(amdgpu_device_handle device, struct shmbuf *sh_mem,
+					int num_of_tests)
+{
+	struct thread_params	*param = NULL;
+
+	param = malloc(sizeof(struct thread_params));
+	memset(param, 0, sizeof(struct thread_params));
+
+	param->device = device;
+	param->sh_mem = sh_mem;
+	param->num_of_tests = num_of_tests;
+	pthread_mutex_init(&param->local_mem.mutex, NULL);
+	pthread_cond_init(&param->local_mem.cond_var, NULL);
+	param->local_mem.amdgpu_context = NULL;
+	param->local_mem.context_ready = 0;
+
+	return param;
+}
+
+static void
+free_thread_param(struct thread_params *param)
+{
+	if (param) {
+		pthread_cond_destroy(&param->local_mem.cond_var);
+		pthread_mutex_destroy(&param->local_mem.mutex);
+		free(param);
+	}
+}
 
 static inline
 void set_bit(int nr, uint32_t *addr)
@@ -548,8 +594,8 @@ amdgpu_write_linear(amdgpu_device_handle device, amdgpu_context_handle context_h
 }
 
 static int
-run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_context,
-			   struct shmbuf *sh_mem, int num_of_tests)
+run_monitor_thread(amdgpu_device_handle device, struct shmbuf *sh_mem,
+		int num_of_tests, struct thread_params *param)
 {
 	int ret;
 	int test_counter = 0;
@@ -561,27 +607,38 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 	int64_t cnt = 0;
 	time_t start, end;
 	double elapsed = 0;
+	amdgpu_context_handle local_context = NULL;
 
 	after_reset_state = after_reset_hangs = 0;
 	init_flags = in_process_flags = 0;
 
-	ret = amdgpu_cs_query_reset_state2(arr_context[0], &init_flags);
-	if (init_flags & AMDGPU_CTX_QUERY2_FLAGS_RESET_IN_PROGRESS)
-		igt_assert_eq(init_flags & AMDGPU_CTX_QUERY2_FLAGS_RESET_IN_PROGRESS, 0);
-
 	while (num_of_tests > 0) {
 		sync_point_enter(sh_mem);
+		if (is_subtest_skipped(sh_mem)) {
+			sync_point_exit(sh_mem);
+			num_of_tests--;
+			test_counter++;
+			continue;
+		}
 		state_machine = 0;
 		error_code = 0;
 		flags = 0;
 		set_reset_state(sh_mem, false, ALL_RESET_BITS);
+
+		pthread_mutex_lock(&param->local_mem.mutex);
+		while (!param->local_mem.context_ready)
+			pthread_cond_wait(&param->local_mem.cond_var, &param->local_mem.mutex);
+
+		local_context = param->local_mem.amdgpu_context;
+		pthread_mutex_unlock(&param->local_mem.mutex);
+
 		time(&start);
 		while (1) {
 			if (is_subtest_skipped(sh_mem))
 				break;
 
 			if (state_machine == 0) {
-				amdgpu_cs_query_reset_state2(arr_context[test_counter], &init_flags);
+				amdgpu_cs_query_reset_state2(local_context, &init_flags);
 
 				if (init_flags & AMDGPU_CTX_QUERY2_FLAGS_RESET)
 					state_machine = 1;
@@ -590,9 +647,9 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 					state_machine = 2;
 
 			} else if (state_machine == 1) {
-				amdgpu_cs_query_reset_state(arr_context[test_counter],
+				amdgpu_cs_query_reset_state(local_context,
 						&after_reset_state, &after_reset_hangs);
-				amdgpu_cs_query_reset_state2(arr_context[test_counter],
+				amdgpu_cs_query_reset_state2(local_context,
 						&in_process_flags);
 
 				//TODO refactor this block !
@@ -613,9 +670,9 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 					}
 				}
 			} else if (state_machine == 2) {
-				amdgpu_cs_query_reset_state(arr_context[test_counter],
+				amdgpu_cs_query_reset_state(local_context,
 						&after_reset_state, &after_reset_hangs);
-				amdgpu_cs_query_reset_state2(arr_context[test_counter],
+				amdgpu_cs_query_reset_state2(local_context,
 						&in_process_flags);
 				/* here we should start timer and wait for some time until
 				 * the flag AMDGPU_CTX_QUERY2_FLAGS_RESET disappear
@@ -643,13 +700,22 @@ run_monitor_child(amdgpu_device_handle device, amdgpu_context_handle *arr_contex
 	return ret;
 }
 
+static void *
+worker_thread(void *arg)
+{
+	struct thread_params *param = (struct thread_params *)arg;
+
+	run_monitor_thread(param->device, param->sh_mem, param->num_of_tests, param);
+
+	return NULL;
+}
 
 
 static int
-run_test_child(amdgpu_device_handle device, amdgpu_context_handle *arr_context,
-				struct shmbuf *sh_mem, int num_of_tests, uint32_t version)
+run_test_child(amdgpu_device_handle device, struct shmbuf *sh_mem,
+		int num_of_tests, uint32_t version, struct thread_params *param)
 {
-	int ret;
+	int ret, r;
 	bool bool_ret;
 	int test_counter = 0;
 	char error_str[128];
@@ -659,6 +725,7 @@ run_test_child(amdgpu_device_handle device, amdgpu_context_handle *arr_context,
 	struct job_struct job;
 	const struct amdgpu_ip_block_version *ip_block_test = NULL;
 	struct amdgpu_cs_err_codes err_codes;
+	amdgpu_context_handle local_context = NULL;
 
 	while (num_of_tests > 0) {
 		sync_point_enter(sh_mem);
@@ -676,27 +743,47 @@ run_test_child(amdgpu_device_handle device, amdgpu_context_handle *arr_context,
 		err_codes.err_code_cs_submit = 0;
 		err_codes.err_code_wait_for_fence = 0;
 
+		r = amdgpu_cs_ctx_create(device, &local_context);
+		igt_assert_eq(r, 0);
+		pthread_mutex_lock(&param->local_mem.mutex);
+		param->local_mem.amdgpu_context = local_context;
+		param->local_mem.context_ready = 1; // Mark the context as ready
+		pthread_cond_signal(&param->local_mem.cond_var); // Notify the worker thread
+		pthread_mutex_unlock(&param->local_mem.mutex);
+
 		if (is_dispatch) {
-			ret = amdgpu_memcpy_dispatch_test(device, arr_context[test_counter], job.ip, job.ring_id, version,
+			ret = amdgpu_memcpy_dispatch_test(device, local_context, job.ip, job.ring_id, version,
 					job.error, &err_codes);
 		} else {
-			ret = amdgpu_write_linear(device, arr_context[test_counter],
+			ret = amdgpu_write_linear(device, local_context,
 					ip_block_test, &job, &err_codes);
 		}
 
 		num_of_tests--;
 		set_test_state(sh_mem, true, ret, ERROR_CODE_SET_BIT);
+
 		while (1) {
 			/*we may have GPU reset vs queue reset */
 			if (get_reset_state(sh_mem, &reset_flags))
 				break;
 			sleep(1);
 		}
-		/* validate expected result */
-		//igt_assert_eq(err_codes.err_code_wait_for_fence, job.reset_err_result);
+
 
 		sync_point_exit(sh_mem);
+
+		pthread_mutex_lock(&param->local_mem.mutex);
+		param->local_mem.context_ready = 0;
+		param->local_mem.amdgpu_context = NULL;
+		pthread_mutex_unlock(&param->local_mem.mutex);
+
+		amdgpu_cs_ctx_free(local_context);
 		test_counter++;
+		igt_assert_eq(err_codes.err_code_cs_submit, 0);
+		//igt_assert_eq(err_codes.err_code_wait_for_fence, job.reset_err_result);
+		//igt_info("====Test %s ip %s wait_for_fence %d==============\n", error_str,
+		//		job.ip == AMD_IP_GFX ? "AMD_IP_GFX" : "AMD_IP_COMPUTE",
+		//		err_codes.err_code_wait_for_fence);
 	}
 	return ret;
 }
@@ -718,10 +805,6 @@ run_background(amdgpu_device_handle device, struct shmbuf *sh_mem,
 	unsigned int flags;
 	struct amdgpu_cs_err_codes err_codes;
 
-	r = amdgpu_cs_ctx_create(device, &context_handle);
-	igt_assert_eq(r, 0);
-
-
 	while (num_of_tests > 0) {
 		sync_point_enter(sh_mem);
 		if (is_subtest_skipped(sh_mem)) {
@@ -732,6 +815,8 @@ run_background(amdgpu_device_handle device, struct shmbuf *sh_mem,
 		read_next_job(sh_mem, &job, true);
 		ip_block_test = get_ip_block(device, job.ip);
 		is_dispatch_shader_test(job.error,  error_str, &is_dispatch);
+		r = amdgpu_cs_ctx_create(device, &context_handle);
+		igt_assert_eq(r, 0);
 		while (1) {
 			r = amdgpu_write_linear(device, context_handle,  ip_block_test, &job, &err_codes);
 
@@ -747,46 +832,39 @@ run_background(amdgpu_device_handle device, struct shmbuf *sh_mem,
 			if (r != -ECANCELED && r != -ETIME && r != -ENODATA)
 				igt_assert_eq(r, 0);
 			//igt_assert_eq(err_codes.err_code_wait_for_fence, job.reset_err_result);
-			/*
-			 * TODO we have issue during gpu reset the return code assert we put after we check the
-			 * test is completed otherwise the job is failed due to
-			 * amdgpu_job_run Skip job if VRAM is lost
-			 * if (job->generation != amdgpu_vm_generation(adev, job->vm)
-			 */
 			counter++;
 
 		}
+		r = amdgpu_cs_ctx_free(context_handle);
 		sync_point_exit(sh_mem);
 		num_of_tests--;
 	}
-	r = amdgpu_cs_ctx_free(context_handle);
 	return r;
 }
 
 
-
-
 static int
-run_all(amdgpu_device_handle device, amdgpu_context_handle *arr_context_handle,
-		enum process_type process, struct shmbuf *sh_mem,  int num_of_tests,
-		uint32_t version, pid_t *monitor_child, pid_t *test_child)
+run_all(amdgpu_device_handle device, enum process_type process,
+		struct shmbuf *sh_mem,  int num_of_tests, uint32_t version,
+		pid_t *monitor_child, pid_t *test_child)
 {
+	struct thread_params *param = NULL;
+	pthread_t worker;
+
 	if (process == PROCESS_TEST) {
-		*monitor_child = fork();
-		if (*monitor_child == -1) {
-			igt_fail(IGT_EXIT_FAILURE);
-		} else if (*monitor_child == 0) {
-			*monitor_child = getppid();
-			run_monitor_child(device, arr_context_handle, sh_mem, num_of_tests);
-				igt_success();
-				igt_exit();
-		}
 		*test_child = fork();
 		if (*test_child == -1) {
 			igt_fail(IGT_EXIT_FAILURE);
 		} else if (*test_child == 0) {
 			*test_child = getppid();
-			run_test_child(device, arr_context_handle, sh_mem, num_of_tests, version);
+			param = allocate_thread_param(device, sh_mem, num_of_tests);
+			if (pthread_create(&worker, NULL, worker_thread, param) != 0) {
+				igt_info("********Failed to create worker thread");
+				igt_fail(IGT_EXIT_FAILURE);
+			}
+			run_test_child(device, sh_mem, num_of_tests, version, param);
+			pthread_join(worker, NULL);
+			free_thread_param(param);
 			igt_success();
 			igt_exit();
 
@@ -909,9 +987,9 @@ is_run_device_parameter_found(int argc, char **argv)
 		if (strcmp(ONDEVICE, argv[i]) == 0) {
 			/* Get the sum for a specific device as a unique identifier */
 			p = argv[i+1];
-			while(*p){
-			  res += *p;
-			  p++;
+			while (*p) {
+				res += *p;
+				p++;
 			}
 			break;
 		}
@@ -965,35 +1043,6 @@ launch_background_process(int argc, char **argv, char *path, pid_t *ppid, int sh
 	if (status != 0)
 		igt_fail(IGT_EXIT_FAILURE);
 	return status;
-}
-
-static void
-create_contexts(amdgpu_device_handle device, amdgpu_context_handle **pp_contexts,
-		int num_of_contexts)
-{
-	amdgpu_context_handle *p_contexts = NULL;
-	int i, r;
-
-	p_contexts = (amdgpu_context_handle *)malloc(sizeof(amdgpu_context_handle)
-			*num_of_contexts);
-
-	for (i = 0; i < num_of_contexts; i++) {
-		r = amdgpu_cs_ctx_create(device, &p_contexts[i]);
-		igt_assert_eq(r, 0);
-	}
-	*pp_contexts = p_contexts;
-
-}
-static void
-free_contexts(amdgpu_device_handle device, amdgpu_context_handle *p_contexts,
-		int num_of_contexts)
-{
-	int i;
-
-	if (p_contexts) {
-		for (i = 0; i < num_of_contexts; i++)
-			amdgpu_cs_ctx_free(p_contexts[i]);
-	}
 }
 
 static bool
@@ -1074,7 +1123,7 @@ igt_main
 	enum  process_type process = PROCESS_UNKNOWN;
 	pid_t pid_background = 0;
 	pid_t monitor_child = 0, test_child = 0;
-	int testExitMethod, monitorExitMethod, backgrounExitMethod;
+	int testExitMethod, backgrounExitMethod;
 	posix_spawn_file_actions_t action;
 	amdgpu_device_handle device;
 	struct amdgpu_gpu_info gpu_info = {0};
@@ -1095,19 +1144,13 @@ igt_main
 	enum amd_ip_block_type ip_tests[2] = {AMD_IP_COMPUTE/*keep first*/, AMD_IP_GFX};
 	enum amd_ip_block_type ip_background = AMD_IP_COMPUTE;
 
-	amdgpu_context_handle *arr_context_handle = NULL;
-
-	/* TODO remove this , it is used only to create array of contexts
-	 * which are shared between child processes ( test/monitor/main and
-	 *  separate for background
-	 */
 	struct dynamic_test arr_err[] = {
 			{CMD_STREAM_EXEC_INVALID_PACKET_LENGTH, "CMD_STREAM_EXEC_INVALID_PACKET_LENGTH",
 				"Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes",
-				{ { FAMILY_GFX1100, 0x1, 0xFF }, {FAMILY_AI, 0x32, 0xFF }, {FAMILY_AI, 0x3C, 0xFF } } , {-ECANCELED, -ECANCELED, 0 } },
+				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0xFF }, {FAMILY_AI, 0x3C, 0xFF } }, {-ECANCELED, -ECANCELED, -ECANCELED } },
 			{CMD_STREAM_EXEC_INVALID_OPCODE, "CMD_STREAM_EXEC_INVALID_OPCODE",
 				"Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, -1, -1 }, {FAMILY_UNKNOWN, -1, -1 }, {FAMILY_UNKNOWN, -1, -1 } } , { 0, -ECANCELED, -ECANCELED } },
+				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0xFF }, {FAMILY_AI, 0x3C, 0xFF } }, {-ECANCELED, -ECANCELED, -ECANCELED } },
 			//TODO  not job timeout, debug why for n31.
 			//{CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,"CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC",
 			//	"Stressful-and-multiple-cs-of-bad and good mem-sync-operations-using-multiple-processes"},
@@ -1116,16 +1159,16 @@ igt_main
 			//	"Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR, "BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x1, 0x10 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } , { -ECANCELED, -ECANCELED, -ECANCELED } },
+				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } }, {-ENODATA, -ENODATA, -ENODATA } },
 			//TODO  KGQ cannot recover by queue reset, it maybe need a fw bugfix on naiv31
 			//{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,"BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING",
 			//	"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_USER_DATA, "BACKEND_SE_GC_SHADER_INVALID_USER_DATA",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, -1, -1 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } , { -ECANCELED, -ECANCELED, -ECANCELED } },
+				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } }, {-ENODATA, -ENODATA, -ENODATA } },
 			{BACKEND_SE_GC_SHADER_INVALID_SHADER, "BACKEND_SE_GC_SHADER_INVALID_SHADER",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x1, 0x10 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } } , { -ECANCELED, -ECANCELED, -ECANCELED } },
+				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } }, {-ENODATA, -ENODATA, -ENODATA } },
 			{}
 	};
 
@@ -1146,7 +1189,7 @@ igt_main
 			const_num_of_tests = (sizeof(arr_err)/sizeof(struct dynamic_test) - 1) * ARRAY_SIZE(ip_tests);
 
 		r = is_run_device_parameter_found(argc, argv);
-		snprintf(shm_name,sizeof(shm_name),"/queue_reset_shm_%d",r);
+		snprintf(shm_name, sizeof(shm_name), "/queue_reset_shm_%d", r);
 		fd = drm_open_driver(DRIVER_AMDGPU);
 
 		err = amdgpu_device_initialize(fd, &major, &minor, &device);
@@ -1175,25 +1218,23 @@ igt_main
 		} else {
 			process = PROCESS_BACKGROUND;
 		}
-		if (process == PROCESS_TEST)
-			create_contexts(device, &arr_context_handle, const_num_of_tests);
-		else if (process == PROCESS_BACKGROUND)
+		if (process == PROCESS_BACKGROUND)
 			fd_shm = shared_mem_open(&sh_mem);
+
 		igt_require(fd_shm != -1);
 		igt_require(sh_mem != NULL);
 
-		run_all(device, arr_context_handle,
-			process, sh_mem, const_num_of_tests, info[0].hw_ip_version_major,
-			&monitor_child, &test_child);
+		run_all(device, process, sh_mem, const_num_of_tests,
+				info[0].hw_ip_version_major, &monitor_child, &test_child);
 	}
 	//print expect error table for each test
-	if(!argc)  {// --list-subtests arg is 0
+	if (!argc) {// --list-subtests arg is 0
 		for (int i = 0; i < ARRAY_SIZE(ip_tests); i++)
 			for (struct dynamic_test *it = &arr_err[0]; it->name; it++) {
 				expect_error = ip_tests[i] == AMD_IP_COMPUTE ?
 						it->result.compute_reset_result : it->result.gfx_reset_result;
-				printf("test ip: %s,  test: %s,  expected error:%d \n",
-					ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":"GFX", it->name, expect_error);
+				igt_info("test ip: %s,  test: %s,  expected error:%d \n",
+					ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE" : "GFX", it->name, expect_error);
 			}
 	}
 
@@ -1219,12 +1260,9 @@ igt_main
 		set_next_test_to_skip(sh_mem);
 
 	igt_fixture {
-		if (process == PROCESS_TEST) {
-			waitpid(monitor_child, &monitorExitMethod, 0);
+		if (process == PROCESS_TEST)
 			waitpid(test_child, &testExitMethod, 0);
-		}
 		waitpid(pid_background, &backgrounExitMethod, 0);
-		free_contexts(device, arr_context_handle, const_num_of_tests);
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
 		shared_mem_destroy(sh_mem, fd_shm, true, shm_name);
