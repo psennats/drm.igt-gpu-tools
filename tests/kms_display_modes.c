@@ -180,10 +180,12 @@ static void run_extendedmode_basic(data_t *data,
 	igt_plane_set_fb(plane[0], &fb);
 	igt_fb_set_position(&fb, plane[0], 0, 0);
 	igt_fb_set_size(&fb, plane[0], mode[0]->hdisplay, mode[0]->vdisplay);
+	igt_plane_set_size(plane[0], mode[0]->hdisplay, mode[0]->vdisplay);
 
 	igt_plane_set_fb(plane[1], &fb);
 	igt_fb_set_position(&fb, plane[1], mode[0]->hdisplay, 0);
 	igt_fb_set_size(&fb, plane[1], mode[1]->hdisplay, mode[1]->vdisplay);
+	igt_plane_set_size(plane[1], mode[1]->hdisplay, mode[1]->vdisplay);
 
 	igt_display_commit2(display, COMMIT_ATOMIC);
 
