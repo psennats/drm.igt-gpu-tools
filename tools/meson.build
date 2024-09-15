@@ -18,6 +18,7 @@ tools_progs = [
 	'intel_audio_dump',
 	'intel_backlight',
 	'intel_bios_dumper',
+	'intel_display_bandwidth',
 	'intel_display_crc',
 	'intel_display_poller',
 	'intel_dump_decode',
