@@ -95,6 +95,8 @@ static inline void rapl_close(struct rapl *r)
  * hwmon fd - domain gpu -dgfx
  * rapl fd - all domains - igfx
  *
+ * Always uses rapl if @fd is negative.
+ *
  * Returns
  * 0 on success, errno otherwise
  */
@@ -106,7 +108,7 @@ int igt_power_open(int fd, struct igt_power *p, const char *domain)
 	p->hwmon_fd = -1;
 	p->rapl.fd = -1;
 
-	is_dgfx = is_xe_device(fd) ? xe_has_vram(fd) : gem_has_lmem(fd);
+	is_dgfx = fd >= 0 && (is_xe_device(fd) ? xe_has_vram(fd) : gem_has_lmem(fd));
 	if (is_dgfx) {
 		if (strncmp(domain, "gpu", strlen("gpu")) == 0) {
 			p->hwmon_fd = igt_hwmon_open(fd);
