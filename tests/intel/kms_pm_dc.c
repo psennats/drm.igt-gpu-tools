@@ -46,7 +46,7 @@
 #include "limits.h"
 #include "time.h"
 #include "igt_pm.h"
-#include "xe/xe_query.h"
+#include "intel_common.h"
 
 /**
  * SUBTEST: dc3co-vpb-simulation
@@ -713,7 +713,6 @@ static void kms_poll_state_restore(int sig)
 igt_main
 {
 	data_t data = {};
-	bool is_dgfx;
 
 	igt_fixture {
 		data.drm_fd = drm_open_driver_master(DRIVER_INTEL | DRIVER_XE);
@@ -807,8 +806,7 @@ igt_main
 
 	igt_describe("This test validates display engine entry to DC9 state");
 	igt_subtest("dc9-dpms") {
-		is_dgfx = is_xe_device(data.drm_fd) ? xe_has_vram(data.drm_fd) : gem_has_lmem(data.drm_fd);
-		if (!is_dgfx)
+		if (!is_intel_dgfx(data.drm_fd))
 			igt_require_f(igt_pm_pc8_plus_residencies_enabled(data.msr_fd),
 				      "PC8+ residencies not supported\n");
 		test_dc9_dpms(&data);

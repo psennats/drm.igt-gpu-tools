@@ -51,6 +51,7 @@
 #include "igt_rand.h"
 #include "igt_device.h"
 #include "i915/intel_memory_region.h"
+#include "intel_common.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 
@@ -303,13 +304,11 @@ static void invalid_tests(int fd)
 			    IGT_COLOR_YCBCR_BT709, IGT_COLOR_YCBCR_LIMITED_RANGE);
 		igt_calc_fb_size(&fb);
 
-		if (is_i915_device(fd)) {
-			igt_require(gem_has_lmem(fd));
+		igt_require(is_intel_dgfx(fd));
+		if (is_i915_device(fd))
 			handle = gem_create_in_memory_regions(fd, fb.size, REGION_SMEM);
-		} else {
-			igt_require(xe_has_vram(fd));
+		else
 			handle = xe_bo_create(fd, 0, fb.size, system_memory(fd), 0);
-		}
 
 		f.handles[0] = handle;
 		do_ioctl_err(fd, DRM_IOCTL_MODE_ADDFB2, &f, EREMOTE);

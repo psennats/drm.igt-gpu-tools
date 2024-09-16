@@ -39,8 +39,8 @@
 #include "igt_kmod.h"
 #include "igt_sysfs.h"
 #include "intel_blt.h"
+#include "intel_common.h"
 #include "xe/xe_ioctl.h"
-#include "xe/xe_query.h"
 
 /**
  * SUBTEST: basic-pci-d3-state
@@ -1116,7 +1116,6 @@ static bool device_in_pci_d3(struct pci_device *pci_dev)
 static void pci_d3_state_subtest(void)
 {
 	struct pci_device *pci_dev, *bridge_pci_dev;
-	bool is_dgfx;
 
 	igt_require(has_runtime_pm);
 
@@ -1126,8 +1125,7 @@ static void pci_d3_state_subtest(void)
 	disable_all_screens_and_wait(&ms_data);
 	igt_assert(igt_wait(device_in_pci_d3(pci_dev), 2000, 100));
 
-	is_dgfx = is_xe_device(drm_fd) ? xe_has_vram(drm_fd) : gem_has_lmem(drm_fd);
-	if (is_dgfx)
+	if (is_intel_dgfx(drm_fd))
 		igt_require_f(pci_device_has_kernel_driver(bridge_pci_dev),
 			      "pci bridge device does not bind with pcieport driver\n");
 
