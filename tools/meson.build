@@ -43,6 +43,7 @@ tools_progs = [
 	'intel_gvtg_test',
 	'dpcd_reg',
 	'lsgpu',
+	'power',
 ]
 tool_deps = igt_deps
 tool_deps += zlib
