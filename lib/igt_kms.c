@@ -6596,7 +6596,10 @@ bool intel_pipe_output_combo_valid(igt_display_t *display)
 		combo++;
 	}
 
-	igt_assert_f(combo, "At least one pipe/output combo needed.\n");
+	if (!combo) {
+		igt_info("At least one pipe/output combo needed.\n");
+		return false;
+	}
 
 	if (!is_intel_device(display->drm_fd))
 		return true;
