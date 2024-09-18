@@ -242,7 +242,6 @@ intel_i915_progs = [
 
 intel_kms_progs = [
 	'kms_big_fb',
-	'kms_big_joiner' ,
 	'kms_busy',
 	'kms_ccs',
 	'kms_cdclk',
@@ -255,6 +254,7 @@ intel_kms_progs = [
 	'kms_flip_scaled_crc',
 	'kms_flip_tiling',
 	'kms_frontbuffer_tracking',
+	'kms_joiner',
 	'kms_legacy_colorkey',
 	'kms_mmap_write_crc',
 	'kms_pipe_b_c_ivb',

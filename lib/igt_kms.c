@@ -6348,6 +6348,50 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 }
 
 /**
+ * igt_ultrajoiner_possible:
+ * @mode: libdrm mode
+ * @max_dotclock: Max pixel clock frequency
+ *
+ * Ultrajoiner will come into the picture, when the requested
+ * mode resolution > 10K or mode clock > 2 * max_dotclock.
+ *
+ * Returns: True if mode requires Ultrajoiner, else False.
+ */
+bool igt_ultrajoiner_possible(drmModeModeInfo *mode, int max_dotclock)
+{
+	return (mode->hdisplay > 2 * MAX_HDISPLAY_PER_PIPE ||
+		mode->clock > 2 * max_dotclock);
+}
+
+/**
+ * Ultrajoiner_mode_found:
+ * @drm_fd: drm file descriptor
+ * @connector: libdrm connector
+ * @max_dot_clock: max dot clock frequency
+ * @mode: libdrm mode to be filled
+ *
+ * Ultrajoiner will come in to the picture when the
+ * resolution > 10K or clock > 2 * max-dot-clock.
+ *
+ * Returns: True if ultra joiner found in connector modes
+ */
+bool ultrajoiner_mode_found(int drm_fd, drmModeConnector *connector,
+			  int max_dotclock, drmModeModeInfo *mode)
+{
+	bool found = false;
+
+	igt_sort_connector_modes(connector, sort_drm_modes_by_res_dsc);
+	found = igt_ultrajoiner_possible(&connector->modes[0], max_dotclock);
+	if (!found) {
+		igt_sort_connector_modes(connector, sort_drm_modes_by_clk_dsc);
+		found = igt_ultrajoiner_possible(&connector->modes[0], max_dotclock);
+	}
+	if (found)
+		*mode = connector->modes[0];
+	return found;
+}
+
+/**
  * igt_has_force_joiner_debugfs
  * @drmfd: A drm file descriptor
  * @conn_name: Name of the connector

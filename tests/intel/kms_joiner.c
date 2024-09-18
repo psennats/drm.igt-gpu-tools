@@ -37,12 +37,19 @@
 #include "igt.h"
 
 /**
- * SUBTEST: invalid-modeset
+ * SUBTEST: invalid-modeset-big-joiner
  * Description: Verify if the modeset on the adjoining pipe is rejected when
  *              the pipe is active with a big joiner modeset
  *
- * SUBTEST: basic
+ * SUBTEST: invalid-modeset-ultra-joiner
+ * Description: Verify if the modeset on the other pipes are rejected when
+ *              the pipe A is active with ultra joiner modeset
+ *
+ * SUBTEST: basic-big-joiner
  * Description: Verify the basic modeset on big joiner mode on all pipes
+ *
+ * SUBTEST: basic-ultra-joiner
+ * Description: Verify the basic modeset on ultra joiner mode on all pipes
  *
  * SUBTEST: invalid-modeset-force-joiner
  * Description: Verify if modeset on adjacent pipe is declined when force joiner modeset is active.
@@ -54,20 +61,24 @@
  *		Force joiner applies bigjoiner functionality to non-bigjoiner outputs thus,
  *		the test exclusively targets non-bigjoiner outputs.
  */
-IGT_TEST_DESCRIPTION("Test big joiner / force joiner");
+IGT_TEST_DESCRIPTION("Test joiner / force joiner");
 
 #define INVALID_TEST_OUTPUT 2
 
 typedef struct {
 	int drm_fd;
 	int big_joiner_output_count;
+	int ultra_joiner_output_count;
 	int non_big_joiner_output_count;
+	int non_ultra_joiner_output_count;
 	int mixed_output_count;
 	int output_count;
 	int n_pipes;
 	uint32_t master_pipes;
 	igt_output_t *big_joiner_output[IGT_MAX_PIPES];
+	igt_output_t *ultra_joiner_output[IGT_MAX_PIPES];
 	igt_output_t *non_big_joiner_output[IGT_MAX_PIPES];
+	igt_output_t *non_ultra_joiner_output[IGT_MAX_PIPES];
 	igt_output_t *mixed_output[IGT_MAX_PIPES];
 	enum pipe pipe_seq[IGT_MAX_PIPES];
 	igt_display_t display;
@@ -286,6 +297,81 @@ static void test_joiner_on_last_pipe(data_t *data, bool force_joiner)
 	}
 }
 
+static void test_ultra_joiner(data_t *data, bool invalid_pipe, bool two_display)
+{
+	int i, j, k, ret;
+	igt_output_t *output, *non_ultra_joiner_output;
+	igt_plane_t *primary;
+	igt_output_t **outputs;
+	igt_fb_t fb;
+	drmModeModeInfo mode;
+
+	outputs = data->ultra_joiner_output;
+	igt_display_reset(&data->display);
+	igt_display_commit2(&data->display, COMMIT_ATOMIC);
+
+	for (i = 0; i < data->ultra_joiner_output_count; i++) {
+		output = outputs[i];
+		igt_require(ultrajoiner_mode_found(data->drm_fd, output->config.connector, max_dotclock, &mode));
+		igt_output_override_mode(output, &mode);
+		for (j = 0; j < data->n_pipes; j++) {
+			/* Ultra joiner is only valid on PIPE_A */
+			if (invalid_pipe && j == PIPE_A)
+				continue;
+			if (!invalid_pipe && j != PIPE_A)
+				continue;
+			if (two_display && j != PIPE_A)
+				continue;
+
+			igt_output_set_pipe(output, data->pipe_seq[j]);
+
+			primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
+			igt_create_pattern_fb(data->drm_fd, mode.hdisplay, mode.vdisplay, DRM_FORMAT_XRGB8888,
+					      DRM_FORMAT_MOD_LINEAR, &fb);
+			igt_plane_set_fb(primary, &fb);
+
+			if (invalid_pipe)
+				ret = igt_display_try_commit2(&data->display, COMMIT_ATOMIC);
+			else
+				igt_display_commit2(&data->display, COMMIT_ATOMIC);
+
+			if (two_display) {
+				for_each_connected_output(&data->display, non_ultra_joiner_output) {
+					if (output->id != non_ultra_joiner_output->id) {
+						for (k = 1; k < data->n_pipes; k++) {
+							igt_plane_t *plane;
+							drmModeModeInfo *mode1;
+
+							mode1 = igt_output_get_mode(non_ultra_joiner_output);
+
+							igt_output_set_pipe(non_ultra_joiner_output, data->pipe_seq[k]);
+							plane = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
+
+							igt_plane_set_fb(plane, &fb);
+							igt_fb_set_size(&fb, plane, mode1->hdisplay, mode1->vdisplay);
+							igt_plane_set_size(plane, mode1->hdisplay, mode1->vdisplay);
+
+							ret = igt_display_try_commit2(&data->display, COMMIT_ATOMIC);
+
+							igt_plane_set_fb(plane, NULL);
+							igt_assert_f(ret != 0, "Commit expected to fail on second display\n");
+						}
+						/* Validation with one output is sufficient */
+						break;
+					}
+				}
+			}
+
+			igt_display_reset(&data->display);
+			igt_plane_set_fb(primary, NULL);
+			igt_remove_fb(data->drm_fd, &fb);
+
+			if (invalid_pipe)
+				igt_assert_f(ret != 0, "Commit shouldn't have passed\n");
+		}
+	}
+}
+
 igt_main
 {
 	bool force_joiner_supported;
@@ -297,7 +383,9 @@ igt_main
 	igt_fixture {
 		force_joiner_supported = false;
 		data.big_joiner_output_count = 0;
+		data.ultra_joiner_output_count = 0;
 		data.non_big_joiner_output_count = 0;
+		data.non_ultra_joiner_output_count = 0;
 		data.mixed_output_count = 0;
 		data.output_count = 0;
 		j = 0;
@@ -310,24 +398,31 @@ igt_main
 		max_dotclock = igt_get_max_dotclock(data.drm_fd);
 
 		for_each_connected_output(&data.display, output) {
-			bool found = false;
+			bool ultrajoiner_found = false, bigjoiner_found = false;
 			drmModeConnector *connector = output->config.connector;
 
 			/*
 			 * Bigjoiner will come in to the picture when the
 			 * resolution > 5K or clock > max-dot-clock.
+			 * Ultrajoiner will come in to the picture when the
+			 * resolution > 10K or clock > 2 * max-dot-clock.
 			 */
-			found = bigjoiner_mode_found(data.drm_fd, connector, max_dotclock, &mode);
+			bigjoiner_found = bigjoiner_mode_found(data.drm_fd, connector, max_dotclock, &mode);
+			ultrajoiner_found = ultrajoiner_mode_found(data.drm_fd, connector, max_dotclock, &mode);
 
-			if (found) {
+			if (igt_has_force_joiner_debugfs(data.drm_fd, output->name))
+				force_joiner_supported = true;
+
+			if (ultrajoiner_found)
+				data.ultra_joiner_output[data.ultra_joiner_output_count++] = output;
+			else if (force_joiner_supported)
+				data.non_ultra_joiner_output[data.non_ultra_joiner_output_count++] = output;
+
+			if (bigjoiner_found)
 				data.big_joiner_output[data.big_joiner_output_count++] = output;
-				igt_output_override_mode(output, &mode);
-			} else {
-				if (igt_has_force_joiner_debugfs(data.drm_fd, output->name)) {
-					force_joiner_supported = true;
-					data.non_big_joiner_output[data.non_big_joiner_output_count++] = output;
-				}
-			}
+			else if (force_joiner_supported)
+				data.non_big_joiner_output[data.non_big_joiner_output_count++] = output;
+
 			data.output_count++;
 		}
 		if (data.big_joiner_output_count == 1 && data.non_big_joiner_output_count >= 1) {
@@ -337,6 +432,7 @@ igt_main
 			data.mixed_output[data.mixed_output_count++] = data.big_joiner_output[0];
 			data.mixed_output[data.mixed_output_count++] = data.non_big_joiner_output[0];
 		}
+
 		data.n_pipes = 0;
 		for_each_pipe(&data.display, i) {
 			data.n_pipes++;
@@ -346,7 +442,7 @@ igt_main
 	}
 
 	igt_describe("Verify the basic modeset on big joiner mode on all pipes");
-	igt_subtest_with_dynamic("basic") {
+	igt_subtest_with_dynamic("basic-big-joiner") {
 			igt_require_f(data.big_joiner_output_count > 0,
 				      "No bigjoiner output found\n");
 			igt_require_f(data.n_pipes > 1,
@@ -358,9 +454,19 @@ igt_main
 					test_multi_joiner(&data, data.big_joiner_output_count, false);
 	}
 
+	igt_describe("Verify the basic modeset on ultra joiner mode on all pipes");
+	igt_subtest_with_dynamic("basic-ultra-joiner") {
+			igt_require_f(data.ultra_joiner_output_count > 0,
+				      "No ultrajoiner output found\n");
+			igt_require_f(data.n_pipes > 3,
+				      "Minimum 4 pipes required\n");
+			igt_dynamic_f("single-joiner")
+				test_ultra_joiner(&data, false, false);
+	}
+
 	igt_describe("Verify if the modeset on the adjoining pipe is rejected "
 		     "when the pipe is active with a big joiner modeset");
-	igt_subtest_with_dynamic("invalid-modeset") {
+	igt_subtest_with_dynamic("invalid-modeset-big-joiner") {
 		igt_require_f(data.big_joiner_output_count > 0, "Non big joiner output not found\n");
 		igt_require_f(data.n_pipes > 1, "Minimum of 2 pipes are required\n");
 		if (data.big_joiner_output_count >= 1)
@@ -372,6 +478,20 @@ igt_main
 		if (data.mixed_output_count)
 			igt_dynamic_f("mixed_output")
 				test_invalid_modeset_two_joiner(&data, true, false);
+	}
+
+	igt_describe("Verify if the modeset on the other pipes are rejected "
+		     "when the pipe A is active with a ultra joiner modeset");
+	igt_subtest_with_dynamic("invalid-modeset-ultra-joiner") {
+		igt_require_f(data.ultra_joiner_output_count > 0, "Ultra joiner output not found\n");
+		igt_require_f(data.n_pipes > 3, "Minimum of 4 pipes are required\n");
+
+		igt_dynamic_f("ultra_joiner_on_invalid_pipe")
+			test_ultra_joiner(&data, true, false);
+		if (data.non_ultra_joiner_output_count > 0) {
+			igt_dynamic_f("2x")
+				test_ultra_joiner(&data, false, true);
+		}
 	}
 
 	igt_describe("Verify the basic modeset on big joiner mode on all pipes");
