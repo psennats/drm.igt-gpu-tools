@@ -23,6 +23,7 @@
 #define AUX_FORMAT_ARGB_8B	0x0A
 #define AUX_FORMAT_NV12_21	0x0F
 #define AUX_FORMAT_RGBA16_FLOAT	0x10
+#define AUX_FORMAT_ARGB_10B	0x18
 
 struct pgtable_level_desc {
 	int idx_shift;
@@ -304,7 +305,10 @@ static uint64_t pgt_get_l1_flags(const struct intel_buf *buf, int surface_idx)
 	} else {
 		switch (buf->bpp) {
 		case 32:
-			entry.e.format = AUX_FORMAT_ARGB_8B;
+			if (buf->depth == 30)
+				entry.e.format = AUX_FORMAT_ARGB_10B;
+			else
+				entry.e.format = AUX_FORMAT_ARGB_8B;
 			entry.e.depth = bpp_to_depth_val(32);
 			break;
 		case 64:
