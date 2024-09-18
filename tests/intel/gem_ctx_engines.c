@@ -643,7 +643,7 @@ igt_main
 		const intel_ctx_t *ctx;
 
 		igt_require(gem_scheduler_enabled(i915));
-		igt_require(intel_gen(intel_get_drm_devid(i915) >= 6));
+		igt_require(intel_gen(intel_get_drm_devid(i915)) >= 6);
 
 		ctx = intel_ctx_create_all_physical(i915);
 		for_each_ctx_engine(i915, ctx, e) {
