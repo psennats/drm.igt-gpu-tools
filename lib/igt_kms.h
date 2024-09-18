@@ -260,9 +260,23 @@ enum intel_broadcast_rgb_mode {
 
 struct edid;
 
+/**
+ * joined_pipes:
+ * @JOINED_PIPES_DEFAULT: Default setting with no force joiner
+ * @JOINED_PIPES_NONE: Force to exactly one pipe
+ * @JOINED_PIPES_BIG_JOINER: Join two pipes big joiner
+ * @JOINED_PIPES_ULTRA_JOINER: Join four pipes for ultra joiner
+ */
+enum joined_pipes {
+	JOINED_PIPES_DEFAULT,
+	JOINED_PIPES_NONE,
+	JOINED_PIPES_BIG_JOINER,
+	JOINED_PIPES_ULTRA_JOINER = 4
+};
+
 bool kmstest_force_connector(int fd, drmModeConnector *connector,
 			     enum kmstest_force_connector_state state);
-bool kmstest_force_connector_bigjoiner(int drm_fd, drmModeConnector *connector);
+bool kmstest_force_connector_joiner(int drm_fd, drmModeConnector *connector, int joined_pipes);
 void kmstest_force_edid(int drm_fd, drmModeConnector *connector,
 			const struct edid *edid);
 

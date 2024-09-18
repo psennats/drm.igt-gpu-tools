@@ -106,7 +106,7 @@ static void enable_force_joiner_on_all_non_big_joiner_outputs(data_t *data)
 
 	for (i = 0; i < data->non_big_joiner_output_count; i++) {
 		output = data->non_big_joiner_output[i];
-		status = kmstest_force_connector_bigjoiner(data->drm_fd, output->config.connector);
+		status = kmstest_force_connector_joiner(data->drm_fd, output->config.connector, JOINED_PIPES_BIG_JOINER);
 		igt_assert_f(status, "Failed to toggle force joiner\n");
 	}
 }

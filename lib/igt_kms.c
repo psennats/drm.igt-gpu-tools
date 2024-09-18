@@ -1720,34 +1720,51 @@ bool kmstest_force_connector(int drm_fd, drmModeConnector *connector,
 	return true;
 }
 
-static bool force_connector_bigjoiner(int drm_fd,
+static bool force_connector_joiner(int drm_fd,
 				      drmModeConnector *connector,
 				      const char *value)
 {
 	return connector_attr_set_debugfs(drm_fd, connector,
-					  "i915_bigjoiner_force_enable",
+					  "i915_joiner_force_enable",
 					  value, "0");
 }
 
 /**
- * kmstest_force_connector_bigjoiner:
+ * kmstest_force_connector_joiner:
  * @fd: drm file descriptor
  * @connector: connector
  *
- * Enable force bigjoiner state on the specified connector
+ * Enable force joiner state on the specified connector
  * and install exit handler for resetting
  *
  * Returns: True on success
  */
-bool kmstest_force_connector_bigjoiner(int drm_fd, drmModeConnector *connector)
+bool kmstest_force_connector_joiner(int drm_fd, drmModeConnector *connector, int joined_pipes)
 {
-	const char *value = "1";
+	const char *value;
 	drmModeConnector *temp;
+
+	switch (joined_pipes) {
+	case JOINED_PIPES_DEFAULT:
+		value = "0";
+		break;
+	case JOINED_PIPES_NONE:
+		value = "1";
+		break;
+	case JOINED_PIPES_BIG_JOINER:
+		value = "2";
+		break;
+	case JOINED_PIPES_ULTRA_JOINER:
+		value = "4";
+		break;
+	default:
+		igt_assert(0);
+	}
 
 	if (!is_intel_device(drm_fd))
 		return false;
 
-	if (!force_connector_bigjoiner(drm_fd, connector, value))
+	if (!force_connector_joiner(drm_fd, connector, value))
 		return false;
 
 	dump_connector_attrs();
@@ -6420,7 +6437,7 @@ bool igt_has_force_joiner_debugfs(int drmfd, char *conn_name)
 	if (debugfs_fd < 0)
 		return false;
 
-	ret = igt_debugfs_simple_read(debugfs_fd, "i915_bigjoiner_force_enable", buf, sizeof(buf));
+	ret = igt_debugfs_simple_read(debugfs_fd, "i915_joiner_force_enable", buf, sizeof(buf));
 	close(debugfs_fd);
 
 	return ret >= 0;
