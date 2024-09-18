@@ -702,7 +702,8 @@ cursor_leak_test_pipe(data_t *data, enum pipe pipe, igt_output_t *output)
 	/* Release our framebuffer handles before we take a second count */
 	igt_plane_set_fb(primary, NULL);
 	igt_plane_set_fb(cursor, NULL);
-	igt_display_commit2(display, COMMIT_LEGACY);
+	igt_display_commit2(display, display->is_atomic ?
+			    COMMIT_ATOMIC : COMMIT_LEGACY);
 	cursor_leak_test_fini(data, output, &background_fb, cursor_fb);
 
 	/* We should be back to the same framebuffer count as when we started */
