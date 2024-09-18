@@ -45,7 +45,7 @@ option('xe_driver',
 option('xe_eudebug',
        type : 'feature',
        value : 'disabled',
-       description : 'Build library for Xe EU debugger')
+       description : 'Build library and tests for Xe EU debugger')
 
 option('libdrm_drivers',
        type : 'array',
