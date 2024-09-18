@@ -3384,12 +3384,12 @@ static bool tiling_is_valid(int feature_flags, enum tiling_type tiling)
 
 	switch (tiling) {
 	case TILING_LINEAR:
-		return AT_LEAST_GEN(drm.devid, 9);
+		return intel_gen(drm.devid) >= 9;
 	case TILING_X:
 	case TILING_Y:
 		return true;
 	case TILING_4:
-		return AT_LEAST_GEN(drm.devid, 12);
+		return intel_gen(drm.devid) >= 12;
 	default:
 		igt_assert(false);
 		return false;
@@ -4767,7 +4767,7 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 					igt_require(igt_draw_supports_method(drm.fd, t.method));
 
 					if (t.tiling == TILING_Y) {
-						igt_require(AT_LEAST_GEN(drm.devid, 9));
+						igt_require(intel_gen(drm.devid) >= 9);
 						igt_require(!intel_get_device_info(drm.devid)->has_4tile);
 					}
 

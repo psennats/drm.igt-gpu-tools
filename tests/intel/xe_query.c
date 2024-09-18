@@ -404,7 +404,7 @@ test_query_gt_topology(int fd)
 	}
 
 	/* sanity check EU type */
-	if (IS_PONTEVECCHIO(dev_id) || AT_LEAST_GEN(dev_id, 20)) {
+	if (IS_PONTEVECCHIO(dev_id) || intel_gen(dev_id) >= 20) {
 		igt_assert(topo_types & (1 << DRM_XE_TOPO_SIMD16_EU_PER_DSS));
 		igt_assert_eq(topo_types & (1 << DRM_XE_TOPO_EU_PER_DSS), 0);
 	} else {

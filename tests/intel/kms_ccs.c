@@ -394,7 +394,7 @@ static void access_flat_ccs_surface(struct igt_fb *fb, bool verify_compression)
 	uint16_t cpu_caching = DRM_XE_GEM_CPU_CACHING_WC;
 	uint8_t uc_mocs = intel_get_uc_mocs_index(fb->fd);
 	uint8_t comp_pat_index = intel_get_pat_idx_wt(fb->fd);
-	uint32_t region = (AT_LEAST_GEN(intel_get_drm_devid(fb->fd), 20) &&
+	uint32_t region = (intel_gen(intel_get_drm_devid(fb->fd)) >= 20 &&
 			   xe_has_vram(fb->fd)) ? REGION_LMEM(0) : REGION_SMEM;
 
 	struct drm_xe_engine_class_instance inst = {
@@ -474,7 +474,7 @@ static void fill_fb_random(int drm_fd, igt_fb_t *fb)
 	igt_assert_eq(0, gem_munmap(map, fb->size));
 
 	/* randomize also ccs surface on Xe2 */
-	if (AT_LEAST_GEN(intel_get_drm_devid(drm_fd), 20))
+	if (intel_gen(intel_get_drm_devid(drm_fd)) >= 20)
 		access_flat_ccs_surface(fb, false);
 }
 
@@ -1031,10 +1031,10 @@ static void test_output(data_t *data, const int testnum)
 		igt_subtest_with_dynamic_f("%s-%s", tests[testnum].testname, ccs_modifiers[i].str) {
 			if (ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
 			    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS) {
-				igt_require_f(AT_LEAST_GEN(dev_id, 20),
+				igt_require_f(intel_gen(dev_id) >= 20,
 					      "Xe2 platform needed.\n");
 			} else {
-				igt_require_f(intel_get_device_info(dev_id)->graphics_ver < 20,
+				igt_require_f(intel_gen(dev_id) < 20,
 					      "Older than Xe2 platform needed.\n");
 			}
 

@@ -3944,7 +3944,7 @@ intel_decode(struct intel_decode *ctx)
 			index += decode_2d(ctx);
 			break;
 		case 0x3:
-			if (AT_LEAST_GEN(devid, 4)) {
+			if (intel_gen(devid) >= 4) {
 				index +=
 				    decode_3d_965(ctx);
 			} else if (IS_GEN3(devid)) {

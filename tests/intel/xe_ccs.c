@@ -119,7 +119,7 @@ static void surf_copy(int xe,
 	int result;
 
 	igt_assert(mid->compression);
-	if (AT_LEAST_GEN(devid, 20) && mid->compression) {
+	if (intel_gen(devid) >= 20 && mid->compression) {
 		comp_pat_index  = intel_get_pat_idx_uc_comp(xe);
 		cpu_caching = DRM_XE_GEM_CPU_CACHING_WC;
 	}
@@ -168,7 +168,7 @@ static void surf_copy(int xe,
 			if (IS_GEN(devid, 12) && is_intel_dgfx(xe)) {
 				igt_assert(!strcmp(orig, newsum));
 				igt_assert(!strcmp(orig2, newsum2));
-			} else if (AT_LEAST_GEN(devid, 20)) {
+			} else if (intel_gen(devid) >= 20) {
 				if (is_intel_dgfx(xe)) {
 					/* buffer object would become
 					 * uncompressed in xe2+ dgfx
@@ -218,7 +218,7 @@ static void surf_copy(int xe,
 	 * uncompressed in xe2+ dgfx, and therefore retrieve the
 	 * ccs by copying 0 to ccsmap
 	 */
-	if (suspend_resume && AT_LEAST_GEN(devid, 20) && is_intel_dgfx(xe))
+	if (suspend_resume && intel_gen(devid) >= 20 && is_intel_dgfx(xe))
 		memset(ccsmap, 0, ccssize);
 	else
 		/* retrieve back ccs */
@@ -344,7 +344,7 @@ static void block_copy(int xe,
 	uint64_t bb_size = xe_bb_size(xe, SZ_4K);
 	uint64_t ahnd = intel_allocator_open(xe, ctx->vm, INTEL_ALLOCATOR_RELOC);
 	uint32_t run_id = mid_tiling;
-	uint32_t mid_region = (AT_LEAST_GEN(intel_get_drm_devid(xe), 20) &&
+	uint32_t mid_region = (intel_gen(intel_get_drm_devid(xe)) >= 20 &&
 			       !xe_has_vram(xe)) ? region1 : region2;
 	uint32_t bb;
 	enum blt_compression mid_compression = config->compression;
@@ -432,7 +432,7 @@ static void block_copy(int xe,
 	if (config->inplace) {
 		uint8_t pat_index = DEFAULT_PAT_INDEX;
 
-		if (AT_LEAST_GEN(intel_get_drm_devid(xe), 20) && config->compression)
+		if (intel_gen(intel_get_drm_devid(xe)) >= 20 && config->compression)
 			pat_index = intel_get_pat_idx_uc_comp(xe);
 
 		blt_set_object(&blt.dst, mid->handle, dst->size, mid->region, 0,
@@ -479,7 +479,7 @@ static void block_multicopy(int xe,
 	uint64_t bb_size = xe_bb_size(xe, SZ_4K);
 	uint64_t ahnd = intel_allocator_open(xe, ctx->vm, INTEL_ALLOCATOR_RELOC);
 	uint32_t run_id = mid_tiling;
-	uint32_t mid_region = (AT_LEAST_GEN(intel_get_drm_devid(xe), 20) &&
+	uint32_t mid_region = (intel_gen(intel_get_drm_devid(xe)) >= 20 &&
 			       !xe_has_vram(xe)) ? region1 : region2;
 	uint32_t bb;
 	enum blt_compression mid_compression = config->compression;
@@ -521,7 +521,7 @@ static void block_multicopy(int xe,
 	if (config->inplace) {
 		uint8_t pat_index = DEFAULT_PAT_INDEX;
 
-		if (AT_LEAST_GEN(intel_get_drm_devid(xe), 20) && config->compression)
+		if (intel_gen(intel_get_drm_devid(xe)) >= 20 && config->compression)
 			pat_index = intel_get_pat_idx_uc_comp(xe);
 
 		blt_set_object(&blt3.dst, mid->handle, dst->size, mid->region,
@@ -621,7 +621,7 @@ static void block_copy_test(int xe,
 	struct igt_collection *regions;
 	int tiling;
 
-	if (AT_LEAST_GEN(dev_id, 20) && config->compression)
+	if (intel_gen(dev_id) >= 20 && config->compression)
 		igt_require(HAS_FLATCCS(dev_id));
 
 	if (config->compression && !blt_block_copy_supports_compression(xe))

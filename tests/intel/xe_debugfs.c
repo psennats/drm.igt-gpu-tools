@@ -105,7 +105,7 @@ test_base(int fd, struct drm_xe_query_config *config)
 
 	igt_assert(igt_debugfs_search(fd, "info", reference));
 
-	if (!AT_LEAST_GEN(devid, 20)) {
+	if (intel_gen(devid) < 20) {
 		switch (config->info[DRM_XE_QUERY_CONFIG_VA_BITS]) {
 		case 48:
 			val = 3;

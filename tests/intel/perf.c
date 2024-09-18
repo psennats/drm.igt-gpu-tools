@@ -801,7 +801,7 @@ oa_report_ctx_is_valid(uint32_t *report)
 		return false; /* TODO */
 	} else if (IS_GEN8(devid)) {
 		return report[0] & (1ul << 25);
-	} else if (AT_LEAST_GEN(devid, 9)) {
+	} else if (intel_gen(devid) >= 9) {
 		return report[0] & (1ul << 16);
 	}
 

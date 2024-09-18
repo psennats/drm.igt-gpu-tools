@@ -867,7 +867,7 @@ gen_emit_media_object(struct intel_bb *ibb,
 	/* inline data (xoffset, yoffset) */
 	intel_bb_out(ibb, xoffset);
 	intel_bb_out(ibb, yoffset);
-	if (AT_LEAST_GEN(ibb->devid, 8) && !IS_CHERRYVIEW(ibb->devid))
+	if (intel_gen(ibb->devid) >= 8 && !IS_CHERRYVIEW(ibb->devid))
 		gen8_emit_media_state_flush(ibb);
 }
 

@@ -185,7 +185,7 @@ static bool fbc_wait_until_update(struct drm_info *drm)
 	 * For older GENs FBC is still expected to be disabled as it still
 	 * relies on a tiled and fenceable framebuffer to track modifications.
 	 */
-	if (AT_LEAST_GEN(intel_get_drm_devid(drm->fd), 9)) {
+	if (intel_gen(intel_get_drm_devid(drm->fd)) >= 9) {
 		if (!fbc_wait_until_enabled(drm->debugfs_fd))
 			return false;
 

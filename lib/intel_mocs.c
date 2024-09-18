@@ -68,7 +68,7 @@ uint8_t intel_get_defer_to_pat_mocs_index(int fd)
 	struct drm_intel_mocs_index mocs;
 	uint16_t dev_id = intel_get_drm_devid(fd);
 
-	igt_assert(AT_LEAST_GEN(dev_id, 20));
+	igt_assert(intel_gen(dev_id) >= 20);
 
 	get_mocs_index(fd, &mocs);
 

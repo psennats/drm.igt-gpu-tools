@@ -91,7 +91,7 @@ bool is_intel_region_compressible(int fd, uint64_t region)
 		return true;
 
 	/* Integrated Xe2+ supports compression on system memory */
-	if (AT_LEAST_GEN(devid, 20) && !is_dgfx && is_intel_system_region(fd, region))
+	if (intel_gen(devid) >= 20 && !is_dgfx && is_intel_system_region(fd, region))
 		return true;
 
 	/* Discrete supports compression on vram */

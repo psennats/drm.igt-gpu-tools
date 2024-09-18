@@ -70,7 +70,7 @@ uint8_t intel_get_pat_idx_uc_comp(int fd)
 	struct intel_pat_cache pat = {};
 	uint16_t dev_id = intel_get_drm_devid(fd);
 
-	igt_assert(AT_LEAST_GEN(dev_id, 20));
+	igt_assert(intel_gen(dev_id) >= 20);
 
 	intel_get_pat_idx(fd, &pat);
 	return pat.uc_comp;

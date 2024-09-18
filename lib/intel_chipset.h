@@ -209,7 +209,6 @@ void intel_check_pch(void);
 #define IS_BATTLEMAGE(devid)	(intel_get_device_info(devid)->is_battlemage)
 
 #define IS_GEN(devid, x)	(intel_get_device_info(devid)->graphics_ver == x)
-#define AT_LEAST_GEN(devid, x)	(intel_get_device_info(devid)->graphics_ver >= x)
 
 #define IS_GEN2(devid)		IS_GEN(devid, 2)
 #define IS_GEN3(devid)		IS_GEN(devid, 3)
@@ -224,12 +223,12 @@ void intel_check_pch(void);
 #define IS_GEN12(devid)		IS_GEN(devid, 12)
 
 #define IS_MOBILE(devid)	(intel_get_device_info(devid)->is_mobile)
-#define IS_965(devid)		AT_LEAST_GEN(devid, 4)
+#define IS_965(devid)		(intel_gen(devid) >= 4)
 
-#define HAS_BSD_RING(devid)	AT_LEAST_GEN(devid, 5)
-#define HAS_BLT_RING(devid)	AT_LEAST_GEN(devid, 6)
+#define HAS_BSD_RING(devid)	(intel_gen(devid) >= 5)
+#define HAS_BLT_RING(devid)	(intel_gen(devid) >= 6)
 
-#define HAS_PCH_SPLIT(devid)	(AT_LEAST_GEN(devid, 5) && \
+#define HAS_PCH_SPLIT(devid)	(intel_gen(devid) >= 5 && \
 				 !(IS_VALLEYVIEW(devid) || \
 				   IS_CHERRYVIEW(devid) || \
 				   IS_BROXTON(devid)))
