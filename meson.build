@@ -90,9 +90,11 @@ build_chamelium = get_option('chamelium')
 build_docs = get_option('docs')
 build_tests = not get_option('tests').disabled()
 build_xe = not get_option('xe_driver').disabled()
+build_xe_eudebug = get_option('xe_eudebug').enabled()
 with_libdrm = get_option('libdrm_drivers')
 
 build_info = ['Build type: ' + get_option('buildtype')]
+build_info += 'Build Xe EU debugger test framework: @0@'.format(build_xe_eudebug)
 
 inc = include_directories('include', 'include/drm-uapi', 'include/linux-uapi', 'lib', 'lib/stubs/syscalls', '.')
 

@@ -195,6 +195,11 @@ if chamelium.found()
 	lib_sources += 'monitor_edids/monitor_edids_helper.c'
 endif
 
+if build_xe_eudebug
+	build_info += 'Xe EU debugger test framework enabled.'
+	lib_sources += 'xe/xe_eudebug.c'
+endif
+
 if libprocps.found()
 	lib_deps += libprocps
 else
