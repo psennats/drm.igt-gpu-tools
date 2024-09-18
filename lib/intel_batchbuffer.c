@@ -987,6 +987,7 @@ __intel_bb_create(int fd, uint32_t ctx, uint32_t vm, const intel_ctx_cfg_t *cfg,
 	igt_assert(ibb->batch);
 	ibb->ptr = ibb->batch;
 	ibb->fence = -1;
+	ibb->user_fence_offset = -1;
 
 	/* Cache context configuration */
 	if (cfg) {
@@ -1489,7 +1490,7 @@ int intel_bb_sync(struct intel_bb *ibb)
 {
 	int ret;
 
-	if (ibb->fence < 0 && !ibb->engine_syncobj)
+	if (ibb->fence < 0 && !ibb->engine_syncobj && ibb->user_fence_offset < 0)
 		return 0;
 
 	if (ibb->fence >= 0) {
@@ -1498,10 +1499,28 @@ int intel_bb_sync(struct intel_bb *ibb)
 			close(ibb->fence);
 			ibb->fence = -1;
 		}
-	} else {
-		igt_assert_neq(ibb->engine_syncobj, 0);
+	} else if (ibb->engine_syncobj) {
 		ret = syncobj_wait_err(ibb->fd, &ibb->engine_syncobj,
 				       1, INT64_MAX, 0);
+	} else {
+		int64_t timeout = -1;
+		uint64_t *sync_data;
+		void *map;
+
+		igt_assert(ibb->user_fence_offset >= 0);
+
+		map = xe_bo_map(ibb->fd, ibb->handle, ibb->size);
+		sync_data = (void *)((uint8_t *)map + ibb->user_fence_offset);
+
+		ret = __xe_wait_ufence(ibb->fd, sync_data, ibb->user_fence_value,
+				       ibb->ctx ?: ibb->engine_id, &timeout);
+
+		gem_munmap(map, ibb->size);
+		ibb->user_fence_offset = -1;
+
+		/* Workload finished forcibly, but finished none the less */
+		if (ret == -EIO)
+			ret = 0;
 	}
 
 	return ret;
@@ -2475,6 +2494,125 @@ __xe_bb_exec(struct intel_bb *ibb, uint64_t flags, bool sync)
 	return 0;
 }
 
+static int
+__xe_lr_bb_exec(struct intel_bb *ibb, uint64_t flags, bool sync)
+{
+	uint32_t engine = flags & (I915_EXEC_BSD_MASK | I915_EXEC_RING_MASK);
+	uint32_t engine_id;
+#define USER_FENCE_VALUE	0xdeadbeefdeadbeefull
+	/*
+	 * LR mode vm_bind requires to use DRM_XE_SYNC_TYPE_USER_FENCE type sync
+	 * LR mode xe_exec requires to use DRM_XE_SYNC_TYPE_USER_FENCE type sync
+	 */
+	struct drm_xe_sync syncs[2] = {
+		{ .type = DRM_XE_SYNC_TYPE_USER_FENCE,
+		  .flags = DRM_XE_SYNC_FLAG_SIGNAL,
+		  .timeline_value = USER_FENCE_VALUE
+		},
+		{ .type = DRM_XE_SYNC_TYPE_USER_FENCE,
+		  .flags = DRM_XE_SYNC_FLAG_SIGNAL,
+		  .timeline_value = USER_FENCE_VALUE
+		},
+	};
+	struct drm_xe_vm_bind_op *bind_ops;
+	struct {
+		uint64_t vm_sync;
+		uint64_t exec_sync;
+	} *sync_data;
+	uint32_t sync_offset;
+	uint64_t ibb_addr, vm_sync_addr, exec_sync_addr;
+	void *map;
+
+	igt_assert_eq(ibb->num_relocs, 0);
+	igt_assert_eq(ibb->xe_bound, false);
+
+	if (ibb->ctx) {
+		engine_id = ibb->ctx;
+	} else if (ibb->last_engine != engine) {
+		struct drm_xe_engine_class_instance inst = { };
+
+		inst.engine_instance =
+			(flags & I915_EXEC_BSD_MASK) >> I915_EXEC_BSD_SHIFT;
+
+		switch (flags & I915_EXEC_RING_MASK) {
+		case I915_EXEC_DEFAULT:
+		case I915_EXEC_BLT:
+			inst.engine_class = DRM_XE_ENGINE_CLASS_COPY;
+			break;
+		case I915_EXEC_BSD:
+			inst.engine_class = DRM_XE_ENGINE_CLASS_VIDEO_DECODE;
+			break;
+		case I915_EXEC_RENDER:
+			if (xe_has_engine_class(ibb->fd, DRM_XE_ENGINE_CLASS_RENDER))
+				inst.engine_class = DRM_XE_ENGINE_CLASS_RENDER;
+			else
+				inst.engine_class = DRM_XE_ENGINE_CLASS_COMPUTE;
+			break;
+		case I915_EXEC_VEBOX:
+			inst.engine_class = DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE;
+			break;
+		default:
+			igt_assert_f(false, "Unknown engine: %x", (uint32_t)flags);
+		}
+		igt_debug("Run on %s\n", xe_engine_class_string(inst.engine_class));
+
+		if (ibb->engine_id)
+			xe_exec_queue_destroy(ibb->fd, ibb->engine_id);
+
+		ibb->engine_id = engine_id =
+			xe_exec_queue_create(ibb->fd, ibb->vm_id, &inst, 0);
+	} else {
+		engine_id = ibb->engine_id;
+	}
+	ibb->last_engine = engine;
+
+	/* User fence add for sync: sync.addr has a quadword align limitation */
+	intel_bb_ptr_align(ibb, 8);
+	sync_offset = intel_bb_offset(ibb);
+	intel_bb_ptr_add(ibb, sizeof(*sync_data));
+
+	map = xe_bo_map(ibb->fd, ibb->handle, ibb->size);
+	memcpy(map, ibb->batch, ibb->size);
+
+	sync_data = (void *)((uint8_t *)map + sync_offset);
+	/* vm_sync userfence userspace address. */
+	vm_sync_addr = to_user_pointer(&sync_data->vm_sync);
+	ibb_addr = ibb->batch_offset;
+	/* exec_sync userfence ppgtt address. */
+	exec_sync_addr = ibb_addr + sync_offset + sizeof(uint64_t);
+	syncs[0].addr = vm_sync_addr;
+	syncs[1].addr = exec_sync_addr;
+
+	if (ibb->num_objects > 1) {
+		bind_ops = xe_alloc_bind_ops(ibb, DRM_XE_VM_BIND_OP_MAP, 0, 0);
+		xe_vm_bind_array(ibb->fd, ibb->vm_id, 0, bind_ops,
+				 ibb->num_objects, syncs, 1);
+		free(bind_ops);
+	} else {
+		igt_debug("bind: MAP\n");
+		igt_debug("  handle: %u, offset: %llx, size: %llx\n",
+			  ibb->handle, (long long)ibb->batch_offset,
+			  (long long)ibb->size);
+		xe_vm_bind_async(ibb->fd, ibb->vm_id, 0, ibb->handle, 0,
+				 ibb->batch_offset, ibb->size, syncs, 1);
+	}
+
+	/* use default vm_bind_exec_queue */
+	xe_wait_ufence(ibb->fd, &sync_data->vm_sync, USER_FENCE_VALUE, 0, -1);
+	gem_munmap(map, ibb->size);
+
+	ibb->xe_bound = true;
+	ibb->user_fence_value = USER_FENCE_VALUE;
+	ibb->user_fence_offset = sync_offset + sizeof(uint64_t);
+
+	xe_exec_sync(ibb->fd, engine_id, ibb->batch_offset, &syncs[1], 1);
+
+	if (sync)
+		intel_bb_sync(ibb);
+
+	return 0;
+}
+
 /*
  * __intel_bb_exec:
  * @ibb: pointer to intel_bb
@@ -2576,7 +2714,10 @@ void intel_bb_exec(struct intel_bb *ibb, uint32_t end_offset,
 	if (ibb->driver == INTEL_DRIVER_I915)
 		igt_assert_eq(__intel_bb_exec(ibb, end_offset, flags, sync), 0);
 	else
-		igt_assert_eq(__xe_bb_exec(ibb, flags, sync), 0);
+		if (intel_bb_get_lr_mode(ibb))
+			igt_assert_eq(__xe_lr_bb_exec(ibb, flags, sync), 0);
+		else
+			igt_assert_eq(__xe_bb_exec(ibb, flags, sync), 0);
 }
 
 /**

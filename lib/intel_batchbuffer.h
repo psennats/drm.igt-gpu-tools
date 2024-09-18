@@ -303,6 +303,11 @@ struct intel_bb {
 	 * is not thread-safe.
 	 */
 	int32_t refcount;
+
+	/* long running mode */
+	bool lr_mode;
+	int64_t user_fence_offset;
+	uint64_t user_fence_value;
 };
 
 struct intel_bb *
@@ -424,6 +429,18 @@ static inline uint32_t intel_bb_pxp_appid(struct intel_bb *ibb)
 {
 	igt_assert(ibb);
 	return ibb->pxp.appid;
+}
+
+static inline void intel_bb_set_lr_mode(struct intel_bb *ibb, bool lr_mode)
+{
+	igt_assert(ibb);
+	ibb->lr_mode = lr_mode;
+}
+
+static inline bool intel_bb_get_lr_mode(struct intel_bb *ibb)
+{
+	igt_assert(ibb);
+	return ibb->lr_mode;
 }
 
 struct drm_i915_gem_exec_object2 *
