@@ -261,8 +261,7 @@ gen9_bind_buf(struct intel_bb *ibb, const struct intel_buf *buf, int is_dst,
 		else
 			ss->ss6.aux_mode = 0x5; /* AUX_CCS_E */
 
-		if (buf->ccs[0].stride) {
-
+		if (intel_gen(ibb->devid) < 12 && buf->ccs[0].stride) {
 			ss->ss6.aux_pitch = (buf->ccs[0].stride / 128) - 1;
 
 			address = intel_bb_offset_reloc_with_delta(ibb, buf->handle,
