@@ -394,8 +394,8 @@ static void access_flat_ccs_surface(struct igt_fb *fb, bool verify_compression)
 	uint16_t cpu_caching = DRM_XE_GEM_CPU_CACHING_WC;
 	uint8_t uc_mocs = intel_get_uc_mocs_index(fb->fd);
 	uint8_t comp_pat_index = intel_get_pat_idx_wt(fb->fd);
-	uint32_t region = (AT_LEAST_GEN(intel_get_drm_devid(fb->fd), 20) &
-						xe_has_vram(fb->fd)) ? REGION_LMEM(0) : REGION_SMEM;
+	uint32_t region = (AT_LEAST_GEN(intel_get_drm_devid(fb->fd), 20) &&
+			   xe_has_vram(fb->fd)) ? REGION_LMEM(0) : REGION_SMEM;
 
 	struct drm_xe_engine_class_instance inst = {
 		.engine_class = DRM_XE_ENGINE_CLASS_COPY,
