@@ -4766,17 +4766,13 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 
 					igt_require(igt_draw_supports_method(drm.fd, t.method));
 
-					/* Tiling Y is only supported on GEN9+ */
 					if (t.tiling == TILING_Y) {
 						igt_require(AT_LEAST_GEN(drm.devid, 9));
 						igt_require(!intel_get_device_info(drm.devid)->has_4tile);
 					}
 
-					/* Tiling 4 is only supported on GEN12+ */
-					if (t.tiling == TILING_4) {
-						igt_require(AT_LEAST_GEN(drm.devid, 12));
+					if (t.tiling == TILING_4)
 						igt_require(intel_get_device_info(drm.devid)->has_4tile);
-					}
 
 					if (tiling_is_valid(t.feature, t.tiling))
 						draw_subtest(&t);
