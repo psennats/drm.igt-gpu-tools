@@ -21,6 +21,7 @@ struct gpgpu_shader {
 		uint32_t *code;
 		uint32_t (*instr)[4];
 	};
+	struct igt_map *labels;
 };
 
 struct iga64_template {
@@ -31,7 +32,7 @@ struct iga64_template {
 
 #pragma GCC diagnostic ignored "-Wnested-externs"
 
-void
+uint32_t
 __emit_iga64_code(struct gpgpu_shader *shdr, const struct iga64_template *tpls,
 		  int argc, uint32_t *argv);
 
@@ -56,8 +57,32 @@ void gpgpu_shader_exec(struct intel_bb *ibb,
 		       struct gpgpu_shader *sip,
 		       uint64_t ring, bool explicit_engine);
 
+static inline uint32_t gpgpu_shader_last_instr(struct gpgpu_shader *shdr)
+{
+	return shdr->size / 4 - 1;
+}
+
+void gpgpu_shader__wait(struct gpgpu_shader *shdr);
+void gpgpu_shader__breakpoint_on(struct gpgpu_shader *shdr, uint32_t cmd_no);
+void gpgpu_shader__breakpoint(struct gpgpu_shader *shdr);
+void gpgpu_shader__nop(struct gpgpu_shader *shdr);
 void gpgpu_shader__eot(struct gpgpu_shader *shdr);
+void gpgpu_shader__common_target_write(struct gpgpu_shader *shdr,
+				       uint32_t y_offset, const uint32_t value[4]);
+void gpgpu_shader__common_target_write_u32(struct gpgpu_shader *shdr,
+				     uint32_t y_offset, uint32_t value);
+void gpgpu_shader__end_system_routine(struct gpgpu_shader *shdr,
+				      bool breakpoint_suppress);
+void gpgpu_shader__end_system_routine_step_if_eq(struct gpgpu_shader *shdr,
+						 uint32_t dw_offset,
+						 uint32_t value);
+void gpgpu_shader__write_aip(struct gpgpu_shader *shdr, uint32_t y_offset);
 void gpgpu_shader__write_dword(struct gpgpu_shader *shdr, uint32_t value,
 			       uint32_t y_offset);
-
+void gpgpu_shader__label(struct gpgpu_shader *shdr, int label_id);
+void gpgpu_shader__jump(struct gpgpu_shader *shdr, int label_id);
+void gpgpu_shader__jump_neq(struct gpgpu_shader *shdr, int label_id,
+			    uint32_t dw_offset, uint32_t value);
+void gpgpu_shader__loop_begin(struct gpgpu_shader *shdr, int label_id);
+void gpgpu_shader__loop_end(struct gpgpu_shader *shdr, int label_id, uint32_t iter);
 #endif /* GPGPU_SHADER_H */
