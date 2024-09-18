@@ -30,11 +30,24 @@
 #define COLOR_C4 0xc4
 
 #define SHADER_CANARY 0x01010101
+#define SIP_CANARY 0x02020202
 
 enum shader_type {
 	SHADER_HANG,
+	SHADER_INV_INSTR_DISABLED,
+	SHADER_INV_INSTR_THREAD_ENABLED,
+	SHADER_INV_INSTR_WALKER_ENABLED,
 	SHADER_WRITE,
 };
+
+enum sip_type {
+	SIP_INV_INSTR,
+	SIP_NULL,
+};
+
+/* Control Register cr0.1 bits for exception handling */
+#define ILLEGAL_OPCODE_ENABLE BIT(12)
+#define ILLEGAL_OPCODE_STATUS BIT(28)
 
 static struct intel_buf *
 create_fill_buf(int fd, int width, int height, uint8_t color)
@@ -58,8 +71,12 @@ create_fill_buf(int fd, int width, int height, uint8_t color)
 static struct gpgpu_shader *get_shader(int fd, enum shader_type shader_type)
 {
 	static struct gpgpu_shader *shader;
+	uint32_t bad;
 
 	shader = gpgpu_shader_create(fd);
+	if (shader_type == SHADER_INV_INSTR_WALKER_ENABLED)
+		shader->illegal_opcode_exception_enable = true;
+
 	gpgpu_shader__write_dword(shader, SHADER_CANARY, 0);
 
 	switch (shader_type) {
@@ -70,19 +87,63 @@ static struct gpgpu_shader *get_shader(int fd, enum shader_type shader_type)
 		break;
 	case SHADER_WRITE:
 		break;
+	case SHADER_INV_INSTR_THREAD_ENABLED:
+		gpgpu_shader__set_exception(shader, ILLEGAL_OPCODE_ENABLE);
+		__attribute__ ((fallthrough));
+	case SHADER_INV_INSTR_DISABLED:
+	case SHADER_INV_INSTR_WALKER_ENABLED:
+		bad = (shader_type == SHADER_INV_INSTR_DISABLED) ? ILLEGAL_OPCODE_ENABLE : 0;
+		gpgpu_shader__write_on_exception(shader, 1, 0, ILLEGAL_OPCODE_ENABLE, bad);
+		gpgpu_shader__nop(shader);
+		gpgpu_shader__nop(shader);
+		/* modify second nop, set only opcode bits[6:0] */
+		shader->instr[gpgpu_shader_last_instr(shader)][0] = 0x7f;
+		/* SIP should clear exception bit */
+		bad = ILLEGAL_OPCODE_STATUS;
+		gpgpu_shader__write_on_exception(shader, 2, 0, ILLEGAL_OPCODE_STATUS, bad);
+		break;
 	}
 
 	gpgpu_shader__eot(shader);
 	return shader;
 }
 
+static struct gpgpu_shader *get_sip(int fd, enum sip_type sip_type, unsigned int y_offset)
+{
+	static struct gpgpu_shader *sip;
+
+	if (sip_type == SIP_NULL)
+		return NULL;
+
+	sip = gpgpu_shader_create(fd);
+	gpgpu_shader__write_dword(sip, SIP_CANARY, y_offset);
+
+	switch (sip_type) {
+	case SIP_INV_INSTR:
+		gpgpu_shader__write_on_exception(sip, 1, y_offset, ILLEGAL_OPCODE_STATUS, 0);
+		break;
+	default:
+		break;
+	}
+
+	gpgpu_shader__end_system_routine(sip, false);
+
+	return sip;
+}
+
 static uint32_t gpgpu_shader(int fd, struct intel_bb *ibb, enum shader_type shader_type,
-			     unsigned int threads, unsigned int width, unsigned int height)
+			     enum sip_type sip_type, unsigned int threads, unsigned int width,
+			     unsigned int height)
 {
 	struct intel_buf *buf = create_fill_buf(fd, width, height, COLOR_C4);
+	struct gpgpu_shader *sip = get_sip(fd, sip_type, height / 2);
 	struct gpgpu_shader *shader = get_shader(fd, shader_type);
 
-	gpgpu_shader_exec(ibb, buf, 1, threads, shader, NULL, 0, 0);
+	gpgpu_shader_exec(ibb, buf, 1, threads, shader, sip, 0, 0);
+
+	if (sip)
+		gpgpu_shader_destroy(sip);
+
 	gpgpu_shader_destroy(shader);
 	return buf->handle;
 }
@@ -98,10 +159,10 @@ static void check_fill_buf(uint8_t *ptr, const int width, const int x,
 }
 
 static void check_buf(int fd, uint32_t handle, int width, int height,
-		      uint8_t poison_c)
+		      enum shader_type shader_type, enum sip_type sip_type, uint8_t poison_c)
 {
 	unsigned int sz = ALIGN(width * height, 4096);
-	int thread_count = 0;
+	int thread_count = 0, sip_count = 0;
 	uint32_t *ptr;
 	int i, j;
 
@@ -119,7 +180,27 @@ static void check_buf(int fd, uint32_t handle, int width, int height,
 		i = 0;
 	}
 
+	for (i = 0, j = height / 2; j < height; ++j) {
+		if (ptr[j * width / 4] == SIP_CANARY) {
+			++sip_count;
+			i = 4;
+		}
+
+		for (; i < width; i++)
+			check_fill_buf((uint8_t *)ptr, width, i, j, poison_c);
+
+		i = 0;
+	}
+
 	igt_assert(thread_count);
+	if (shader_type == SHADER_INV_INSTR_DISABLED)
+		igt_assert(!sip_count);
+	else if (sip_type == SIP_INV_INSTR && shader_type != SHADER_INV_INSTR_DISABLED)
+		igt_assert_f(thread_count == sip_count,
+			     "Thread and SIP count mismatch, %d != %d\n",
+			     thread_count, sip_count);
+	else
+		igt_assert(sip_count == 0);
 
 	munmap(ptr, sz);
 }
@@ -143,9 +224,21 @@ xe_sysfs_get_job_timeout_ms(int fd, struct drm_xe_engine_class_instance *eci)
  *
  * SUBTEST: sanity-after-timeout
  * Description: check basic shader execution after job timeout
+ *
+ * SUBTEST: invalidinstr-disabled
+ * Description: Verify that we don't enter SIP after running into an invalid
+ *		instruction when exception is not enabled.
+ *
+ * SUBTEST: invalidinstr-thread-enabled
+ * Description: Verify that we enter SIP after running into an invalid instruction
+ *              when exception is enabled from thread.
+ *
+ * SUBTEST: invalidinstr-walker-enabled
+ * Description: Verify that we enter SIP after running into an invalid instruction
+ *              when exception is enabled from COMPUTE_WALKER.
  */
-static void test_sip(enum shader_type shader_type, struct drm_xe_engine_class_instance *eci,
-		     uint32_t flags)
+static void test_sip(enum shader_type shader_type, enum sip_type sip_type,
+		     struct drm_xe_engine_class_instance *eci, uint32_t flags)
 {
 	unsigned int threads = 512;
 	unsigned int height = max_t(threads, HEIGHT, threads * 2);
@@ -172,12 +265,12 @@ static void test_sip(enum shader_type shader_type, struct drm_xe_engine_class_in
 	ibb = intel_bb_create_with_context(fd, exec_queue_id, vm_id, NULL, 4096);
 
 	igt_nsec_elapsed(&ts);
-	handle = gpgpu_shader(fd, ibb, shader_type, threads, width, height);
+	handle = gpgpu_shader(fd, ibb, shader_type, sip_type, threads, width, height);
 
 	intel_bb_sync(ibb);
 	igt_assert_lt_u64(igt_nsec_elapsed(&ts), timeout);
 
-	check_buf(fd, handle, width, height, COLOR_C4);
+	check_buf(fd, handle, width, height, shader_type, sip_type, COLOR_C4);
 
 	gem_close(fd, handle);
 	intel_bb_destroy(ibb);
@@ -205,16 +298,25 @@ igt_main
 		fd = drm_open_driver(DRIVER_XE);
 
 	test_render_and_compute("sanity", fd, eci)
-		test_sip(SHADER_WRITE, eci, 0);
+		test_sip(SHADER_WRITE, SIP_NULL, eci, 0);
 
 	test_render_and_compute("sanity-after-timeout", fd, eci) {
-		test_sip(SHADER_HANG, eci, 0);
+		test_sip(SHADER_HANG, SIP_NULL, eci, 0);
 
 		xe_for_each_engine(fd, eci)
 			if (eci->engine_class == DRM_XE_ENGINE_CLASS_RENDER ||
 			    eci->engine_class == DRM_XE_ENGINE_CLASS_COMPUTE)
-				test_sip(SHADER_WRITE, eci, 0);
+				test_sip(SHADER_WRITE, SIP_NULL, eci, 0);
 	}
+
+	test_render_and_compute("invalidinstr-disabled", fd, eci)
+		test_sip(SHADER_INV_INSTR_DISABLED, SIP_INV_INSTR, eci, 0);
+
+	test_render_and_compute("invalidinstr-thread-enabled", fd, eci)
+		test_sip(SHADER_INV_INSTR_THREAD_ENABLED, SIP_INV_INSTR, eci, 0);
+
+	test_render_and_compute("invalidinstr-walker-enabled", fd, eci)
+		test_sip(SHADER_INV_INSTR_WALKER_ENABLED, SIP_INV_INSTR, eci, 0);
 
 	igt_fixture
 		drm_close_driver(fd);
