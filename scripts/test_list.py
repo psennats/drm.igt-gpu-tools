@@ -1141,6 +1141,19 @@ class TestList:
 
         return sorted(tests)
 
+    def get_not_compiled(self):
+
+        """ Return a list of tests which were not compiled """
+        no_binaries = []
+        for name in self.filenames:
+            test_basename = re.sub(r"\.c$", "", name.split('/')[-1])
+            fname = os.path.join(self.igt_build_path, "tests", test_basename)
+
+            if not os.path.isfile(fname):
+                no_binaries.append(test_basename)
+
+        return sorted(no_binaries)
+
     #
     # Validation methods
     #
@@ -1177,21 +1190,24 @@ class TestList:
         # Get a list of tests from
         run_subtests = set(self.get_testlist())
 
+        not_compiled = set(self.get_not_compiled())
+        for test_basename in not_compiled:
+            print(f"INFO: Found documentation for '{test_basename}' but no binary")
+
         # Compare sets
 
         run_missing = list(sorted(run_subtests - doc_subtests))
         doc_uneeded = list(sorted(doc_subtests - run_subtests))
+        doc_uneeded_build = [t for t in doc_uneeded if t.split('@')[1] not in not_compiled]
 
-        if doc_uneeded:
-            for test_name in doc_uneeded:
-                print(f"Warning: Documented {test_name} doesn't exist on source files")
-
-        if run_missing:
+        if doc_uneeded_build or run_missing:
             for test_name in run_missing:
-                print(f'Warning: Missing documentation for {test_name}')
-            print('Please refer: docs/test_documentation.md for more details')
+                print(f'ERROR: Missing documentation for {test_name}')
 
-        if doc_uneeded or run_missing:
+            for test_name in doc_uneeded_build:
+                print(f'ERROR: Unneeded documentation for {test_name}')
+
+            print('Please refer: docs/test_documentation.md for more details')
             sys.exit(1)
 
     #
