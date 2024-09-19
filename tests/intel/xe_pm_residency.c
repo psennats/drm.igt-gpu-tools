@@ -297,7 +297,7 @@ static void toggle_gt_c6(int fd, int n)
 
 		if (n == NUM_REPS)
 			measure_power(&gpu, &gt_c6_power);
-	} while (n--);
+	} while (--n);
 
 	igt_power_close(&gpu);
 	igt_info("GPU consumed %fmW in GT C6 and %fmW in GT C0\n", gt_c6_power, gt_c0_power);
