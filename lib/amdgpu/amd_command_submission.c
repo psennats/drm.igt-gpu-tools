@@ -78,7 +78,7 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 	if (expect_failure)
 		igt_info("amdgpu_cs_submit %d PID %d\n", r, getpid());
 	else {
-		if (r != -ECANCELED && r != -ENODATA) /* we allow ECANCELED or ENODATA for good jobs temporally */
+		if (r != -ECANCELED && r != -ENODATA && r != -EHWPOISON) /* we allow ECANCELED, ENODATA or -EHWPOISON for good jobs temporally */
 			igt_assert_eq(r, 0);
 	}
 

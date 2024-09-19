@@ -70,6 +70,7 @@ struct dynamic_test{
 	const char *describe;
 	struct asic_id_filter exclude_filter[_MAX_NUM_ASIC_ID_EXCLUDE_FILTER];
 	struct reset_err_result result;
+	bool support_sdma;
 };
 
 #define for_each_test(t, T) for(typeof(*T) *t = T; t->name; t++)
