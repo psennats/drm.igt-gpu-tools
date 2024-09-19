@@ -206,10 +206,15 @@ igt_main
 				    "it" },
 	};
 	struct rmfb_data data = {};
-	int i;
+	int i, other_fd;
 
 	igt_fixture {
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
+		/*
+		 * Prevent fb from changing underneath so we can check by
+		 * fb_id == 0 after removing the fb
+		 */
+		other_fd = drm_reopen_driver(data.drm_fd);
 
 		kmstest_set_vt_graphics_mode();
 
@@ -227,5 +232,6 @@ igt_main
 	igt_fixture {
 		igt_display_fini(&data.display);
 		drm_close_driver(data.drm_fd);
+		drm_close_driver(other_fd);
 	}
 }
