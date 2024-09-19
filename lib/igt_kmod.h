@@ -63,10 +63,7 @@ static inline int igt_xe_driver_load(const char *opts)
 }
 
 
-static inline int igt_xe_driver_unload(void)
-{
-	return igt_intel_driver_unload("xe");
-}
+int igt_xe_driver_unload(void);
 
 int igt_amdgpu_driver_load(const char *opts);
 int igt_amdgpu_driver_unload(void);

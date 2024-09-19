@@ -660,6 +660,51 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 	return 0;
 }
 
+/*
+ * Unbind driver from devices. Currently supports only PCI bus
+ */
+static int unbind(const char *driver)
+{
+	char path[PATH_MAX];
+	struct dirent *de;
+	int dirlen;
+	DIR *dir;
+
+	dirlen = snprintf(path, sizeof(path), "/sys/module/%s/drivers/pci:%s/",
+			  driver, driver);
+	igt_assert(dirlen < sizeof(path));
+
+	dir = opendir(path);
+
+	/* Module may be loaded, but without any device bound */
+	if (!dir)
+		return 0;
+
+	while ((de = readdir(dir))) {
+		int devfd;
+		bool ret;
+
+		if (de->d_type != DT_LNK || !isdigit(de->d_name[0]))
+			continue;
+
+		devfd = openat(dirfd(dir), de->d_name, O_RDONLY | O_CLOEXEC);
+		igt_assert(devfd >= 0);
+
+		ret = igt_sysfs_set(devfd, "power/control", "auto");
+		igt_assert(ret);
+
+		ret = igt_sysfs_set(devfd, "driver/unbind", de->d_name);
+		igt_assert(ret);
+
+		close(devfd);
+		errno = 0;
+	}
+
+	igt_assert_eq(errno, 0);
+
+	return 0;
+}
+
 /**
  * igt_intel_driver_unload:
  *
@@ -695,6 +740,17 @@ igt_intel_driver_unload(const char *driver)
 	}
 
 	return 0;
+}
+
+int igt_xe_driver_unload(void)
+{
+	unbind("xe");
+
+	igt_kmod_unload("xe");
+	if (igt_kmod_is_loaded("xe"))
+		return IGT_EXIT_FAILURE;
+
+	return IGT_EXIT_SUCCESS;
 }
 
 /**
