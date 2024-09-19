@@ -1127,8 +1127,13 @@ class TestList:
 
         """ Return a list of tests as reported by --list-subtests """
         tests = []
+        no_binaries = self.get_not_compiled()
         for name in self.filenames:
-            testlist = re.sub(r"\.c$", ".testlist", name.split('/')[-1])
+            binary = re.sub(r"\.c$", "", name.split('/')[-1])
+            if binary in no_binaries:
+                continue
+
+            testlist = binary + ".testlist"
             fname = os.path.join(self.igt_build_path, "tests", testlist)
 
             if not os.path.isfile(fname):
