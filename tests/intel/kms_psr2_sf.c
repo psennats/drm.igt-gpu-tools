@@ -935,9 +935,11 @@ static void run(data_t *data)
 							  data->pipe),
 							  "FBC still disabled\n");
 
-	if (data->et_flag)
+	/* TODO: Enable this check if other connectors support Early Transport */
+	if (data->et_flag && data->output != NULL &&
+	    data->output->config.connector->connector_type == DRM_MODE_CONNECTOR_eDP)
 		igt_assert_f(early_transport_check(data->debugfs_fd),
-			     "Early Trasport Disbaled\n");
+			     "Early Transport Disabled\n");
 
 	data->screen_changes = 0;
 
