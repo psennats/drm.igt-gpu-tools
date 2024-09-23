@@ -2636,6 +2636,35 @@ static int yuv_semiplanar_bpp(uint32_t drm_format)
 	}
 }
 
+static int intel_num_surfaces(const struct igt_fb *fb)
+{
+	int num_surfaces;
+
+	if (!igt_fb_is_ccs_modifier(fb->modifier))
+		return fb->num_planes;
+
+	num_surfaces = fb->num_planes;
+
+	if (igt_fb_is_gen12_rc_ccs_cc_modifier(fb->modifier))
+		num_surfaces--;
+
+	if (!HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
+		num_surfaces /= 2;
+
+	return num_surfaces;
+}
+
+static int intel_num_ccs_surfaces(const struct igt_fb *fb)
+{
+	if (!igt_fb_is_ccs_modifier(fb->modifier))
+		return 0;
+
+	if (HAS_FLATCCS(intel_get_drm_devid(fb->fd)))
+		return 0;
+
+	return intel_num_surfaces(fb);
+}
+
 struct intel_buf *
 igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
                         const struct igt_fb *fb,
@@ -2705,13 +2734,12 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 	if (buf->format_is_yuv_semiplanar)
 		buf->yuv_semiplanar_bpp = yuv_semiplanar_bpp(fb->drm_format);
 
-	if (igt_fb_is_ccs_modifier(fb->modifier)) {
-		num_surfaces = fb->num_planes / (HAS_FLATCCS(intel_get_drm_devid(fb->fd)) ? 1 : 2);
-		for (i = 0; i < num_surfaces; i++)
-			init_buf_ccs(buf, i,
-				     fb->offsets[num_surfaces + i],
-				     fb->strides[num_surfaces + i]);
-	}
+	num_surfaces = intel_num_surfaces(fb);
+
+	for (i = 0; i < intel_num_ccs_surfaces(fb); i++)
+		init_buf_ccs(buf, i,
+			     fb->offsets[num_surfaces + i],
+			     fb->strides[num_surfaces + i]);
 
 	igt_assert(fb->offsets[0] == 0);
 	for (i = 0; i < num_surfaces; i++) {
