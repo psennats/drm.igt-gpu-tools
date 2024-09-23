@@ -1196,8 +1196,6 @@ class TestList:
         run_subtests = set(self.get_testlist())
 
         not_compiled = set(self.get_not_compiled())
-        for test_basename in not_compiled:
-            print(f"INFO: Found documentation for '{test_basename}' but no binary")
 
         # Compare sets
 
