@@ -144,6 +144,15 @@ static void exec_load(int fd, struct drm_xe_engine_class_instance *hwe, unsigned
 			  1e-3 * submit,
 			  1e-3 * (elapsed - submit));
 
+		/*
+		 * MI_STORE_DWORD generally completes within couple of ms.
+		 * Assert if it takes more than 1.2 seconds, as it will cause
+		 * IGT test to timeout due to sleep of 120 seconds which is
+		 * the current per test timeout. Currently there is no way to
+		 * read this timeout from IGT test.
+		 */
+		igt_assert((uint64_t)elapsed < (uint64_t)(1.2 * NSEC_PER_SEC));
+
 		syncobj_reset(fd, &syncobj, 1);
 
 		/*
