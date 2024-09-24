@@ -2121,7 +2121,6 @@ static void *vm_bind_clear_thread(void *data)
 	fence_data = aligned_alloc(xe_get_default_alignment(fd), sizeof(*fence_data));
 	igt_assert(fence_data);
 	uf_sync.timeline_value = 1337;
-	uf_sync.addr = to_user_pointer(fence_data);
 
 	igt_debug("Run on: %s%u\n", xe_engine_class_string(priv->hwe->engine_class),
 		  priv->hwe->engine_instance);
@@ -2157,6 +2156,7 @@ static void *vm_bind_clear_thread(void *data)
 
 		delta = (random() % bo_size) & -4;
 
+		uf_sync.addr = to_user_pointer(fence_data);
 		/* prepare clean bo */
 		clean_bo = xe_bo_create(fd, vm, bo_size, priv->region,
 					DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
@@ -2197,9 +2197,9 @@ static void *vm_bind_clear_thread(void *data)
 		eq_create.extensions = to_user_pointer(&eq_ext);
 		exec_queue = xe_eudebug_client_exec_queue_create(priv->c, fd, &eq_create);
 
-		memset(fence_data, 0, sizeof(*fence_data));
+		uf_sync.addr = (cs - map) * 4 + batch_offset;
 		xe_exec_sync(fd, exec_queue, batch_offset, &uf_sync, 1);
-		xe_wait_ufence(fd, fence_data, uf_sync.timeline_value, 0,
+		xe_wait_ufence(fd, (uint64_t *)cs, uf_sync.timeline_value, exec_queue,
 			       XE_EUDEBUG_DEFAULT_TIMEOUT_SEC * NSEC_PER_SEC);
 
 		igt_assert_eq(*map, 0);
