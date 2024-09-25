@@ -670,53 +670,54 @@ void gpgpu_shader__set_exception(struct gpgpu_shader *shdr, uint32_t value)
  * gpgpu_shader__write_on_exception:
  * @shdr: shader to be modified
  * @value: dword to be written
+ * @x_offset: write target offset within the surface in columns added to the 'thread group id x'
  * @y_offset: write target offset within the surface in rows
  * @mask: mask to be applied on exception register
  * @expected: expected value of exception register with @mask applied
  *
  * Check if bits specified by @mask in exception register(cr0.1) are equal
  * to provided ones: cr0.1 & @mask == @expected,
- * if yes fill dword in (row, column/dword) == (tg_id_y + @y_offset, tg_id_x).
+ * if yes fill dword in (row, column/dword) == (tg_id_y + @y_offset, tg_id_x + @x_offset).
  */
-void gpgpu_shader__write_on_exception(struct gpgpu_shader *shdr, uint32_t value,
+void gpgpu_shader__write_on_exception(struct gpgpu_shader *shdr, uint32_t value, uint32_t x_offset,
 				      uint32_t y_offset, uint32_t mask, uint32_t expected)
 {
 	emit_iga64_code(shdr, write_on_exception, "					\n\
 	// Clear message header								\n\
 (W)	mov (16|M0)              r4.0<1>:ud    0x0:ud					\n\
 	// Payload									\n\
-(W)	mov (1|M0)               r5.0<1>:ud    ARG(3):ud				\n\
+(W)	mov (1|M0)               r5.0<1>:ud    ARG(4):ud				\n\
 #if GEN_VER < 2000 // prepare Media Block Write						\n\
 	// X offset of the block in bytes := (thread group id X << ARG(0))		\n\
-(W)	shl (1|M0)               r4.0<1>:ud    r0.1<0;1,0>:ud    ARG(0):ud		\n\
+(W)	add (1|M0)               r4.0<1>:ud    r0.1<0;1,0>:ud	 ARG(1):ud		\n\
+(W)	shl (1|M0)               r4.0<1>:ud    r4.0<0;1,0>:ud    ARG(0):ud		\n\
 	// Y offset of the block in rows := thread group id Y				\n\
-(W)	mov (1|M0)               r4.1<1>:ud    r0.6<0;1,0>:ud				\n\
-(W)	add (1|M0)               r4.1<1>:ud    r4.1<0;1,0>:ud   ARG(1):ud		\n\
+(W)	add (1|M0)               r4.1<1>:ud    r0.6<0;1,0>:ud   ARG(2):ud		\n\
 	// block width [0,63] representing 1 to 64 bytes				\n\
-(W)	mov (1|M0)               r4.2<1>:ud    ARG(2):ud				\n\
+(W)	mov (1|M0)               r4.2<1>:ud    ARG(3):ud				\n\
 	// FFTID := FFTID from R0 header						\n\
 (W)	mov (1|M0)               r4.4<1>:ud    r0.5<0;1,0>:ud				\n\
 #else // prepare Typed 2D Block Store							\n\
-	// Load r2.0-3 with tg id X << ARG(0)						\n\
-(W)	shl (1|M0)               r2.0<1>:ud    r0.1<0;1,0>:ud    ARG(0):ud		\n\
-	// Load r2.4-7 with tg id Y + ARG(1):ud						\n\
-(W)	mov (1|M0)               r2.1<1>:ud    r0.6<0;1,0>:ud				\n\
-(W)	add (1|M0)               r2.1<1>:ud    r2.1<0;1,0>:ud    ARG(1):ud		\n\
+	// Load r2.0 with tg id (X + ARG(1)) << ARG(0)					\n\
+(W)	add (1|M0)               r2.0<1>:ud    r0.1<0;1,0>:ud	 ARG(1):ud		\n\
+(W)	shl (1|M0)               r2.0<1>:ud    r2.0<0;1,0>:ud    ARG(0):ud		\n\
+	// Load r2.4-7 with tg id Y + ARG(2):ud						\n\
+(W)	add (1|M0)               r2.1<1>:ud    r0.6<0;1,0>:ud    ARG(2):ud		\n\
 	// Store X and Y block start (160:191 and 192:223)				\n\
 (W)	mov (2|M0)               r4.5<1>:ud    r2.0<2;2,1>:ud				\n\
 	// Store X and Y block max_size (224:231 and 232:239)				\n\
-(W)	mov (1|M0)               r4.7<1>:ud    ARG(2):ud				\n\
+(W)	mov (1|M0)               r4.7<1>:ud    ARG(3):ud				\n\
 #endif											\n\
 	// Check if masked exception is equal to provided value and write conditionally \n\
-(W)      and (1|M0)              r3.0<1>:ud     cr0.1<0;1,0>:ud ARG(4):ud		\n\
+(W)      and (1|M0)              r3.0<1>:ud     cr0.1<0;1,0>:ud ARG(5):ud		\n\
 (W)      mov (1|M0)              f0.0<1>:ud     0x0:ud					\n\
-(W)      cmp (1|M0)     (eq)f0.0 null:ud        r3.0<0;1,0>:ud  ARG(5):ud		\n\
+(W)      cmp (1|M0)     (eq)f0.0 null:ud        r3.0<0;1,0>:ud  ARG(6):ud		\n\
 #if GEN_VER < 2000 // Media Block Write							\n\
 (W&f0.0) send.dc1 (16|M0)        null     r4   src1_null 0    0x40A8000			\n\
 #else // Typed 2D Block Store								\n\
 (W&f0.0) send.tgm (16|M0)        null     r4   null:0    0    0x64000007		\n\
 #endif											\n\
-	", 2, y_offset, 3, value, mask, expected);
+	", 2, x_offset, y_offset, 3, value, mask, expected);
 }
 
 /**

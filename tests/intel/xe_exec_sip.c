@@ -93,14 +93,14 @@ static struct gpgpu_shader *get_shader(int fd, enum shader_type shader_type)
 	case SHADER_INV_INSTR_DISABLED:
 	case SHADER_INV_INSTR_WALKER_ENABLED:
 		bad = (shader_type == SHADER_INV_INSTR_DISABLED) ? ILLEGAL_OPCODE_ENABLE : 0;
-		gpgpu_shader__write_on_exception(shader, 1, 0, ILLEGAL_OPCODE_ENABLE, bad);
+		gpgpu_shader__write_on_exception(shader, 1, 0, 0, ILLEGAL_OPCODE_ENABLE, bad);
 		gpgpu_shader__nop(shader);
 		gpgpu_shader__nop(shader);
 		/* modify second nop, set only opcode bits[6:0] */
 		shader->instr[gpgpu_shader_last_instr(shader)][0] = 0x7f;
 		/* SIP should clear exception bit */
 		bad = ILLEGAL_OPCODE_STATUS;
-		gpgpu_shader__write_on_exception(shader, 2, 0, ILLEGAL_OPCODE_STATUS, bad);
+		gpgpu_shader__write_on_exception(shader, 2, 0, 0, ILLEGAL_OPCODE_STATUS, bad);
 		break;
 	}
 
@@ -120,7 +120,7 @@ static struct gpgpu_shader *get_sip(int fd, enum sip_type sip_type, unsigned int
 
 	switch (sip_type) {
 	case SIP_INV_INSTR:
-		gpgpu_shader__write_on_exception(sip, 1, y_offset, ILLEGAL_OPCODE_STATUS, 0);
+		gpgpu_shader__write_on_exception(sip, 1, 0, y_offset, ILLEGAL_OPCODE_STATUS, 0);
 		break;
 	default:
 		break;
