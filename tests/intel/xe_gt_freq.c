@@ -341,7 +341,8 @@ static void test_reset(int fd, int gt_id, int cycles)
 		igt_assert_f(get_freq(fd, gt_id, "cur") == rpn,
 			     "Failed after %d good cycles\n", i);
 
-		xe_force_gt_reset_async(fd, gt_id);
+		xe_force_gt_reset_sync(fd, gt_id);
+
 		usleep(SLPC_FREQ_LATENCY_US);
 
 		igt_assert_f(get_freq(fd, gt_id, "min") == rpn,
@@ -433,16 +434,23 @@ igt_main
 	int fd;
 	int gt;
 	struct drm_xe_engine_class_instance *hwe;
-	uint32_t stash_min;
-	uint32_t stash_max;
+	uint32_t *stash_min, *stash_max;
+	int num_gts;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
 
 		igt_require(xe_sysfs_gt_has_node(fd, 0, "freq0"));
+		num_gts = xe_number_gt(fd);
+
 		/* The defaults are the same. Stashing the gt0 is enough */
-		stash_min = get_freq(fd, 0, "min");
-		stash_max = get_freq(fd, 0, "max");
+		stash_min = (uint32_t *) malloc(sizeof(uint32_t) * num_gts);
+		stash_max = (uint32_t *) malloc(sizeof(uint32_t) * num_gts);
+
+		xe_for_each_gt(fd, gt) {
+			stash_min[gt] = get_freq(fd, gt, "min");
+			stash_max[gt] = get_freq(fd, gt, "max");
+		}
 	}
 
 	igt_subtest("throttle_basic_api") {
@@ -517,9 +525,11 @@ igt_main
 
 	igt_fixture {
 		xe_for_each_gt(fd, gt) {
-			set_freq(fd, gt, "min", stash_min);
-			set_freq(fd, gt, "max", stash_max);
+			set_freq(fd, gt, "max", stash_max[gt]);
+			set_freq(fd, gt, "min", stash_min[gt]);
 		}
+		free(stash_min);
+		free(stash_max);
 		drm_close_driver(fd);
 	}
 }
