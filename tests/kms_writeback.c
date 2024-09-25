@@ -213,15 +213,11 @@ static igt_output_t *kms_writeback_get_output(igt_display_t *display)
 	return NULL;
 }
 
-static uint64_t get_writeback_fb_id(igt_output_t *output)
+static void cleanup_writeback(igt_display_t *display, igt_output_t *output)
 {
-	return igt_output_get_prop(output, IGT_CONNECTOR_WRITEBACK_FB_ID);
-}
-
-static void detach_crtc(igt_display_t *display, igt_output_t *output)
-{
-	if (get_writeback_fb_id(output) == 0)
-		return;
+	igt_output_set_prop_value(output, IGT_CONNECTOR_WRITEBACK_OUT_FENCE_PTR,
+				  to_user_pointer(NULL));
+	igt_output_set_writeback_fb(output, NULL);
 
 	igt_output_set_pipe(output, PIPE_NONE);
 	igt_display_commit2(display, COMMIT_ATOMIC);
@@ -726,7 +722,7 @@ igt_main_args("b:c:f:dl", long_options, help_str, opt_handler, NULL)
 	}
 
 	igt_fixture {
-		detach_crtc(&display, output);
+		cleanup_writeback(&display, output);
 		igt_remove_fb(display.drm_fd, &input_fb);
 		igt_remove_fb(display.drm_fd, &input_fb_10bit);
 		igt_display_fini(&display);
