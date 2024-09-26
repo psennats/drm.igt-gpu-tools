@@ -1692,6 +1692,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 #define NUM_TIMER_REPORTS 30
 		uint32_t *reports = malloc(NUM_TIMER_REPORTS * format_size);
 		uint32_t *timer_reports = reports;
+		void *this, *prev;
 
 		igt_debug("testing OA exponent %d,"
 			  " expected ts delta = %"PRIu64" (%"PRIu64"ns/%.2fus/%.2fms)\n",
@@ -1741,21 +1742,25 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 
 		__perf_close(stream_fd);
 
+		this = reports + format_size / 4;
+		prev = reports;
+
 		igt_debug("report%04i ts=%"PRIx64" hw_id=0x%08x\n", 0,
-			  oa_timestamp(&reports[0], fmt),
-			  oa_report_get_ctx_id(&reports[0]));
+			  oa_timestamp(prev, fmt),
+			  oa_report_get_ctx_id(prev));
 		for (int i = 1; i < n_timer_reports; i++) {
-			uint64_t delta = oa_timestamp_delta(&reports[i],
-							    &reports[i - 1],
-							    fmt);
+			uint64_t delta = oa_timestamp_delta(this, prev, fmt);
 
 			igt_debug("report%04i ts=%"PRIx64" hw_id=0x%08x delta=%"PRIu64" %s\n", i,
-				  oa_timestamp(&reports[i], fmt),
-				  oa_report_get_ctx_id(&reports[i]),
+				  oa_timestamp(this, fmt),
+				  oa_report_get_ctx_id(this),
 				  delta, expected_report_timing_delta(delta,
 								      expected_timestamp_delta) ? "" : "******");
 
 			matches += expected_report_timing_delta(delta,expected_timestamp_delta);
+
+			this += format_size;
+			prev += format_size;
 		}
 
 		igt_debug("matches=%u/%u\n", matches, n_timer_reports - 1);
