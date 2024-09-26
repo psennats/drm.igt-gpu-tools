@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <pciaccess.h>
 
 #include "drmtest.h"
 #include "i915/gem.h"
@@ -512,6 +513,45 @@ int igt_open_forcewake_handle(int fd)
 		fn = "i915_forcewake_user";
 
 	return igt_debugfs_open(fd, fn, O_RDONLY);
+}
+
+int igt_open_forcewake_handle_for_pcidev(const struct pci_device *pci_dev)
+{
+	static const char *FORCEWAKE_FILES[] = {
+		"forcewake_all", "i915_forcewake_user",
+		NULL
+	};
+	const char *debugfs_root = igt_debugfs_mount(), **fn;
+	char path[PATH_MAX];
+	int dirlen, ret;
+
+	if (!debugfs_root)
+		return -ENOENT;
+
+	ret = snprintf(path, sizeof(path), "%s/dri/%04x:%02x:%02x.%x",
+		       debugfs_root,
+		       pci_dev->domain, pci_dev->bus, pci_dev->dev,
+		       pci_dev->func);
+	if (ret < 0 || ret >= sizeof(path))
+		return -EINVAL;
+
+	dirlen = ret;
+	for (fn = FORCEWAKE_FILES; *fn; fn++) {
+		ret = snprintf(path + dirlen, sizeof(path) - dirlen,
+			       "/%s", *fn);
+		if (ret < 0 || ret >= sizeof(path) - dirlen)
+			return -EINVAL;
+
+		ret = open(path, O_RDONLY);
+		if (ret >= 0)
+			return ret;
+
+		if (errno != ENOENT)
+			return -errno;
+	}
+
+	return -ENOENT;
+
 }
 
 #if defined(__x86_64__) || defined(__i386__)

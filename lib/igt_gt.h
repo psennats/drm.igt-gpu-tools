@@ -31,6 +31,8 @@
 #include "i915/i915_drm_local.h"
 #include "i915_drm.h"
 
+struct pci_device;
+
 void igt_require_hang_ring(int fd, uint32_t ctx, int ring);
 
 typedef struct igt_hang {
@@ -63,6 +65,7 @@ void igt_fork_hang_helper(void);
 void igt_stop_hang_helper(void);
 
 int igt_open_forcewake_handle(int fd);
+int igt_open_forcewake_handle_for_pcidev(const struct pci_device *pci_dev);
 
 int igt_setup_clflush(void);
 void igt_clflush_range(void *addr, int size);
