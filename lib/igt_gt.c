@@ -503,7 +503,7 @@ int igt_open_forcewake_handle(int fd)
 {
 	if (getenv("IGT_NO_FORCEWAKE"))
 		return -1;
-	return igt_debugfs_open(fd, "i915_forcewake_user", O_WRONLY);
+	return igt_debugfs_open(fd, "i915_forcewake_user", O_RDONLY);
 }
 
 #if defined(__x86_64__) || defined(__i386__)
