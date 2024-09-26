@@ -117,8 +117,10 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 	active = strstr(buf, state);
 
 	env = getenv("IGT_PANEL_REPLAY_IGNORE_SINK_STATUS");
-	if (active && output && (!env || !atoi(env)))
+	if (active && output && (!env || !atoi(env))) {
 		active = psr_active_sink_check(debugfs_fd, output);
+		igt_assert_f(active, "PSR sink/source state mismatch\n");
+	}
 
 	return active;
 }
