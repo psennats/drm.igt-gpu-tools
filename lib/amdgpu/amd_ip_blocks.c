@@ -189,10 +189,17 @@ sdma_ring_copy_linear(const struct amdgpu_ip_funcs *func,
 		context->pm4[i++] = SDMA_PACKET(SDMA_OPCODE_COPY,
 				       SDMA_COPY_SUB_OPCODE_LINEAR,
 					context->secure ? 0x4 : 0);
-		if (func->family_id >= AMDGPU_FAMILY_AI)
-			context->pm4[i++] = context->write_length - 1;
-		else
+		if (func->family_id >= AMDGPU_FAMILY_AI) {
+			/* For FAMILY AI, the maximum copy range supported by sdma is 4MB */
+			if (func->family_id >= AMDGPU_FAMILY_AI && context->write_length > 0x3fffff) {
+				context->pm4[i++] = 0x3fffff;
+				igt_warn("sdma copy count exceeds the maximum limit of 4MB\n");
+			} else {
+				context->pm4[i++] = context->write_length - 1;
+			}
+		} else {
 			context->pm4[i++] = context->write_length;
+		}
 		context->pm4[i++] = 0;
 		context->pm4[i++] = lower_32_bits(context->bo_mc);
 		context->pm4[i++] = upper_32_bits(context->bo_mc);
