@@ -315,7 +315,7 @@ igt_main
 		igt_display_require(&display, drm_open_driver(DRIVER_INTEL | DRIVER_XE));
 
 		for_each_connected_output(&display, output) {
-			if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
+			if (!output_is_internal_panel(output))
 				continue;
 
 			if (found)
