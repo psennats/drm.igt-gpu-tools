@@ -486,7 +486,7 @@ main(int argc, char **argv)
 		/* Forcewake */
 		intel_register_access_init(&mmio_data,
 					   igt_device_get_pci_device(fd),
-					   0, fd);
+					   0);
 
 		/* Enable performance counters */
 		intel_register_write(&mmio_data, OACONTROL,

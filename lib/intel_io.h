@@ -65,7 +65,7 @@ void intel_mmio_use_dump_file(struct intel_mmio_data *mmio_data, char *file);
 void intel_mmio_unmap_dump_file(struct intel_mmio_data *mmio_data);
 
 int intel_register_access_init(struct intel_mmio_data *mmio_data,
-			       struct pci_device *pci_dev, int safe, int fd);
+			       struct pci_device *pci_dev, int safe);
 void intel_register_access_fini(struct intel_mmio_data *mmio_data);
 uint32_t intel_register_read(struct intel_mmio_data *mmio_data, uint32_t reg);
 void intel_register_write(struct intel_mmio_data *mmio_data, uint32_t reg,

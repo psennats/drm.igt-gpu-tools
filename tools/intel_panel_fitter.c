@@ -281,7 +281,7 @@ int main (int argc, char *argv[])
 	       "solution that may or may not work. Use it at your own risk.\n");
 
 	pci_dev = intel_get_pci_device();
-	intel_register_access_init(&mmio_data, pci_dev, 0, -1);
+	intel_register_access_init(&mmio_data, pci_dev, 0);
 	devid = pci_dev->device_id;
 
 	if (!HAS_PCH_SPLIT(devid)) {

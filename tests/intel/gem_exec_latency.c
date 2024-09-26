@@ -949,7 +949,7 @@ igt_main
 		if (ring_size > 1024)
 			ring_size = 1024;
 
-		intel_register_access_init(&mmio_data, igt_device_get_pci_device(device), false, device);
+		intel_register_access_init(&mmio_data, igt_device_get_pci_device(device), false);
 		rcs_clock = clockrate(device, 0x2000 + TIMESTAMP);
 		igt_info("RCS timestamp clock: %.0fKHz, %.1fns\n",
 			 rcs_clock / 1e3, 1e9 / rcs_clock);

@@ -813,7 +813,7 @@ static int intel_reg_read(struct config *config, int argc, char *argv[])
 	if (config->mmiofile)
 		intel_mmio_use_dump_file(&config->mmio_data, config->mmiofile);
 	else
-		intel_register_access_init(&config->mmio_data, config->pci_dev, 0, -1);
+		intel_register_access_init(&config->mmio_data, config->pci_dev, 0);
 
 	for (i = 1; i < argc; i++) {
 		struct reg reg;
@@ -843,7 +843,7 @@ static int intel_reg_write(struct config *config, int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	intel_register_access_init(&config->mmio_data, config->pci_dev, 0, -1);
+	intel_register_access_init(&config->mmio_data, config->pci_dev, 0);
 
 	for (i = 1; i < argc; i += 2) {
 		struct reg reg;
@@ -881,7 +881,7 @@ static int intel_reg_dump(struct config *config, int argc, char *argv[])
 	if (config->mmiofile)
 		intel_mmio_use_dump_file(&config->mmio_data, config->mmiofile);
 	else
-		intel_register_access_init(&config->mmio_data, config->pci_dev, 0, -1);
+		intel_register_access_init(&config->mmio_data, config->pci_dev, 0);
 
 	for (i = 0; i < config->regcount; i++) {
 		reg = &config->regs[i];

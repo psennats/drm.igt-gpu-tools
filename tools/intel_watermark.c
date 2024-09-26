@@ -328,7 +328,7 @@ static void skl_wm_dump(void)
 	uint32_t wm_linetime[num_pipes];
 	uint32_t arb_ctl, arb_ctl2, wm_dbg;
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	arb_ctl = read_reg(0x45000);
 	arb_ctl2 = read_reg(0x45004);
@@ -650,7 +650,7 @@ static void ilk_wm_dump(void)
 	struct ilk_plane primary[3] = {}, sprite[3] = {}, cursor[3] = {};
 	struct ilk_wm wm = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	for (i = 0; i < num_pipes; i++) {
 		dspcntr[i] = read_reg(0x70180 + i * 0x1000);
@@ -863,7 +863,7 @@ static void vlv_wm_dump(void)
 	uint32_t dsp_ss_pm, ddr_setup2;
 	struct gmch_wm wms[MAX_PLANE] = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	dsparb = read_reg(0x70030);
 	dsparb2 = read_reg(0x70060);
@@ -1080,7 +1080,7 @@ static void g4x_wm_dump(void)
 	uint32_t mi_arb_state;
 	struct gmch_wm wms[MAX_PLANE] = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	dspacntr = read_reg(0x70180);
 	dspbcntr = read_reg(0x71180);
@@ -1167,7 +1167,7 @@ static void gen4_wm_dump(void)
 	uint32_t mi_arb_state;
 	struct gmch_wm wms[MAX_PLANE] = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	dsparb = read_reg(0x70030);
 	fw1 = read_reg(0x70034);
@@ -1239,7 +1239,7 @@ static void pnv_wm_dump(void)
 	uint32_t cbr;
 	struct gmch_wm wms[MAX_PLANE] = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	dsparb = read_reg(0x70030);
 	fw1 = read_reg(0x70034);
@@ -1330,7 +1330,7 @@ static void gen3_wm_dump(void)
 	uint32_t mi_arb_state;
 	struct gmch_wm wms[MAX_PLANE] = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	dsparb = read_reg(0x70030);
 	instpm = read_reg(0x20c0);
@@ -1400,7 +1400,7 @@ static void gen2_wm_dump(void)
 	uint32_t mi_state;
 	struct gmch_wm wms[MAX_PLANE] = {};
 
-	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	dsparb = read_reg(0x70030);
 	mem_mode = read_reg(0x20cc);

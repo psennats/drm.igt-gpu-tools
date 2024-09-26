@@ -363,7 +363,7 @@ igt_main
 
 			intel_register_access_init(&mmio,
 						   igt_device_get_pci_device(i915),
-						   false, i915);
+						   false);
 
 			sysfs = igt_sysfs_open(i915);
 			pin_rps(sysfs);

@@ -608,7 +608,7 @@ igt_main
 #undef REG
 
 		igt_fixture {
-			intel_register_access_init(&mmio_data, igt_device_get_pci_device(fd), 0, fd);
+			intel_register_access_init(&mmio_data, igt_device_get_pci_device(fd), 0);
 		}
 
 		for (int i = 0; i < ARRAY_SIZE(lris); i++) {

@@ -457,7 +457,7 @@ static int run(int seconds,
 		return IGT_EXIT_SKIP; /* Needs BCS timestamp */
 
 	intel_register_access_init(&mmio_data,
-				   igt_device_get_pci_device(fd), false, fd);
+				   igt_device_get_pci_device(fd), false);
 
 	if (gen == 6)
 		timestamp_reg = REG(RCS_TIMESTAMP);

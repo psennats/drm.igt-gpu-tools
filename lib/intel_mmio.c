@@ -219,7 +219,7 @@ release_forcewake_lock(int fd)
  * Users are expected to call intel_register_access_fini() after use.
  */
 int
-intel_register_access_init(struct intel_mmio_data *mmio_data, struct pci_device *pci_dev, int safe, int fd)
+intel_register_access_init(struct intel_mmio_data *mmio_data, struct pci_device *pci_dev, int safe)
 {
 	int ret;
 
@@ -236,8 +236,8 @@ intel_register_access_init(struct intel_mmio_data *mmio_data, struct pci_device 
 	/* Find where the forcewake lock is. Forcewake doesn't exist
 	 * gen < 6, but the debugfs should do the right things for us.
 	 */
-	ret = igt_open_forcewake_handle(fd);
-	if (ret == -1)
+	ret = igt_open_forcewake_handle_for_pcidev(pci_dev);
+	if (ret < 0)
 		mmio_data->key = FAKEKEY;
 	else
 		mmio_data->key = ret;

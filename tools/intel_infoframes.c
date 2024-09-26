@@ -1109,7 +1109,7 @@ int main(int argc, char *argv[])
 	       " perfectly: the Kernel might undo our changes.\n");
 
 	pci_dev = intel_get_pci_device();
-	intel_register_access_init(&mmio_data, pci_dev, 0, -1);
+	intel_register_access_init(&mmio_data, pci_dev, 0);
 	intel_check_pch();
 
 	if (IS_GEN4(pci_dev->device_id))

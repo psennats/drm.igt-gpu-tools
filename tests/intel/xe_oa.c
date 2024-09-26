@@ -3937,8 +3937,7 @@ static void test_oa_regs_whitelist(const struct drm_xe_engine_class_instance *hw
 	mmio_base = oa_get_mmio_base(hwe);
 
 	intel_register_access_init(&mmio_data,
-				   igt_device_get_pci_device(drm_fd),
-				   0, drm_fd);
+				   igt_device_get_pci_device(drm_fd), 0);
 	stream_fd = __perf_open(drm_fd, &param, false);
 
 	dump_whitelist(mmio_base, "oa whitelisted");

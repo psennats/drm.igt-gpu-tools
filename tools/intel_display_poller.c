@@ -1607,7 +1607,7 @@ int main(int argc, char *argv[])
 		break;
 	}
 
-	intel_register_access_init(&mmio_data ,intel_get_pci_device(), 0, -1);
+	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
 
 	printf("%s?\n", test_name(test, pipe, bit, test_pixelcount));
 

@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 
 	assert(intel_register_access_init(&mmio_data,
 					  igt_device_get_pci_device(device),
-					  0, device) == 0);
+					  0) == 0);
 
 	dir = igt_sysfs_open(device);
 

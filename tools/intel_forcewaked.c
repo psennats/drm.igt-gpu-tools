@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 		INFO_PRINT("started daemon");
 	}
 
-	ret = intel_register_access_init(&mmio_data, intel_get_pci_device(), 1, -1);
+	ret = intel_register_access_init(&mmio_data, intel_get_pci_device(), 1);
 	if (ret) {
 		INFO_PRINT("Couldn't init register access\n");
 		exit(1);
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 		if (!is_alive(&mmio_data)) {
 			INFO_PRINT("gpu reset? restarting daemon\n");
 			intel_register_access_fini(&mmio_data);
-			ret = intel_register_access_init(&mmio_data, intel_get_pci_device(), 1, -1);
+			ret = intel_register_access_init(&mmio_data, intel_get_pci_device(), 1);
 			if (ret)
 				INFO_PRINT("Reg access init fail\n");
 		}
