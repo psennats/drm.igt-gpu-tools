@@ -501,9 +501,17 @@ void igt_stop_hang_helper(void)
  */
 int igt_open_forcewake_handle(int fd)
 {
+	const char *fn;
+
 	if (getenv("IGT_NO_FORCEWAKE"))
 		return -1;
-	return igt_debugfs_open(fd, "i915_forcewake_user", O_RDONLY);
+
+	if (is_xe_device(fd))
+		fn = "forcewake_all";
+	else
+		fn = "i915_forcewake_user";
+
+	return igt_debugfs_open(fd, fn, O_RDONLY);
 }
 
 #if defined(__x86_64__) || defined(__i386__)
