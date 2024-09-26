@@ -66,6 +66,10 @@
  * SUBTEST: fade-with-suspend
  * Description: Test the fade with suspend.
  * Functionality: backlight, suspend
+ *
+ * SUBTEST: brightness-with-dpms
+ * Description: test brightness with dpms on and off cycle.
+ * Functionality: backlight, dpms
  */
 
 struct context {
@@ -78,6 +82,7 @@ struct context {
 enum {
 	TEST_NONE = 0,
 	TEST_DPMS,
+	TEST_DPMS_CYCLE,
 	TEST_SUSPEND,
 };
 
@@ -213,6 +218,22 @@ check_dpms(igt_output_t *output)
 	igt_assert(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_ACTIVE));
 }
 
+static void check_dpms_cycle(struct context *context)
+{
+	int max, val_1, val_2;
+
+	backlight_read(&max, "max_brightness", context);
+	igt_assert(max);
+
+	backlight_write(max / 2, "brightness", context);
+	backlight_read(&val_1, "actual_brightness", context);
+
+	check_dpms(context->output);
+
+	backlight_read(&val_2, "actual_brightness", context);
+	igt_assert_eq(val_1, val_2);
+}
+
 static void
 check_suspend(igt_output_t *output)
 {
@@ -276,6 +297,8 @@ igt_main
 		{ "bad-brightness", "test the bad brightness.", test_bad_brightness, TEST_NONE },
 		{ "fade", "test basic fade.", test_fade, TEST_NONE },
 		{ "fade-with-dpms", "test the fade with DPMS.", test_fade, TEST_DPMS },
+		{ "brightness-with-dpms", "test brightness with dpms on and off cycle.",
+		   check_dpms_cycle, TEST_DPMS_CYCLE},
 		{ "fade-with-suspend", "test the fade with suspend.", test_fade, TEST_SUSPEND },
 	};
 
