@@ -85,6 +85,7 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 	char buf[PSR_STATUS_MAX_LEN];
 	drmModeConnector *c;
 	const char *state;
+	const char *env;
 	bool active;
 	int ret;
 
@@ -114,7 +115,9 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 	igt_skip_on(strstr(buf, "PSR sink not reliable: yes"));
 
 	active = strstr(buf, state);
-	if (active && output)
+
+	env = getenv("IGT_PANEL_REPLAY_IGNORE_SINK_STATUS");
+	if (active && output && (!env || !atoi(env)))
 		active = psr_active_sink_check(debugfs_fd, output);
 
 	return active;
