@@ -493,6 +493,7 @@ void igt_stop_hang_helper(void)
 
 /**
  * igt_open_forcewake_handle:
+ * @fd: drm fd - i915 or xe
  *
  * This functions opens the debugfs forcewake file and so prevents the GT from
  * suspending. The reference is automatically dropped when the is closed.
@@ -509,8 +510,10 @@ int igt_open_forcewake_handle(int fd)
 
 	if (is_xe_device(fd))
 		fn = "forcewake_all";
-	else
+	else if (is_i915_device(fd))
 		fn = "i915_forcewake_user";
+	else
+		return -1;
 
 	return igt_debugfs_open(fd, fn, O_RDONLY);
 }
