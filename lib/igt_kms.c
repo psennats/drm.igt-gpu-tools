@@ -4946,7 +4946,7 @@ bool __override_all_active_output_modes_to_fit_bw(igt_display_t *display,
 
 		if (!ret)
 			return true;
-		else if (ret != -ENOSPC)
+		else if (ret != -ENOSPC && ret != -EINVAL)
 			return false;
 	}
 
