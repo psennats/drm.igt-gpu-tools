@@ -47,6 +47,23 @@ struct match_dto {
 #define CLIENT_STAGE 5
 #define DEBUGGER_STAGE 6
 
+static const char *token_to_str(uint64_t token)
+{
+	static const char * const s[] = {
+		"client pid",
+		"client run",
+		"client fini",
+		"client stop",
+		"client stage",
+		"debugger stage",
+	};
+
+	if (token >= ARRAY_SIZE(s))
+		return "unknown";
+
+	return s[token];
+}
+
 static const char *type_to_str(unsigned int type)
 {
 	switch (type) {
@@ -248,18 +265,7 @@ static int safe_pipe_read(int pipe[2], void *buf, int nbytes, int timeout_ms)
 	if (ret > 0)
 		return read(pipe[0], buf, nbytes);
 
-	return 0;
-}
-
-static uint64_t pipe_read(int pipe[2], int timeout_ms)
-{
-	uint64_t in;
-	uint64_t ret;
-
-	ret = safe_pipe_read(pipe, &in, sizeof(in), timeout_ms);
-	igt_assert(ret == sizeof(in));
-
-	return in;
+	return -ETIMEDOUT;
 }
 
 static void pipe_signal(int pipe[2], uint64_t token)
@@ -279,12 +285,21 @@ static void pipe_close(int pipe[2])
 static uint64_t __wait_token(int pipe[2], const uint64_t token, int timeout_ms)
 {
 	uint64_t in;
+	int ret;
 
-	in = pipe_read(pipe, timeout_ms);
+	ret = safe_pipe_read(pipe, &in, sizeof(in), timeout_ms);
+	igt_assert_f(ret > 0,
+		     "Pipe read timeout waiting for token '%s:(%ld)'\n",
+		     token_to_str(token), token);
 
 	igt_assert_eq(in, token);
 
-	return pipe_read(pipe, timeout_ms);
+	ret = safe_pipe_read(pipe, &in, sizeof(in), timeout_ms);
+	igt_assert_f(ret > 0,
+		     "Pipe read timeout waiting for token value '%s:(%ld)'\n",
+		     token_to_str(token), token);
+
+	return in;
 }
 
 static uint64_t client_wait_token(struct xe_eudebug_client *c, const uint64_t token)
