@@ -1107,11 +1107,24 @@ static void *discovery_race_thread(void *data)
 
 		if (random() % 2) {
 			struct drm_xe_eudebug_event *e = NULL;
+			int max_worker_waits = 30;
 			int i = -1;
 
 			xe_eudebug_debugger_start_worker(s->debugger);
-			sleep(1);
+
+			/*
+			 * Thread can starve for more than one second. Make
+			 * sure we get at least one event before stopping.
+			 */
+			do
+				sleep(1);
+			while (!READ_ONCE(s->debugger->event_count) &&
+			       --max_worker_waits);
+
+			igt_assert(READ_ONCE(s->debugger->event_count));
+
 			xe_eudebug_debugger_stop_worker(s->debugger, 1);
+
 			igt_debug("Resources discovered: %lu\n", s->debugger->event_count);
 
 			xe_eudebug_for_each_event(e, s->debugger->log) {
