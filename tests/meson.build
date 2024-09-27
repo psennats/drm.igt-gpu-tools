@@ -246,6 +246,7 @@ intel_kms_progs = [
 	'kms_ccs',
 	'kms_cdclk',
 	'kms_dirtyfb',
+        'kms_dp_linktrain_fallback',
 	'kms_draw_crc',
 	'kms_dsc',
 	'kms_fb_coherency',
