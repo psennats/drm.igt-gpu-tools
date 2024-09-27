@@ -6696,11 +6696,12 @@ static int parse_path_connector(char *connector_path)
 {
 	int connector_id;
 	char *encoder;
+	char *connector_path_copy = strdup(connector_path);
 
-	encoder = strtok(connector_path, ":");
+	encoder = strtok(connector_path_copy, ":");
 	igt_assert_f(!strcmp(encoder, "mst"), "PATH connector property expected to have 'mst'\n");
-
 	connector_id = atoi(strtok(NULL, "-"));
+	free(connector_path_copy);
 
 	return connector_id;
 }
@@ -6714,13 +6715,11 @@ static int parse_path_connector(char *connector_path)
 int igt_get_dp_mst_connector_id(igt_output_t *output)
 {
 	int connector_id;
-	char *connector_path;
 
 	if (!igt_check_output_is_dp_mst(output))
 		return -EINVAL;
 
-	connector_path = output->config.connector_path;
-	connector_id = parse_path_connector(connector_path);
+	connector_id = parse_path_connector(output->config.connector_path);
 
 	return connector_id;
 }
