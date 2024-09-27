@@ -1007,7 +1007,6 @@ static void test_basic_discovery(int fd, unsigned int flags, bool match_opposite
 #define DISCOVERY_VM_BIND		(1 << 3)
 static void run_discovery_client(struct xe_eudebug_client *c)
 {
-	struct drm_xe_engine_class_instance *hwe = NULL;
 	int fd[RESOURCE_COUNT], i;
 	bool skip_sleep = c->flags & (DISCOVERY_DESTROY_RESOURCES | DISCOVERY_CLOSE_CLIENT);
 	uint64_t addr = 0x1a0000;
@@ -1015,20 +1014,15 @@ static void run_discovery_client(struct xe_eudebug_client *c)
 	srand(getpid());
 
 	for (i = 0; i < RESOURCE_COUNT; i++) {
+		struct drm_xe_engine_class_instance *hwe = NULL;
+
 		fd[i] = xe_eudebug_client_open_driver(c);
 
-		if (!i) {
-			bool found = false;
+		/* Get first */
+		xe_eudebug_for_each_engine(fd[i], hwe)
+			break;
 
-			xe_for_each_engine(fd[0], hwe) {
-				if (hwe->engine_class == DRM_XE_ENGINE_CLASS_COMPUTE ||
-				    hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER) {
-					found = true;
-					break;
-				}
-			}
-			igt_assert(found);
-		}
+		igt_assert(hwe);
 
 		/*
 		 * Give the debugger a break in event stream after every
