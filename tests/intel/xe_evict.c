@@ -491,7 +491,7 @@ static unsigned int working_set(uint64_t vram_size, uint64_t system_size,
 	total_size = ((vram_size - 1) / bo_size + system_size * 4 / 5 / bo_size) /
 		num_threads - 1;
 
-	igt_debug("num_threads: %d bo_size : %lu total_size : %lu\n", num_threads,
+	igt_debug("num_threads: %d bo_size : %"PRIu64" total_size : %"PRIu64"\n", num_threads,
 		  bo_size, total_size);
 
 	if (set_size > total_size)

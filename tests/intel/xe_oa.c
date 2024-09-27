@@ -2677,7 +2677,7 @@ test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 
 		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
 
-		igt_debug("first ts = %lu, last ts = %lu\n", first_timestamp, last_timestamp);
+		igt_debug("first ts = %"PRIu64", last ts = %"PRIu64"\n", first_timestamp, last_timestamp);
 
 		igt_debug("%f < %zu < %f\n",
 			  report_size * n_full_oa_reports * 0.45,
@@ -4048,7 +4048,7 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 		if (get_oa_format(test_set->perf_oa_format).report_hdr_64bit) {
 			u64 *start64 = (u64 *)start;
 
-			igt_debug("hdr: %016lx %016lx %016lx %016lx\n",
+			igt_debug("hdr: %016"PRIx64" %016"PRIx64" %016"PRIx64" %016"PRIx64"\n",
 				  start64[0], start64[1], start64[2], start64[3]);
 		} else {
 			igt_debug("hdr: %08x %08x %08x %08x\n",

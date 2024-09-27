@@ -1152,7 +1152,7 @@ static int rw_attr_sweep(igt_sysfs_rw_attr_t *rw)
 	while (set < UINT64_MAX / 2) {
 		ret = __igt_sysfs_set_u64(rw->dir, rw->attr, set);
 		__igt_sysfs_get_u64(rw->dir, rw->attr, &get);
-		igt_debug("'%s': ret %d set %lu get %lu\n", rw->attr, ret, set, get);
+		igt_debug("'%s': ret %d set %"PRIu64" get %"PRIu64"\n", rw->attr, ret, set, get);
 		if (ret && rw_attr_equal_within_epsilon(get, set, rw->tol)) {
 			igt_debug("'%s': matches\n", rw->attr);
 			num_points++;
@@ -1196,7 +1196,7 @@ void igt_sysfs_rw_attr_verify(igt_sysfs_rw_attr_t *rw)
 	igt_assert(rw->start);	/* cannot be 0 */
 
 	__igt_sysfs_get_u64(rw->dir, rw->attr, &prev);
-	igt_debug("'%s': prev %lu\n", rw->attr, prev);
+	igt_debug("'%s': prev %"PRIu64"\n", rw->attr, prev);
 
 	ret = rw_attr_sweep(rw);
 

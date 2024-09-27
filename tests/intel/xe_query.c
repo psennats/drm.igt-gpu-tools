@@ -771,13 +771,13 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 			delta_cs = (((1 << ts2.width) - ts2.engine_cycles) + ts1.engine_cycles) *
 				   NSEC_PER_SEC / eng_ref_clock1;
 
-		igt_debug("delta_cpu[%lu], delta_cs[%lu]\n",
+		igt_debug("delta_cpu[%"PRIu64"], delta_cs[%"PRIu64"]\n",
 			  delta_cpu, delta_cs);
 
 		delta_delta = delta_cpu > delta_cs ?
 			       delta_cpu - delta_cs :
 			       delta_cs - delta_cpu;
-		igt_debug("delta_delta %lu\n", delta_delta);
+		igt_debug("delta_delta %"PRIu64"\n", delta_delta);
 
 		if (delta_delta < 5000)
 			usable++;

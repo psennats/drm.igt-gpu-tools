@@ -141,7 +141,7 @@ static struct object *create_obj(struct blt_copy_data *blt,
 	w = max_t(int, 1024, roundup_power_of_two(sqrt(size/4)));
 	h = size / w / 4; /* /4 - 32bpp */
 
-	igt_debug("[%8d] Obj size: %ldKiB (%ldMiB) <w: %d, h: %d>\n",
+	igt_debug("[%8d] Obj size: %"PRId64"KiB (%"PRId64"MiB) <w: %d, h: %d>\n",
 		  getpid(), size / SZ_1K, size / SZ_1M, w, h);
 
 	src = blt_create_object(blt,
@@ -196,7 +196,7 @@ static void check_obj(const char *check_mode,
 
 	if (obj->ptr[0] != start_value ||
 	    (obj->ptr[size/4 - 1] != start_value + size/4 - 1)) {
-		igt_info("[%s] Failed object w: %d, h: %d, size: %ldKiB (%ldMiB)\n",
+		igt_info("[%s] Failed object w: %d, h: %d, size: %"PRId64"KiB (%"PRId64"MiB)\n",
 			 check_mode, obj->x2, obj->y2, obj->size / SZ_1K, obj->size / SZ_1M);
 		dump_obj(obj, start_value);
 	}
@@ -209,7 +209,7 @@ static void check_obj(const char *check_mode,
 		idx = rand() % (size/4);
 
 		if (obj->ptr[idx] != start_value + idx) {
-			igt_info("[%s] Failed object w: %d, h: %d, size: %ldKiB (%ldMiB)\n",
+			igt_info("[%s] Failed object w: %d, h: %d, size: %"PRId64"KiB (%"PRId64"MiB)\n",
 				 check_mode, obj->x2, obj->y2,
 				 obj->size / SZ_1K, obj->size / SZ_1M);
 			dump_obj(obj, start_value);

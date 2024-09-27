@@ -244,7 +244,7 @@ verify_object(int i915, const struct object *obj,  unsigned int flags)
 		uint32_t val = obj->seed + x;
 
 		igt_assert_f(buf[x] == val,
-			     "Object mismatch at offset %zu - found %08x, expected %08x; difference:%08x!\n",
+			     "Object mismatch at offset %lu - found %08x, expected %08x; difference:%08x!\n",
 			     x * sizeof(*buf), buf[x], val, buf[x] ^ val);
 	}
 
@@ -442,7 +442,7 @@ static void __do_evict(int i915,
 		}
 	}
 
-	igt_debug("obj size min/max=%lu %s/%lu %s, count=%u, seed: %u\n",
+	igt_debug("obj size min/max=%"PRIu64" %s/%"PRIu64" %s, count=%u, seed: %u\n",
 		  readable_size(params->size.min), readable_unit(params->size.min),
 		  readable_size(params->size.max), readable_unit(params->size.max),
 		  params->count, seed);
@@ -591,7 +591,7 @@ static void fill_params(int i915, struct params *params,
 		(region->probed_size >> 20);
 	igt_info("Memory: system-total %dMiB, lmem-region %lldMiB, usage-limit %dMiB\n",
 		 swap_mb, (region->probed_size >> 20), params->mem_limit);
-	igt_info("Using %u thread(s), %u loop(s), %u objects of %lu %s - %lu %s, seed: %u, oom: %s\n",
+	igt_info("Using %u thread(s), %u loop(s), %u objects of %"PRIu64" %s - %"PRIu64" %s, seed: %u, oom: %s\n",
 		 params->flags & TEST_PARALLEL ? nproc : 1,
 		 params->loops,
 		 params->count,

@@ -205,7 +205,7 @@ static void mem_active(int fd, struct drm_xe_engine *engine)
 		 * N_EXEC_QUEUES active memory consumption should be
 		 * > = bo_size
 		 */
-		igt_info("total:%ld active:%ld pre_size:%ld bo_size:%ld\n",
+		igt_info("total:%"PRId64" active:%"PRId64" pre_size:%"PRId64" bo_size:%zd\n",
 			 info.region_mem[memregion->instance + 1].total,
 			 info.region_mem[memregion->instance + 1].active,
 			 pre_size,
@@ -267,7 +267,7 @@ static void mem_shared(int xe)
 		ret = igt_parse_drm_fdinfo(xe, &info, NULL, 0, NULL, 0);
 		igt_assert_f(ret != 0, "failed with err:%d\n", errno);
 
-		igt_info("total:%ld pre_size:%ld shared:%ld\n",
+		igt_info("total:%"PRId64" pre_size:%"PRId64" shared:%"PRId64"\n",
 			 info.region_mem[memregion->instance + 1].total,
 			 pre_size,
 			 info.region_mem[memregion->instance + 1].shared);
@@ -308,7 +308,7 @@ static void mem_total_resident(int xe)
 		/* currently xe KMD maps memory class system region to
 		 * XE_PL_TT thus we need memregion->instance + 1
 		 */
-		igt_info("total:%ld resident:%ld pre_size:%ld bo_size:%d\n",
+		igt_info("total:%"PRId64" resident:%"PRId64" pre_size:%"PRId64" bo_size:%d\n",
 			 info.region_mem[memregion->instance + 1].total,
 			 info.region_mem[memregion->instance + 1].resident,
 			 pre_size, BO_SIZE);
@@ -501,9 +501,9 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 	double percent;
 	u64 den, num;
 
-	igt_debug("%s: sample 1: cycles %lu, total_cycles %lu\n",
+	igt_debug("%s: sample 1: cycles %"PRIu64", total_cycles %"PRIu64"\n",
 		  engine_map[class], s1[class].cycles, s1[class].total_cycles);
-	igt_debug("%s: sample 2: cycles %lu, total_cycles %lu\n",
+	igt_debug("%s: sample 2: cycles %"PRIu64", total_cycles %"PRIu64"\n",
 		  engine_map[class], s2[class].cycles, s2[class].total_cycles);
 
 	num = s2[class].cycles - s1[class].cycles;

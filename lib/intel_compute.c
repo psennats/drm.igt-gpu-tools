@@ -774,13 +774,13 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 {
 	int b = 0;
 
-	igt_debug("general   state base: %lx\n", addr_general_state_base);
-	igt_debug("surface   state base: %lx\n", addr_surface_state_base);
-	igt_debug("dynamic   state base: %lx\n", addr_dynamic_state_base);
-	igt_debug("instruct   base addr: %lx\n", addr_instruction_state_base);
-	igt_debug("bindless   base addr: %lx\n", addr_surface_state_base);
-	igt_debug("offset indirect addr: %lx\n", offset_indirect_data_start);
-	igt_debug("kernel start pointer: %lx\n", kernel_start_pointer);
+	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
+	igt_debug("surface   state base: %"PRIx64"\n", addr_surface_state_base);
+	igt_debug("dynamic   state base: %"PRIx64"\n", addr_dynamic_state_base);
+	igt_debug("instruct   base addr: %"PRIx64"\n", addr_instruction_state_base);
+	igt_debug("bindless   base addr: %"PRIx64"\n", addr_surface_state_base);
+	igt_debug("offset indirect addr: %"PRIx64"\n", offset_indirect_data_start);
+	igt_debug("kernel start pointer: %"PRIx64"\n", kernel_start_pointer);
 
 	addr_bo_buffer_batch[b++] = GEN7_PIPELINE_SELECT | GEN9_PIPELINE_SELECTION_MASK |
 				    PIPELINE_SELECT_GPGPU;
@@ -991,13 +991,13 @@ static void xehpc_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 {
 	int b = 0;
 
-	igt_debug("general   state base: %lx\n", addr_general_state_base);
-	igt_debug("surface   state base: %lx\n", addr_surface_state_base);
-	igt_debug("dynamic   state base: %lx\n", addr_dynamic_state_base);
-	igt_debug("instruct   base addr: %lx\n", addr_instruction_state_base);
-	igt_debug("bindless   base addr: %lx\n", addr_surface_state_base);
-	igt_debug("offset indirect addr: %lx\n", offset_indirect_data_start);
-	igt_debug("kernel start pointer: %lx\n", kernel_start_pointer);
+	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
+	igt_debug("surface   state base: %"PRIx64"\n", addr_surface_state_base);
+	igt_debug("dynamic   state base: %"PRIx64"\n", addr_dynamic_state_base);
+	igt_debug("instruct   base addr: %"PRIx64"\n", addr_instruction_state_base);
+	igt_debug("bindless   base addr: %"PRIx64"\n", addr_surface_state_base);
+	igt_debug("offset indirect addr: %"PRIx64"\n", offset_indirect_data_start);
+	igt_debug("kernel start pointer: %"PRIx64"\n", kernel_start_pointer);
 
 	addr_bo_buffer_batch[b++] = GEN7_PIPELINE_SELECT | GEN9_PIPELINE_SELECTION_MASK |
 				    PIPELINE_SELECT_GPGPU;
@@ -1174,15 +1174,15 @@ static void xe2lpg_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 {
 	int b = 0;
 
-	igt_debug("general   state base: %lx\n", addr_general_state_base);
-	igt_debug("surface   state base: %lx\n", addr_surface_state_base);
-	igt_debug("dynamic   state base: %lx\n", addr_dynamic_state_base);
-	igt_debug("instruct   base addr: %lx\n", addr_instruction_state_base);
-	igt_debug("bindless   base addr: %lx\n", addr_surface_state_base);
-	igt_debug("state context data base addr: %lx\n", addr_state_contect_data_base);
-	igt_debug("offset indirect addr: %lx\n", offset_indirect_data_start);
-	igt_debug("kernel start pointer: %lx\n", kernel_start_pointer);
-	igt_debug("sip start pointer: %lx\n", sip_start_pointer);
+	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
+	igt_debug("surface   state base: %"PRIx64"\n", addr_surface_state_base);
+	igt_debug("dynamic   state base: %"PRIx64"\n", addr_dynamic_state_base);
+	igt_debug("instruct   base addr: %"PRIx64"\n", addr_instruction_state_base);
+	igt_debug("bindless   base addr: %"PRIx64"\n", addr_surface_state_base);
+	igt_debug("state context data base addr: %"PRIx64"\n", addr_state_contect_data_base);
+	igt_debug("offset indirect addr: %"PRIx64"\n", offset_indirect_data_start);
+	igt_debug("kernel start pointer: %"PRIx64"\n", kernel_start_pointer);
+	igt_debug("sip start pointer: %"PRIx64"\n", sip_start_pointer);
 
 	addr_bo_buffer_batch[b++] = GEN7_PIPELINE_SELECT | GEN9_PIPELINE_SELECTION_MASK |
 				    PIPELINE_SELECT_GPGPU;

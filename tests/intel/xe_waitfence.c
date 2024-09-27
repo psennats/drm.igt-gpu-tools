@@ -111,7 +111,7 @@ waitfence(int fd, enum waittype wt)
 
 	if (wt == RELTIME) {
 		timeout = xe_wait_ufence(fd, &wait_fence, 7, 0, 10 * NSEC_PER_MSEC);
-		igt_debug("wait type: RELTIME - timeout: %ld, timeout left: %ld\n",
+		igt_debug("wait type: RELTIME - timeout: %"PRId64", timeout left: %"PRId64"\n",
 			  (int64_t)10 * NSEC_PER_MSEC, timeout);
 	} else if (wt == ENGINE) {
 		exec_queue = xe_exec_queue_create_class(fd, vm, DRM_XE_ENGINE_CLASS_COPY);

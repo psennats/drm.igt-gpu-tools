@@ -1400,7 +1400,7 @@ uint64_t igt_pm_get_runtime_suspended_time(struct pci_device *pci_dev)
 
 	time_fd = igt_pm_get_power_attr_fd_rdonly(pci_dev, "runtime_suspended_time");
 	if (igt_pm_read_power_attr(time_fd, time_str, 64, false)) {
-		igt_assert(sscanf(time_str, "%ld", &time) > 0);
+		igt_assert(sscanf(time_str, "%"PRId64"", &time) > 0);
 
 		igt_debug("runtime suspended time for PCI '%04x:%02x:%02x.%01x' = %" PRIu64 "\n",
 			  pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func, time);
@@ -1425,7 +1425,7 @@ uint64_t igt_pm_get_runtime_active_time(struct pci_device *pci_dev)
 
 	time_fd = igt_pm_get_power_attr_fd_rdonly(pci_dev, "runtime_active_time");
 	if (igt_pm_read_power_attr(time_fd, time_str, 64, false)) {
-		igt_assert(sscanf(time_str, "%ld", &time) > 0);
+		igt_assert(sscanf(time_str, "%"PRId64"", &time) > 0);
 
 		igt_debug("runtime active time for PCI '%04x:%02x:%02x.%01x' = %" PRIu64 "\n",
 			  pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func, time);

@@ -173,7 +173,7 @@ igt_main
 	}
 
 	for (int i = 0; i < ARRAY_SIZE(size); i++) {
-		igt_subtest_f("mem-copy-linear-0x%lx", size[i]) {
+		igt_subtest_f("mem-copy-linear-0x%"PRIx64"", size[i]) {
 			igt_require(blt_has_mem_copy(fd));
 			for_each_variation_r(regions, 1, set) {
 				region = igt_collection_get_value(regions, 0);
@@ -183,7 +183,7 @@ igt_main
 	}
 
 	for (int i = 0; i < ARRAY_SIZE(size); i++) {
-		igt_subtest_f("mem-set-linear-0x%lx", size[i]) {
+		igt_subtest_f("mem-set-linear-0x%"PRIx64"", size[i]) {
 			igt_require(blt_has_mem_set(fd));
 			for_each_variation_r(regions, 1, set) {
 				region = igt_collection_get_value(regions, 0);

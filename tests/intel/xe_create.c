@@ -286,7 +286,7 @@ static void create_big_vram(int fd, int gt)
 	bo_size = params.quantity ? params.quantity * 1024ULL * 1024ULL
 		  : ALIGN_DOWN(visible_avail_size * params.percent / 100, alignment);
 	igt_require(bo_size);
-	igt_info("gt%u bo_size=%lu visible_available_vram_size=%lu\n",
+	igt_info("gt%u bo_size=%"PRIu64" visible_available_vram_size=%"PRIu64"\n",
 		gt, bo_size, visible_avail_size);
 
 	bo_handle = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, gt),

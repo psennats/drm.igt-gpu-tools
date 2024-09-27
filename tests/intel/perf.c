@@ -3264,7 +3264,7 @@ test_enable_disable(const struct intel_execution_engine2 *e)
 
 		do_ioctl(stream_fd, I915_PERF_IOCTL_DISABLE, 0);
 
-		igt_debug("first ts = %lu, last ts = %lu\n", first_timestamp, last_timestamp);
+		igt_debug("first ts = %"PRIu64", last ts = %"PRIu64"\n", first_timestamp, last_timestamp);
 
 		igt_debug("%f < %zu < %f\n",
 			  report_size * n_full_oa_reports * 0.45,

@@ -133,7 +133,7 @@ static void test_timeout(int fd, int engine, const char **property, uint16_t cla
 
 	for (int i = 0; i < ARRAY_SIZE(delays); i++) {
 		elapsed = __test_timeout(fd, engine, delays[i], gt, class);
-		igt_info("%s:%ld, elapsed=%.3fus\n",
+		igt_info("%s:%"PRId64", elapsed=%.3fus\n",
 				property[0], delays[i], elapsed * 1e-3);
 		igt_assert_f(elapsed / 1000  < delays[i] + epsilon,
 				"Timeslice exceeded request!!\n");
