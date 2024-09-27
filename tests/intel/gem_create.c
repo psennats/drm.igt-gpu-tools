@@ -206,7 +206,7 @@ static uint64_t get_npages(_Atomic(uint64_t) *global, uint64_t npages)
 }
 
 struct thread_clear {
-	_Atomic(uint64_t) max;
+	_Atomic(uint64_t) max __attribute__((aligned(8)));
 	struct drm_i915_gem_memory_class_instance region;
 	int timeout;
 	int i915;

@@ -242,7 +242,7 @@ static uint64_t get_npages(_Atomic(uint64_t) *global, uint64_t npages)
 }
 
 struct thread_clear {
-	_Atomic(uint64_t) max;
+	_Atomic(uint64_t) max __attribute__((aligned(8)));
 	uint64_t page_size;
 	int timeout;
 	int fd;
