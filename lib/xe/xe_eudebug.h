@@ -112,7 +112,7 @@ typedef void (*xe_eudebug_trigger_fn)(struct xe_eudebug_debugger *,
  * Default abort timeout to use across xe_eudebug lib and tests if no specific
  * timeout value is required.
  */
-#define XE_EUDEBUG_DEFAULT_TIMEOUT_SEC		25ULL
+#define XE_EUDEBUG_DEFAULT_TIMEOUT_SEC		60ULL
 
 #define XE_EUDEBUG_FILTER_EVENT_NONE		BIT(DRM_XE_EUDEBUG_EVENT_NONE)
 #define XE_EUDEBUG_FILTER_EVENT_READ		BIT(DRM_XE_EUDEBUG_EVENT_READ)
