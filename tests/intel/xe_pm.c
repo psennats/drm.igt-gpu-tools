@@ -54,6 +54,22 @@ typedef struct {
 uint64_t orig_threshold;
 int fw_handle = -1;
 
+static pthread_mutex_t suspend_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t suspend_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t child_ready_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t child_ready_cond = PTHREAD_COND_INITIALIZER;
+static bool child_ready = false;
+
+typedef struct {
+	device_t device;
+	struct drm_xe_engine_class_instance *eci;
+	int n_exec_queues;
+	int n_execs;
+	enum igt_suspend_state s_state;
+	enum igt_acpi_d_state d_state;
+	unsigned int flags;
+} child_exec_args;
+
 static void dpms_on_off(device_t device, int mode)
 {
 	int i;
@@ -199,6 +215,200 @@ static void close_fw_handle(int sig)
 }
 
 #define MAX_VMAS 2
+
+static void*
+child_exec(void *arguments)
+{
+	child_exec_args *args = (child_exec_args *)arguments;
+
+	uint32_t vm;
+	uint64_t addr = 0x1a0000;
+	struct drm_xe_sync sync[2] = {
+		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
+		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
+	};
+	struct drm_xe_exec exec = {
+		.num_batch_buffer = 1,
+		.num_syncs = 2,
+		.syncs = to_user_pointer(sync),
+	};
+	int n_vmas = args->flags & UNBIND_ALL ? MAX_VMAS : 1;
+	uint32_t exec_queues[MAX_N_EXEC_QUEUES];
+	uint32_t bind_exec_queues[MAX_N_EXEC_QUEUES];
+	uint32_t syncobjs[MAX_N_EXEC_QUEUES];
+	size_t bo_size;
+	uint32_t bo = 0;
+	struct {
+		uint32_t batch[16];
+		uint64_t pad;
+		uint32_t data;
+	} *data;
+	int i, b;
+	uint64_t active_time;
+	bool check_rpm = (args->d_state == IGT_ACPI_D3Hot ||
+			  args->d_state == IGT_ACPI_D3Cold);
+
+	igt_assert_lte(args->n_exec_queues, MAX_N_EXEC_QUEUES);
+	igt_assert_lt(0, args->n_execs);
+
+	if (check_rpm) {
+		igt_assert(in_d3(args->device, args->d_state));
+		active_time = igt_pm_get_runtime_active_time(args->device.pci_xe);
+	}
+
+	vm = xe_vm_create(args->device.fd_xe, 0, 0);
+
+	if (check_rpm)
+		igt_assert(igt_pm_get_runtime_active_time(args->device.pci_xe) >
+			   active_time);
+
+	bo_size = sizeof(*data) * args->n_execs;
+	bo_size = xe_bb_size(args->device.fd_xe, bo_size);
+
+	if (args->flags & USERPTR) {
+		data = aligned_alloc(xe_get_default_alignment(args->device.fd_xe),
+							 bo_size);
+		memset(data, 0, bo_size);
+	} else {
+		if (args->flags & PREFETCH)
+			bo = xe_bo_create(args->device.fd_xe, 0, bo_size,
+					  all_memory_regions(args->device.fd_xe) |
+					  vram_if_possible(args->device.fd_xe, 0),
+					  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+		else
+			bo = xe_bo_create(args->device.fd_xe, vm, bo_size,
+					  vram_if_possible(args->device.fd_xe, args->eci->gt_id),
+					  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+		data = xe_bo_map(args->device.fd_xe, bo, bo_size);
+	}
+
+	for (i = 0; i < args->n_exec_queues; i++) {
+		exec_queues[i] = xe_exec_queue_create(args->device.fd_xe, vm,
+											  args->eci, 0);
+		bind_exec_queues[i] = 0;
+		syncobjs[i] = syncobj_create(args->device.fd_xe, 0);
+	};
+
+	sync[0].handle = syncobj_create(args->device.fd_xe, 0);
+
+	if (bo) {
+		for (i = 0; i < n_vmas; i++)
+			xe_vm_bind_async(args->device.fd_xe, vm, bind_exec_queues[0], bo,
+							 0, addr + i * bo_size, bo_size, sync, 1);
+	} else {
+		xe_vm_bind_userptr_async(args->device.fd_xe, vm, bind_exec_queues[0],
+					 to_user_pointer(data), addr, bo_size, sync, 1);
+	}
+
+	if (args->flags & PREFETCH)
+		xe_vm_prefetch_async(args->device.fd_xe, vm, bind_exec_queues[0], 0,
+							 addr, bo_size, sync, 1, 0);
+
+	if (check_rpm) {
+		igt_assert(in_d3(args->device, args->d_state));
+		active_time = igt_pm_get_runtime_active_time(args->device.pci_xe);
+	}
+
+	for (i = 0; i < args->n_execs; i++) {
+		uint64_t batch_offset = (char *)&data[i].batch - (char *)data;
+		uint64_t batch_addr = addr + batch_offset;
+		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
+		uint64_t sdi_addr = addr + sdi_offset;
+		int e = i % args->n_exec_queues;
+
+		b = 0;
+		data[i].batch[b++] = MI_STORE_DWORD_IMM_GEN4;
+		data[i].batch[b++] = sdi_addr;
+		data[i].batch[b++] = sdi_addr >> 32;
+		data[i].batch[b++] = 0xc0ffee;
+		data[i].batch[b++] = MI_BATCH_BUFFER_END;
+		igt_assert(b <= ARRAY_SIZE(data[i].batch));
+
+		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
+		sync[1].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
+		sync[1].handle = syncobjs[e];
+
+		exec.exec_queue_id = exec_queues[e];
+		exec.address = batch_addr;
+
+		if (e != i)
+			syncobj_reset(args->device.fd_xe, &syncobjs[e], 1);
+
+		xe_exec(args->device.fd_xe, &exec);
+
+		igt_assert(syncobj_wait(args->device.fd_xe, &syncobjs[e], 1,
+					INT64_MAX, 0, NULL));
+		igt_assert_eq(data[i].data, 0xc0ffee);
+
+		if (i == args->n_execs / 2 && args->s_state != NO_SUSPEND) {
+			/* Until this point, only one thread runs at a given time. Signal
+			 * the parent that this thread will sleep, for the parent to
+			 * create another thread.
+			 */
+			pthread_mutex_lock(&child_ready_lock);
+			child_ready = true;
+			pthread_cond_signal(&child_ready_cond);
+			pthread_mutex_unlock(&child_ready_lock);
+
+			/* Wait for the suspend and resume to finish */
+			pthread_mutex_lock(&suspend_lock);
+			pthread_cond_wait(&suspend_cond, &suspend_lock);
+			pthread_mutex_unlock(&suspend_lock);
+
+			/* From this point, all threads will run concurrently */
+		}
+	}
+
+	igt_assert(syncobj_wait(args->device.fd_xe, &sync[0].handle, 1,
+			   INT64_MAX, 0, NULL));
+
+	sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
+	if (n_vmas > 1)
+		xe_vm_unbind_all_async(args->device.fd_xe, vm, 0, bo, sync, 1);
+	else
+		xe_vm_unbind_async(args->device.fd_xe, vm, bind_exec_queues[0], 0,
+						   addr, bo_size, sync, 1);
+	igt_assert(syncobj_wait(args->device.fd_xe, &sync[0].handle, 1,
+			   INT64_MAX, 0, NULL));
+
+	for (i = 0; i < args->n_execs; i++)
+		igt_assert_eq(data[i].data, 0xc0ffee);
+
+	syncobj_destroy(args->device.fd_xe, sync[0].handle);
+	for (i = 0; i < args->n_exec_queues; i++) {
+		syncobj_destroy(args->device.fd_xe, syncobjs[i]);
+		xe_exec_queue_destroy(args->device.fd_xe, exec_queues[i]);
+		if (bind_exec_queues[i])
+			xe_exec_queue_destroy(args->device.fd_xe, bind_exec_queues[i]);
+	}
+
+	if (bo) {
+		munmap(data, bo_size);
+		gem_close(args->device.fd_xe, bo);
+	} else {
+		free(data);
+	}
+
+	xe_vm_destroy(args->device.fd_xe, vm);
+
+	if (check_rpm) {
+		igt_assert(igt_pm_get_runtime_active_time(args->device.pci_xe) >
+			   active_time);
+		igt_assert(in_d3(args->device, args->d_state));
+	}
+
+	/* Tell the parent that we are ready. This should run only when the code
+	 * is not supposed to suspend.
+	 */
+	if (args->n_execs <= 1 || args->s_state == NO_SUSPEND)  {
+		pthread_mutex_lock(&child_ready_lock);
+		child_ready = true;
+		pthread_cond_signal(&child_ready_cond);
+		pthread_mutex_unlock(&child_ready_lock);
+	}
+	return NULL;
+}
+
 /**
  * SUBTEST: %s-basic
  * Description: test CPU/GPU in and out of s/d state from %arg[1]
@@ -273,173 +483,60 @@ static void close_fw_handle(int sig)
  * @prefetch:	prefetch
  * @unbind-all:	unbind-all
  */
+
+/* Do one suspend and resume cycle for all xe engines.
+ *  - Create a child_exec() thread for each xe engine. Run only one thread
+ *    at a time. The parent will wait for the child to signal it is ready
+ *    to sleep before creating a new thread.
+ *  - Put child_exec() to sleep where it expects to suspend and resume
+ *  - Wait for all child_exec() threads to sleep
+ *  - Run one suspend and resume cycle
+ *  - Wake up all child_exec() threads at once. They will run concurrently.
+ *  - Wait for all child_exec() threads to complete
+ */
 static void
-test_exec(device_t device, struct drm_xe_engine_class_instance *eci,
-	  int n_exec_queues, int n_execs, enum igt_suspend_state s_state,
-	  enum igt_acpi_d_state d_state, unsigned int flags)
+test_exec(device_t device, int n_exec_queues, int n_execs,
+		  enum igt_suspend_state s_state, enum igt_acpi_d_state d_state,
+		  unsigned int flags)
 {
-	uint32_t vm;
-	uint64_t addr = 0x1a0000;
-	struct drm_xe_sync sync[2] = {
-		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
-		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
-	};
-	struct drm_xe_exec exec = {
-		.num_batch_buffer = 1,
-		.num_syncs = 2,
-		.syncs = to_user_pointer(sync),
-	};
-	int n_vmas = flags & UNBIND_ALL ? MAX_VMAS : 1;
-	uint32_t exec_queues[MAX_N_EXEC_QUEUES];
-	uint32_t bind_exec_queues[MAX_N_EXEC_QUEUES];
-	uint32_t syncobjs[MAX_N_EXEC_QUEUES];
-	size_t bo_size;
-	uint32_t bo = 0;
-	struct {
-		uint32_t batch[16];
-		uint64_t pad;
-		uint32_t data;
-	} *data;
-	int i, b;
-	uint64_t active_time;
-	bool check_rpm = (d_state == IGT_ACPI_D3Hot ||
-			  d_state == IGT_ACPI_D3Cold);
+	enum igt_suspend_test test = s_state == SUSPEND_STATE_DISK ? 
+								SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
+	struct drm_xe_engine_class_instance *eci;
+	int active_threads = 0;
+	pthread_t threads[65]; /* MAX_ENGINES + 1 */
+	child_exec_args args;
 
-	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
-	igt_assert_lt(0, n_execs);
+	xe_for_each_engine(device.fd_xe, eci) {
+		args.device = device;
+		args.eci = eci;
+		args.n_exec_queues = n_exec_queues;
+		args.n_execs = n_execs;
+		args.s_state = s_state;
+		args.d_state = d_state;
+		args.flags = flags;
 
-	if (check_rpm) {
-		igt_assert(in_d3(device, d_state));
-		active_time = igt_pm_get_runtime_active_time(device.pci_xe);
+		pthread_create(&threads[active_threads], NULL, child_exec, &args);
+		active_threads++;
+
+		pthread_mutex_lock(&child_ready_lock);
+		while(!child_ready)
+			pthread_cond_wait(&child_ready_cond, &child_ready_lock);
+		child_ready = false;
+		pthread_mutex_unlock(&child_ready_lock);
 	}
 
-	vm = xe_vm_create(device.fd_xe, 0, 0);
+	if (n_execs > 1 && s_state != NO_SUSPEND) {
+		igt_system_suspend_autoresume(s_state, test);
 
-	if (check_rpm)
-		igt_assert(igt_pm_get_runtime_active_time(device.pci_xe) >
-			   active_time);
-
-	bo_size = sizeof(*data) * n_execs;
-	bo_size = xe_bb_size(device.fd_xe, bo_size);
-
-	if (flags & USERPTR) {
-		data = aligned_alloc(xe_get_default_alignment(device.fd_xe), bo_size);
-		memset(data, 0, bo_size);
-	} else {
-		if (flags & PREFETCH)
-			bo = xe_bo_create(device.fd_xe, 0, bo_size,
-					  all_memory_regions(device.fd_xe) |
-					  vram_if_possible(device.fd_xe, 0),
-					  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
-		else
-			bo = xe_bo_create(device.fd_xe, vm, bo_size,
-					  vram_if_possible(device.fd_xe, eci->gt_id),
-					  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
-		data = xe_bo_map(device.fd_xe, bo, bo_size);
+		pthread_mutex_lock(&suspend_lock);
+		pthread_cond_broadcast(&suspend_cond);
+		pthread_mutex_unlock(&suspend_lock);
 	}
 
-	for (i = 0; i < n_exec_queues; i++) {
-		exec_queues[i] = xe_exec_queue_create(device.fd_xe, vm, eci, 0);
-		bind_exec_queues[i] = 0;
-		syncobjs[i] = syncobj_create(device.fd_xe, 0);
-	};
+	for (int i = 0; i < active_threads; i++)
+		pthread_join(threads[i], NULL);
 
-	sync[0].handle = syncobj_create(device.fd_xe, 0);
-
-	if (bo) {
-		for (i = 0; i < n_vmas; i++)
-			xe_vm_bind_async(device.fd_xe, vm, bind_exec_queues[0], bo, 0,
-					 addr + i * bo_size, bo_size, sync, 1);
-	} else {
-		xe_vm_bind_userptr_async(device.fd_xe, vm, bind_exec_queues[0],
-					 to_user_pointer(data), addr, bo_size, sync, 1);
-	}
-
-	if (flags & PREFETCH)
-		xe_vm_prefetch_async(device.fd_xe, vm, bind_exec_queues[0], 0, addr,
-				     bo_size, sync, 1, 0);
-
-	if (check_rpm) {
-		igt_assert(in_d3(device, d_state));
-		active_time = igt_pm_get_runtime_active_time(device.pci_xe);
-	}
-
-	for (i = 0; i < n_execs; i++) {
-		uint64_t batch_offset = (char *)&data[i].batch - (char *)data;
-		uint64_t batch_addr = addr + batch_offset;
-		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
-		uint64_t sdi_addr = addr + sdi_offset;
-		int e = i % n_exec_queues;
-
-		b = 0;
-		data[i].batch[b++] = MI_STORE_DWORD_IMM_GEN4;
-		data[i].batch[b++] = sdi_addr;
-		data[i].batch[b++] = sdi_addr >> 32;
-		data[i].batch[b++] = 0xc0ffee;
-		data[i].batch[b++] = MI_BATCH_BUFFER_END;
-		igt_assert(b <= ARRAY_SIZE(data[i].batch));
-
-		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
-		sync[1].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-		sync[1].handle = syncobjs[e];
-
-		exec.exec_queue_id = exec_queues[e];
-		exec.address = batch_addr;
-
-		if (e != i)
-			syncobj_reset(device.fd_xe, &syncobjs[e], 1);
-
-		xe_exec(device.fd_xe, &exec);
-
-		igt_assert(syncobj_wait(device.fd_xe, &syncobjs[e], 1,
-					INT64_MAX, 0, NULL));
-		igt_assert_eq(data[i].data, 0xc0ffee);
-
-		if (i == n_execs / 2 && s_state != NO_SUSPEND) {
-			enum igt_suspend_test test = s_state == SUSPEND_STATE_DISK ?
-				SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
-
-			igt_system_suspend_autoresume(s_state, test);
-		}
-	}
-
-	igt_assert(syncobj_wait(device.fd_xe, &sync[0].handle, 1, INT64_MAX, 0,
-				NULL));
-
-	sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-	if (n_vmas > 1)
-		xe_vm_unbind_all_async(device.fd_xe, vm, 0, bo, sync, 1);
-	else
-		xe_vm_unbind_async(device.fd_xe, vm, bind_exec_queues[0], 0, addr,
-				   bo_size, sync, 1);
-	igt_assert(syncobj_wait(device.fd_xe, &sync[0].handle, 1, INT64_MAX, 0,
-NULL));
-
-	for (i = 0; i < n_execs; i++)
-		igt_assert_eq(data[i].data, 0xc0ffee);
-
-	syncobj_destroy(device.fd_xe, sync[0].handle);
-	for (i = 0; i < n_exec_queues; i++) {
-		syncobj_destroy(device.fd_xe, syncobjs[i]);
-		xe_exec_queue_destroy(device.fd_xe, exec_queues[i]);
-		if (bind_exec_queues[i])
-			xe_exec_queue_destroy(device.fd_xe, bind_exec_queues[i]);
-	}
-
-	if (bo) {
-		munmap(data, bo_size);
-		gem_close(device.fd_xe, bo);
-	} else {
-		free(data);
-	}
-
-	xe_vm_destroy(device.fd_xe, vm);
-
-	if (check_rpm) {
-		igt_assert(igt_pm_get_runtime_active_time(device.pci_xe) >
-			   active_time);
-		igt_assert(in_d3(device, d_state));
-	}
+	active_threads = 0;
 }
 
 /**
@@ -678,7 +775,6 @@ static void test_mocs_suspend_resume(device_t device, enum igt_suspend_state s_s
 
 igt_main
 {
-	struct drm_xe_engine_class_instance *hwe;
 	device_t device;
 	uint32_t d3cold_allowed;
 	int sysfs_fd;
@@ -718,8 +814,7 @@ igt_main
 		igt_device_get_pci_slot_name(device.fd_xe, device.pci_slot_name);
 
 		/* Always perform initial once-basic exec checking for health */
-		xe_for_each_engine(device.fd_xe, hwe)
-			test_exec(device, hwe, 1, 1, NO_SUSPEND, NO_RPM, 0);
+		test_exec(device, 1, 1, NO_SUSPEND, NO_RPM, 0);
 
 		igt_pm_get_d3cold_allowed(device.pci_slot_name, &d3cold_allowed);
 		igt_assert(igt_setup_runtime_pm(device.fd_xe));
@@ -731,14 +826,11 @@ igt_main
 		igt_subtest_f("%s-basic", s->name) {
 			enum igt_suspend_test test = s->state == SUSPEND_STATE_DISK ?
 				SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
-
 			igt_system_suspend_autoresume(s->state, test);
 		}
 
 		igt_subtest_f("%s-basic-exec", s->name) {
-			xe_for_each_engine(device.fd_xe, hwe)
-				test_exec(device, hwe, 1, 2, s->state,
-					  NO_RPM, 0);
+			test_exec(device, 1, 2, s->state, NO_RPM, 0);
 		}
 
 		igt_subtest_f("%s-exec-after", s->name) {
@@ -746,31 +838,23 @@ igt_main
 				SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
 
 			igt_system_suspend_autoresume(s->state, test);
-			xe_for_each_engine(device.fd_xe, hwe)
-				test_exec(device, hwe, 1, 2, NO_SUSPEND,
-					  NO_RPM, 0);
+			test_exec(device, 1, 2, NO_SUSPEND, NO_RPM, 0);
 		}
 
 		igt_subtest_f("%s-multiple-execs", s->name) {
-			xe_for_each_engine(device.fd_xe, hwe)
-				test_exec(device, hwe, 16, 32, s->state,
-					  NO_RPM, 0);
+			test_exec(device, 16, 32, s->state, NO_RPM, 0);
 		}
 
 		for (const struct vm_op *op = vm_op; op->name; op++) {
 			igt_subtest_f("%s-vm-bind-%s", s->name, op->name) {
-				xe_for_each_engine(device.fd_xe, hwe)
-					test_exec(device, hwe, 16, 32, s->state,
-						  NO_RPM, op->flags);
+				test_exec(device, 16, 32, s->state, NO_RPM, op->flags);
 			}
 		}
 
 		for (const struct d_state *d = d_states; d->name; d++) {
 			igt_subtest_f("%s-%s-basic-exec", s->name, d->name) {
 				igt_assert(setup_d3(device, d->state));
-				xe_for_each_engine(device.fd_xe, hwe)
-					test_exec(device, hwe, 1, 2, s->state,
-						  NO_RPM, 0);
+				test_exec(device, 1, 2, s->state, NO_RPM, 0);
 				cleanup_d3(device);
 			}
 		}
@@ -792,17 +876,13 @@ igt_main
 
 		igt_subtest_f("%s-basic-exec", d->name) {
 			igt_assert(setup_d3(device, d->state));
-			xe_for_each_engine(device.fd_xe, hwe)
-				test_exec(device, hwe, 1, 1,
-					  NO_SUSPEND, d->state, 0);
+			test_exec(device, 1, 1, NO_SUSPEND, d->state, 0);
 			cleanup_d3(device);
 		}
 
 		igt_subtest_f("%s-multiple-execs", d->name) {
 			igt_assert(setup_d3(device, d->state));
-			xe_for_each_engine(device.fd_xe, hwe)
-				test_exec(device, hwe, 16, 32,
-					  NO_SUSPEND, d->state, 0);
+			test_exec(device, 16, 32, NO_SUSPEND, d->state, 0);
 			cleanup_d3(device);
 		}
 
@@ -842,7 +922,6 @@ igt_main
 			test_mocs_suspend_resume(device, NO_SUSPEND, d->state);
 			cleanup_d3(device);
 		}
-
 	}
 
 	igt_describe("Validate whether card is limited to d3hot,"
