@@ -705,6 +705,7 @@ bool gem_store_dword_needs_secure(int fd)
 
 	switch (info->graphics_ver) {
 	case 4:
+		return info->is_eaglelake || info->is_cantiga;
 	case 5:
 		return true;
 	default:
