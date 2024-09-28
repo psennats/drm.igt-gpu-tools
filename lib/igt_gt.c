@@ -655,20 +655,26 @@ unsigned intel_detect_and_clear_missed_interrupts(int fd)
 	return missed;
 }
 
+static bool gem_store_dword_needs_physical(const struct intel_device_info *info)
+{
+	switch (info->graphics_ver) {
+	case 2:
+		return true;
+	case 3:
+		return info->is_grantsdale || info->is_alviso;
+	default:
+		return false;
+	}
+}
+
 bool gem_class_can_store_dword(int fd, int class)
 {
 	uint16_t devid = intel_get_drm_devid(fd);
 	const struct intel_device_info *info = intel_get_device_info(devid);
 	const int ver = info->graphics_ver;
 
-	if (ver == 0) /* unknown, assume it just works */
-		return true;
-
-	if (ver <= 2) /* requires physical addresses */
+	if (gem_store_dword_needs_physical(info))
 		return false;
-
-	if (ver == 3 && (info->is_grantsdale || info->is_alviso))
-		return false; /* only supports physical addresses */
 
 	if (ver == 6 && class == I915_ENGINE_CLASS_VIDEO)
 		return false; /* broken, unbelievably broken */
