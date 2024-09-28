@@ -667,6 +667,14 @@ static bool gem_store_dword_needs_physical(const struct intel_device_info *info)
 	}
 }
 
+/**
+ * gem_class_can_store_dword:
+ * @fd: open i915 drm file descriptor
+ * @class: engine class
+ *
+ * Returns:
+ * True if MI_STORE_DWORD is actually usable.
+ */
 bool gem_class_can_store_dword(int fd, int class)
 {
 	uint16_t devid = intel_get_drm_devid(fd);
@@ -685,6 +693,14 @@ bool gem_class_can_store_dword(int fd, int class)
 	return true;
 }
 
+/**
+ * gem_can_store_dword:
+ * @fd: open i915 drm file descriptor
+ * @engine: engine
+ *
+ * Returns:
+ * True if MI_STORE_DWORD is actually usable.
+ */
 bool gem_can_store_dword(int fd, unsigned int engine)
 {
 	return gem_class_can_store_dword(fd,
