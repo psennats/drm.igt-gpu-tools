@@ -204,33 +204,63 @@ static void untile(int tiled_pos, int x_tile_size, int y_tile_size,
 }
 
 static int linear_x_y_to_xtiled_pos(int x, int y, uint32_t stride, int swizzle,
-				    int bpp)
+				    int bpp, int x_tile_size, int y_tile_size)
 {
 	int pos;
 	int pixel_size = bpp / 8;
 
 	x *= pixel_size;
-	pos = tile(x, y, 512, 8, stride, true);
+	pos = tile(x, y, x_tile_size, y_tile_size, stride, true);
 	pos = swizzle_addr(pos, swizzle);
 	return pos / pixel_size;
 }
 
+static int gen2_linear_x_y_to_xtiled_pos(int x, int y, uint32_t stride, int swizzle,
+					 int bpp)
+{
+	return linear_x_y_to_xtiled_pos(x, y, stride, swizzle, bpp, 128, 16);
+}
+
+static int gen3_linear_x_y_to_xtiled_pos(int x, int y, uint32_t stride, int swizzle,
+					 int bpp)
+{
+	return linear_x_y_to_xtiled_pos(x, y, stride, swizzle, bpp, 512, 8);
+}
+
 static int linear_x_y_to_ytiled_pos(int x, int y, uint32_t stride, int swizzle,
-				    int bpp)
+				    int bpp, int x_tile_size, int y_tile_size,
+				    int ow_size)
 {
 	int ow_tile_n, pos;
-	int ow_size = 16;
 	int pixel_size = bpp / 8;
 
 	/* We have an Y tiling of OWords, so use the tile() function to get the
 	 * OW number, then adjust to the fact that the OW may have more than one
 	 * pixel. */
 	x *= pixel_size;
-	ow_tile_n = tile(x / ow_size, y, 128 / ow_size, 32,
-			 stride / ow_size, false);
+	ow_tile_n = tile(x / ow_size, y, x_tile_size / ow_size,
+			 y_tile_size, stride / ow_size, false);
 	pos = ow_tile_n * ow_size + (x % ow_size);
 	pos = swizzle_addr(pos, swizzle);
 	return pos / pixel_size;
+}
+
+static int gen2_linear_x_y_to_ytiled_pos(int x, int y, uint32_t stride, int swizzle,
+					 int bpp)
+{
+	return linear_x_y_to_ytiled_pos(x, y, stride, swizzle, bpp, 128, 16, 8);
+}
+
+static int i915_linear_x_y_to_ytiled_pos(int x, int y, uint32_t stride, int swizzle,
+					 int bpp)
+{
+	return linear_x_y_to_ytiled_pos(x, y, stride, swizzle, bpp, 512, 8, 32);
+}
+
+static int i945_linear_x_y_to_ytiled_pos(int x, int y, uint32_t stride, int swizzle,
+					 int bpp)
+{
+	return linear_x_y_to_ytiled_pos(x, y, stride, swizzle, bpp, 128, 32, 16);
 }
 
 #define OW_SIZE 16			/* in bytes */
@@ -299,30 +329,61 @@ static int linear_x_y_to_4tiled_pos(int x, int y, uint32_t stride, int swizzle,
 }
 
 static void xtiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
-				     int swizzle, int bpp, int *x, int *y)
+				     int swizzle, int bpp, int *x, int *y,
+				     int x_tile_size, int y_tile_size)
 {
 	int pixel_size = bpp / 8;
 
 	tiled_pos = swizzle_addr(tiled_pos, swizzle);
 
-	untile(tiled_pos, 512, 8, stride, true, x, y);
+	untile(tiled_pos, x_tile_size, y_tile_size, stride, true, x, y);
 	*x /= pixel_size;
 }
 
+static void gen2_xtiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
+					  int swizzle, int bpp, int *x, int *y)
+{
+	return xtiled_pos_to_x_y_linear(tiled_pos, stride, swizzle, bpp, x, y, 128, 16);
+}
+
+static void gen3_xtiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
+					  int swizzle, int bpp, int *x, int *y)
+{
+	return xtiled_pos_to_x_y_linear(tiled_pos, stride, swizzle, bpp, x, y, 512, 8);
+}
+
 static void ytiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
-				     int swizzle, int bpp, int *x, int *y)
+				     int swizzle, int bpp, int *x, int *y,
+				     int x_tile_size, int y_tile_size, int ow_size)
 {
 	int ow_tile_n;
-	int ow_size = 16;
 	int pixel_size = bpp / 8;
 
 	tiled_pos = swizzle_addr(tiled_pos, swizzle);
 
 	ow_tile_n = tiled_pos / ow_size;
-	untile(ow_tile_n, 128 / ow_size, 32, stride / ow_size, false, x, y);
+	untile(ow_tile_n, x_tile_size / ow_size, y_tile_size, stride / ow_size, false, x, y);
 	*x *= ow_size;
 	*x += tiled_pos % ow_size;
 	*x /= pixel_size;
+}
+
+static void gen2_ytiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
+					  int swizzle, int bpp, int *x, int *y)
+{
+	ytiled_pos_to_x_y_linear(tiled_pos, stride, swizzle, bpp, x, y, 128, 16, 8);
+}
+
+static void i915_ytiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
+					  int swizzle, int bpp, int *x, int *y)
+{
+	ytiled_pos_to_x_y_linear(tiled_pos, stride, swizzle, bpp, x, y, 512, 8, 32);
+}
+
+static void i945_ytiled_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
+					  int swizzle, int bpp, int *x, int *y)
+{
+	ytiled_pos_to_x_y_linear(tiled_pos, stride, swizzle, bpp, x, y, 128, 32, 16);
 }
 
 static void tile4_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
@@ -425,11 +486,22 @@ typedef int (*linear_x_y_to_tiled_pos_fn)(int x, int y, uint32_t stride, int swi
 
 static linear_x_y_to_tiled_pos_fn linear_to_tiled_fn(int fd, uint32_t tiling)
 {
+	const struct intel_device_info *info =
+		intel_get_device_info(intel_get_drm_devid(fd));
+
 	switch (tiling) {
 	case I915_TILING_X:
-		return linear_x_y_to_xtiled_pos;
+		if (info->graphics_ver == 2)
+			return gen2_linear_x_y_to_xtiled_pos;
+		else
+			return gen3_linear_x_y_to_xtiled_pos;
 	case I915_TILING_Y:
-		return linear_x_y_to_ytiled_pos;
+		if (info->graphics_ver == 2)
+			return gen2_linear_x_y_to_ytiled_pos;
+		else if (info->is_grantsdale || info->is_alviso)
+			return i915_linear_x_y_to_ytiled_pos;
+		else
+			return i945_linear_x_y_to_ytiled_pos;
 	case I915_TILING_4:
 		return linear_x_y_to_4tiled_pos;
 	default:
@@ -460,10 +532,6 @@ static void draw_rect_mmap_cpu(int fd, struct buf_data *buf, struct rect *rect,
 
 	gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_CPU,
 		       I915_GEM_DOMAIN_CPU);
-
-	/* We didn't implement suport for the older tiling methods yet. */
-	if (tiling != I915_TILING_NONE)
-		igt_require(intel_display_ver(intel_get_drm_devid(fd)) >= 5);
 
 	ptr = gem_mmap__cpu_coherent(fd, buf->handle, 0, PAGE_ALIGN(buf->size),
 				     PROT_READ | PROT_WRITE);
@@ -512,10 +580,6 @@ static void draw_rect_mmap_wc(int fd, struct buf_data *buf, struct rect *rect,
 	if (is_i915_device(fd)) {
 		gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_GTT,
 			       I915_GEM_DOMAIN_GTT);
-
-		/* We didn't implement suport for the older tiling methods yet. */
-		if (tiling != I915_TILING_NONE)
-			igt_require(intel_display_ver(intel_get_drm_devid(fd)) >= 5);
 
 		if (gem_has_lmem(fd))
 			ptr = gem_mmap_offset__fixed(fd, buf->handle, 0,
@@ -572,11 +636,22 @@ typedef void (*tiled_pos_to_x_y_linear_fn)(int tiled_pos, uint32_t stride,
 
 static tiled_pos_to_x_y_linear_fn tiled_to_linear_fn(int fd, uint32_t tiling)
 {
+	const struct intel_device_info *info =
+		intel_get_device_info(intel_get_drm_devid(fd));
+
 	switch (tiling) {
 	case I915_TILING_X:
-		return xtiled_pos_to_x_y_linear;
+		if (info->graphics_ver == 2)
+			return gen2_xtiled_pos_to_x_y_linear;
+		else
+			return gen3_xtiled_pos_to_x_y_linear;
 	case I915_TILING_Y:
-		return ytiled_pos_to_x_y_linear;
+		if (info->graphics_ver == 2)
+			return gen2_ytiled_pos_to_x_y_linear;
+		else if (info->is_grantsdale || info->is_alviso)
+			return i915_ytiled_pos_to_x_y_linear;
+		else
+			return i945_ytiled_pos_to_x_y_linear;
 	case I915_TILING_4:
 		return tile4_pos_to_x_y_linear;
 	default:
@@ -597,9 +672,6 @@ static void draw_rect_pwrite_tiled(int fd, struct buf_data *buf,
 	bool flush_tmp = false;
 	int tmp_start_pos = 0;
 	int pixels_written = 0;
-
-	/* We didn't implement suport for the older tiling methods yet. */
-	igt_require(intel_display_ver(intel_get_drm_devid(fd)) >= 5);
 
 	pixel_size = buf->bpp / 8;
 	tmp_size = sizeof(tmp) / pixel_size;
