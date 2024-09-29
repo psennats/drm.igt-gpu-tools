@@ -307,10 +307,9 @@ static void *linear_ptr(void *ptr,
 
 static void *x_ptr(void *ptr,
 		   unsigned int x, unsigned int y,
-		   unsigned int stride, unsigned int cpp)
+		   unsigned int stride, unsigned int cpp,
+		   const int tile_width, const int tile_height)
 {
-	const int tile_width = 512;
-	const int tile_height = 8;
 	const int tile_size = tile_width * tile_height;
 	int offset_x, offset_y, pos;
 	int tile_x, tile_y;
@@ -327,13 +326,27 @@ static void *x_ptr(void *ptr,
 	return ptr + pos;
 }
 
+static void *gen2_x_ptr(void *ptr,
+			unsigned int x, unsigned int y,
+			unsigned int stride, unsigned int cpp)
+{
+	return x_ptr(ptr, x, y, stride, cpp, 128, 16);
+}
+
+static void *gen3_x_ptr(void *ptr,
+			unsigned int x, unsigned int y,
+			unsigned int stride, unsigned int cpp)
+{
+	return x_ptr(ptr, x, y, stride, cpp, 512, 8);
+}
+
 static void *y_ptr(void *ptr,
 		   unsigned int x, unsigned int y,
-		   unsigned int stride, unsigned int cpp)
+		   unsigned int stride, unsigned int cpp,
+		   const int tile_width,
+		   const int tile_height,
+		   const int owords)
 {
-	const int tile_width = 128;
-	const int tile_height = 32;
-	const int owords = 16;
 	const int tile_size = tile_width * tile_height;
 	int offset_x, offset_y, pos;
 	int shift_x, shift_y;
@@ -350,6 +363,27 @@ static void *y_ptr(void *ptr,
 	pos = offset_y + offset_x + shift_x + shift_y;
 
 	return ptr + pos;
+}
+
+static void *gen2_y_ptr(void *ptr,
+			unsigned int x, unsigned int y,
+			unsigned int stride, unsigned int cpp)
+{
+	return y_ptr(ptr, x, y, stride, cpp, 128, 16, 8);
+}
+
+static void *i915_y_ptr(void *ptr,
+			unsigned int x, unsigned int y,
+			unsigned int stride, unsigned int cpp)
+{
+	return y_ptr(ptr, x, y, stride, cpp, 512, 8, 32);
+}
+
+static void *i945_y_ptr(void *ptr,
+			unsigned int x, unsigned int y,
+			unsigned int stride, unsigned int cpp)
+{
+	return y_ptr(ptr, x, y, stride, cpp, 128, 32, 16);
 }
 
 /*
@@ -426,8 +460,10 @@ static void *yf_ptr(void *ptr,
 
 typedef void *(*tile_fn)(void *, unsigned int, unsigned int,
 			unsigned int, unsigned int);
-static tile_fn __get_tile_fn_ptr(int tiling)
+static tile_fn __get_tile_fn_ptr(int fd, int tiling)
 {
+	const struct intel_device_info *info =
+		intel_get_device_info(intel_get_drm_devid(fd));
 	tile_fn fn = NULL;
 
 	switch (tiling) {
@@ -435,10 +471,18 @@ static tile_fn __get_tile_fn_ptr(int tiling)
 		fn = linear_ptr;
 		break;
 	case I915_TILING_X:
-		fn = x_ptr;
+		if (info->graphics_ver == 2)
+			fn = gen2_x_ptr;
+		else
+			fn = gen3_x_ptr;
 		break;
 	case I915_TILING_Y:
-		fn = y_ptr;
+		if (info->graphics_ver == 2)
+			fn = gen2_y_ptr;
+		else if (info->is_grantsdale || info->is_alviso)
+			fn = i915_y_ptr;
+		else
+			fn = i945_y_ptr;
 		break;
 	case I915_TILING_Yf:
 		fn = yf_ptr;
@@ -595,7 +639,7 @@ static void __copy_linear_to(int fd, struct intel_buf *buf,
 			     const uint32_t *linear,
 			     int tiling, uint32_t swizzle)
 {
-	const tile_fn fn = __get_tile_fn_ptr(tiling);
+	const tile_fn fn = __get_tile_fn_ptr(fd, tiling);
 	int height = intel_buf_height(buf);
 	int width = intel_buf_width(buf);
 	void *map = mmap_write(fd, buf);
@@ -659,7 +703,7 @@ static void copy_linear_to_tile4(struct buf_ops *bops, struct intel_buf *buf,
 static void __copy_to_linear(int fd, struct intel_buf *buf,
 			     uint32_t *linear, int tiling, uint32_t swizzle)
 {
-	const tile_fn fn = __get_tile_fn_ptr(tiling);
+	const tile_fn fn = __get_tile_fn_ptr(fd, tiling);
 	int height = intel_buf_height(buf);
 	int width = intel_buf_width(buf);
 	void *map = mmap_write(fd, buf);
@@ -1696,21 +1740,6 @@ static struct buf_ops *__buf_ops_create(int fd, bool check_idempotency)
 		bops->linear_to_y = copy_linear_to_y;
 		bops->y_to_linear = copy_y_to_linear;
 
-		return bops;
-	}
-
-	/*
-	 * Warning!
-	 *
-	 * Gen2 software tiling/detiling is not supported! (yet).
-	 *
-	 * If you are brave hero with an access to Gen2 you can save the world.
-	 * Until then we're doomed to use only hardware (de)tiling.
-	 *
-	 * Ok, you have been warned.
-	 */
-	if (bops->intel_gen == 2) {
-		igt_warn("Gen2 detected. HW (de)tiling support only.");
 		return bops;
 	}
 
