@@ -420,30 +420,34 @@ static void draw_rect_ptr_linear(void *ptr, uint32_t stride,
 	}
 }
 
-static void draw_rect_ptr_tiled(void *ptr, uint32_t stride, uint32_t tiling,
+typedef int (*linear_x_y_to_tiled_pos_fn)(int x, int y, uint32_t stride, int swizzle,
+					  int bpp);
+
+static linear_x_y_to_tiled_pos_fn linear_to_tiled_fn(int fd, uint32_t tiling)
+{
+	switch (tiling) {
+	case I915_TILING_X:
+		return linear_x_y_to_xtiled_pos;
+	case I915_TILING_Y:
+		return linear_x_y_to_ytiled_pos;
+	case I915_TILING_4:
+		return linear_x_y_to_4tiled_pos;
+	default:
+		igt_assert(false);
+	}
+}
+
+static void draw_rect_ptr_tiled(int fd, void *ptr, uint32_t stride, uint32_t tiling,
 				int swizzle, struct rect *rect, uint64_t color,
 				int bpp)
 {
+	linear_x_y_to_tiled_pos_fn linear_x_y_to_tiled_pos =
+		linear_to_tiled_fn(fd, tiling);
 	int x, y, pos;
 
 	for (y = rect->y; y < rect->y + rect->h; y++) {
 		for (x = rect->x; x < rect->x + rect->w; x++) {
-			switch (tiling) {
-			case I915_TILING_X:
-				pos = linear_x_y_to_xtiled_pos(x, y, stride,
-							       swizzle, bpp);
-				break;
-			case I915_TILING_Y:
-				pos = linear_x_y_to_ytiled_pos(x, y, stride,
-							       swizzle, bpp);
-				break;
-			case I915_TILING_4:
-				pos = linear_x_y_to_4tiled_pos(x, y, stride,
-							       swizzle, bpp);
-				break;
-			default:
-				igt_assert(false);
-			}
+			pos = linear_x_y_to_tiled_pos(x, y, stride, swizzle, bpp);
 			set_pixel(ptr, pos, color, bpp);
 		}
 	}
@@ -471,7 +475,7 @@ static void draw_rect_mmap_cpu(int fd, struct buf_data *buf, struct rect *rect,
 	case I915_TILING_X:
 	case I915_TILING_Y:
 	case I915_TILING_4:
-		draw_rect_ptr_tiled(ptr, buf->stride, tiling, swizzle, rect,
+		draw_rect_ptr_tiled(fd, ptr, buf->stride, tiling, swizzle, rect,
 				    color, buf->bpp);
 		break;
 	default:
@@ -536,7 +540,7 @@ static void draw_rect_mmap_wc(int fd, struct buf_data *buf, struct rect *rect,
 	case I915_TILING_X:
 	case I915_TILING_Y:
 	case I915_TILING_4:
-		draw_rect_ptr_tiled(ptr, buf->stride, tiling, swizzle, rect,
+		draw_rect_ptr_tiled(fd, ptr, buf->stride, tiling, swizzle, rect,
 				    color, buf->bpp);
 		break;
 	default:
@@ -563,10 +567,29 @@ static void draw_rect_pwrite_untiled(int fd, struct buf_data *buf,
 	}
 }
 
+typedef void (*tiled_pos_to_x_y_linear_fn)(int tiled_pos, uint32_t stride,
+					   int swizzle, int bpp, int *x, int *y);
+
+static tiled_pos_to_x_y_linear_fn tiled_to_linear_fn(int fd, uint32_t tiling)
+{
+	switch (tiling) {
+	case I915_TILING_X:
+		return xtiled_pos_to_x_y_linear;
+	case I915_TILING_Y:
+		return ytiled_pos_to_x_y_linear;
+	case I915_TILING_4:
+		return tile4_pos_to_x_y_linear;
+	default:
+		igt_assert(false);
+	}
+}
+
 static void draw_rect_pwrite_tiled(int fd, struct buf_data *buf,
 				   uint32_t tiling, struct rect *rect,
 				   uint64_t color, uint32_t swizzle)
 {
+	tiled_pos_to_x_y_linear_fn tiled_pos_to_x_y_linear =
+		tiled_to_linear_fn(fd, tiling);
 	int i;
 	int tiled_pos, x, y, pixel_size;
 	uint8_t tmp[4096];
@@ -588,22 +611,8 @@ static void draw_rect_pwrite_tiled(int fd, struct buf_data *buf,
 		set_pixel(tmp, i, color, buf->bpp);
 
 	for (tiled_pos = 0; tiled_pos < buf->size; tiled_pos += pixel_size) {
-		switch (tiling) {
-		case I915_TILING_X:
-			xtiled_pos_to_x_y_linear(tiled_pos, buf->stride,
-						 swizzle, buf->bpp, &x, &y);
-			break;
-		case I915_TILING_Y:
-			ytiled_pos_to_x_y_linear(tiled_pos, buf->stride,
-						 swizzle, buf->bpp, &x, &y);
-			break;
-		case I915_TILING_4:
-			tile4_pos_to_x_y_linear(tiled_pos, buf->stride,
-						swizzle, buf->bpp, &x, &y);
-			break;
-		default:
-			igt_assert(false);
-		}
+		tiled_pos_to_x_y_linear(tiled_pos, buf->stride,
+					swizzle, buf->bpp, &x, &y);
 
 		if (x >= rect->x && x < rect->x + rect->w &&
 		    y >= rect->y && y < rect->y + rect->h) {
