@@ -34,6 +34,7 @@
 
 #include "i915/gem.h"
 #include "igt.h"
+#include "igt_halffloat.h"
 
 /**
  * SUBTEST: fill-fb
@@ -76,6 +77,7 @@ static const uint32_t formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR16161616F,
 };
 
 static const uint64_t modifiers[] = {
@@ -109,9 +111,11 @@ static void find_modeset_params(void)
 	}
 }
 
-static uint32_t get_color(uint32_t drm_format, bool r, bool g, bool b)
+static uint64_t get_color(uint32_t drm_format, bool r, bool g, bool b)
 {
-	uint32_t color = 0;
+	uint64_t color = 0;
+	uint16_t h[3];
+	float f[3];
 
 	switch (drm_format) {
 	case DRM_FORMAT_RGB565:
@@ -128,6 +132,15 @@ static uint32_t get_color(uint32_t drm_format, bool r, bool g, bool b)
 		color |= r ? 0x3FF << 20 : 0;
 		color |= g ? 0x3FF << 10 : 0;
 		color |= b ? 0x3FF : 0;
+		break;
+	case DRM_FORMAT_XBGR16161616F:
+		f[0] = r ? 1.0f : 0.0f;
+		f[1] = g ? 1.0f : 0.0f;
+		f[2] = b ? 1.0f : 0.0f;
+		igt_float_to_half(f, h, 3);
+		color |= (uint64_t)h[2] << 32 |
+			(uint64_t)h[1] << 16 |
+			(uint64_t)h[0] << 0;
 		break;
 	default:
 		igt_assert(false);
@@ -290,6 +303,8 @@ static const char *format_str(int format_index)
 		return "xrgb8888";
 	case DRM_FORMAT_XRGB2101010:
 		return "xrgb2101010";
+	case DRM_FORMAT_XBGR16161616F:
+		return "xbgr16161616f";
 	default:
 		igt_assert(false);
 	}
