@@ -227,6 +227,8 @@ igt_main
 		enum pipe pipe;
 
 		for_each_connected_output(display, output) {
+			drmModeConnectorPtr connector = output->config.connector;
+
 			if (!i915_output_is_lpsp_capable(data.drm_fd, output))
 				continue;
 
@@ -237,6 +239,10 @@ igt_main
 				/* LPSP is low power single pipe usages i.e. PIPE_A */
 				if (pipe != PIPE_A)
 					continue;
+
+				if (connector->connector_type != DRM_MODE_CONNECTOR_eDP)
+					igt_require_f(intel_display_ver(data.devid) >= 13,
+						     "LPSP support on external panel from Gen13+ platform\n");
 
 				data.output = output;
 				data.pipe = pipe;
