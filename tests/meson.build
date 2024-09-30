@@ -316,6 +316,7 @@ intel_xe_progs = [
 	'xe_sysfs_defaults',
 	'xe_sysfs_preempt_timeout',
 	'xe_sysfs_scheduler',
+        'xe_sysfs_timeslice_duration',
 ]
 
 intel_xe_eudebug_progs = [
