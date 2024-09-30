@@ -293,6 +293,7 @@ intel_xe_progs = [
 	'xe_exec_store',
 	'xe_exec_threads',
 	'xe_exercise_blt',
+	'xe_fault_injection',
 	'xe_gpgpu_fill',
 	'xe_gt_freq',
 	'xe_huc_copy',
