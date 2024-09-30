@@ -549,9 +549,11 @@ static void __copy_ccs(struct buf_ops *bops, struct intel_buf *buf,
 	munmap(map, size);
 }
 
-static void *mmap_write(int fd, struct intel_buf *buf)
+static void *mmap_write(int fd, const struct intel_buf *buf, bool *malloced)
 {
 	void *map = NULL;
+
+	*malloced = false;
 
 	if (buf->bops->driver == INTEL_DRIVER_XE)
 		return xe_bo_map(fd, buf->handle, buf->surface[0].size);
@@ -580,7 +582,7 @@ static void *mmap_write(int fd, struct intel_buf *buf)
 				       I915_GEM_DOMAIN_CPU);
 	}
 
-	if (!map) {
+	if (!map && gem_mmap__has_wc(fd)) {
 		map = __gem_mmap_offset__wc(fd, buf->handle, 0, buf->surface[0].size,
 					    PROT_READ | PROT_WRITE);
 		if (!map)
@@ -591,12 +593,30 @@ static void *mmap_write(int fd, struct intel_buf *buf)
 			       I915_GEM_DOMAIN_WC, I915_GEM_DOMAIN_WC);
 	}
 
+	if (!map) {
+		map = malloc(buf->surface[0].size);
+		igt_assert(map);
+		*malloced = true;
+	}
+
 	return map;
 }
 
-static void *mmap_read(int fd, struct intel_buf *buf)
+static void munmap_write(void *map, int fd, const struct intel_buf *buf, bool malloced)
+{
+	if (malloced) {
+		igt_assert(__gem_write(fd, buf->handle, 0, map, buf->surface[0].size) == 0);
+		free(map);
+	} else {
+		munmap(map, buf->surface[0].size);
+	}
+}
+
+static void *mmap_read(int fd, struct intel_buf *buf, bool *malloced)
 {
 	void *map = NULL;
+
+	*malloced = false;
 
 	if (buf->bops->driver == INTEL_DRIVER_XE)
 		return xe_bo_map(fd, buf->handle, buf->surface[0].size);
@@ -622,7 +642,7 @@ static void *mmap_read(int fd, struct intel_buf *buf)
 			gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_CPU, 0);
 	}
 
-	if (!map) {
+	if (!map && gem_mmap__has_wc(fd)) {
 		map = __gem_mmap_offset__wc(fd, buf->handle, 0, buf->surface[0].size,
 					    PROT_READ);
 		if (!map)
@@ -632,7 +652,23 @@ static void *mmap_read(int fd, struct intel_buf *buf)
 		gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_WC, 0);
 	}
 
+	if (!map) {
+		map = malloc(buf->surface[0].size);
+		igt_assert(map);
+		*malloced = true;
+
+		igt_assert(__gem_read(fd, buf->handle, 0, map, buf->surface[0].size) == 0);
+	}
+
 	return map;
+}
+
+static void munmap_read(void *map, int fd, const struct intel_buf *buf, bool malloced)
+{
+	if (malloced)
+		free(map);
+	else
+		munmap(map, buf->surface[0].size);
 }
 
 static void __copy_linear_to(int fd, struct intel_buf *buf,
@@ -642,7 +678,10 @@ static void __copy_linear_to(int fd, struct intel_buf *buf,
 	const tile_fn fn = __get_tile_fn_ptr(fd, tiling);
 	int height = intel_buf_height(buf);
 	int width = intel_buf_width(buf);
-	void *map = mmap_write(fd, buf);
+	bool malloced;
+	void *map;
+
+	map = mmap_write(fd, buf, &malloced);
 
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
@@ -655,7 +694,7 @@ static void __copy_linear_to(int fd, struct intel_buf *buf,
 		}
 	}
 
-	munmap(map, buf->surface[0].size);
+	munmap_write(map, fd, buf, malloced);
 }
 
 static void copy_linear_to_none(struct buf_ops *bops, struct intel_buf *buf,
@@ -706,7 +745,10 @@ static void __copy_to_linear(int fd, struct intel_buf *buf,
 	const tile_fn fn = __get_tile_fn_ptr(fd, tiling);
 	int height = intel_buf_height(buf);
 	int width = intel_buf_width(buf);
-	void *map = mmap_write(fd, buf);
+	bool malloced;
+	void *map;
+
+	map = mmap_write(fd, buf, &malloced);
 
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
@@ -719,7 +761,7 @@ static void __copy_to_linear(int fd, struct intel_buf *buf,
 		}
 	}
 
-	munmap(map, buf->surface[0].size);
+	munmap_write(map, fd, buf, malloced);
 }
 
 static void copy_none_to_linear(struct buf_ops *bops, struct intel_buf *buf,
@@ -803,25 +845,27 @@ static void copy_gtt_to_linear(struct buf_ops *bops, struct intel_buf *buf,
 static void copy_linear_to_wc(struct buf_ops *bops, struct intel_buf *buf,
 			      uint32_t *linear)
 {
+	bool malloced;
 	void *map;
 
 	DEBUGFN();
 
-	map = mmap_write(bops->fd, buf);
+	map = mmap_write(bops->fd, buf, &malloced);
 	memcpy(map, linear, buf->surface[0].size);
-	munmap(map, buf->surface[0].size);
+	munmap_write(map, bops->fd, buf, malloced);
 }
 
 static void copy_wc_to_linear(struct buf_ops *bops, struct intel_buf *buf,
 			      uint32_t *linear)
 {
+	bool malloced;
 	void *map;
 
 	DEBUGFN();
 
-	map = mmap_read(bops->fd, buf);
+	map = mmap_read(bops->fd, buf, &malloced);
 	igt_memcpy_from_wc(linear, map, buf->surface[0].size);
-	munmap(map, buf->surface[0].size);
+	munmap_read(map, bops->fd, buf, malloced);
 }
 
 void intel_buf_to_linear(struct buf_ops *bops, struct intel_buf *buf,
