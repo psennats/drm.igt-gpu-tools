@@ -1360,3 +1360,57 @@ int xe_sysfs_get_num_tiles(int xe_device)
 
 	return num_tiles;
 }
+
+/**
+ * xe_sysfs_driver_do:
+ * @xe_device: fd of the device
+ * @pci_slot: PCI slot of the device
+ * @action: the action to perform through sysfs on the driver
+ *
+ * Use sysfs to perform an action on the driver.
+ *
+ * Returns: fd of the device, which renewed if needed
+ */
+int xe_sysfs_driver_do(int xe_device, char pci_slot[], enum xe_sysfs_driver_action action)
+{
+	int sysfs;
+
+	sysfs = open("/sys/bus/pci/drivers/xe", O_DIRECTORY);
+	igt_assert(sysfs);
+
+	switch(action) {
+	case XE_SYSFS_DRIVER_BIND:
+		igt_assert(igt_sysfs_set(sysfs, "bind", pci_slot));
+		close(sysfs);
+		break;
+	case XE_SYSFS_DRIVER_TRY_BIND:
+		igt_sysfs_set(sysfs, "bind", pci_slot);
+		close(sysfs);
+		break;
+	case XE_SYSFS_DRIVER_UNBIND:
+		igt_assert(igt_sysfs_set(sysfs, "unbind", pci_slot));
+		close(sysfs);
+		break;
+	case XE_SYSFS_DRIVER_REBIND:
+		igt_assert(igt_sysfs_set(sysfs, "unbind", pci_slot));
+
+		/*
+		 * We need to close the client for a proper release, before
+		 * binding back again.
+		 */
+		close(xe_device);
+
+		igt_assert(igt_sysfs_set(sysfs, "bind", pci_slot));
+		close(sysfs);
+
+		/* Renew the client connection */
+		xe_device = drm_open_driver(DRIVER_XE);
+		igt_assert(xe_device);
+
+		break;
+	default:
+		igt_assert(!"missing");
+	}
+
+	return xe_device;
+}

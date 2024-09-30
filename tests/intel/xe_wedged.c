@@ -41,34 +41,6 @@ static void force_wedged(int fd)
 	sleep(1);
 }
 
-static int rebind_xe(int fd)
-{
-	char pci_slot[NAME_MAX];
-	int sysfs;
-
-	igt_device_get_pci_slot_name(fd, pci_slot);
-
-	sysfs = open("/sys/bus/pci/drivers/xe", O_DIRECTORY);
-	igt_assert(sysfs);
-
-        igt_assert(igt_sysfs_set(sysfs, "unbind", pci_slot));
-
-	/*
-	 * We need to close the client for a proper release, before
-	 * binding back again.
-	 */
-	close(fd);
-
-        igt_assert(igt_sysfs_set(sysfs, "bind", pci_slot));
-	close(sysfs);
-
-	/* Renew the client connection */
-	fd = drm_open_driver(DRIVER_XE);
-	igt_assert(fd);
-
-	return fd;
-}
-
 static int simple_ioctl(int fd)
 {
 	int ret;
@@ -231,9 +203,11 @@ igt_main
 {
 	struct drm_xe_engine_class_instance *hwe;
 	int fd;
+	char pci_slot[NAME_MAX];
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
+		igt_device_get_pci_slot_name(fd, pci_slot);
 	}
 
 	igt_subtest("basic-wedged") {
@@ -245,7 +219,7 @@ igt_main
 
 		force_wedged(fd);
 		igt_assert_neq(simple_ioctl(fd), 0);
-		fd = rebind_xe(fd);
+		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
 		igt_assert_eq(simple_ioctl(fd), 0);
 		xe_for_each_engine(fd, hwe)
 			simple_exec(fd, hwe);
@@ -265,7 +239,7 @@ igt_main
 		 */
 		sleep(1);
 		igt_assert_neq(simple_ioctl(fd), 0);
-		fd = rebind_xe(fd);
+		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
 		igt_assert_eq(simple_ioctl(fd), 0);
 		xe_for_each_engine(fd, hwe)
 			simple_exec(fd, hwe);
@@ -289,7 +263,7 @@ igt_main
 		}
 
 		/* Tests might have failed, force a rebind before exiting */
-		fd = rebind_xe(fd);
+		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
 
 		drm_close_driver(fd);
 	}
