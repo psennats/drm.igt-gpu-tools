@@ -833,6 +833,30 @@ static void draw_rect_blt(int fd, struct cmd_data *cmd_data,
 		intel_bb_out(ibb, (1 << 29) | ((pitch-1) << 14) | (buf_height-1));
 		intel_bb_out(ibb, 0);	/* mipmap levels / qpitch */
 		intel_bb_out(ibb, 0);	/* mipmap index / alignment */
+	} else if (buf->bpp == 64) {
+		int x = rect->x * 2;
+		int w = rect->w * 2;
+
+		blt_cmd_depth = 3 << 24; /* 32bpp */
+		blt_cmd_len = ((ver >= 8) ?  0x4 : 0x3) + 8*8;
+		blt_cmd_tiling = (tiling) ? XY_COLOR_BLT_TILED : 0;
+		pitch = (ver >= 4 && tiling) ? buf->stride / 4 : buf->stride;
+
+		switch_blt_tiling(ibb, tiling, true);
+
+		intel_bb_out(ibb, XY_PAT_BLT_IMMEDIATE_CMD_NOLEN | XY_COLOR_BLT_WRITE_ALPHA |
+			     XY_COLOR_BLT_WRITE_RGB | blt_cmd_tiling | blt_cmd_len);
+		intel_bb_out(ibb, blt_cmd_depth | (0xF0 << 16) | pitch);
+		intel_bb_out(ibb, (rect->y << 16) | x);
+		intel_bb_out(ibb, ((rect->y + rect->h) << 16) | (x + w));
+		intel_bb_emit_reloc_fenced(ibb, dst->handle, 0, I915_GEM_DOMAIN_RENDER,
+					   0, dst->addr.offset);
+		for (int i = 0; i < 8*8; i += 2) {
+			intel_bb_out(ibb, color);
+			intel_bb_out(ibb, color >> 32);
+		}
+
+		switch_blt_tiling(ibb, tiling, false);
 	} else {
 		switch (buf->bpp) {
 		case 8:
