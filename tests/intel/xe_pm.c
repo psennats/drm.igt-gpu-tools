@@ -95,6 +95,7 @@ static void dpms_on_off(device_t device, int mode)
 static bool runtime_usage_available(struct pci_device *pci)
 {
 	char name[PATH_MAX];
+
 	snprintf(name, PATH_MAX, "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/runtime_usage",
 		 pci->domain, pci->bus, pci->dev, pci->func);
 	return access(name, F_OK) == 0;
@@ -267,7 +268,7 @@ child_exec(void *arguments)
 
 	if (args->flags & USERPTR) {
 		data = aligned_alloc(xe_get_default_alignment(args->device.fd_xe),
-							 bo_size);
+				     bo_size);
 		memset(data, 0, bo_size);
 	} else {
 		if (args->flags & PREFETCH)
@@ -284,7 +285,7 @@ child_exec(void *arguments)
 
 	for (i = 0; i < args->n_exec_queues; i++) {
 		exec_queues[i] = xe_exec_queue_create(args->device.fd_xe, vm,
-											  args->eci, 0);
+						      args->eci, 0);
 		bind_exec_queues[i] = 0;
 		syncobjs[i] = syncobj_create(args->device.fd_xe, 0);
 	};
@@ -294,7 +295,7 @@ child_exec(void *arguments)
 	if (bo) {
 		for (i = 0; i < n_vmas; i++)
 			xe_vm_bind_async(args->device.fd_xe, vm, bind_exec_queues[0], bo,
-							 0, addr + i * bo_size, bo_size, sync, 1);
+					 0, addr + i * bo_size, bo_size, sync, 1);
 	} else {
 		xe_vm_bind_userptr_async(args->device.fd_xe, vm, bind_exec_queues[0],
 					 to_user_pointer(data), addr, bo_size, sync, 1);
@@ -302,7 +303,7 @@ child_exec(void *arguments)
 
 	if (args->flags & PREFETCH)
 		xe_vm_prefetch_async(args->device.fd_xe, vm, bind_exec_queues[0], 0,
-							 addr, bo_size, sync, 1, 0);
+				     addr, bo_size, sync, 1, 0);
 
 	if (check_rpm) {
 		igt_assert(in_d3(args->device, args->d_state));
@@ -360,16 +361,16 @@ child_exec(void *arguments)
 	}
 
 	igt_assert(syncobj_wait(args->device.fd_xe, &sync[0].handle, 1,
-			   INT64_MAX, 0, NULL));
+				INT64_MAX, 0, NULL));
 
 	sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
 	if (n_vmas > 1)
 		xe_vm_unbind_all_async(args->device.fd_xe, vm, 0, bo, sync, 1);
 	else
 		xe_vm_unbind_async(args->device.fd_xe, vm, bind_exec_queues[0], 0,
-						   addr, bo_size, sync, 1);
+				   addr, bo_size, sync, 1);
 	igt_assert(syncobj_wait(args->device.fd_xe, &sync[0].handle, 1,
-			   INT64_MAX, 0, NULL));
+				INT64_MAX, 0, NULL));
 
 	for (i = 0; i < args->n_execs; i++)
 		igt_assert_eq(data[i].data, 0xc0ffee);
@@ -449,8 +450,8 @@ child_exec(void *arguments)
 /**
  * SUBTEST: %s-%s-basic-exec
  * Description:
- *	Setup GPU on %arg[2] state then test exec on %arg[1] state
- * 	without RPM
+ *    Setup GPU on %arg[2] state then test exec on %arg[1] state
+ *    without RPM
  * Functionality: pm - %arg[1]
  * GPU requirements: D3 feature should be supported
  *
@@ -468,7 +469,7 @@ child_exec(void *arguments)
 /**
  * SUBTEST: %s-vm-bind-%s
  * DESCRIPTION: Test to check suspend/autoresume on %arg[1] state
- * 		with vm bind %arg[2] combination
+ *              with vm bind %arg[2] combination
  * Functionality: pm - %arg[1]
  *
  * arg[1]:
@@ -499,8 +500,8 @@ test_exec(device_t device, int n_exec_queues, int n_execs,
 		  enum igt_suspend_state s_state, enum igt_acpi_d_state d_state,
 		  unsigned int flags)
 {
-	enum igt_suspend_test test = s_state == SUSPEND_STATE_DISK ? 
-								SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
+	enum igt_suspend_test test = s_state == SUSPEND_STATE_DISK ?
+				     SUSPEND_TEST_DEVICES : SUSPEND_TEST_NONE;
 	struct drm_xe_engine_class_instance *eci;
 	int active_threads = 0;
 	pthread_t threads[65]; /* MAX_ENGINES + 1 */
@@ -519,7 +520,7 @@ test_exec(device_t device, int n_exec_queues, int n_execs,
 		active_threads++;
 
 		pthread_mutex_lock(&child_ready_lock);
-		while(!child_ready)
+		while (!child_ready)
 			pthread_cond_wait(&child_ready_cond, &child_ready_lock);
 		child_ready = false;
 		pthread_mutex_unlock(&child_ready_lock);
@@ -582,7 +583,7 @@ static void test_vram_d3cold_threshold(device_t device, int sysfs_fd)
 		}
 	}
 
-	threshold = vram_used_mb + (SIZE / 1024 /1024);
+	threshold = vram_used_mb + (SIZE / 1024 / 1024);
 	igt_require(threshold < vram_total_mb);
 
 	bo = xe_bo_create(device.fd_xe, 0, SIZE, placement, 0);
