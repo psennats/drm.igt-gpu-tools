@@ -141,3 +141,29 @@ void xe_post_hang_ring(int fd, igt_hang_t arg)
 	xe_vm_destroy(fd, arg.spin->vm);
 }
 
+/**
+ * xe_gt_stats_get_count:
+ * @fd: open xe drm file descriptor
+ * @gt: gt_id
+ * @stat: name of the stat of which counter is needed
+ *
+ * This function returns the counter for a given stat.
+ */
+int xe_gt_stats_get_count(int fd, int gt, const char *stat)
+{
+	FILE *f;
+	char tlb_path[4096];
+	char path[256];
+	int count;
+
+	sprintf(path, "/sys/kernel/debug/dri/0/gt%d/stats", gt);
+	f = fopen(path, "r");
+
+	while (fgets(tlb_path, sizeof(tlb_path), f)) {
+		if (strstr(tlb_path, stat) != NULL) {
+			sscanf(tlb_path, "%*[^:]: %d", &count);
+			break;
+		}
+	}
+	return count;
+}
