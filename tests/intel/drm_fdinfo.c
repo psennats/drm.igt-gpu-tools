@@ -219,6 +219,8 @@ single(int gem_fd, const intel_ctx_t *ctx,
 	int spin_fd;
 	uint64_t ahnd;
 
+	gem_quiescent_gpu(gem_fd);
+
 	if (flags & TEST_BUSY)
 		igt_require(!gem_using_guc_submission(gem_fd));
 
@@ -373,6 +375,8 @@ most_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 
 	memset(busy_class, 0, sizeof(busy_class));
 	memset(tval, 0, sizeof(tval));
+
+	gem_quiescent_gpu(gem_fd);
 
 	for_each_ctx_engine(gem_fd, ctx, e_) {
 		if (e->class == e_->class && e->instance == e_->instance) {
