@@ -411,14 +411,13 @@ static void test_ultra_joiner(data_t *data, bool invalid_pipe, bool two_display,
 
 igt_main
 {
-	bool force_joiner_supported, ultra_joiner_supported, is_dgfx;
+	bool ultra_joiner_supported, is_dgfx;
 	int i, j, display_ver;
 	igt_output_t *output;
 	drmModeModeInfo mode;
 	data_t data;
 
 	igt_fixture {
-		force_joiner_supported = false;
 		ultra_joiner_supported = false;
 		data.big_joiner_output_count = 0;
 		data.ultra_joiner_output_count = 0;
@@ -441,7 +440,7 @@ igt_main
 			ultra_joiner_supported = true;
 
 		for_each_connected_output(&data.display, output) {
-			bool ultrajoiner_found = false, bigjoiner_found = false;
+			bool ultrajoiner_found = false, bigjoiner_found = false, force_joiner_supported = false;
 			drmModeConnector *connector = output->config.connector;
 
 			/*
@@ -539,8 +538,6 @@ igt_main
 
 	igt_describe("Verify the basic modeset on big joiner mode on all pipes");
 	igt_subtest_with_dynamic("basic-force-big-joiner") {
-		igt_require_f(force_joiner_supported,
-			      "force joiner not supported on this platform or none of the connected output supports it\n");
 		igt_require_f(data.non_big_joiner_output_count > 0,
 			      "No non big joiner output found\n");
 		igt_require_f(data.n_pipes > 1,
@@ -560,8 +557,6 @@ igt_main
 	}
 
 	igt_subtest_with_dynamic("invalid-modeset-force-big-joiner") {
-		igt_require_f(force_joiner_supported,
-			      "force joiner not supported on this platform or none of the connected output supports it\n");
 		igt_require_f(data.non_big_joiner_output_count > 0,
 			      "Non big joiner output not found\n");
 		igt_require_f(data.n_pipes > 1,
@@ -584,8 +579,6 @@ igt_main
 
 	igt_describe("Verify the basic modeset on ultra joiner mode on all pipes");
 	igt_subtest_with_dynamic("basic-force-ultra-joiner") {
-		igt_require_f(force_joiner_supported,
-			      "force joiner not supported on this platform or none of the connected output supports it\n");
 		igt_require_f(ultra_joiner_supported,
 			      "Ultra joiner not supported on this platform\n");
 		igt_require_f(data.non_ultra_joiner_output_count > 0,
@@ -600,8 +593,6 @@ igt_main
 	}
 
 	igt_subtest_with_dynamic("invalid-modeset-force-ultra-joiner") {
-		igt_require_f(force_joiner_supported,
-			      "force joiner not supported on this platform or none of the connected output supports it\n");
 		igt_require_f(ultra_joiner_supported,
 			      "Ultra joiner not supported on this platform\n");
 		igt_require_f(data.non_ultra_joiner_output_count > 0,
