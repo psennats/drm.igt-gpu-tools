@@ -1348,3 +1348,81 @@ bool vmw_is_format_supported(int drm_fd, SVGA3dDevCapIndex dev_cap_index)
 	result = vmw_format_get_caps(drm_fd, dev_cap_index);
 	return result.u & SVGA3D_FORMAT_POSITIVE;
 }
+
+static void draw_triangle_2d(cairo_t *cr, int width, int height)
+{
+	cairo_pattern_t *r_pat, *g_pat, *b_pat;
+
+	cairo_rectangle(cr, 0, 0, width, height);
+	cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+	cairo_fill(cr);
+
+	cairo_scale(cr, width, height);
+
+	cairo_move_to(cr, 0.5, 0.125);
+	cairo_line_to(cr, 0.125, 0.875);
+	cairo_line_to(cr, 0.875, 0.875);
+	cairo_close_path(cr);
+
+	r_pat = cairo_pattern_create_linear(0.125, 0.875, 0.675, 0.475);
+	cairo_pattern_add_color_stop_rgba(r_pat, 0, 1, 0, 0, 1);
+	cairo_pattern_add_color_stop_rgba(r_pat, 1, 0, 0, 0, 0);
+
+	g_pat = cairo_pattern_create_linear(0.5, 0.125, 0.5, 0.875);
+	cairo_pattern_add_color_stop_rgba(g_pat, 0, 0, 1, 0, 1);
+	cairo_pattern_add_color_stop_rgba(g_pat, 1, 0, 0, 0, 0);
+
+	b_pat = cairo_pattern_create_linear(0.875, 0.875, 0.325, 0.475);
+	cairo_pattern_add_color_stop_rgba(b_pat, 0, 0, 0, 1, 1);
+	cairo_pattern_add_color_stop_rgba(b_pat, 1, 0, 0, 0, 0);
+
+	cairo_set_source(cr, r_pat);
+	cairo_fill_preserve(cr);
+	cairo_set_source(cr, g_pat);
+	cairo_fill_preserve(cr);
+	cairo_set_source(cr, b_pat);
+	cairo_fill(cr);
+
+	cairo_pattern_destroy(r_pat);
+	cairo_pattern_destroy(g_pat);
+	cairo_pattern_destroy(b_pat);
+}
+
+
+/**
+ * Tests if mob can be used without invoking 3d commands.
+ */
+void vmw_triangle_test_2d(int fd, struct vmw_mob *mob, const uint32 width,
+			  const uint32 height, const uint32 stride)
+{
+	cairo_surface_t *mob_cr_srf, *mem_cr_srf;
+	cairo_t *cr_mob, *cr_mem;
+	void *data, *mob_data, *mem_data;
+	const uint32 size = height * stride;
+
+	data = vmw_ioctl_mob_map(fd, mob);
+	mob_cr_srf = cairo_image_surface_create_for_data(data,
+		CAIRO_FORMAT_ARGB32, width, height, stride);
+	cr_mob = cairo_create(mob_cr_srf);
+	draw_triangle_2d(cr_mob, width, height);
+
+	mem_cr_srf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width,
+		height);
+	cr_mem = cairo_create(mem_cr_srf);
+	draw_triangle_2d(cr_mem, width, height);
+
+	mob_data = cairo_image_surface_get_data(mob_cr_srf);
+	mem_data = cairo_image_surface_get_data(mem_cr_srf);
+
+	igt_assert_f(mob_data != NULL, "No data in mob image.\n");
+	igt_assert_f(mem_data != NULL, "No data in system memory image.\n");
+
+	igt_assert_f(memcmp(mob_data, mem_data, size) == 0,
+		     "Mob and system memory images are not identical\n");
+
+	cairo_destroy(cr_mob);
+	cairo_surface_destroy(mob_cr_srf);
+	cairo_destroy(cr_mem);
+	cairo_surface_destroy(mem_cr_srf);
+	vmw_ioctl_mob_unmap(mob);
+}

@@ -189,15 +189,17 @@ igt_main
 	{
 		vmw_svga_device_init(&device, vmw_svga_device_node_render);
 		igt_require(device.drm_fd != -1);
-
-		cid = vmw_ioctl_context_create(device.drm_fd);
-		igt_require(cid != SVGA3D_INVALID_ID);
 	}
 
 	igt_describe("Tests rendering of a trivial triangle.");
 	igt_subtest("tri")
 	{
+		cid = vmw_ioctl_context_create(device.drm_fd);
+		igt_require(cid != SVGA3D_INVALID_ID);
+
 		draw_triangle(&device, cid);
+
+		vmw_ioctl_context_destroy(device.drm_fd, cid);
 	}
 
 	/*
@@ -207,12 +209,32 @@ igt_main
 	igt_describe("Tests rendering of a triangle with coherency.");
 	igt_subtest("tri-no-sync-coherent")
 	{
+		cid = vmw_ioctl_context_create(device.drm_fd);
+		igt_require(cid != SVGA3D_INVALID_ID);
+
 		draw_triangle_on_coherent_rt(&device, cid);
+
+		vmw_ioctl_context_destroy(device.drm_fd, cid);
+	}
+
+	igt_describe("Tests drawing a triangle without 3d commands");
+	igt_subtest("tri-2d")
+	{
+		struct vmw_mob *mob;
+		const uint32 width = vmw_default_rect_size.width;
+		const uint32 height = vmw_default_rect_size.height;
+		const uint32 stride = width * 4;
+		const uint32 size = height * stride;
+
+		mob = vmw_ioctl_mob_create(device.drm_fd, size);
+
+		vmw_triangle_test_2d(device.drm_fd, mob, width, height, stride);
+
+		vmw_ioctl_mob_close_handle(device.drm_fd, mob);
 	}
 
 	igt_fixture
 	{
-		vmw_ioctl_context_destroy(device.drm_fd, cid);
 		vmw_svga_device_fini(&device);
 	}
 }

@@ -257,4 +257,7 @@ SVGA3dDevCapResult vmw_format_get_caps(int drm_fd,
 
 bool vmw_is_format_supported(int drm_fd, SVGA3dDevCapIndex dev_cap_index);
 
+void vmw_triangle_test_2d(int fd, struct vmw_mob *mob, const uint32 width,
+			  const uint32 height, const uint32 stride);
+
 #endif /* IGT_VMWGFX_H */
