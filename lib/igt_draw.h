@@ -57,13 +57,13 @@ void igt_draw_rect(int fd, struct buf_ops *bops, uint32_t ctx,
 		   int buf_width, int buf_height,
 		   uint32_t tiling, enum igt_draw_method method,
 		   int rect_x, int rect_y, int rect_w, int rect_h,
-		   uint32_t color, int bpp);
+		   uint64_t color, int bpp);
 
 void igt_draw_rect_fb(int fd, struct buf_ops *bops,
 		      uint32_t ctx, struct igt_fb *fb,
 		      enum igt_draw_method method, int rect_x, int rect_y,
-		      int rect_w, int rect_h, uint32_t color);
+		      int rect_w, int rect_h, uint64_t color);
 
-void igt_draw_fill_fb(int fd, struct igt_fb *fb, uint32_t color);
+void igt_draw_fill_fb(int fd, struct igt_fb *fb, uint64_t color);
 
 #endif /* __IGT_DRAW_H__ */

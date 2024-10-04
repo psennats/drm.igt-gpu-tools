@@ -363,7 +363,7 @@ static void tile4_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
 	*y = tile_origin_y + subtile_origin_y + oword_num;
 }
 
-static void set_pixel(void *_ptr, int index, uint32_t color, int bpp)
+static void set_pixel(void *_ptr, int index, uint64_t color, int bpp)
 {
 	if (bpp == 16) {
 		uint16_t *ptr = _ptr;
@@ -403,7 +403,7 @@ static void switch_blt_tiling(struct intel_bb *ibb, uint32_t tiling, bool on)
 }
 
 static void draw_rect_ptr_linear(void *ptr, uint32_t stride,
-				 struct rect *rect, uint32_t color, int bpp)
+				 struct rect *rect, uint64_t color, int bpp)
 {
 	int x, y, line_begin;
 
@@ -415,7 +415,7 @@ static void draw_rect_ptr_linear(void *ptr, uint32_t stride,
 }
 
 static void draw_rect_ptr_tiled(void *ptr, uint32_t stride, uint32_t tiling,
-				int swizzle, struct rect *rect, uint32_t color,
+				int swizzle, struct rect *rect, uint64_t color,
 				int bpp)
 {
 	int x, y, pos;
@@ -444,7 +444,7 @@ static void draw_rect_ptr_tiled(void *ptr, uint32_t stride, uint32_t tiling,
 }
 
 static void draw_rect_mmap_cpu(int fd, struct buf_data *buf, struct rect *rect,
-			       uint32_t tiling, uint32_t swizzle, uint32_t color)
+			       uint32_t tiling, uint32_t swizzle, uint64_t color)
 {
 	void *ptr;
 
@@ -479,7 +479,7 @@ static void draw_rect_mmap_cpu(int fd, struct buf_data *buf, struct rect *rect,
 }
 
 static void draw_rect_mmap_gtt(int fd, struct buf_data *buf, struct rect *rect,
-			       uint32_t color)
+			       uint64_t color)
 {
 	void *ptr;
 
@@ -495,7 +495,7 @@ static void draw_rect_mmap_gtt(int fd, struct buf_data *buf, struct rect *rect,
 }
 
 static void draw_rect_mmap_wc(int fd, struct buf_data *buf, struct rect *rect,
-			      uint32_t tiling, uint32_t swizzle, uint32_t color)
+			      uint32_t tiling, uint32_t swizzle, uint64_t color)
 {
 	void *ptr;
 
@@ -542,7 +542,7 @@ static void draw_rect_mmap_wc(int fd, struct buf_data *buf, struct rect *rect,
 }
 
 static void draw_rect_pwrite_untiled(int fd, struct buf_data *buf,
-				     struct rect *rect, uint32_t color)
+				     struct rect *rect, uint64_t color)
 {
 	int i, y, offset;
 	int pixel_size = buf->bpp / 8;
@@ -559,7 +559,7 @@ static void draw_rect_pwrite_untiled(int fd, struct buf_data *buf,
 
 static void draw_rect_pwrite_tiled(int fd, struct buf_data *buf,
 				   uint32_t tiling, struct rect *rect,
-				   uint32_t color, uint32_t swizzle)
+				   uint64_t color, uint32_t swizzle)
 {
 	int i;
 	int tiled_pos, x, y, pixel_size;
@@ -624,7 +624,7 @@ static void draw_rect_pwrite_tiled(int fd, struct buf_data *buf,
 
 static void draw_rect_pwrite(int fd, struct buf_data *buf,
 			     struct rect *rect, uint32_t tiling,
-			     uint32_t swizzle, uint32_t color)
+			     uint32_t swizzle, uint64_t color)
 {
 	switch (tiling) {
 	case I915_TILING_NONE:
@@ -674,7 +674,7 @@ static struct intel_buf *create_buf(int fd, struct buf_ops *bops,
 
 static void draw_rect_blt(int fd, struct cmd_data *cmd_data,
 			  struct buf_data *buf, struct rect *rect,
-			  uint32_t tiling, uint32_t color)
+			  uint32_t tiling, uint64_t color)
 {
 	struct intel_bb *ibb;
 	struct intel_buf *dst;
@@ -785,7 +785,7 @@ static void draw_rect_blt(int fd, struct cmd_data *cmd_data,
 
 static void draw_rect_render(int fd, struct cmd_data *cmd_data,
 			     struct buf_data *buf, struct rect *rect,
-			     uint32_t tiling, uint32_t color)
+			     uint32_t tiling, uint64_t color)
 {
 	struct intel_buf *src, *dst;
 	uint32_t devid = intel_get_drm_devid(fd);
@@ -858,7 +858,7 @@ void igt_draw_rect(int fd, struct buf_ops *bops, uint32_t ctx,
 		   int buf_width, int buf_height,
 		   uint32_t tiling, enum igt_draw_method method,
 		   int rect_x, int rect_y, int rect_w, int rect_h,
-		   uint32_t color, int bpp)
+		   uint64_t color, int bpp)
 {
 	uint32_t buf_tiling, swizzle;
 
@@ -932,7 +932,7 @@ void igt_draw_rect(int fd, struct buf_ops *bops, uint32_t ctx,
 void igt_draw_rect_fb(int fd, struct buf_ops *bops,
 		      uint32_t ctx, struct igt_fb *fb,
 		      enum igt_draw_method method, int rect_x, int rect_y,
-		      int rect_w, int rect_h, uint32_t color)
+		      int rect_w, int rect_h, uint64_t color)
 {
 	igt_draw_rect(fd, bops, ctx, fb->gem_handle, fb->size, fb->strides[0],
 		      fb->width, fb->height,
@@ -949,7 +949,7 @@ void igt_draw_rect_fb(int fd, struct buf_ops *bops,
  *
  * This function just paints an igt_fb using the provided color.
  */
-void igt_draw_fill_fb(int fd, struct igt_fb *fb, uint32_t color)
+void igt_draw_fill_fb(int fd, struct igt_fb *fb, uint64_t color)
 {
 	igt_draw_rect_fb(fd, NULL, 0, fb,
 			 igt_draw_supports_method(fd, IGT_DRAW_MMAP_GTT) ?
