@@ -708,7 +708,8 @@ static void draw_rect_blt(int fd, struct cmd_data *cmd_data,
 			blt_cmd_depth = 2 << 19;
 			break;
 		case 64:
-			/* Not used or supported yet */
+			blt_cmd_depth = 3 << 19;
+			break;
 		default:
 			igt_assert(false);
 		}
@@ -743,7 +744,7 @@ static void draw_rect_blt(int fd, struct cmd_data *cmd_data,
 					   dst->addr.offset);
 		intel_bb_out(ibb, 0);	/* TODO: Pass down enough info for target memory hint */
 		intel_bb_out(ibb, color);
-		intel_bb_out(ibb, 0);	/* 64 bit color */
+		intel_bb_out(ibb, color >> 32);	/* 64 bit color */
 		intel_bb_out(ibb, 0);	/* 96 bit color */
 		intel_bb_out(ibb, 0);	/* 128 bit color */
 		intel_bb_out(ibb, 0);	/* clear address */
