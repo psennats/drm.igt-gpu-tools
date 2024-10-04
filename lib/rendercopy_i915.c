@@ -93,8 +93,8 @@ void gen3_render_copyfunc(struct intel_bb *ibb,
 		uint32_t format_bits, tiling_bits = 0;
 
 		igt_assert_lte(src->surface[0].stride, 8192);
-		igt_assert_lte(intel_buf_width(src), 2048);
-		igt_assert_lte(intel_buf_height(src), 2048);
+		igt_require(intel_buf_width(src) <= 2048);
+		igt_require(intel_buf_height(src) <= 2048);
 
 		if (src->tiling != I915_TILING_NONE)
 			tiling_bits = MS3_TILED_SURFACE;
@@ -136,8 +136,8 @@ void gen3_render_copyfunc(struct intel_bb *ibb,
 		uint32_t format_bits;
 
 		igt_assert_lte(dst->surface[0].stride, 8192);
-		igt_assert_lte(intel_buf_width(dst), 2048);
-		igt_assert_lte(intel_buf_height(dst), 2048);
+		igt_require(intel_buf_width(dst) <= 2048);
+		igt_require(intel_buf_height(dst) <= 2048);
 
 		switch (dst->bpp) {
 			case 8: format_bits = COLR_BUF_8BIT; break;

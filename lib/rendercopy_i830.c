@@ -139,8 +139,8 @@ static void gen2_emit_target(struct intel_bb *ibb,
 	uint32_t format;
 
 	igt_assert_lte(dst->surface[0].stride, 8192);
-	igt_assert_lte(intel_buf_width(dst), 2048);
-	igt_assert_lte(intel_buf_height(dst), 2048);
+	igt_require(intel_buf_width(dst) <= 2048);
+	igt_require(intel_buf_height(dst) <= 2048);
 
 	switch (dst->bpp) {
 		case 8: format = COLR_BUF_8BIT; break;
@@ -184,8 +184,8 @@ static void gen2_emit_texture(struct intel_bb *ibb,
 	uint32_t format;
 
 	igt_assert_lte(src->surface[0].stride, 8192);
-	igt_assert_lte(intel_buf_width(src), 2048);
-	igt_assert_lte(intel_buf_height(src), 2048);
+	igt_require(intel_buf_width(src) <= 2048);
+	igt_require(intel_buf_height(src) <= 2048);
 
 	switch (src->bpp) {
 		case 8: format = MAPSURF_8BIT | MT_8BIT_L8; break;
