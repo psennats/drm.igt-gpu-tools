@@ -371,6 +371,9 @@ static void set_pixel(void *_ptr, int index, uint64_t color, int bpp)
 	} else if (bpp == 32) {
 		uint32_t *ptr = _ptr;
 		ptr[index] = color;
+	} else if (bpp == 64) {
+		uint64_t *ptr = _ptr;
+		ptr[index] = color;
 	} else {
 		igt_assert_f(false, "bpp: %d\n", bpp);
 	}
