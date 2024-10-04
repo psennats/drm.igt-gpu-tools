@@ -107,40 +107,31 @@ static void check_drop_set(void)
 	drm_close_driver(master);
 }
 
-static unsigned tweak_perm(uint8_t *saved_perm, unsigned max_perm, bool save)
+static void tweak_perm(uint8_t *saved_perm, char *path, bool save)
 {
-	char path[256];
 	struct stat st;
-	unsigned i;
+	int ret;
 
-	for (i = 0; i < max_perm; i++) {
-		snprintf(path, sizeof(path), "/dev/dri/card%u", i);
+	if (path[0] == 0)
+		return;
 
-		/* Existing userspace assumes there's no gaps, do the same. */
-		if (stat(path, &st) != 0)
-			break;
+	ret = stat(path, &st);
+	igt_assert_f(!ret, "stat failed with %d path=%s\n", errno, path);
 
-		if (save) {
-			/* Save and toggle */
-			saved_perm[i] = st.st_mode & (S_IROTH | S_IWOTH);
-			st.st_mode |= S_IROTH | S_IWOTH;
-		} else {
-			/* Clear and restore */
-			st.st_mode &= ~(S_IROTH | S_IWOTH);
-			st.st_mode |= saved_perm[i];
-		}
-
-		/* There's only one way for chmod to fail - race vs rmmod.
-		 * In that case, do _not_ error/skip, since:
-		 * - we need to restore the [correct] permissions
-		 * - __drm_open_driver() can open another device, aka the
-		 * failure may be irrelevant.
-		 */
-		chmod(path, st.st_mode);
+	if (save) {
+		/* Save and toggle */
+		*saved_perm = st.st_mode & (S_IROTH | S_IWOTH);
+		st.st_mode |= S_IROTH | S_IWOTH;
+	} else {
+		/* Clear and restore */
+		st.st_mode &= ~(S_IROTH | S_IWOTH);
+		st.st_mode |= *saved_perm;
 	}
-	return i;
-}
 
+	/* There's only one way for chmod to fail - race vs rmmod. */
+	ret = chmod(path, st.st_mode);
+	igt_assert_f(!ret, "chmod failed with %d path=%s\n", errno, path);
+}
 
 igt_main
 {
@@ -160,8 +151,8 @@ igt_main
 
 
 	igt_subtest_group {
-		uint8_t saved_perm[255];
-		unsigned num;
+		uint8_t saved_perm;
+		char buf[255];
 
 		/* Upon dropping root we end up as random user, which
 		 * a) is not in the video group, and
@@ -176,8 +167,29 @@ igt_main
 		 * restored on skip or failure.
 		 */
 		igt_fixture {
-			num = tweak_perm(saved_perm, ARRAY_SIZE(saved_perm),
-					 true);
+			char path[255];
+			int len;
+			int fd;
+
+			memset(buf, 0, sizeof(buf));
+			saved_perm = 0;
+
+			fd = __drm_open_driver(DRIVER_ANY);
+			igt_assert_fd(fd);
+
+			snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
+
+			len = readlink(path, buf, sizeof(buf) - 1);
+			igt_assert_f(len > 0, "readlink failed with %d path=%s\n", errno, path);
+
+			buf[len] = '\0';
+			if (!(strstr(buf, "/dev/dri/card") == buf ||
+					strstr(buf, "/dev/dri/renderD") == buf))
+				igt_assert_f(0, "Not a card nor render, path=%s\n", buf);
+
+			igt_assert_eq(__drm_close_driver(fd), 0);
+
+			tweak_perm(&saved_perm, buf, true);
 		}
 
 		igt_describe("Ensure first normal user can Set/DropMaster");
@@ -191,7 +203,7 @@ igt_main
 
 		/* Restore the original permissions */
 		igt_fixture {
-			tweak_perm(saved_perm, num, false);
+			tweak_perm(&saved_perm, buf, false);
 		}
 	}
 
