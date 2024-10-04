@@ -365,7 +365,10 @@ static void tile4_pos_to_x_y_linear(int tiled_pos, uint32_t stride,
 
 static void set_pixel(void *_ptr, int index, uint64_t color, int bpp)
 {
-	if (bpp == 16) {
+	if (bpp == 8) {
+		uint8_t *ptr = _ptr;
+		ptr[index] = color;
+	} else if (bpp == 16) {
 		uint16_t *ptr = _ptr;
 		ptr[index] = color;
 	} else if (bpp == 32) {
