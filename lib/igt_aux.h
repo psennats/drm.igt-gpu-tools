@@ -337,6 +337,13 @@ void pipewire_pulse_stop_reserve(void);
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #define DIV_ROUND_CLOSEST(n, d) (((n) + (d) / 2) / (d))
 
+#define igt_rol(value, shift, size) \
+	(((value) << (shift)) | \
+	 ((value) >> ((size) - (shift))))
+#define igt_ror(value, shift, size) \
+	(((value) >> (shift)) | \
+	 ((value) << ((size) - (shift))))
+
 uint64_t vfs_file_max(void);
 
 void *igt_memdup(const void *ptr, size_t len);
