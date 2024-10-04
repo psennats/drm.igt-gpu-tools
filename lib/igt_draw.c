@@ -446,7 +446,7 @@ static void draw_rect_ptr_tiled(void *ptr, uint32_t stride, uint32_t tiling,
 static void draw_rect_mmap_cpu(int fd, struct buf_data *buf, struct rect *rect,
 			       uint32_t tiling, uint32_t swizzle, uint32_t color)
 {
-	uint32_t *ptr;
+	void *ptr;
 
 	gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_CPU,
 		       I915_GEM_DOMAIN_CPU);
@@ -481,7 +481,7 @@ static void draw_rect_mmap_cpu(int fd, struct buf_data *buf, struct rect *rect,
 static void draw_rect_mmap_gtt(int fd, struct buf_data *buf, struct rect *rect,
 			       uint32_t color)
 {
-	uint32_t *ptr;
+	void *ptr;
 
 	gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_GTT,
 		       I915_GEM_DOMAIN_GTT);
@@ -497,7 +497,7 @@ static void draw_rect_mmap_gtt(int fd, struct buf_data *buf, struct rect *rect,
 static void draw_rect_mmap_wc(int fd, struct buf_data *buf, struct rect *rect,
 			      uint32_t tiling, uint32_t swizzle, uint32_t color)
 {
-	uint32_t *ptr;
+	void *ptr;
 
 	if (is_i915_device(fd)) {
 		gem_set_domain(fd, buf->handle, I915_GEM_DOMAIN_GTT,
