@@ -16,6 +16,7 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "igt.h"
+#include "igt_sysfs.h"
 #include "intel_pat.h"
 #include "intel_mocs.h"
 #include "gpgpu_shader.h"
@@ -2201,6 +2202,24 @@ static struct drm_xe_engine_class_instance *pick_compute(int fd, int gt)
 	return NULL;
 }
 
+static bool set_preempt_timeout_to_max(int fd, uint16_t engine_class, uint32_t *preempt_timeout)
+{
+	uint32_t preempt_timeout_max;
+
+	if (!xe_sysfs_engine_class_get_property(fd, 0, engine_class, "preempt_timeout_max",
+						&preempt_timeout_max))
+		return false;
+
+	return xe_sysfs_engine_class_set_property(fd, 0, engine_class, "preempt_timeout_us",
+						  preempt_timeout_max, preempt_timeout);
+}
+
+static bool restore_preempt_timeout(int fd, uint16_t engine_class, uint32_t preempt_timeout)
+{
+	return xe_sysfs_engine_class_set_property(fd, 0, engine_class, "preempt_timeout_us",
+						  preempt_timeout, NULL);
+}
+
 #define test_gt_render_or_compute(t, fd, __hwe) \
 	igt_subtest_with_dynamic(t) \
 		for (int gt = 0; (__hwe = pick_compute(fd, gt)); gt++) \
@@ -2212,6 +2231,8 @@ igt_main
 	struct drm_xe_engine_class_instance *hwe;
 	bool was_enabled;
 	int fd;
+	uint16_t engine_class = 0xFFFF;
+	uint32_t preempt_timeout = 0xFFFFFFFF;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
@@ -2247,8 +2268,22 @@ igt_main
 	test_gt_render_or_compute("interrupt-other-debuggable", fd, hwe)
 		test_interrupt_other(fd, hwe, SHADER_LOOP);
 
-	test_gt_render_or_compute("interrupt-other", fd, hwe)
-		test_interrupt_other(fd, hwe, SHADER_LOOP | DISABLE_DEBUG_MODE);
+	igt_subtest_group {
+		test_gt_render_or_compute("interrupt-other", fd, hwe) {
+			engine_class = hwe->engine_class;
+
+			igt_skip_on(!set_preempt_timeout_to_max(fd, engine_class,
+								&preempt_timeout));
+
+			test_interrupt_other(fd, hwe, SHADER_LOOP | DISABLE_DEBUG_MODE);
+		}
+
+		igt_fixture {
+			if ((uint16_t)~engine_class && ~preempt_timeout)
+				if (!restore_preempt_timeout(fd, engine_class, preempt_timeout))
+					igt_warn("Cleanup of preempt_timeout failed!\n");
+		}
+	}
 
 	test_gt_render_or_compute("interrupt-all-set-breakpoint", fd, hwe)
 		test_interrupt_all(fd, hwe, SHADER_LOOP | TRIGGER_RESUME_SET_BP);
