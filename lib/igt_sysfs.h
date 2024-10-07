@@ -184,4 +184,9 @@ enum xe_sysfs_driver_action {
 
 int xe_sysfs_driver_do(int xe_device, char pci_slot[], enum xe_sysfs_driver_action action);
 
+bool xe_sysfs_engine_class_get_property(int xe_device, int gt, uint16_t class, const char *property,
+					uint32_t *value);
+bool xe_sysfs_engine_class_set_property(int xe_device, int gt, uint16_t class, const char *property,
+					uint32_t new_value, uint32_t *old_value);
+
 #endif /* __IGT_SYSFS_H__ */
