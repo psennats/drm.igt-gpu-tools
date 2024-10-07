@@ -142,7 +142,7 @@ simple_exec(int fd, struct drm_xe_engine_class_instance *eci)
 }
 
 static void
-simple_hang(int fd)
+simple_hang(int fd, struct drm_xe_sync *sync)
 {
 	struct drm_xe_engine_class_instance *eci = &xe_engine(fd, 0)->instance;
 	uint32_t vm;
@@ -163,6 +163,11 @@ simple_hang(int fd)
 	struct xe_spin_opts spin_opts = { .preempt = false };
 	int err;
 
+	if (sync) {
+		exec_hang.syncs = to_user_pointer(sync);
+		exec_hang.num_syncs = 1;
+	}
+
 	vm = xe_vm_create(fd, 0, 0);
 	bo_size = xe_bb_size(fd, sizeof(*data));
 	bo = xe_bo_create(fd, vm, bo_size,
@@ -180,11 +185,6 @@ simple_hang(int fd)
 	do {
 		err =  igt_ioctl(fd, DRM_IOCTL_XE_EXEC, &exec_hang);
 	} while (err && errno == ENOMEM);
-
-	xe_exec_queue_destroy(fd, hang_exec_queue);
-	munmap(data, bo_size);
-	gem_close(fd, bo);
-	xe_vm_destroy(fd, vm);
 }
 
 /**
@@ -226,19 +226,37 @@ igt_main
 	}
 
 	igt_subtest_f("wedged-at-any-timeout") {
+		struct drm_xe_sync hang_sync = {
+			.type = DRM_XE_SYNC_TYPE_SYNCOBJ,
+			.flags = DRM_XE_SYNC_FLAG_SIGNAL,
+		};
+		int err;
+
 		igt_require(igt_debugfs_exists(fd, "wedged_mode", O_RDWR));
 		ignore_wedged_in_dmesg();
 
+		hang_sync.handle = syncobj_create(fd, 0);
+
 		igt_debugfs_write(fd, "wedged_mode", "2");
-		simple_hang(fd);
+		simple_hang(fd, &hang_sync);
+
 		/*
-		 * Any ioctl after the first timeout on wedged_mode=2 is blocked
-		 * so we cannot relly on sync objects. Let's wait a bit for
-		 * things to settle before we confirm device as wedged and
-		 * rebind.
+		 * Wait for the hang to be detected.  If the hang has already
+		 * taken place, this will return ECANCELED and we can just move
+		 * on immediately.
 		 */
-		sleep(1);
+		err = syncobj_wait_err(fd, &hang_sync.handle, 1, INT64_MAX, 0);
+		if (err)
+			igt_assert_eq(err, -ECANCELED);
+
+		/* Other ioctls should also be returning ECANCELED now */
 		igt_assert_neq(simple_ioctl(fd), 0);
+		igt_assert_eq(errno, ECANCELED);
+
+		/*
+		 * Rebind the device and ensure proper operation is restored
+		 * for all engines.
+		 */
 		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
 		igt_assert_eq(simple_ioctl(fd), 0);
 		xe_for_each_engine(fd, hwe)
@@ -252,7 +270,7 @@ igt_main
 		igt_assert_eq(simple_ioctl(fd), 0);
 		igt_debugfs_write(fd, "wedged_mode", "1");
 		ignore_wedged_in_dmesg();
-		simple_hang(fd);
+		simple_hang(fd, NULL);
 		igt_assert_eq(simple_ioctl(fd), 0);
 	}
 
