@@ -122,6 +122,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	int64_t fence_timeout;
 	void *dummy;
 
+	igt_debug("%s running on: %s\n", __func__, xe_engine_class_string(eci->engine_class));
 	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
 
 	vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
