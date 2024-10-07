@@ -242,9 +242,6 @@
  * SUBTEST: invalid-wait-illegal-handle
  * Description: Verifies that waiting on an invalid syncobj handle is rejected
  *
- * SUBTEST: invalid-wait-zero-handles
- * Description: Verifies that waiting on an empty list of invalid syncobj handles is rejected
- *
  * SUBTEST: multi-wait-all-available-signaled
  * Description: Verifies waiting on a list of timeline syncobjs
  *
@@ -427,6 +424,9 @@
  *
  * SUBTEST: wait-for-submit-snapshot
  * Description: Verifies waiting on a list of timeline syncobjs with different thread for wait/signal
+ *
+ * SUBTEST: wait-zero-handles
+ * Description: Verifies that waiting on an empty list of syncobj handles is accepted
  */
 
 IGT_TEST_DESCRIPTION("Tests for the drm timeline sync object API");
@@ -558,13 +558,12 @@ test_wait_bad_flags(int fd)
 }
 
 static const char *test_wait_zero_handles_desc =
-	"Verifies that waiting on an empty list of invalid syncobj handles is"
-	" rejected";
+	"Verifies that waiting on an empty list of syncobj handles is accepted";
 static void
 test_wait_zero_handles(int fd)
 {
 	struct drm_syncobj_timeline_wait wait = {};
-	igt_assert_eq(__syncobj_timeline_wait_ioctl(fd, &wait), -EINVAL);
+	igt_assert_eq(__syncobj_timeline_wait_ioctl(fd, &wait), 0);
 }
 
 static const char *test_wait_illegal_handle_desc =
@@ -1711,7 +1710,7 @@ igt_main
 		test_wait_bad_flags(fd);
 
 	igt_describe(test_wait_zero_handles_desc);
-	igt_subtest("invalid-wait-zero-handles")
+	igt_subtest("wait-zero-handles")
 		test_wait_zero_handles(fd);
 
 	igt_describe(test_wait_illegal_handle_desc);
