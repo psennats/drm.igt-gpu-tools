@@ -1091,7 +1091,7 @@ static void run_online_client(struct xe_eudebug_client *c)
 	intel_bb_destroy(ibb);
 
 	xe_eudebug_client_exec_queue_destroy(c, fd, &create);
-	xe_eudebug_client_vm_destroy(c, fd,  create.vm_id);
+	xe_eudebug_client_vm_destroy(c, fd, create.vm_id);
 
 	xe_eudebug_client_metadata_destroy(c, fd, metadata_id[0], DRM_XE_DEBUG_METADATA_ELF_BINARY,
 					   2 * sizeof(*metadata));
