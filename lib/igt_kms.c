@@ -1558,7 +1558,8 @@ static void connector_attr_free(struct igt_connector_attr *c)
 static bool connector_attr_set(int idx, drmModeConnector *connector,
 			       int dir, igt_connector_attr_set set,
 			       const char *attr, const char *value,
-			       const char *reset_value)
+			       const char *reset_value,
+			       bool force_reset)
 {
 	struct igt_connector_attr *c;
 
@@ -1574,7 +1575,7 @@ static bool connector_attr_set(int idx, drmModeConnector *connector,
 		return false;
 	}
 
-	if (!strcmp(c->value, c->reset_value))
+	if (!force_reset && !strcmp(c->value, c->reset_value))
 		connector_attr_free(c);
 
 	return true;
@@ -1583,7 +1584,8 @@ static bool connector_attr_set(int idx, drmModeConnector *connector,
 static bool connector_attr_set_sysfs(int drm_fd,
 				     drmModeConnector *connector,
 				     const char *attr, const char *value,
-				     const char *reset_value)
+				     const char *reset_value,
+				     bool force_reset)
 {
 	char name[80];
 	int idx, dir;
@@ -1601,7 +1603,8 @@ static bool connector_attr_set_sysfs(int drm_fd,
 		return false;
 
 	if (!connector_attr_set(idx, connector, dir,
-				igt_sysfs_set, attr, value, reset_value))
+				igt_sysfs_set, attr, value, reset_value,
+				force_reset))
 		return false;
 
 	igt_debug("Connector %s/%s is now %s\n", name, attr, value);
@@ -1612,7 +1615,8 @@ static bool connector_attr_set_sysfs(int drm_fd,
 static bool connector_attr_set_debugfs(int drm_fd,
 				       drmModeConnector *connector,
 				       const char *attr, const char *value,
-				       const char *reset_value)
+				       const char *reset_value,
+				       bool force_reset)
 {
 	char name[80];
 	int idx, dir;
@@ -1631,7 +1635,8 @@ static bool connector_attr_set_debugfs(int drm_fd,
 
 	if (!connector_attr_set(idx, connector, dir,
 				igt_sysfs_set, attr,
-				value, reset_value))
+				value, reset_value,
+				force_reset))
 		return false;
 
 	igt_info("Connector %s/%s is now %s\n", name, attr, value);
@@ -1663,7 +1668,8 @@ static bool force_connector(int drm_fd,
 			    const char *value)
 {
 	return connector_attr_set_sysfs(drm_fd, connector,
-					"status", value, "detect");
+					"status", value, "detect",
+					false);
 }
 
 /**
@@ -1728,7 +1734,7 @@ static bool force_connector_joiner(int drm_fd,
 {
 	return connector_attr_set_debugfs(drm_fd, connector,
 					  "i915_joiner_force_enable",
-					  value, "0");
+					  value, "0", false);
 }
 
 /**
