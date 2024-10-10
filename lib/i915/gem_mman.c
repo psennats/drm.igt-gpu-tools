@@ -90,6 +90,8 @@ bool gem_has_mmap_offset_type(int fd, const struct mmap_offset *t)
 	if (gem_has_mmap_offset(fd))
 		if (gem_has_lmem(fd))
 			return t->type == I915_MMAP_OFFSET_FIXED;
+		else if (t->type == I915_MMAP_OFFSET_GTT)
+			return gem_has_mappable_ggtt(fd);
 		else
 			return t->type != I915_MMAP_OFFSET_FIXED;
 	else
