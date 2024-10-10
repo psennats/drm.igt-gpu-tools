@@ -594,6 +594,20 @@ void gpgpu_shader__write_aip(struct gpgpu_shader *shdr, uint32_t y_offset)
 }
 
 /**
+ * gpgpu_shader__increase_aip:
+ * @shdr: shader to be modified
+ * @value: value to be added to AIP register
+ *
+ * Increase AIP by @value. Useful in SIP to skip instruction causing exception.
+ */
+void gpgpu_shader__increase_aip(struct gpgpu_shader *shdr, uint32_t value)
+{
+	emit_iga64_code(shdr, write_aip, "					\n\
+(W)	add (1|M0)		cr0.2:ud	cr0.2:ud	ARG(0):ud	\n\
+	", value);
+}
+
+/**
  * gpgpu_shader__write_dword:
  * @shdr: shader to be modified
  * @value: dword to be written

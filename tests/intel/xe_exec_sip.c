@@ -126,6 +126,8 @@ static struct gpgpu_shader *get_sip(int fd, enum sip_type sip_type, unsigned int
 	case SIP_INV_INSTR:
 		gpgpu_shader__write_on_exception(sip, SIP_CANARY2, 0, y_offset,
 						 ILLEGAL_OPCODE_STATUS, 0);
+		/* skip invalid instruction */
+		gpgpu_shader__increase_aip(sip, 16);
 		break;
 	default:
 		break;

@@ -80,6 +80,7 @@ void gpgpu_shader__end_system_routine_step_if_eq(struct gpgpu_shader *shdr,
 						 uint32_t dw_offset,
 						 uint32_t value);
 void gpgpu_shader__write_aip(struct gpgpu_shader *shdr, uint32_t y_offset);
+void gpgpu_shader__increase_aip(struct gpgpu_shader *shdr, uint32_t value);
 void gpgpu_shader__write_dword(struct gpgpu_shader *shdr, uint32_t value,
 			       uint32_t y_offset);
 void gpgpu_shader__write_on_exception(struct gpgpu_shader *shdr, uint32_t dw, uint32_t x_offset,
