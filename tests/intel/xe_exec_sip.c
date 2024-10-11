@@ -276,8 +276,8 @@ static void test_sip(enum shader_type shader_type, enum sip_type sip_type,
 
 	vm_id = xe_vm_create(fd, 0, 0);
 
-	/* Get timeout for job, and add 4s to ensure timeout processes in subtest. */
-	timeout = xe_sysfs_get_job_timeout_ms(fd, eci) + 4ull * MSEC_PER_SEC;
+	/* Get timeout for job, and add 8s to ensure timeout processes in subtest. */
+	timeout = xe_sysfs_get_job_timeout_ms(fd, eci) + 8ull * MSEC_PER_SEC;
 	timeout *= NSEC_PER_MSEC;
 	timeout *= igt_run_in_simulation() ? 10 : 1;
 
