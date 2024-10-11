@@ -713,7 +713,7 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 	int i, usable = 0;
 	igt_spin_t *spin;
 	uint64_t ahnd;
-	uint32_t vm, eng_ref_clock1, eng_ref_clock2;
+	uint32_t vm, eng_ref_clock;
 	struct {
 		int32_t id;
 		const char *name;
@@ -746,31 +746,31 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 		ts2.clockid = clock[index].id;
 
 		query_engine_cycles(fd, &ts1);
-		eng_ref_clock1 = __engine_reference_clock(fd, hwe->gt_id);
 		query_engine_cycles(fd, &ts2);
-		eng_ref_clock2 = __engine_reference_clock(fd, hwe->gt_id);
+		eng_ref_clock = __engine_reference_clock(fd, hwe->gt_id);
 
 		igt_debug("[1] cpu_ts before %llu, reg read time %llu\n",
 			  ts1.cpu_timestamp,
 			  ts1.cpu_delta);
-		igt_debug("[1] engine_ts %llu, freq %u Hz, width %u\n",
-			  ts1.engine_cycles, eng_ref_clock1, ts1.width);
+		igt_debug("[1] engine_ts %llu, width %u\n",
+			  ts1.engine_cycles, ts1.width);
 
 		igt_debug("[2] cpu_ts before %llu, reg read time %llu\n",
 			  ts2.cpu_timestamp,
 			  ts2.cpu_delta);
-		igt_debug("[2] engine_ts %llu, freq %u Hz, width %u\n",
-			  ts2.engine_cycles, eng_ref_clock2, ts2.width);
+		igt_debug("[2] engine_ts %llu, width %u\n",
+			  ts2.engine_cycles, ts2.width);
 
 		delta_cpu = ts2.cpu_timestamp - ts1.cpu_timestamp;
 
 		if (ts2.engine_cycles >= ts1.engine_cycles)
 			delta_cs = (ts2.engine_cycles - ts1.engine_cycles) *
-				   NSEC_PER_SEC / eng_ref_clock1;
+				   NSEC_PER_SEC / eng_ref_clock;
 		else
 			delta_cs = (((1 << ts2.width) - ts2.engine_cycles) + ts1.engine_cycles) *
-				   NSEC_PER_SEC / eng_ref_clock1;
+				   NSEC_PER_SEC / eng_ref_clock;
 
+		igt_debug("freq %u Hz\n", eng_ref_clock);
 		igt_debug("delta_cpu[%"PRIu64"], delta_cs[%"PRIu64"]\n",
 			  delta_cpu, delta_cs);
 
