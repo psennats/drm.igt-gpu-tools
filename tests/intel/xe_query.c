@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "igt.h"
+#include "linux_scaffold.h"
 #include "xe_drm.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
@@ -738,6 +739,7 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 #define NUM_SNAPSHOTS 10
 	for (i = 0; i < NUM_SNAPSHOTS * ARRAY_SIZE(clock); i++) {
 		int index = i / NUM_SNAPSHOTS;
+		uint64_t width_mask;
 
 		ts1.eci = *hwe;
 		ts1.clockid = clock[index].id;
@@ -763,12 +765,12 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 
 		delta_cpu = ts2.cpu_timestamp - ts1.cpu_timestamp;
 
-		if (ts2.engine_cycles >= ts1.engine_cycles)
-			delta_cs = (ts2.engine_cycles - ts1.engine_cycles) *
-				   NSEC_PER_SEC / eng_ref_clock;
-		else
-			delta_cs = (((1 << ts2.width) - ts2.engine_cycles) + ts1.engine_cycles) *
-				   NSEC_PER_SEC / eng_ref_clock;
+		igt_assert_eq(ts1.width, ts2.width);
+		width_mask = GENMASK_ULL(ts1.width - 1, 0);
+		ts1.engine_cycles &= width_mask;
+		ts2.engine_cycles &= width_mask;
+		delta_cs = ((ts2.engine_cycles - ts1.engine_cycles) & width_mask) *
+			NSEC_PER_SEC / eng_ref_clock;
 
 		calc_freq = (ts2.engine_cycles - ts1.engine_cycles) * NSEC_PER_SEC / delta_cpu;
 
