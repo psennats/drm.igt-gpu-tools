@@ -708,7 +708,7 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 {
 	struct drm_xe_query_engine_cycles ts1 = {};
 	struct drm_xe_query_engine_cycles ts2 = {};
-	uint64_t delta_cpu, delta_cs, delta_delta;
+	uint64_t delta_cpu, delta_cs, delta_delta, calc_freq;
 	unsigned int exec_queue;
 	int i, usable = 0;
 	igt_spin_t *spin;
@@ -770,7 +770,10 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
 			delta_cs = (((1 << ts2.width) - ts2.engine_cycles) + ts1.engine_cycles) *
 				   NSEC_PER_SEC / eng_ref_clock;
 
-		igt_debug("freq %u Hz\n", eng_ref_clock);
+		calc_freq = (ts2.engine_cycles - ts1.engine_cycles) * NSEC_PER_SEC / delta_cpu;
+
+		igt_debug("freq %u Hz, calc_freq %"PRIu64" Hz, err %.3f%%\n", eng_ref_clock,
+			  calc_freq, fabs((double)calc_freq - eng_ref_clock) * 100 / eng_ref_clock);
 		igt_debug("delta_cpu[%"PRIu64"], delta_cs[%"PRIu64"]\n",
 			  delta_cpu, delta_cs);
 
