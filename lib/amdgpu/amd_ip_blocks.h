@@ -133,6 +133,8 @@ struct amdgpu_ring_context {
 
 struct amdgpu_ip_funcs {
 	uint32_t	family_id;
+	uint32_t	chip_external_rev;
+	uint32_t	chip_rev;
 	uint32_t	align_mask;
 	uint32_t	nop;
 	uint32_t	deadbeaf;

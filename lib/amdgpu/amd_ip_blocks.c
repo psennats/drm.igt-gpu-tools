@@ -190,8 +190,9 @@ sdma_ring_copy_linear(const struct amdgpu_ip_funcs *func,
 				       SDMA_COPY_SUB_OPCODE_LINEAR,
 					context->secure ? 0x4 : 0);
 		if (func->family_id >= AMDGPU_FAMILY_AI) {
-			/* For FAMILY AI, the maximum copy range supported by sdma is 4MB */
-			if (func->family_id >= AMDGPU_FAMILY_AI && context->write_length > 0x3fffff) {
+			/* For mi100, the maximum copy range supported by sdma is 4MB */
+			if (func->family_id == AMDGPU_FAMILY_AI && func->chip_external_rev == 0x33
+				&& context->write_length > 0x3fffff) {
 				context->pm4[i++] = 0x3fffff;
 				igt_warn("sdma copy count exceeds the maximum limit of 4MB\n");
 			} else {
@@ -855,9 +856,11 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 		 * TO DO: move family id as a parameter into IP functions and
 		 * remove it as a field
 		 */
-		for (int i = 0; i <  amdgpu_ips.num_ip_blocks; i++)
+		for (int i = 0; i <  amdgpu_ips.num_ip_blocks; i++) {
 			amdgpu_ips.ip_blocks[i]->funcs->family_id = amdinfo->family_id;
-
+			amdgpu_ips.ip_blocks[i]->funcs->chip_external_rev = amdinfo->chip_external_rev;
+			amdgpu_ips.ip_blocks[i]->funcs->chip_rev = amdinfo->chip_rev;
+		}
 		/* extra precaution if re-factor again */
 		igt_assert_eq(gfx_v8_x_ip_block.major, 8);
 		igt_assert_eq(compute_v8_x_ip_block.major, 8);
