@@ -75,8 +75,10 @@ igt@xe_create@create-massive-size
 igt@xe_debugfs@base
 igt@xe_debugfs@gt
 igt@xe_debugfs@forcewake
-igt@xe_dma_buf_sync@export-dma-buf-once
+igt@xe_dma_buf_sync@export-dma-buf-once-write-sync
 igt@xe_dma_buf_sync@export-dma-buf-once-read-sync
+igt@xe_dma_buf_sync@export-dma-buf-once-read-write-sync
+igt@xe_dma_buf_sync@export-dma-buf-once-write-read-sync
 igt@xe_evict_ccs@evict-overcommit-simple
 igt@xe_evict_ccs@evict-overcommit-parallel-nofree-samefd
 igt@xe_exec_atomic@basic-dec-all
