@@ -628,7 +628,10 @@ static void submit_jobs(struct gt_thread_data *t)
 			.engine_instance = 0,
 			.gt_id = 0,
 		};
-		struct drm_xe_exec exec;
+		struct drm_xe_exec exec = {
+			.address = addr,
+			.num_batch_buffer = 1,
+		};
 		int ret;
 
 		/* GuC IDs can get exhausted */
@@ -636,8 +639,6 @@ static void submit_jobs(struct gt_thread_data *t)
 		if (ret)
 			continue;
 
-		exec.address = addr;
-		exec.num_batch_buffer = 1;
 		xe_exec(fd, &exec);
 		xe_exec_queue_destroy(fd, exec.exec_queue_id);
 	}
