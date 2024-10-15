@@ -998,12 +998,12 @@ test_planes_scaling_combo(data_t *d, double sf_plane1,
 							  pipe, output, p1, p2,
 							  &d->fb[1], &d->fb[2],
 							  test_type);
-			if (ret != 0) {
-				cleanup_fbs(d);
-				return ret;
-			}
+			if (ret != 0)
+				break;
 		}
 		cleanup_fbs(d);
+		if (ret == 0)
+			break;
 	}
 	return ret;
 }
@@ -1543,7 +1543,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 								scaler_with_2_planes_tests[index].test_type);
 							if (ret == 0)
 								break;
-							igt_info("Required Scaling operation not supported on %s trying on next output\n",
+							igt_info("Required scaling operation not supported on %s trying on next output\n",
 								 igt_output_name(output));
 						}
 						igt_skip_on_f(ret == -ERANGE || ret == -EINVAL,
