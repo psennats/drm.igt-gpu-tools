@@ -461,7 +461,9 @@ static void lr_mode_workload(int fd)
 	vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
 	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);
 	bo_size = xe_bb_size(fd, sizeof(*spin));
-	engine = xe_engine(fd, 1);
+	engine = xe_find_engine_by_class(fd, DRM_XE_ENGINE_CLASS_COPY);
+	igt_assert(engine);
+
 	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, engine->instance.gt_id), 0);
 	spin = xe_bo_map(fd, bo, bo_size);
 
