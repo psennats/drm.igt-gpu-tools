@@ -3378,6 +3378,9 @@ static bool has_parallel_execbuf(int i915)
 	const intel_ctx_t *ctx = NULL;
 	int err;
 
+	if (gem_using_execlists(i915))
+		return false;
+
 	for (int class = 0; class < 32; class++) {
 		struct i915_engine_class_instance *siblings;
 		unsigned int count;
