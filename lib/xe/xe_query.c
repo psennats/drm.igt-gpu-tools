@@ -732,6 +732,26 @@ bool xe_has_engine_class(int fd, uint16_t engine_class)
 }
 
 /**
+ * xe_find_engine_by_class
+ * @fd: xe device fd
+ * @engine_class: engine class
+ *
+ * Returns engine info of xe device @fd and @engine_class otherwise NULL.
+ */
+struct drm_xe_engine *xe_find_engine_by_class(int fd, uint16_t engine_class)
+{
+	struct xe_device *xe_dev;
+
+	xe_dev = find_in_cache(fd);
+	igt_assert(xe_dev);
+
+	for (int i = 0; i < xe_dev->engines->num_engines; i++)
+		if (xe_dev->engines->engines[i].instance.engine_class == engine_class)
+			return &xe_dev->engines->engines[i];
+
+	return NULL;
+}
+/**
  * xe_has_media_gt:
  * @fd: xe device fd
  *
