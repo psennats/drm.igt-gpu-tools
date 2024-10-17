@@ -187,6 +187,9 @@ bool igt_fb_is_gen12_mc_ccs_modifier(uint64_t modifier);
 bool igt_fb_is_ccs_plane(const struct igt_fb *fb, int plane);
 bool igt_fb_is_gen12_ccs_cc_plane(const struct igt_fb *fb, int plane);
 int igt_fb_ccs_to_main_plane(const struct igt_fb *fb, int ccs_plane);
+void igt_xe2_blit_with_dst_pat(const struct igt_fb *dst_fb,
+			       const struct igt_fb *src_fb,
+			       uint8_t dst_pat_index);
 
 /* cairo-based painting */
 cairo_surface_t *igt_get_cairo_surface(int fd, struct igt_fb *fb);

@@ -2833,7 +2833,8 @@ static struct blt_copy_object *allocate_and_initialize_blt(const struct igt_fb *
 							   uint32_t handle,
 							   uint32_t memregion,
 							   enum blt_tiling_type blt_tile,
-							   uint32_t plane)
+							   uint32_t plane,
+							   uint8_t pat_index)
 {
 	uint64_t stride;
 	struct blt_copy_object *blt = calloc(1, sizeof(*blt));
@@ -2845,7 +2846,7 @@ static struct blt_copy_object *allocate_and_initialize_blt(const struct igt_fb *
 
 	blt_set_object(blt, handle, fb->size, memregion,
 		       intel_get_uc_mocs_index(fb->fd),
-		       intel_get_pat_idx_uc(fb->fd),
+		       pat_index,
 		       blt_tile,
 		       igt_fb_is_ccs_modifier(fb->modifier) ? COMPRESSION_ENABLED : COMPRESSION_DISABLED,
 		       igt_fb_is_gen12_mc_ccs_modifier(fb->modifier) ? COMPRESSION_TYPE_MEDIA : COMPRESSION_TYPE_3D);
@@ -2867,7 +2868,8 @@ static void *map_buffer(int fd, uint32_t handle, size_t size)
 }
 
 static struct blt_copy_object *blt_fb_init(const struct igt_fb *fb,
-					   uint32_t plane, uint32_t memregion)
+					   uint32_t plane, uint32_t memregion,
+					   uint8_t pat_index)
 {
 	uint32_t name, handle;
 	enum blt_tiling_type blt_tile;
@@ -2883,7 +2885,8 @@ static struct blt_copy_object *blt_fb_init(const struct igt_fb *fb,
 		return NULL;
 
 	blt_tile = fb_tile_to_blt_tile(fb->modifier);
-	blt = allocate_and_initialize_blt(fb, handle, memregion, blt_tile, plane);
+	blt = allocate_and_initialize_blt(fb, handle, memregion, blt_tile,
+					  plane, pat_index);
 
 	if (!blt)
 		return NULL;
@@ -3024,11 +3027,14 @@ static void do_block_copy(const struct igt_fb *src_fb,
 			  uint32_t mem_region, uint32_t i, uint64_t ahnd,
 			  uint32_t xe_bb, uint64_t bb_size,
 			  const intel_ctx_t *ctx,
-			  struct intel_execution_engine2 *e)
+			  struct intel_execution_engine2 *e,
+			  uint8_t dst_pat_index)
 {
 	struct blt_copy_data blt = {};
-	struct blt_copy_object *src = blt_fb_init(src_fb, i, mem_region);
-	struct blt_copy_object *dst = blt_fb_init(dst_fb, i, mem_region);
+	struct blt_copy_object *src = blt_fb_init(src_fb, i, mem_region,
+						  intel_get_pat_idx_uc(src_fb->fd));
+	struct blt_copy_object *dst = blt_fb_init(dst_fb, i, mem_region,
+						  dst_pat_index);
 	struct blt_block_copy_data_ext ext = {}, *pext = NULL;
 
 	igt_assert(src && dst);
@@ -3093,7 +3099,8 @@ static void blitcopy(const struct igt_fb *dst_fb,
 
 		if (is_xe) {
 			do_block_copy(src_fb, dst_fb, mem_region, i, ahnd,
-				      bb, bb_size, xe_ctx, NULL);
+				      bb, bb_size, xe_ctx, NULL,
+				      intel_get_pat_idx_uc(dst_fb->fd));
 		} else if (fast_blit_ok(src_fb) && fast_blit_ok(dst_fb)) {
 			igt_blitter_fast_copy__raw(dst_fb->fd,
 						   ahnd, ctx, NULL,
@@ -3116,7 +3123,8 @@ static void blitcopy(const struct igt_fb *dst_fb,
 			for_each_ctx_engine(src_fb->fd, ictx, e) {
 				if (gem_engine_can_block_copy(src_fb->fd, e)) {
 					do_block_copy(src_fb, dst_fb, mem_region, i, ahnd,
-						      bb, bb_size, ictx, e);
+						      bb, bb_size, ictx, e,
+						      intel_get_pat_idx_uc(dst_fb->fd));
 					break;
 				}
 			}
@@ -3144,6 +3152,45 @@ static void blitcopy(const struct igt_fb *dst_fb,
 
 	cleanup_blt_resources(ctx, ahnd, is_xe, bb, exec_queue, vm, xe_ctx,
 			      src_fb->fd, ictx);
+}
+
+/**
+ * igt_xe2_blit_with_dst_pat:
+ * @dst_fb: pointer to a destination #igt_fb structure
+ * @src_fb: pointer to a source #igt_fb structure
+ * @dst_pat_index: uint8_t pat index to set for destination framebuffer
+ *
+ * Copy matching size src_fb to dst_fb with setting pat index to destination
+ * framebuffer
+ */
+void igt_xe2_blit_with_dst_pat(const struct igt_fb *dst_fb,
+			       const struct igt_fb *src_fb,
+			       uint8_t dst_pat_index)
+{
+	uint32_t ctx = 0, bb, mem_region, vm, exec_queue;
+	uint64_t ahnd = 0, bb_size = 4096;
+	intel_ctx_t *xe_ctx = NULL;
+
+	igt_assert_eq(dst_fb->fd, src_fb->fd);
+	igt_assert_eq(dst_fb->num_planes, src_fb->num_planes);
+	igt_assert(!igt_fb_is_gen12_rc_ccs_cc_modifier(src_fb->modifier));
+	igt_assert(!igt_fb_is_gen12_rc_ccs_cc_modifier(dst_fb->modifier));
+
+	setup_context_and_memory_region(dst_fb, &ctx, &ahnd, &mem_region,
+					&vm, &bb, &bb_size, NULL,
+					&exec_queue, &xe_ctx);
+
+	for (int i = 0; i < dst_fb->num_planes; i++) {
+		igt_assert_eq(dst_fb->plane_bpp[i], src_fb->plane_bpp[i]);
+		igt_assert_eq(dst_fb->plane_width[i], src_fb->plane_width[i]);
+		igt_assert_eq(dst_fb->plane_height[i], src_fb->plane_height[i]);
+
+		do_block_copy(src_fb, dst_fb, mem_region, i, ahnd, bb, bb_size,
+			      xe_ctx, NULL, dst_pat_index);
+	}
+
+	cleanup_blt_resources(ctx, ahnd, true, bb, exec_queue, vm, xe_ctx,
+			      src_fb->fd, NULL);
 }
 
 static void free_linear_mapping(struct fb_blit_upload *blit)
