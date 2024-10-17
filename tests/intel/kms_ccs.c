@@ -608,160 +608,8 @@ static void fast_clear_fb(int drm_fd, struct igt_fb *fb, const float *cc_color)
 	buf_ops_destroy(bops);
 }
 
-static struct blt_copy_object *blt_fb_init(const struct igt_fb *fb,
-					   uint32_t plane, uint32_t memregion,
-					   uint8_t pat_index)
-{
-	uint32_t name, handle;
-	struct blt_copy_object *blt;
-	uint64_t stride;
-
-	blt = malloc(sizeof(*blt));
-	igt_assert(blt);
-
-	name = gem_flink(fb->fd, fb->gem_handle);
-	handle = gem_open(fb->fd, name);
-
-	stride = fb->strides[plane] / 4;
-
-	blt_set_object(blt, handle, fb->size, memregion,
-		       intel_get_uc_mocs_index(fb->fd),
-		       pat_index,
-		       T_TILE4,
-		       COMPRESSION_DISABLED,
-		       COMPRESSION_TYPE_3D);
-
-	blt_set_geom(blt, stride, 0, 0, fb->width, fb->plane_height[plane], 0, 0);
-	blt->plane_offset = fb->offsets[plane];
-	blt->ptr = xe_bo_mmap_ext(fb->fd, handle, fb->size,
-				  PROT_READ | PROT_WRITE);
-	return blt;
-}
-
-static enum blt_color_depth blt_get_bpp(const struct igt_fb *fb,
-					int color_plane)
-{
-	switch (fb->plane_bpp[color_plane]) {
-	case 8:
-		return CD_8bit;
-	case 16:
-		return CD_16bit;
-	case 32:
-		return CD_32bit;
-	case 64:
-		return CD_64bit;
-	case 96:
-		return CD_96bit;
-	case 128:
-		return CD_128bit;
-	default:
-		igt_assert(0);
-	}
-}
-
-static uint32_t blt_compression_format(struct blt_copy_data *blt,
-				       const struct igt_fb *fb,
-				       int color_plane)
-{
-	switch (igt_reduce_format(fb->drm_format)) {
-	case DRM_FORMAT_XRGB16161616F:
-		return 0x7; /* CMF_R16_G16_B16_A16 */
-	case DRM_FORMAT_XRGB2101010:
-		return 0x3; /* CMF_R10_G10_B10_A2 */
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XYUV8888:
-		return 0x2; /* CMF_R8_G8_B8_A8 */
-	case DRM_FORMAT_YUYV:
-		return 0x1; /* CMF_R8_G8 (treated as 16bpp format) */
-	case DRM_FORMAT_NV12:
-		if (color_plane)
-			return 0x1; /* CMF_R8_G8 */
-		else
-			return 0x0; /* CMF_R8 */
-	case DRM_FORMAT_P010:
-		if (color_plane)
-			return 0x6; /* CMF_R16_G16 */
-		else
-			return 0x5; /* CMF_R16 */
-	default:
-		igt_assert_f(0, "Unknown format\n");
-	}
-}
-
-static void xe2_ccs_blit(data_t *data, struct igt_fb *fb, struct igt_fb *temp_fb)
-{
-	uint64_t ahnd = 0;
-
-	struct blt_copy_data blt = {};
-	struct blt_copy_object *src, *dst;
-	struct blt_block_copy_data_ext ext = {}, *pext = NULL;
-	uint32_t mem_region;
-	intel_ctx_t *xe_ctx;
-	uint32_t vm, exec_queue;
-	uint32_t xe_bb;
-	uint64_t bb_size = 4096;
-	struct igt_fb *dst_fb = fb, *src_fb = temp_fb;
-
-	struct drm_xe_engine_class_instance inst = {
-		.engine_class = DRM_XE_ENGINE_CLASS_COPY,
-	};
-
-	vm = xe_vm_create(src_fb->fd, 0, 0);
-
-	exec_queue = xe_exec_queue_create(src_fb->fd, vm, &inst, 0);
-	xe_ctx = intel_ctx_xe(src_fb->fd, vm, exec_queue, 0, 0, 0);
-	mem_region = vram_if_possible(src_fb->fd, 0);
-
-	ahnd = intel_allocator_open_full(src_fb->fd, xe_ctx->vm, 0, 0,
-						INTEL_ALLOCATOR_SIMPLE,
-						ALLOC_STRATEGY_LOW_TO_HIGH, 0);
-
-	bb_size = ALIGN(bb_size + xe_cs_prefetch_size(src_fb->fd),
-			xe_get_default_alignment(src_fb->fd));
-	xe_bb = xe_bo_create(src_fb->fd, 0, bb_size,
-			     vram_if_possible(dst_fb->fd, 0), 0);
-
-	for (int i = 0; i < dst_fb->num_planes; i++) {
-		src = blt_fb_init(src_fb, i, mem_region, intel_get_pat_idx_uc(src_fb->fd));
-		dst = blt_fb_init(dst_fb, i, mem_region, intel_get_pat_idx_wt(dst_fb->fd));
-
-		blt_copy_init(src_fb->fd, &blt);
-		blt.color_depth = blt_get_bpp(src_fb, i);
-		blt_set_copy_object(&blt.src, src);
-		blt_set_copy_object(&blt.dst, dst);
-
-		blt_set_object_ext(&ext.src,
-				blt_compression_format(&blt, src_fb, i),
-				src_fb->plane_width[i], src_fb->plane_height[i],
-				SURFACE_TYPE_2D);
-
-		blt_set_object_ext(&ext.dst,
-				blt_compression_format(&blt, dst_fb, i),
-				dst_fb->plane_width[i], dst_fb->plane_height[i],
-				SURFACE_TYPE_2D);
-
-		pext = &ext;
-
-		blt_set_batch(&blt.bb, xe_bb, bb_size, mem_region);
-
-		blt_block_copy(src_fb->fd, xe_ctx, NULL, ahnd, &blt, pext);
-
-		blt_destroy_object(src_fb->fd, src);
-		blt_destroy_object(dst_fb->fd, dst);
-	}
-
-	put_ahnd(ahnd);
-	gem_close(dst_fb->fd, xe_bb);
-	xe_exec_queue_destroy(dst_fb->fd, exec_queue);
-	xe_vm_destroy(dst_fb->fd, vm);
-	free(xe_ctx);
-
-	access_flat_ccs_surface(fb, true);
-}
-
 static struct igt_fb *get_fb(data_t *data, u64 modifier, double r, double g,
-			     double b, int width, int height, u32 format,
-			     int *goodfb)
+			     double b, int width, int height, u32 format)
 {
 	for (int i = 0; i < data->fb_list_length; i++) {
 		if (data->fb_list[i].width == width &&
@@ -769,12 +617,8 @@ static struct igt_fb *get_fb(data_t *data, u64 modifier, double r, double g,
 		    data->fb_list[i].modifier == modifier &&
 		    data->fb_list[i].format == format &&
 		    data->fb_list[i].r == r && data->fb_list[i].g == g &&
-		    data->fb_list[i].b == b) {
-			if (goodfb)
-				*goodfb = true;
-
+		    data->fb_list[i].b == b)
 			return &data->fb_list[i].fb;
-		}
 	}
 
 	data->fb_list = realloc(data->fb_list, sizeof(*data->fb_list) *
@@ -787,7 +631,30 @@ static struct igt_fb *get_fb(data_t *data, u64 modifier, double r, double g,
 	data->fb_list[data->fb_list_length].modifier = modifier;
 	data->fb_list[data->fb_list_length].format = format;
 
-	if (r + g + b == 0)
+	if (modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
+	    modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS) {
+		struct igt_fb *temp_fb, *fb;
+		/* copy xe2 framebuffer to compresssed memory
+		 */
+
+		igt_create_fb(data->drm_fd, width, height, format, modifier,
+			      &data->fb_list[data->fb_list_length++].fb);
+
+		/* temp fb non compressed linear fb */
+		temp_fb = get_fb(data, DRM_FORMAT_MOD_NONE, r, g, b,
+				 width, height, data->format);
+
+		/* because of possible realloc happening get 'current' fb
+		 * back from the list
+		 */
+		fb = get_fb(data, modifier, r, g, b, width, height,
+			    data->format);
+
+		igt_xe2_blit_with_dst_pat(fb, temp_fb, intel_get_pat_idx_wt(fb->fd));
+		access_flat_ccs_surface(fb, true);
+		return fb;
+
+	} else if (r + g + b == 0)
 		igt_create_pattern_fb(data->drm_fd, width, height, format,
 				      modifier,
 				      &data->fb_list[data->fb_list_length].fb);
@@ -809,7 +676,6 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 	bool do_fast_clear = igt_fb_is_gen12_rc_ccs_cc_modifier(data->ccs_modifier);
 	bool do_solid_fill = do_fast_clear || data->plane;
 	int c = !!data->plane;
-	int goodfb = false;
 	const float cc_color[4] = {colors[!!data->plane].r,
 				   colors[!!data->plane].g,
 				   colors[!!data->plane].b,
@@ -829,14 +695,16 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 		create_fb_prepare_add(data->drm_fd, width, height,
 				data->format, modifier,
 				fb, &f);
+		do_ioctl(data->drm_fd, DRM_IOCTL_MODE_ADDFB2, &f);
+		fb->fb_id = f.fb_id;
 	} else {
 		if (do_solid_fill)
 			temp_fb = get_fb(data, modifier,
 					colors[c].r, colors[c].g, colors[c].b,
-					width, height, data->format, &goodfb);
+					width, height, data->format);
 		else
 			temp_fb = get_fb(data, modifier, 0.0, 0.0, 0.0,
-					width, height, data->format, &goodfb);
+					width, height, data->format);
 
 		*fb = *temp_fb;
 		addfb_init(fb, &f);
@@ -848,32 +716,12 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 	} else {
 		if (do_fast_clear && (fb_flags & FB_COMPRESSED)) {
 			fast_clear_fb(data->drm_fd, fb, cc_color);
-		} else if (!goodfb &&
-			  (modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
-			   modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS)) {
-			if (do_solid_fill)
-				temp_fb = get_fb(data, I915_FORMAT_MOD_4_TILED,
-						 colors[c].r,
-						 colors[c].g,
-						 colors[c].b,
-						 width, height,
-						 data->format, NULL);
-			else
-				temp_fb = get_fb(data, I915_FORMAT_MOD_4_TILED,
-						 0.0, 0.0, 0.0,
-						 width, height,
-						 data->format, NULL);
-
-			xe2_ccs_blit(data, fb, temp_fb);
 		}
 	}
-
-	do_ioctl(data->drm_fd, DRM_IOCTL_MODE_ADDFB2, &f);
 
 	if (check_ccs_planes)
 		check_all_ccs_planes(data->drm_fd, fb, cc_color, !(data->flags & TEST_RANDOM));
 
-	fb->fb_id = f.fb_id;
 }
 
 static igt_plane_t *first_sdr_plane(data_t *data)
