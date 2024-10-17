@@ -186,6 +186,15 @@ typedef struct {
 	uint64_t ccs_modifier;
 	unsigned int seed;
 	bool user_seed;
+	enum igt_commit_style commit;
+	int fb_list_length;
+	struct {
+		struct igt_fb fb;
+		int width, height;
+		double r, g, b;
+		u64 modifier;
+		u32 format;
+	} *fb_list;
 } data_t;
 
 static const struct {
@@ -750,13 +759,57 @@ static void xe2_ccs_blit(data_t *data, struct igt_fb *fb, struct igt_fb *temp_fb
 	access_flat_ccs_surface(fb, true);
 }
 
+static struct igt_fb *get_fb(data_t *data, u64 modifier, double r, double g,
+			     double b, int width, int height, u32 format,
+			     int *goodfb)
+{
+	for (int i = 0; i < data->fb_list_length; i++) {
+		if (data->fb_list[i].width == width &&
+		    data->fb_list[i].height == height &&
+		    data->fb_list[i].modifier == modifier &&
+		    data->fb_list[i].format == format &&
+		    data->fb_list[i].r == r && data->fb_list[i].g == g &&
+		    data->fb_list[i].b == b) {
+			if (goodfb)
+				*goodfb = true;
+
+			return &data->fb_list[i].fb;
+		}
+	}
+
+	data->fb_list = realloc(data->fb_list, sizeof(*data->fb_list) *
+				(data->fb_list_length + 1));
+	data->fb_list[data->fb_list_length].width = width;
+	data->fb_list[data->fb_list_length].height = height;
+	data->fb_list[data->fb_list_length].r = r;
+	data->fb_list[data->fb_list_length].g = g;
+	data->fb_list[data->fb_list_length].b = b;
+	data->fb_list[data->fb_list_length].modifier = modifier;
+	data->fb_list[data->fb_list_length].format = format;
+
+	if (r + g + b == 0)
+		igt_create_pattern_fb(data->drm_fd, width, height, format,
+				      modifier,
+				      &data->fb_list[data->fb_list_length].fb);
+	else
+		igt_create_color_fb(data->drm_fd, width, height, format,
+				    modifier, r, g, b,
+				    &data->fb_list[data->fb_list_length].fb);
+
+	return &data->fb_list[data->fb_list_length++].fb;
+}
+
 static void generate_fb(data_t *data, struct igt_fb *fb,
 			int width, int height,
 			enum test_fb_flags fb_flags)
 {
 	struct drm_mode_fb_cmd2 f = {0};
 	uint64_t modifier;
-	cairo_t *cr;
+	struct igt_fb *temp_fb;
+	bool do_fast_clear = igt_fb_is_gen12_rc_ccs_cc_modifier(data->ccs_modifier);
+	bool do_solid_fill = do_fast_clear || data->plane;
+	int c = !!data->plane;
+	int goodfb = false;
 	const float cc_color[4] = {colors[!!data->plane].r,
 				   colors[!!data->plane].g,
 				   colors[!!data->plane].b,
@@ -772,48 +825,46 @@ static void generate_fb(data_t *data, struct igt_fb *fb,
 	else
 		modifier = DRM_FORMAT_MOD_LINEAR;
 
-	create_fb_prepare_add(data->drm_fd, width, height,
-			      data->format, modifier,
-			      fb, &f);
+	if (data->flags & TEST_RANDOM) {
+		create_fb_prepare_add(data->drm_fd, width, height,
+				data->format, modifier,
+				fb, &f);
+	} else {
+		if (do_solid_fill)
+			temp_fb = get_fb(data, modifier,
+					colors[c].r, colors[c].g, colors[c].b,
+					width, height, data->format, &goodfb);
+		else
+			temp_fb = get_fb(data, modifier, 0.0, 0.0, 0.0,
+					width, height, data->format, &goodfb);
+
+		*fb = *temp_fb;
+		addfb_init(fb, &f);
+	}
 
 	if (data->flags & TEST_RANDOM) {
 		srand(data->seed);
 		fill_fb_random(data->drm_fd, fb);
 	} else {
-		bool do_fast_clear = igt_fb_is_gen12_rc_ccs_cc_modifier(data->ccs_modifier);
-		bool do_solid_fill = do_fast_clear || data->plane;
-		int c = !!data->plane;
-
 		if (do_fast_clear && (fb_flags & FB_COMPRESSED)) {
 			fast_clear_fb(data->drm_fd, fb, cc_color);
-		} else {
-			if (modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
-			    modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS) {
-				struct igt_fb temp_fb;
-				// non compressed temporary pattern image
-				if (do_solid_fill)
-					igt_create_color_fb(data->drm_fd, width, height,
-						fb->drm_format, I915_FORMAT_MOD_4_TILED,
-						colors[c].r, colors[c].g, colors[c].b,
-						&temp_fb);
-				else
-					igt_create_pattern_fb(data->drm_fd, width, height,
-							fb->drm_format, I915_FORMAT_MOD_4_TILED,
-							&temp_fb);
+		} else if (!goodfb &&
+			  (modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
+			   modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS)) {
+			if (do_solid_fill)
+				temp_fb = get_fb(data, I915_FORMAT_MOD_4_TILED,
+						 colors[c].r,
+						 colors[c].g,
+						 colors[c].b,
+						 width, height,
+						 data->format, NULL);
+			else
+				temp_fb = get_fb(data, I915_FORMAT_MOD_4_TILED,
+						 0.0, 0.0, 0.0,
+						 width, height,
+						 data->format, NULL);
 
-				xe2_ccs_blit(data, fb, &temp_fb);
-				igt_remove_fb(data->drm_fd, &temp_fb);
-			} else {
-				cr = igt_get_cairo_ctx(data->drm_fd, fb);
-
-				if (do_solid_fill)
-					igt_paint_color(cr, 0, 0, width, height,
-							colors[c].r, colors[c].g, colors[c].b);
-				else
-					igt_paint_test_pattern(cr, width, height);
-
-				igt_put_cairo_ctx(cr);
-			}
+			xe2_ccs_blit(data, fb, temp_fb);
 		}
 	}
 
@@ -856,15 +907,9 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 	igt_plane_t *primary = compatible_main_plane(data);
 	drmModeModeInfo *drm_mode = igt_output_get_mode(data->output);
 	int fb_width = drm_mode->hdisplay;
-	enum igt_commit_style commit;
 	struct igt_fb fb = {};
 	struct igt_fb fb_sprite = {};
 	int ret;
-
-	if (data->display.is_atomic)
-		commit = COMMIT_ATOMIC;
-	else
-		commit = COMMIT_UNIVERSAL;
 
 	if (primary == data->plane)
 		return false;
@@ -922,7 +967,7 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 	if (data->flags & TEST_BAD_ROTATION_90)
 		igt_plane_set_rotation(primary, IGT_ROTATION_90);
 
-	ret = igt_display_try_commit2(display, commit);
+	ret = igt_display_try_commit2(display, data->commit);
 
 	if (ret == 0 && !(fb_flags & TEST_BAD_ROTATION_90) && crc)
 		igt_pipe_crc_collect_crc(data->pipe_crc, crc);
@@ -937,10 +982,11 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 
 	igt_plane_set_fb(primary, NULL);
 	igt_plane_set_rotation(primary, IGT_ROTATION_0);
-	igt_display_commit2(display, commit);
 
-	igt_remove_fb(data->drm_fd, &fb_sprite);
-	igt_remove_fb(data->drm_fd, &fb);
+	if (data->flags & TEST_RANDOM) {
+		igt_display_commit2(display, data->commit);
+		igt_remove_fb(data->drm_fd, &fb);
+	}
 
 	igt_assert_eq(ret, data->flags & TEST_BAD_ROTATION_90 ? -EINVAL : 0);
 
@@ -1006,6 +1052,27 @@ static bool skip_plane(data_t *data, igt_plane_t *plane)
 	return index != 0 && index != 3 && index != 5;
 }
 
+static bool valid_modifier_test(u64 modifier, const enum test_flags flags)
+{
+	switch (modifier) {
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
+		if (flags & TEST_BAD_CCS_PLANE)
+			return false;
+		break;
+	case I915_FORMAT_MOD_4_TILED_BMG_CCS:
+	case I915_FORMAT_MOD_4_TILED_LNL_CCS:
+		if (flags & TEST_FAIL_ON_ADDFB2)
+			return false;
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
 static void test_output(data_t *data, const int testnum)
 {
 	uint16_t dev_id;
@@ -1016,13 +1083,8 @@ static void test_output(data_t *data, const int testnum)
 	data->flags = tests[testnum].flags;
 
 	for (int i = 0; i < ARRAY_SIZE(ccs_modifiers); i++) {
-		if (((ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS ||
-		    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_DG2_MC_CCS ||
-		    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC) &&
-		    tests[testnum].flags & TEST_BAD_CCS_PLANE) ||
-		    (tests[testnum].flags & TEST_FAIL_ON_ADDFB2 &&
-		    (ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS ||
-		    ccs_modifiers[i].modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS)))
+		if (!valid_modifier_test(ccs_modifiers[i].modifier,
+					 data->flags))
 			continue;
 
 		data->ccs_modifier = ccs_modifiers[i].modifier;
@@ -1123,12 +1185,22 @@ igt_main_args("cs:", NULL, help_str, opt_handler, &data)
 
 		if (!data.user_seed)
 			data.seed = time(NULL);
+
+		data.commit = data.display.is_atomic ? COMMIT_ATOMIC :
+			COMMIT_UNIVERSAL;
+
+		data.fb_list_length = 0;
 	}
 
 	for (int c = 0; c < ARRAY_SIZE(tests); c++)
 		test_output(&data, c);
 
 	igt_fixture {
+		igt_display_commit2(&data.display, data.commit);
+		for (int i = 0; i < data.fb_list_length; i++)
+			igt_remove_fb(data.drm_fd, &data.fb_list[i].fb);
+		free(data.fb_list);
+
 		igt_display_fini(&data.display);
 		drm_close_driver(data.drm_fd);
 	}
