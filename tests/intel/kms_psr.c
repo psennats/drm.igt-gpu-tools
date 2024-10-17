@@ -182,46 +182,46 @@
  * SUBTEST: pr-basic
  * Description: Basic check for pr if it is detecting changes made in planes
  * Functionality: pr
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-basic
  * Description: Basic check for fbc with pr if it is detecting changes made in planes
  * Functionality: pr, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: pr-dpms
  * Description: Check if pr is detecting changes when rendering operation
  *              is performed with dpms enabled or disabled
  * Functionality: pr, dpms
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-dpms
  * Description: Check if fbc with pr is detecting changes when rendering operation
  *              is performed with dpms enabled or disabled
  * Functionality: pr, dpms, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: pr-no-drrs
  * Description: Check if pr is detecting changes when drrs is disabled
  * Functionality: pr, drrs
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-no-drrs
  * Description: Check if fbc with pr is detecting changes when drrs is disabled
  * Functionality: pr, drrs, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: pr-suspend
  * Description: Check if pr is detecting changes when plane operation is
  *              performed with suspend resume cycles
  * Functionality: pr, suspend
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-suspend
  * Description: Check if fbc with pr is detecting changes when plane operation is
  *              performed with suspend resume cycles
  * Functionality: pr, suspend, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  */
 
 /**
@@ -230,14 +230,14 @@
  * 		performed on %arg[1] planes
  * Driver requirement: i915
  * Functionality: pr, plane
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-%s-%s
  * Description: Check if fbc with pr is detecting memory mapping %arg[2] operations
  *              performed on %arg[1] planes
  * Driver requirement: i915
  * Functionality: pr, plane, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * arg[1]:
  *
@@ -256,25 +256,25 @@
  * Description: Check if pr is detecting page-flipping operation
  * 		performed on primary plane
  * Functionality: pr, plane
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-primary-page-flip
  * Description: Check if fbc with pr is detecting page-flipping operation
  *              performed on primary plane
  * Functionality: pr, plane, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: pr-primary-%s
  * Description: Check if pr is detecting rendering operations %arg[1]
  * 		when performed on primary plane
  * Functionality: pr, plane
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-primary-%s
  * Description: Check if fbc with pr is detecting rendering operations %arg[1]
  *              when performed on primary plane
  * Functionality: pr, plane, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * arg[1]:
  *
@@ -287,13 +287,13 @@
  * Description: Check if pr is detecting rendering and plane
  *              operations %arg[2] performed on %arg[1] planes
  * Functionality: pr, plane
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-%s-%s
  * Description: Check if fbc with pr is detecting rendering and plane
  *              operations %arg[2] performed on %arg[1] planes
  * Functionality: pr, plane, fbc
- * Mega feature: DP2.0
+ * Mega feature: Panel Replay
  *
  * arg[1]:
  *

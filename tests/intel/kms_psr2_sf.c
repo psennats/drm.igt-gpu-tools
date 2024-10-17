@@ -49,8 +49,10 @@
  *              visible area (no update)
  *
  * SUBTEST: pr-%s-plane-move-continuous-%s
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on moving %arg[1] plane %arg[2]
  *              visible area (no update)
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-%s-plane-move-continuous-%s
  * Description: Test that fbc with selective fetch works on moving %arg[1] plane %arg[2]
@@ -58,9 +60,10 @@
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-%s-plane-move-continuous-%s
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on moving %arg[1] plane %arg[2]
  *              visible area (no update)
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * arg[1]:
  *
@@ -79,35 +82,43 @@
  * Description: Test that selective fetch works on cursor plane
  *
  * SUBTEST: pr-cursor-plane-update-sf
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on cursor plane
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-cursor-plane-update-sf
  * Description: Test that fbc with selective fetch works on cursor plane
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-cursor-plane-update-sf
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on cursor plane
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * SUBTEST: psr2-overlay-plane-update-continuous-sf
  * Description: Test that selective fetch works on overlay plane
  *
  * SUBTEST: pr-overlay-plane-update-continuous-sf
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on overlay plane
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-overlay-plane-update-sf-dmg-area
  * Description: Test that fbc with selective fetch works on overlay plane
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-overlay-plane-update-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on overlay plane
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * SUBTEST: psr2-overlay-plane-update-sf-dmg-area
  * Description: Test that selective fetch works on overlay plane
  *
  * SUBTEST: pr-overlay-plane-update-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on overlay plane
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-overlay-plane-update-continuous-sf
  * Description: Test that fbc with selective fetch works on overlay plane
@@ -115,15 +126,17 @@
  *
  * SUBTEST: fbc-pr-overlay-plane-update-continuous-sf
  * Description: Test that fbc with selective fetch works on overlay plane
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * SUBTEST: psr2-overlay-primary-update-sf-dmg-area
  * Description: Test that selective fetch works on primary plane with blended
  *              overlay plane
  *
  * SUBTEST: pr-overlay-primary-update-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on primary plane with blended
  *              overlay plane
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-overlay-primary-update-sf-dmg-area
  * Description: Test that fbc with selective fetch works on primary plane with blended
@@ -131,43 +144,53 @@
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-overlay-primary-update-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on primary plane with blended
  *              overlay plane
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * SUBTEST: psr2-plane-move-sf-dmg-area
  * Description: Test that selective fetch works on moving overlay plane
  *
  * SUBTEST: pr-plane-move-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on moving overlay plane
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-plane-move-sf-dmg-area
  * Description: Test that fbc with selective fetch works on moving overlay plane
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-plane-move-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on moving overlay plane
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * SUBTEST: psr2-primary-plane-update-sf-dmg-area
  * Description: Test that selective fetch works on primary plane
  *
  * SUBTEST: pr-primary-plane-update-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on primary plane
+ * Functionality: plane, pr, selective_fetch
  *
  * SUBTEST: fbc-psr2-primary-plane-update-sf-dmg-area
  * Description: Test that fbc with selective fetch works on primary plane
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-primary-plane-update-sf-dmg-area
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on primary plane
- * Functionality: plane, psr2, selective_fetch, fbc
+ * Functionality: plane, pr, selective_fetch, fbc
  *
  * SUBTEST: psr2-primary-plane-update-sf-dmg-area-big-fb
  * Description: Test that selective fetch works on primary plane with big fb
+ * Functionality: plane, psr2, selective_fetch, big_fbs
  *
  * SUBTEST: pr-primary-plane-update-sf-dmg-area-big-fb
+ * Mega feature: Panel Replay
  * Description: Test that selective fetch works on primary plane with big fb
+ * Functionality: plane, pr, selective_fetch, big_fbs
  */
 
 IGT_TEST_DESCRIPTION("Tests to verify PSR2 selective fetch by sending multiple"
