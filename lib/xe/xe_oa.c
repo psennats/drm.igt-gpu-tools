@@ -571,11 +571,9 @@ xe_perf_for_fd(int drm_fd, int gt)
 	}
 
 	if (!read_sysfs(sysfs_dir_fd, path_min, &gt_min_freq) ||
-	    !read_sysfs(sysfs_dir_fd, path_max, &gt_max_freq)) {
-		igt_warn("Unable to read freqs from sysfs\n");
-		close(sysfs_dir_fd);
-		return NULL;
-	}
+	    !read_sysfs(sysfs_dir_fd, path_max, &gt_max_freq))
+		igt_info("Unable to read freqs from sysfs\n");
+
 	close(sysfs_dir_fd);
 
 	device_id = intel_get_drm_devid(drm_fd);
