@@ -86,6 +86,18 @@ static int try_commit(igt_display_t *display)
 				       COMMIT_ATOMIC : COMMIT_LEGACY);
 }
 
+static uint64_t pageflip_timeout_us(drmModeModeInfo *mode)
+{
+	uint64_t timeout_ns;
+
+	/* 1 frame for flip + 1 frame for vblank wait due to FBC. */
+	timeout_ns = igt_kms_frame_time_from_vrefresh(mode->vrefresh) * 2;
+	/* 20 msec scheduling overhead. */
+	timeout_ns += 20000000;
+
+	return DIV_ROUND_UP(timeout_ns, 1000);
+}
+
 static void
 test_flip_tiling(data_t *data, enum pipe pipe, igt_output_t *output, uint64_t modifier[2])
 {
@@ -137,7 +149,7 @@ test_flip_tiling(data_t *data, enum pipe pipe, igt_output_t *output, uint64_t mo
 	igt_require(ret == 0);
 
 	data->flipevent_in_queue = true;
-	kmstest_wait_for_pageflip(data->drm_fd);
+	kmstest_wait_for_pageflip_timeout(data->drm_fd, pageflip_timeout_us(mode));
 	data->flipevent_in_queue = false;
 
 	/* Get a crc and compare with the reference. */
