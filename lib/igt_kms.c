@@ -52,6 +52,7 @@
 #include <i915_drm.h>
 
 #include "drmtest.h"
+#include "igt_core.h"
 #include "igt_kms.h"
 #include "igt_aux.h"
 #include "igt_edid.h"
@@ -252,6 +253,17 @@ const struct edid *igt_kms_get_alt_edid(void)
 	edid_update_checksum(&edid);
 
 	return &edid;
+}
+
+/**
+ * igt_kms_frame_time_from_vrefresh:
+ * @vrefresh: vertical refresh rate in 1/s units.
+ *
+ * Returns the frame time in nanoseconds for the given vrefresh rate.
+ */
+uint64_t igt_kms_frame_time_from_vrefresh(uint32_t vrefresh)
+{
+	return vrefresh ? (NSEC_PER_SEC / vrefresh) : 0;
 }
 
 #define AUDIO_EDID_SIZE (2 * EDID_BLOCK_SIZE)

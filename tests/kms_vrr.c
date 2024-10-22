@@ -192,12 +192,6 @@ static uint64_t get_time_ns(void)
 	return 0;
 }
 
-/* Returns the rate duration in nanoseconds for the given refresh rate. */
-static uint64_t rate_from_refresh(uint64_t refresh)
-{
-	return refresh ? (NSECS_PER_SEC / refresh) : 0;
-}
-
 /* Instead of running on default mode, loop through the connector modes
  * and find the mode with max refresh rate to exercise full vrr range.
  */
@@ -340,13 +334,13 @@ static void prepare_test(data_t *data, igt_output_t *output, enum pipe pipe)
 
 	mode = *igt_output_get_mode(output);
 
-	data->vtest_ns.min = rate_from_refresh(data->range.min);
-	data->vtest_ns.max = rate_from_refresh(data->range.max);
+	data->vtest_ns.min = igt_kms_frame_time_from_vrefresh(data->range.min);
+	data->vtest_ns.max = igt_kms_frame_time_from_vrefresh(data->range.max);
 
 	/* If unspecified on the command line, default rate to the midpoint */
 	if (data->vtest_ns.rate_ns == 0) {
 		range_t *range = &data->range;
-		data->vtest_ns.rate_ns = rate_from_refresh(
+		data->vtest_ns.rate_ns = igt_kms_frame_time_from_vrefresh(
 						(range->min + range->max) / 2);
 	}
 
@@ -533,8 +527,8 @@ flip_and_measure_cmrr(data_t *data, igt_output_t *output, enum pipe pipe,
 	uint32_t total_flip = 0, total_pass = 0;
 	bool front = false;
 	drmModeModeInfoPtr mode = igt_output_get_mode(output);
-	uint64_t req_rate_ns = rate_from_refresh(mode->vrefresh + VREFRESH_MODIFIER);
-	uint64_t exp_rate_ns = rate_from_refresh(mode->vrefresh);
+	uint64_t req_rate_ns = igt_kms_frame_time_from_vrefresh(mode->vrefresh + VREFRESH_MODIFIER);
+	uint64_t exp_rate_ns = igt_kms_frame_time_from_vrefresh(mode->vrefresh);
 	uint64_t threshold_ns = exp_rate_ns / mode->vdisplay; /* Upto 1 scan line. */
 
 	igt_info("CMRR on: requested rate: %"PRIu64" ns (%.2f Hz) "
@@ -633,7 +627,7 @@ test_basic(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 	 *      next Vmin.
 	 */
 	if (flags & TEST_FLIPLINE) {
-		rate[0] = rate_from_refresh(range.max + 5);
+		rate[0] = igt_kms_frame_time_from_vrefresh(range.max + 5);
 		result = flip_and_measure(data, output, pipe, rate, 1, data->duration_ns);
 		igt_assert_f(result > 75,
 			     "Refresh rate (%u Hz) %"PRIu64"ns: Target VRR on threshold not reached, result was %u%%\n",
@@ -649,7 +643,7 @@ test_basic(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 	}
 
 	if (flags & TEST_FLIPLINE) {
-		rate[0] = rate_from_refresh(range.min - 10);
+		rate[0] = igt_kms_frame_time_from_vrefresh(range.min - 10);
 		result = flip_and_measure(data, output, pipe, rate, 1, data->duration_ns);
 		igt_assert_f(result < 50,
 			     "Refresh rate (%u Hz) %"PRIu64"ns: Target VRR on threshold exceeded, result was %u%%\n",
@@ -660,7 +654,10 @@ test_basic(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 		unsigned int range_min =
 			/* For Intel h/w tweak the min rate, as h/w will terminate the vblank at Vmax. */
 			is_intel_device(data->drm_fd) ? (range.min + 2) : range.min;
-		uint64_t maxmin_rates[] = {vtest_ns.max, rate_from_refresh(range_min)};
+		uint64_t maxmin_rates[] = {
+			vtest_ns.max,
+			igt_kms_frame_time_from_vrefresh(range_min)
+		};
 
 		result = flip_and_measure(data, output, pipe, maxmin_rates, 2, data->duration_ns);
 		igt_assert_f(result > 75,
@@ -752,7 +749,7 @@ test_seamless_virtual_rr_basic(data_t *data, enum pipe pipe, igt_output_t *outpu
 	kmstest_dump_mode(&data->switch_modes[HIGH_RR_MODE]);
 
 	prepare_test(data, output, pipe);
-	rate[0] = rate_from_refresh(data->switch_modes[HIGH_RR_MODE].vrefresh);
+	rate[0] = igt_kms_frame_time_from_vrefresh(data->switch_modes[HIGH_RR_MODE].vrefresh);
 
 	/*
 	 * Sink with DRR and VRR can be in downclock mode so
@@ -784,7 +781,7 @@ test_seamless_virtual_rr_basic(data_t *data, enum pipe pipe, igt_output_t *outpu
 		igt_output_override_mode(output, &virtual_mode);
 		igt_assert(igt_display_try_commit_atomic(&data->display, 0, NULL) == 0);
 
-		rate[0] = rate_from_refresh(vrefresh);
+		rate[0] = igt_kms_frame_time_from_vrefresh(vrefresh);
 		result = flip_and_measure(data, output, pipe, rate, 1, TEST_DURATION_NS);
 		igt_assert_f(result > 75,
 			     "Refresh rate (%u Hz) %"PRIu64"ns: Target threshold not reached, result was %u%%\n",
@@ -802,7 +799,7 @@ test_lobf(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 {
 	uint64_t rate[] = {0};
 
-	rate[0] = rate_from_refresh(data->switch_modes[HIGH_RR_MODE].vrefresh);
+	rate[0] = igt_kms_frame_time_from_vrefresh(data->switch_modes[HIGH_RR_MODE].vrefresh);
 	prepare_test(data, output, pipe);
 
 	igt_info("LOBF test execution on %s, PIPE %s with VRR range: (%u-%u) Hz\n",
@@ -811,7 +808,7 @@ test_lobf(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 	igt_output_override_mode(output, &data->switch_modes[HIGH_RR_MODE]);
 	flip_and_measure(data, output, pipe, rate, 1, TEST_DURATION_NS);
 	igt_output_override_mode(output, &data->switch_modes[LOW_RR_MODE]);
-	rate[0] = rate_from_refresh(data->switch_modes[LOW_RR_MODE].vrefresh);
+	rate[0] = igt_kms_frame_time_from_vrefresh(data->switch_modes[LOW_RR_MODE].vrefresh);
 	flip_and_measure(data, output, pipe, rate, 1, NSECS_PER_SEC);
 	igt_assert_f(igt_get_i915_edp_lobf_status(data->drm_fd, output->name),
 		     "LOBF not enabled\n");
@@ -857,7 +854,7 @@ test_cmrr(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 	result = flip_and_measure_cmrr(data, output, pipe, TEST_DURATION_NS * 2);
 	igt_assert_f(result > 75,
 		     "Refresh rate (%u Hz) %"PRIu64"ns: Target CMRR on threshold not reached, result was %u%%\n",
-		     mode.vrefresh, rate_from_refresh(mode.vrefresh), result);
+		     mode.vrefresh, igt_kms_frame_time_from_vrefresh(mode.vrefresh), result);
 }
 
 static void test_cleanup(data_t *data, enum pipe pipe, igt_output_t *output)
@@ -1005,7 +1002,7 @@ static int opt_handler(int opt, int opt_index, void *_data)
 		data->duration_ns = atoi(optarg) * NSECS_PER_SEC;
 		break;
 	case 'r':
-		data->vtest_ns.rate_ns = rate_from_refresh(atoi(optarg));
+		data->vtest_ns.rate_ns = igt_kms_frame_time_from_vrefresh(atoi(optarg));
 		break;
 	case 's':
 		data->static_image = true;

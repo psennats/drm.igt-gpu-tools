@@ -275,6 +275,8 @@ enum joined_pipes {
 	JOINED_PIPES_ULTRA_JOINER = 4
 };
 
+uint64_t igt_kms_frame_time_from_vrefresh(uint32_t vrefresh);
+
 bool kmstest_force_connector(int fd, drmModeConnector *connector,
 			     enum kmstest_force_connector_state state);
 bool kmstest_force_connector_joiner(int drm_fd, drmModeConnector *connector, int joined_pipes);
