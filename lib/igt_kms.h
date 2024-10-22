@@ -311,6 +311,7 @@ void *kmstest_dumb_map_buffer(int fd, uint32_t handle, uint64_t size,
 			      unsigned prot);
 void kmstest_dumb_destroy(int fd, uint32_t handle);
 void kmstest_wait_for_pageflip(int fd);
+void kmstest_wait_for_pageflip_timeout(int fd, uint64_t timeout_us);
 unsigned int kmstest_get_vblank(int fd, int pipe, unsigned int flags);
 
 bool kms_has_vblank(int fd);

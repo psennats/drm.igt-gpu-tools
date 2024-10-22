@@ -2377,15 +2377,16 @@ unsigned int kmstest_get_vblank(int fd, int pipe, unsigned int flags)
 }
 
 /**
- * kmstest_wait_for_pageflip:
+ * kmstest_wait_for_pageflip_timeout:
  * @fd: Opened drm file descriptor
+ * @timeout_us: timeout used for waiting
  *
  * Blocks until pageflip is completed
  */
-void kmstest_wait_for_pageflip(int fd)
+void kmstest_wait_for_pageflip_timeout(int fd, uint64_t timeout_us)
 {
 	drmEventContext evctx = { .version = 2 };
-	struct timeval timeout = { .tv_sec = 0, .tv_usec = 50000 };
+	struct timeval timeout = { .tv_sec = 0, .tv_usec = timeout_us };
 	fd_set fds;
 	int ret;
 
@@ -2398,13 +2399,25 @@ void kmstest_wait_for_pageflip(int fd)
 	} while (ret < 0 && errno == EINTR);
 
 	igt_fail_on_f(ret == 0,
-		     "Exceeded timeout (50ms) while waiting for a pageflip\n");
+		     "Exceeded timeout (%" PRIu64 " us) while waiting for a pageflip\n",
+		     timeout_us);
 
 	igt_assert_f(ret == 1,
 		     "Waiting for pageflip failed with %d from select(drmfd)\n",
 		     ret);
 
 	igt_assert(drmHandleEvent(fd, &evctx) == 0);
+}
+
+/**
+ * kmstest_wait_for_pageflip:
+ * @fd: Opened drm file descriptor
+ *
+ * Blocks until pageflip is completed using a 50 ms timeout.
+ */
+void kmstest_wait_for_pageflip(int fd)
+{
+	kmstest_wait_for_pageflip_timeout(fd, 50000);
 }
 
 /**
