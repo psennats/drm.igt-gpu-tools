@@ -221,7 +221,9 @@ static void set_mode_for_one_screen(struct drm_info *drm,
 
 	buffer_id = igt_create_fb(drm->fd, mode->hdisplay, mode->vdisplay,
 				  DRM_FORMAT_XRGB8888,
-				  I915_FORMAT_MOD_X_TILED, &drm->fb);
+				  intel_display_ver(intel_get_drm_devid(drm->fd)) < 9 ?
+				  I915_FORMAT_MOD_X_TILED : DRM_FORMAT_MOD_LINEAR,
+				  &drm->fb);
 	igt_draw_fill_fb(drm->fd, &drm->fb, 0xFF);
 
 	igt_info("Setting %dx%d mode for %s connector\n",
