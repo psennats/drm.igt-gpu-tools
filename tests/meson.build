@@ -88,7 +88,6 @@ intel_i915_xe_progs = [
 
 intel_i915_progs = [
 	'api_intel_bb',
-	'drm_fdinfo',
 	'gen3_mixed_blits',
 	'gen3_render_linear_blits',
 	'gen3_render_mixed_blits',
@@ -213,6 +212,7 @@ intel_i915_progs = [
 	'gem_workarounds',
 	'perf',
 	'perf_pmu',
+	'i915_drm_fdinfo',
 	'i915_fb_tiling',
 	'i915_getparams_basic',
 	'i915_pm_freq_api',
@@ -386,7 +386,6 @@ extra_sources = {
 # Extra dependencies used on core and Intel drivers
 extra_dependencies = {
 	'core_hotunplug': [ lib_igt_i915_perf ],
-	'drm_fdinfo': [ lib_igt_drm_fdinfo ],
 	'dumb_buffer':  [ libatomic ],
 	'gem_barrier_race': [ lib_igt_i915_perf ],
 	'gem_create': [ libatomic ],
@@ -395,6 +394,7 @@ extra_dependencies = {
 	'gem_eio': [ realtime ],
 	'gem_exec_balancer': [ lib_igt_perf ],
 	'gem_mmap_offset': [ libatomic ],
+	'i915_drm_fdinfo': [ lib_igt_drm_fdinfo ],
 	'i915_pm_freq_mult': [ lib_igt_perf ],
 	'i915_pm_rc6_residency': [ lib_igt_perf ],
 	'perf': [ lib_igt_i915_perf ],
