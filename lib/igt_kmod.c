@@ -663,7 +663,7 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 /*
  * Unbind driver from devices. Currently supports only PCI bus
  */
-static int unbind(const char *driver)
+int igt_kmod_unbind(const char *mod_name)
 {
 	char path[PATH_MAX];
 	struct dirent *de;
@@ -671,7 +671,7 @@ static int unbind(const char *driver)
 	DIR *dir;
 
 	dirlen = snprintf(path, sizeof(path), "/sys/module/%s/drivers/pci:%s/",
-			  driver, driver);
+			  mod_name, mod_name);
 	igt_assert(dirlen < sizeof(path));
 
 	dir = opendir(path);
@@ -741,7 +741,7 @@ igt_intel_driver_unload(const char *driver)
 
 int igt_xe_driver_unload(void)
 {
-	unbind("xe");
+	igt_kmod_unbind("xe");
 
 	igt_kmod_unload("xe");
 	if (igt_kmod_is_loaded("xe"))
