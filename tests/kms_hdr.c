@@ -64,6 +64,10 @@
  * Description: Tests static toggle with suspend
  * Functionality: colorspace, static_hdr, suspend
  *
+ * SUBTEST: brightness-with-hdr
+ * Description: Tests brightness with HDR
+ * Functionality: colorspace, static_hdr
+ *
  * SUBTEST: static-%s
  * Description: Tests %arg[1].
  * Functionality: colorspace, static_hdr
@@ -80,6 +84,8 @@ IGT_TEST_DESCRIPTION("Test HDR metadata interfaces and bpc switch");
 #define CTA_EXTENSION_VERSION		0x03
 #define HDR_STATIC_METADATA_BLOCK       0x06
 #define USE_EXTENDED_TAG		0x07
+
+#define BACKLIGHT_PATH "/sys/class/backlight"
 
 /* DRM HDR definitions. Not in the UAPI header, unfortunately. */
 enum hdmi_metadata_type {
@@ -100,6 +106,7 @@ enum {
 	TEST_SWAP = 1 << 3,
 	TEST_INVALID_METADATA_SIZES = 1 << 4,
 	TEST_INVALID_HDR = 1 << 5,
+	TEST_BRIGHTNESS = 1 << 6,
 };
 
 /* BPC connector state. */
@@ -448,6 +455,28 @@ static void fill_hdr_output_metadata_st2048(struct hdr_output_metadata *meta)
 	meta->hdmi_metadata_type1.max_cll = 500;   /* 500 nits */
 }
 
+static void adjust_brightness(data_t *data, uint32_t flags)
+{
+	igt_backlight_context_t context;
+	int r_bright, w_bright;
+
+	snprintf(context.path, PATH_MAX, "intel_backlight");
+	snprintf(context.backlight_dir_path, PATH_MAX, "%s", BACKLIGHT_PATH);
+
+	igt_assert(igt_backlight_read(&context.max, "max_brightness", &context) > -1);
+	igt_assert(context.max);
+	igt_assert(igt_backlight_read(&context.old, "brightness", &context) > -1);
+
+	for (w_bright = 0; w_bright <= context.max ; w_bright += 50) {
+		igt_assert_eq(igt_backlight_write(w_bright, "brightness", &context), 0);
+		igt_display_commit_atomic(&data->display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+		igt_assert_eq(igt_backlight_read(&r_bright, "brightness", &context), 0);
+		igt_assert_eq(w_bright, r_bright);
+	}
+
+	igt_assert_eq(igt_backlight_write(context.old, "brightness", &context), 0);
+}
+
 static void test_static_toggle(data_t *data, enum pipe pipe,
 			       igt_output_t *output,
 			       uint32_t flags)
@@ -483,6 +512,12 @@ static void test_static_toggle(data_t *data, enum pipe pipe,
 		igt_assert_eq(system("dmesg|tail -n 1000|grep -E \"Unknown EOTF [0-9]+\""), 0);
 		goto cleanup;
 	}
+
+	if (flags & TEST_BRIGHTNESS) {
+		igt_require_f(is_intel_device(data->fd), "Only supported on Intel devices\n");
+		adjust_brightness(data, flags);
+	}
+
 	igt_assert_output_bpc_equal(data->fd, pipe, output->name, 10);
 
 	/* Verify that the CRC are equal after DPMS or suspend. */
@@ -685,7 +720,8 @@ static void test_hdr(data_t *data, uint32_t flags)
 
 			igt_dynamic_f("pipe-%s-%s",
 				      kmstest_pipe_name(pipe), output->name) {
-				if (flags & (TEST_NONE | TEST_DPMS | TEST_SUSPEND | TEST_INVALID_HDR))
+				if (flags & (TEST_NONE | TEST_DPMS | TEST_SUSPEND |
+					     TEST_INVALID_HDR | TEST_BRIGHTNESS))
 					test_static_toggle(data, pipe, output, flags);
 				if (flags & TEST_SWAP)
 					test_static_swap(data, pipe, output);
@@ -733,6 +769,10 @@ igt_main
 	igt_describe("Tests static toggle with suspend");
 	igt_subtest_with_dynamic("static-toggle-suspend")
 		test_hdr(&data, TEST_SUSPEND);
+
+	igt_describe("Tests brightness while in HDR mode");
+	igt_subtest_with_dynamic("brightness-with-hdr")
+		test_hdr(&data, TEST_BRIGHTNESS);
 
 	igt_describe("Tests swapping static HDR metadata");
 	igt_subtest_with_dynamic("static-swap")
