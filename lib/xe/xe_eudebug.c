@@ -1227,6 +1227,36 @@ void xe_eudebug_debugger_add_trigger(struct xe_eudebug_debugger *d,
 }
 
 /**
+ * xe_eudebug_debugger_remove_trigger:
+ * @d: pointer to the debugger
+ * @type: the type of the event which activates the trigger.
+ * @fn: function to be removed when event of @type was read by the debugger.
+ *
+ * Removes function @fn from the list of triggers activated when event of
+ * @type has been read by worker.
+ */
+void xe_eudebug_debugger_remove_trigger(struct xe_eudebug_debugger *d,
+					int type, xe_eudebug_trigger_fn fn)
+{
+	struct event_trigger *t;
+	bool found = false;
+
+	igt_list_for_each_entry(t, &d->triggers, link) {
+		if (type == t->type && fn == t->fn) {
+			igt_list_del(&t->link);
+			found = true;
+			break;
+		}
+	}
+	if (found) {
+		igt_debug("removed trigger %p\n", t);
+		free(t);
+	} else {
+		igt_debug("trigger of type %d was not removed as it's not in the list\n", type);
+	}
+}
+
+/**
  * xe_eudebug_debugger_start_worker:
  * @d: pointer to the debugger
  *
