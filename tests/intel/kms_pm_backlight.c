@@ -72,13 +72,6 @@
  * Functionality: backlight, dpms
  */
 
-struct context {
-	int max;
-	int old;
-	igt_output_t *output;
-	char path[PATH_MAX];
-};
-
 enum {
 	TEST_NONE = 0,
 	TEST_DPMS,
@@ -96,65 +89,17 @@ enum {
 
 IGT_TEST_DESCRIPTION("Basic backlight sysfs test");
 
-static int backlight_read(int *result, const char *fname, struct context *context)
-{
-	int fd;
-	char full[PATH_MAX];
-	char dst[64];
-	int r, e;
-
-	igt_assert(snprintf(full, PATH_MAX, "%s/%s/%s", BACKLIGHT_PATH, context->path, fname)
-			    < PATH_MAX);
-	fd = open(full, O_RDONLY);
-	if (fd == -1)
-		return -errno;
-
-	r = read(fd, dst, sizeof(dst));
-	e = errno;
-	close(fd);
-
-	if (r < 0)
-		return -e;
-
-	errno = 0;
-	*result = strtol(dst, NULL, 10);
-	return errno;
-}
-
-static int backlight_write(int value, const char *fname, struct context *context)
-{
-	int fd;
-	char full[PATH_MAX];
-	char src[64];
-	int len;
-
-	igt_assert(snprintf(full, PATH_MAX, "%s/%s/%s", BACKLIGHT_PATH, context->path, fname)
-		   < PATH_MAX);
-	fd = open(full, O_WRONLY);
-	if (fd == -1)
-		return -errno;
-
-	len = snprintf(src, sizeof(src), "%i", value);
-	len = write(fd, src, len);
-	close(fd);
-
-	if (len < 0)
-		return len;
-
-	return 0;
-}
-
-static void test_and_verify(struct context *context, int val)
+static void test_and_verify(igt_backlight_context_t *context, int val)
 {
 	const int tolerance = val * TOLERANCE / 100;
 	int result;
 
-	igt_assert_eq(backlight_write(val, "brightness", context), 0);
-	igt_assert_eq(backlight_read(&result, "brightness", context), 0);
+	igt_assert_eq(igt_backlight_write(val, "brightness", context), 0);
+	igt_assert_eq(igt_backlight_read(&result, "brightness", context), 0);
 	/* Check that the exact value sticks */
 	igt_assert_eq(result, val);
 
-	igt_assert_eq(backlight_read(&result, "actual_brightness", context), 0);
+	igt_assert_eq(igt_backlight_read(&result, "actual_brightness", context), 0);
 	/* Some rounding may happen depending on hw */
 	igt_assert_f(result >= max(0, val - tolerance) &&
 		     result <= min(context->max, val + tolerance),
@@ -162,31 +107,31 @@ static void test_and_verify(struct context *context, int val)
 		     result, val, tolerance);
 }
 
-static void test_brightness(struct context *context)
+static void test_brightness(igt_backlight_context_t *context)
 {
 	test_and_verify(context, 0);
 	test_and_verify(context, context->max);
 	test_and_verify(context, context->max / 2);
 }
 
-static void test_bad_brightness(struct context *context)
+static void test_bad_brightness(igt_backlight_context_t *context)
 {
 	int val;
 	/* First write some sane value */
-	backlight_write(context->max / 2, "brightness", context);
+	igt_backlight_write(context->max / 2, "brightness", context);
 	/* Writing invalid values should fail and not change the value */
-	igt_assert_lt(backlight_write(-1, "brightness", context), 0);
-	backlight_read(&val, "brightness", context);
+	igt_assert_lt(igt_backlight_write(-1, "brightness", context), 0);
+	igt_backlight_read(&val, "brightness", context);
 	igt_assert_eq(val, context->max / 2);
-	igt_assert_lt(backlight_write(context->max + 1, "brightness", context), 0);
-	backlight_read(&val, "brightness", context);
+	igt_assert_lt(igt_backlight_write(context->max + 1, "brightness", context), 0);
+	igt_backlight_read(&val, "brightness", context);
 	igt_assert_eq(val, context->max / 2);
-	igt_assert_lt(backlight_write(INT_MAX, "brightness", context), 0);
-	backlight_read(&val, "brightness", context);
+	igt_assert_lt(igt_backlight_write(INT_MAX, "brightness", context), 0);
+	igt_backlight_read(&val, "brightness", context);
 	igt_assert_eq(val, context->max / 2);
 }
 
-static void test_fade(struct context *context)
+static void test_fade(igt_backlight_context_t *context)
 {
 	int i;
 	static const struct timespec ts = { .tv_sec = 0, .tv_nsec = FADESPEED*1000000 };
@@ -218,19 +163,19 @@ check_dpms(igt_output_t *output)
 	igt_assert(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_ACTIVE));
 }
 
-static void check_dpms_cycle(struct context *context)
+static void check_dpms_cycle(igt_backlight_context_t *context)
 {
 	int max, val_1, val_2;
 
-	backlight_read(&max, "max_brightness", context);
+	igt_backlight_read(&max, "max_brightness", context);
 	igt_assert(max);
 
-	backlight_write(max / 2, "brightness", context);
-	backlight_read(&val_1, "actual_brightness", context);
+	igt_backlight_write(max / 2, "brightness", context);
+	igt_backlight_read(&val_1, "actual_brightness", context);
 
 	check_dpms(context->output);
 
-	backlight_read(&val_2, "actual_brightness", context);
+	igt_backlight_read(&val_2, "actual_brightness", context);
 	igt_assert_eq(val_1, val_2);
 }
 
@@ -286,11 +231,11 @@ igt_main
 	igt_output_t *output;
 	char file_path_n[PATH_MAX] = "";
 	bool dual_edp = false;
-	struct context contexts[NUM_EDP_OUTPUTS];
+	igt_backlight_context_t contexts[NUM_EDP_OUTPUTS];
 	struct {
 		const char *name;
 		const char *desc;
-		void (*test_t) (struct context *);
+		void (*test_t)(igt_backlight_context_t *context);
 		int flags;
 	} tests[] = {
 		{ "basic-brightness", "test the basic brightness.", test_brightness, TEST_NONE },
@@ -339,14 +284,17 @@ igt_main
 
 			close(fd);
 
+			snprintf(contexts[i].backlight_dir_path, PATH_MAX, "%s", BACKLIGHT_PATH);
+
 			/* should be ../../cardX-$output */
 			snprintf(file_path_n, PATH_MAX, "%s/%s/device", BACKLIGHT_PATH,
 				 contexts[i].path);
 			igt_assert_lt(16, readlink(file_path_n, full_name, sizeof(full_name) - 1));
 			name = basename(full_name);
-			igt_assert(backlight_read(&contexts[i].max,
-						"max_brightness", &contexts[i]) > -1);
-			igt_skip_on(backlight_read(&contexts[i].old, "brightness", &contexts[i]));
+			igt_assert(igt_backlight_read(&contexts[i].max,
+						      "max_brightness", &contexts[i]) > -1);
+			igt_skip_on(igt_backlight_read(&contexts[i].old,
+						       "brightness", &contexts[i]));
 
 			if (!strcmp(name + 6, output->name)) {
 				contexts[i++].output = output;
@@ -383,7 +331,7 @@ igt_main
 	igt_fixture {
 		/* Restore old brightness */
 		for (i = 0; i < (dual_edp ? 2 : 1); i++)
-			backlight_write(contexts[i].old, "brightness", &contexts[i]);
+			igt_backlight_write(contexts[i].old, "brightness", &contexts[i]);
 
 		igt_display_fini(&display);
 		igt_pm_restore_sata_link_power_management();
