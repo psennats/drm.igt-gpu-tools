@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
+#include <limits.h>
 
 #include <xf86drmMode.h>
 
@@ -512,6 +513,15 @@ typedef struct {
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
 } igt_tile_info_t;
+
+/* Backlight context*/
+typedef struct {
+	int max;
+	int old;
+	igt_output_t *output;
+	char path[PATH_MAX];
+	char backlight_dir_path[PATH_MAX];
+} igt_backlight_context_t;
 
 void igt_display_reset_outputs(igt_display_t *display);
 void igt_display_require(igt_display_t *display, int drm_fd);
@@ -1253,5 +1263,7 @@ bool igt_has_force_link_training_failure_debugfs(int drmfd, igt_output_t *output
 int igt_get_dp_pending_lt_failures(int drm_fd, igt_output_t *output);
 int igt_get_dp_pending_retrain(int drm_fd, igt_output_t *output);
 void igt_reset_link_params(int drm_fd, igt_output_t *output);
+int igt_backlight_read(int *result, const char *fname, igt_backlight_context_t *context);
+int igt_backlight_write(int value, const char *fname, igt_backlight_context_t *context);
 
 #endif /* __IGT_KMS_H__ */
