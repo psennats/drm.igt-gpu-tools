@@ -125,6 +125,7 @@
  * Functionality: plane, psr2, selective_fetch, fbc
  *
  * SUBTEST: fbc-pr-overlay-plane-update-continuous-sf
+ * Mega feature: Panel Replay
  * Description: Test that fbc with selective fetch works on overlay plane
  * Functionality: plane, pr, selective_fetch, fbc
  *
