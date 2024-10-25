@@ -305,7 +305,15 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 		}
 	}
 	if (!(flags & INVALID_FAULT)) {
-		j = flags & INVALIDATE ? n_execs - 1 : 0;
+		/*
+		 * For !RACE cases xe_wait_ufence has already been called in above
+		 * for-loop, we should only wait for the completion of the last
+		 * submission here. For RACE cases we need to wait for all submissions
+		 * to complete because the GuC scheduling can be out of order, the
+		 * completion of the last submission doesn't mean all submission are
+		 * completed.
+		 */
+		j = (flags & INVALIDATE && !(flags & RACE)) ? n_execs - 1 : 0;
 
 		for (i = j; i < n_execs; i++) {
 			int64_t timeout = NSEC_PER_SEC;
