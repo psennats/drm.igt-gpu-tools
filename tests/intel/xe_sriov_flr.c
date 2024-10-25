@@ -13,6 +13,8 @@
 #include "linux_scaffold.h"
 #include "xe/xe_mmio.h"
 #include "xe/xe_query.h"
+#include "xe/xe_sriov_provisioning.h"
+#include "xe/xe_sriov_debugfs.h"
 
 /**
  * TEST: xe_sriov_flr
@@ -600,14 +602,6 @@ static void *mmap_vf_lmem(int pf_fd, int vf_num, size_t length, int prot, off_t 
 	return addr;
 }
 
-static uint64_t get_vf_lmem_size(int pf_fd, int vf_num)
-{
-	/* limit to first two pages
-	 * TODO: Extend to full range when the proper interface (lmem_provisioned) is added
-	 */
-	return SZ_4M;
-}
-
 static void munmap_vf_lmem(struct lmem_info *lmem)
 {
 	igt_debug_on_f(munmap(lmem->addr, lmem->size),
@@ -683,10 +677,49 @@ static bool lmem_mmap_write_munmap(int pf_fd, int vf_num, size_t length, char va
 	return result;
 }
 
-static void lmem_subcheck_init(struct subcheck_data *data)
+static int populate_vf_lmem_sizes(struct subcheck_data *data)
 {
 	struct lmem_data *ldata = (struct lmem_data *)data;
+	struct xe_sriov_provisioned_range *ranges;
+	unsigned int nr_ranges, gt;
+	int ret;
 
+	ldata->vf_lmem_size = calloc(data->num_vfs + 1, sizeof(size_t));
+	igt_assert(ldata->vf_lmem_size);
+
+	xe_for_each_gt(data->pf_fd, gt) {
+		ret = xe_sriov_pf_debugfs_read_provisioned_ranges(data->pf_fd,
+								  XE_SRIOV_SHARED_RES_LMEM,
+								  gt, &ranges, &nr_ranges);
+		if (ret) {
+			set_skip_reason(data, "Failed read %s on gt%u (%d)\n",
+					xe_sriov_debugfs_provisioned_attr_name(XE_SRIOV_SHARED_RES_LMEM),
+					gt, ret);
+			return -1;
+		}
+
+		for (unsigned int i = 0; i < nr_ranges; ++i) {
+			const unsigned int vf_id = ranges[i].vf_id;
+
+			igt_assert(vf_id >= 1 && vf_id <= data->num_vfs);
+			/* Sum the allocation for vf_id (inclusive range) */
+			ldata->vf_lmem_size[vf_id] += ranges[i].end - ranges[i].start + 1;
+		}
+
+		free(ranges);
+	}
+
+	for (int vf_id = 1; vf_id <= data->num_vfs; ++vf_id)
+		if (!ldata->vf_lmem_size[vf_id]) {
+			set_skip_reason(data, "No LMEM provisioned for VF%u\n", vf_id);
+			return -1;
+		}
+
+	return 0;
+}
+
+static void lmem_subcheck_init(struct subcheck_data *data)
+{
 	igt_assert_fd(data->pf_fd);
 	igt_assert(data->num_vfs);
 
@@ -695,11 +728,9 @@ static void lmem_subcheck_init(struct subcheck_data *data)
 		return;
 	}
 
-	ldata->vf_lmem_size = calloc(data->num_vfs + 1, sizeof(size_t));
-	igt_assert(ldata->vf_lmem_size);
-
-	for (int vf_id = 1; vf_id <= data->num_vfs; ++vf_id)
-		ldata->vf_lmem_size[vf_id] = get_vf_lmem_size(ldata->base.pf_fd, vf_id);
+	if (populate_vf_lmem_sizes(data))
+		/* skip reason set in populate_vf_lmem_sizes */
+		return;
 }
 
 static void lmem_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
