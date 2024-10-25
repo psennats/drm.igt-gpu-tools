@@ -37,6 +37,7 @@ KERNEL_TREE=
 USE_PIGLIT=0
 RUNNER=
 RESUME=
+PRUNE_MODE="keep-dynamic"
 
 find_file() # basename <possible paths>
 {
@@ -154,11 +155,12 @@ print_help() {
 	echo "                  test run with -R"
 	echo "                  (only valid for Piglit)"
 	echo "  -p              use Piglit instead of igt_runner"
+	echo "  -m              run test runner with prune mode(default: $PRUNE_MODE)"
 	echo ""
 	echo "Useful patterns for test filtering are described in the API documentation."
 }
 
-while getopts ":c:dhk:lPr:st:T:vx:Rnpb:" opt; do
+while getopts ":c:dhk:lPr:st:T:vx:Rnpb:m:" opt; do
 	case $opt in
 		c) COV_ARGS="$COV_ARGS --collect-code-cov --collect-script $OPTARG " ;;
 		d) download_piglit; exit ;;
@@ -176,6 +178,7 @@ while getopts ":c:dhk:lPr:st:T:vx:Rnpb:" opt; do
 		n) NORETRY="--no-retry" ;;
 		p) USE_PIGLIT=1 ;;
 		b) FILTER="$FILTER -b $OPTARG" ;;
+		m) PRUNE_MODE="$OPTARG" ;;
 		:)
 			echo "Option -$OPTARG requires an argument."
 			exit 1
@@ -253,7 +256,7 @@ if [ "x$RESUME_RUN" != "x" ]; then
 	execute_runner 1 $RESUME $RESUME_ARGS $COV_ARGS "$RESULTS"
 else
 	mkdir -p "$RESULTS"
-	execute_runner 1 $RUNNER $RUN_ARGS -o -s "$RESULTS" $COV_ARGS $VERBOSE $FILTER
+	execute_runner 1 $RUNNER $RUN_ARGS -o -s "$RESULTS" $COV_ARGS $VERBOSE $FILTER --prune-mode $PRUNE_MODE
 fi
 
 if [ "$SUMMARY" = "html" ]; then
