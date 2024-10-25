@@ -215,6 +215,7 @@ typedef struct {
 struct invalid_paramtests {
 	const char *testname;
 	uint32_t planesize[2];
+	uint32_t vrefresh;
 	struct {
 		enum igt_atomic_plane_properties prop;
 		uint32_t value;
@@ -225,6 +226,7 @@ static const struct invalid_paramtests intel_paramtests[] = {
 	{
 		.testname = "intel-max-src-size",
 		.planesize = {3840, 2160},
+		.vrefresh = 30,
 	},
 };
 
@@ -1220,13 +1222,14 @@ static void invalid_parameter_tests(data_t *d)
 	}
 }
 
-static drmModeModeInfo *find_mode(data_t *data, igt_output_t *output, const uint32_t planesize[])
+static drmModeModeInfo *find_mode(data_t *data, igt_output_t *output, const struct invalid_paramtests *test)
 {
 	drmModeModeInfo *mode = NULL;
 
 	for (int i = 0; i < output->config.connector->count_modes; i++) {
-		if (output->config.connector->modes[i].hdisplay == planesize[0] &&
-		    output->config.connector->modes[i].vdisplay == planesize[1] ) {
+		if (output->config.connector->modes[i].hdisplay == test->planesize[0] &&
+		    output->config.connector->modes[i].vdisplay == test->planesize[1] &&
+		    output->config.connector->modes[i].vrefresh >= test->vrefresh) {
 			if (mode &&
 			    mode->vrefresh < output->config.connector->modes[i].vrefresh)
 				continue;
@@ -1568,7 +1571,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 						 * Need to find mode with lowest vrefresh else
 						 * we can exceed cdclk limits.
 						 */
-						mode = find_mode(&data, output, intel_paramtests[index].planesize);
+						mode = find_mode(&data, output, &intel_paramtests[index]);
 						if (mode) {
 							igt_dynamic_f("pipe-%s-%s",
 								       kmstest_pipe_name(pipe), igt_output_name(output))
