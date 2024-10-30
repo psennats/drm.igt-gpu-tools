@@ -1119,8 +1119,7 @@ static void __igt_kunit(struct igt_ktest *tst,
 			char glob[1024];
 			int i;
 
-			igt_skip_on(kmod_module_remove_module(tst->kmod,
-							      KMOD_REMOVE_FORCE));
+			igt_skip_on(kmod_module_remove_module(tst->kmod, 0));
 			igt_skip_on(igt_kernel_tainted(&taints));
 
 			igt_assert_lt(snprintf(glob, sizeof(glob), "%s.%s",
