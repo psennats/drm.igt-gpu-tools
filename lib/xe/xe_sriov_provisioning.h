@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 
+struct xe_mmio;
+
 /**
  * enum xe_sriov_shared_res - Shared resource types
  * @XE_SRIOV_SHARED_RES_CONTEXTS: Contexts
@@ -41,5 +43,8 @@ struct xe_sriov_provisioned_range {
 };
 
 const char *xe_sriov_shared_res_to_string(enum xe_sriov_shared_res res);
+int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio *mmio,
+					       struct xe_sriov_provisioned_range **ranges,
+					       unsigned int *nr_ranges);
 
 #endif /* __XE_SRIOV_PROVISIONING_H__ */

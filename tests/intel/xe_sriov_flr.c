@@ -299,14 +299,6 @@ disable_vfs:
 #define GEN12_VF_CAP_REG			0x1901f8
 #define GGTT_PTE_TEST_FIELD_MASK		GENMASK_ULL(19, 12)
 #define GGTT_PTE_ADDR_SHIFT			12
-#define PRE_1250_IP_VER_GGTT_PTE_VFID_MASK	GENMASK_ULL(4, 2)
-#define GGTT_PTE_VFID_MASK			GENMASK_ULL(11, 2)
-#define GGTT_PTE_VFID_SHIFT			2
-
-#define for_each_pte_offset(pte_offset__, ggtt_offset_range__) \
-	for ((pte_offset__) = ((ggtt_offset_range__)->begin);  \
-	     (pte_offset__) < ((ggtt_offset_range__)->end);    \
-	     (pte_offset__) += sizeof(xe_ggtt_pte_t))
 
 struct ggtt_ops {
 	void (*set_pte)(struct xe_mmio *mmio, int gt, uint32_t pte_offset, xe_ggtt_pte_t pte);
@@ -314,9 +306,14 @@ struct ggtt_ops {
 };
 
 struct ggtt_provisioned_offset_range {
-	uint32_t begin;
+	uint32_t start;
 	uint32_t end;
 };
+
+#define for_each_pte_offset(pte_offset__, ggtt_offset_range__) \
+	for ((pte_offset__) = ((ggtt_offset_range__)->start);  \
+	     (pte_offset__) <= ((ggtt_offset_range__)->end);   \
+	     (pte_offset__) += sizeof(xe_ggtt_pte_t))
 
 struct ggtt_data {
 	struct subcheck_data base;
@@ -373,98 +370,53 @@ static bool is_intel_mmio_initialized(const struct intel_mmio_data *mmio)
 	return mmio->dev;
 }
 
-static uint64_t get_vfid_mask(int pf_fd)
+static int populate_ggtt_pte_offsets(struct ggtt_data *gdata)
 {
-	uint16_t dev_id = intel_get_drm_devid(pf_fd);
+	int ret, pf_fd = gdata->base.pf_fd, num_vfs = gdata->base.num_vfs;
+	struct xe_sriov_provisioned_range *ranges;
+	unsigned int nr_ranges, gt = gdata->base.gt;
 
-	return (intel_graphics_ver(dev_id) >= IP_VER(12, 50)) ?
-		GGTT_PTE_VFID_MASK : PRE_1250_IP_VER_GGTT_PTE_VFID_MASK;
-}
-
-static bool pte_contains_vfid(const xe_ggtt_pte_t pte, const unsigned int vf_id,
-			      const uint64_t vfid_mask)
-{
-	return ((pte & vfid_mask) >> GGTT_PTE_VFID_SHIFT) == vf_id;
-}
-
-static bool is_offset_in_range(uint32_t offset,
-			       const struct ggtt_provisioned_offset_range *ranges,
-			       size_t num_ranges)
-{
-	for (size_t i = 0; i < num_ranges; i++)
-		if (offset >= ranges[i].begin && offset < ranges[i].end)
-			return true;
-
-	return false;
-}
-
-static void find_ggtt_provisioned_ranges(struct ggtt_data *gdata)
-{
-	uint32_t limit = gdata->mmio->intel_mmio.mmio_size - SZ_8M > SZ_8M ?
-				 SZ_8M :
-				 gdata->mmio->intel_mmio.mmio_size - SZ_8M;
-	uint64_t vfid_mask = get_vfid_mask(gdata->base.pf_fd);
-	xe_ggtt_pte_t pte;
-
-	gdata->pte_offsets = calloc(gdata->base.num_vfs + 1, sizeof(*gdata->pte_offsets));
+	gdata->pte_offsets = calloc(num_vfs + 1, sizeof(*gdata->pte_offsets));
 	igt_assert(gdata->pte_offsets);
 
-	for (int vf_id = 1; vf_id <= gdata->base.num_vfs; vf_id++) {
-		uint32_t range_begin = 0;
-		int adjacent = 0;
-		int num_ranges = 0;
-
-		for (uint32_t offset = 0; offset < limit; offset += sizeof(xe_ggtt_pte_t)) {
-			/* Skip already found ranges */
-			if (is_offset_in_range(offset, gdata->pte_offsets, vf_id))
-				continue;
-
-			pte = xe_mmio_ggtt_read(gdata->mmio, gdata->base.gt, offset);
-
-			if (pte_contains_vfid(pte, vf_id, vfid_mask)) {
-				if (adjacent == 0)
-					range_begin = offset;
-
-				adjacent++;
-			} else if (adjacent > 0) {
-				uint32_t range_end = range_begin +
-						     adjacent * sizeof(xe_ggtt_pte_t);
-
-				igt_debug("Found VF%d ggtt range begin=%#x end=%#x num_ptes=%d\n",
-					  vf_id, range_begin, range_end, adjacent);
-
-				if (adjacent > gdata->pte_offsets[vf_id].end -
-					       gdata->pte_offsets[vf_id].begin) {
-					gdata->pte_offsets[vf_id].begin = range_begin;
-					gdata->pte_offsets[vf_id].end = range_end;
-				}
-
-				adjacent = 0;
-				num_ranges++;
-			}
-		}
-
-		if (adjacent > 0) {
-			uint32_t range_end = range_begin + adjacent * sizeof(xe_ggtt_pte_t);
-
-			igt_debug("Found VF%d ggtt range begin=%#x end=%#x num_ptes=%d\n",
-				  vf_id, range_begin, range_end, adjacent);
-
-			if (adjacent > gdata->pte_offsets[vf_id].end -
-				       gdata->pte_offsets[vf_id].begin) {
-				gdata->pte_offsets[vf_id].begin = range_begin;
-				gdata->pte_offsets[vf_id].end = range_end;
-			}
-			num_ranges++;
-		}
-
-		if (num_ranges == 0) {
-			set_fail_reason(&gdata->base,
-					"Failed to find VF%d provisioned ggtt range\n", vf_id);
-			return;
-		}
-		igt_warn_on_f(num_ranges > 1, "Found %d ranges for VF%d\n", num_ranges, vf_id);
+	ret = xe_sriov_find_ggtt_provisioned_pte_offsets(pf_fd, gt, gdata->mmio,
+							 &ranges, &nr_ranges);
+	if (ret) {
+		set_skip_reason(&gdata->base, "Failed to scan GGTT PTE offset ranges on gt%u (%d)\n",
+				gt, ret);
+		return -1;
 	}
+
+	for (unsigned int i = 0; i < nr_ranges; ++i) {
+		const unsigned int vf_id = ranges[i].vf_id;
+
+		if (vf_id == 0)
+			continue;
+
+		igt_assert(vf_id >= 1 && vf_id <= num_vfs);
+
+		if (gdata->pte_offsets[vf_id].end) {
+			set_skip_reason(&gdata->base, "Duplicate GGTT PTE offset range for VF%u\n",
+					vf_id);
+			free(ranges);
+			return -1;
+		}
+
+		gdata->pte_offsets[vf_id].start = ranges[i].start;
+		gdata->pte_offsets[vf_id].end = ranges[i].end;
+	}
+
+	free(ranges);
+
+	for (int vf_id = 1; vf_id <= num_vfs; ++vf_id)
+		if (!gdata->pte_offsets[vf_id].end) {
+			set_fail_reason(&gdata->base,
+					"Failed to find VF%u provisioned GGTT PTE offset range\n",
+					vf_id);
+			return -1;
+		}
+
+	return 0;
 }
 
 static void ggtt_subcheck_init(struct subcheck_data *data)
@@ -486,7 +438,7 @@ static void ggtt_subcheck_init(struct subcheck_data *data)
 		if (!is_intel_mmio_initialized(&gdata->mmio->intel_mmio))
 			xe_mmio_vf_access_init(data->pf_fd, 0 /*PF*/, gdata->mmio);
 
-		find_ggtt_provisioned_ranges(gdata);
+		populate_ggtt_pte_offsets(gdata);
 	} else {
 		set_fail_reason(data, "xe_mmio is NULL\n");
 	}
@@ -502,7 +454,7 @@ static void ggtt_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
 		return;
 
 	igt_debug("Prepare gpa on VF%u offset range [%#x-%#x]\n", vf_id,
-		  gdata->pte_offsets[vf_id].begin,
+		  gdata->pte_offsets[vf_id].start,
 		  gdata->pte_offsets[vf_id].end);
 
 	for_each_pte_offset(pte_offset, &gdata->pte_offsets[vf_id]) {
