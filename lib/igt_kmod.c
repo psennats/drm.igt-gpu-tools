@@ -690,9 +690,6 @@ static int unbind(const char *driver)
 		devfd = openat(dirfd(dir), de->d_name, O_RDONLY | O_CLOEXEC);
 		igt_assert(devfd >= 0);
 
-		ret = igt_sysfs_set(devfd, "power/control", "auto");
-		igt_assert(ret);
-
 		ret = igt_sysfs_set(devfd, "driver/unbind", de->d_name);
 		igt_assert(ret);
 
