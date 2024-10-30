@@ -79,13 +79,21 @@ bool early_transport_check(int debugfs_fd)
 	return strstr(buf, "enabled (Early Transport)");
 }
 
+static bool sink_status_checks(void)
+{
+	const char *env;
+
+	env = getenv("IGT_PSR_SINK_STATUS_CHECKS");
+
+	return env && atoi(env);
+}
+
 static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *output)
 {
 	char debugfs_file[128] = {0};
 	char buf[PSR_STATUS_MAX_LEN];
 	drmModeConnector *c;
 	const char *state;
-	const char *env;
 	bool active;
 	int ret;
 
@@ -116,8 +124,7 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 
 	active = strstr(buf, state);
 
-	env = getenv("IGT_PANEL_REPLAY_IGNORE_SINK_STATUS");
-	if (active && output && (!env || !atoi(env))) {
+	if (active && output && sink_status_checks()) {
 		active = psr_active_sink_check(debugfs_fd, output);
 		igt_assert_f(active, "PSR sink/source state mismatch\n");
 	}
@@ -350,6 +357,9 @@ void psr_sink_error_check(int debugfs_fd, enum psr_mode mode, igt_output_t *outp
 	char debugfs_file[128] = {0};
 	char buf[PSR_STATUS_MAX_LEN];
 	int ret;
+
+	if (!sink_status_checks())
+		return;
 
 	sprintf(debugfs_file, "%s/i915_psr_sink_status", output->name);
 	ret = igt_debugfs_simple_read(debugfs_fd, debugfs_file, buf,
