@@ -14,6 +14,7 @@
 IGT_TEST_DESCRIPTION("Basic test for enabling Panel Replay for eDP displays");
 
 #define REPLAY_SETTLE_DELAY 10
+#define FLIP_FRAME_BEFORE_TEST 60
 
 /* Common test data. */
 struct test_data {
@@ -50,6 +51,7 @@ enum test_mode {
 	TEST_MODE_INTERMITTENT_LIVE,
 	TEST_MODE_CONSTANT_LIVE,
 	TEST_MODE_SUSPEND,
+	TEST_MODE_FLIP_ONLY,
 	TEST_MODE_COUNT
 };
 
@@ -282,6 +284,9 @@ static void run_check_replay(struct test_data *data, enum test_mode test_mode)
 			 data->flip_fb->fb_id, DRM_MODE_PAGE_FLIP_EVENT, NULL);
 		kmstest_wait_for_pageflip(data->fd);
 
+		/* Do some page flips and let the replay enable */
+		page_flip_test(data, output, TEST_MODE_FLIP_ONLY, FLIP_FRAME_BEFORE_TEST);
+
 		/* Panel Replay state takes some time to settle its value on static screen */
 		sleep(REPLAY_SETTLE_DELAY);
 
@@ -366,7 +371,7 @@ static void run_check_replay_suspend(struct test_data *data)
 		igt_system_suspend_autoresume(SUSPEND_STATE_MEM, SUSPEND_TEST_NONE);
 
 		/* Do some page flip and let the replay go into live mode */
-		page_flip_test(data, output, TEST_MODE_SUSPEND, 10);
+		page_flip_test(data, output, TEST_MODE_SUSPEND, FLIP_FRAME_BEFORE_TEST);
 
 		/* Panel Replay state takes some time to settle its value on static screen */
 		sleep(REPLAY_SETTLE_DELAY);
