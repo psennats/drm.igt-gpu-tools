@@ -935,8 +935,8 @@ static void kunit_debugfs_path(char *kunit_path)
 static bool kunit_set_filtering(const char *filter_glob, const char *filter,
 				const char *filter_action)
 {
+	bool ret = true;
 	int params;
-	bool ret;
 
 	params = open_parameters("kunit");
 	if (igt_debug_on(params < 0))
@@ -949,41 +949,11 @@ static bool kunit_set_filtering(const char *filter_glob, const char *filter,
 	 * As a workaround, we use non-NULL strings that exhibit
 	 * the same behaviour as if default NULLs were in place.
 	 */
-	ret = !igt_debug_on(!igt_sysfs_set(params, "filter_glob",
-					   filter_glob ?: "*"));
-	if (!ret)
-		goto close;
+	if (igt_debug_on(!igt_sysfs_set(params, "filter_glob", filter_glob ?: "*")) ||
+	    igt_debug_on(!igt_sysfs_set(params, "filter", filter ?: "module!=none")) ||
+	    igt_debug_on(!igt_sysfs_set(params, "filter_action", filter_action ?: "")))
+		ret = false;
 
-	ret = !igt_debug_on(!igt_sysfs_set(params, "filter",
-					   filter ?: "module!=none"));
-	if (!ret)
-		goto close;
-
-	ret = !igt_debug_on(!igt_sysfs_set(params, "filter_action",
-					   filter_action ?: ""));
-
-	/*
-	 * TODO: Drop the extra check below as soon as igt_sysfs_set()
-	 *	 can correctly process empty strings which we are using
-	 *	 as filter_action NULL equivalent.
-	 *
-	 * We need this check only when NULL is requested for "filter_action"
-	 * and not for "filter" parameter, otherwise, even if "filter_action"
-	 * was previously set to "skip", we don't care since our
-	 * "module!=none" default filter guarantees that no test cases are
-	 * filtered out to be processed as "filter_action" says.
-	 */
-	if (ret && !filter_action && filter) {
-		filter_action = igt_sysfs_get(params, "filter_action");
-
-		ret = !(igt_debug_on_f(!filter_action,
-				       "open() failed\n") ||
-			igt_debug_on_f(strlen(filter_action),
-				       "empty string not applied\n"));
-		free((char *)filter_action);
-	}
-
-close:
 	close(params);
 
 	return ret;
