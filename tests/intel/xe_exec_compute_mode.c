@@ -472,7 +472,7 @@ static void lr_mode_workload(int fd)
 							ALLOC_STRATEGY_LOW_TO_HIGH);
 
 	sync.addr = to_user_pointer(&vm_sync);
-	xe_vm_bind_async(fd, vm, engine->instance.gt_id, bo, 0, spin_addr, bo_size, &sync, 1);
+	xe_vm_bind_async(fd, vm, 0, bo, 0, spin_addr, bo_size, &sync, 1);
 	xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
 
 	xe_spin_init_opts(spin, .addr = spin_addr, .write_timestamp = true);
