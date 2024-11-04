@@ -564,6 +564,22 @@ static bool test_format(data_t *data,
 	return true;
 }
 
+static bool plane_rotation_requirements(data_t *data, igt_plane_t *plane)
+{
+	if (!igt_plane_has_prop(plane, IGT_PLANE_ROTATION))
+		return false;
+
+	if (!igt_plane_has_rotation(plane, data->rotation))
+		return false;
+
+	/* CHV can't rotate and reflect simultaneously */
+	if (!(!is_intel_device(data->gfx_fd) || !IS_CHERRYVIEW(data->devid) ||
+	    data->rotation != (IGT_ROTATION_180 | IGT_REFLECT_X)))
+		return false;
+
+	return true;
+}
+
 static void test_plane_rotation(data_t *data, int plane_type, bool test_bad_format)
 {
 	igt_display_t *display = &data->display;
@@ -632,12 +648,7 @@ static void test_plane_rotation(data_t *data, int plane_type, bool test_bad_form
 		igt_output_set_pipe(output, pipe);
 
 		plane = igt_output_get_plane_type(output, plane_type);
-		igt_require(igt_plane_has_prop(plane, IGT_PLANE_ROTATION));
-		igt_require(igt_plane_has_rotation(plane, data->rotation));
-		/* CHV can't rotate and reflect simultaneously */
-		igt_require(!is_intel_device(data->gfx_fd) ||
-			    !IS_CHERRYVIEW(data->devid) ||
-			    data->rotation != (IGT_ROTATION_180 | IGT_REFLECT_X));
+		igt_require(plane_rotation_requirements(data, plane));
 
 		prepare_crtc(data, output, pipe, plane, true);
 
