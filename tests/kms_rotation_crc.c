@@ -577,6 +577,13 @@ static bool plane_rotation_requirements(data_t *data, igt_plane_t *plane)
 	    data->rotation != (IGT_ROTATION_180 | IGT_REFLECT_X)))
 		return false;
 
+	/* Intel display version 20 onwards cannot do reflect-x with tile4 */
+	if (!(!is_intel_device(data->gfx_fd) ||
+	    intel_display_ver(data->devid) < 20 ||
+	    !(data->override_modifier == I915_FORMAT_MOD_4_TILED &&
+	    data->rotation & IGT_REFLECT_X)))
+		return false;
+
 	return true;
 }
 
