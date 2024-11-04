@@ -18,8 +18,7 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
-*/
+ */
 #include <linux/limits.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -68,10 +67,10 @@ static int
 amdgpu_hotunplug_trigger(const char *pathname)
 {
 	int len;
-	int fd= -1;
+	int fd = -1;
 
 	fd = open(pathname, O_WRONLY);
-	if (fd <= 0 )
+	if (fd <= 0)
 		goto release;
 
 	len = write(fd, "1", 1);
@@ -93,7 +92,7 @@ amdgpu_hotunplug_setup_test(bool render_mode, const struct amd_pci_unplug_setup 
 
 	unplug->num_devices = amdgpu_open_devices(render_mode, MAX_CARDS_SUPPORTED,
 											  unplug->drm_amdgpu_fds);
-	if (unplug->num_devices == 0 )
+	if (unplug->num_devices == 0)
 		goto release;
 
 	if (setup->open_device && setup->open_device2 && unplug->num_devices < 2) {
@@ -105,7 +104,7 @@ amdgpu_hotunplug_setup_test(bool render_mode, const struct amd_pci_unplug_setup 
 	tmp_str = amdgpu_get_device_from_fd(unplug->drm_amdgpu_fds[0]);
 	abort_oom_if_null(tmp_str);
 	unplug->sysfs_remove = realloc(tmp_str, strlen(tmp_str) * 2);
-	abort_oom_if_null(unplug->sysfs_remove );
+	abort_oom_if_null(unplug->sysfs_remove);
 	strcat(unplug->sysfs_remove, "/remove");
 
 	r = amdgpu_device_initialize(unplug->drm_amdgpu_fds[0], &major_version,
@@ -140,6 +139,7 @@ static void
 amdgpu_hotunplug_teardown_test(struct amd_pci_unplug *unplug)
 {
 	int i;
+
 	if (unplug->device_handle) {
 		amdgpu_device_deinitialize(unplug->device_handle);
 		unplug->device_handle = NULL;
@@ -149,7 +149,7 @@ amdgpu_hotunplug_teardown_test(struct amd_pci_unplug *unplug)
 		unplug->device_handle2 = NULL;
 	}
 	for (i = 0; i < unplug->num_devices; i++) {
-		if (unplug->drm_amdgpu_fds[i] >= 0 ) {
+		if (unplug->drm_amdgpu_fds[i] >= 0) {
 			close(unplug->drm_amdgpu_fds[i]);
 			unplug->drm_amdgpu_fds[i] = -1;
 		}
@@ -206,10 +206,11 @@ amdgpu_nop_cs(void *handle)
 	struct amdgpu_cs_request ibs_request;
 	struct amdgpu_cs_ib_info ib_info;
 	int bo_cmd_size = 4096;
-	struct amd_pci_unplug * unplug = handle;
+	struct amd_pci_unplug *unplug = handle;
 	amdgpu_device_handle device_handle = unplug->device_handle;
 
-	struct amdgpu_cmd_base * base_cmd = get_cmd_base();
+	struct amdgpu_cmd_base *base_cmd = get_cmd_base();
+
 	r = amdgpu_cs_ctx_create(device_handle, &context);
 	igt_assert_eq(r, 0);
 
@@ -221,7 +222,7 @@ amdgpu_nop_cs(void *handle)
 
 	memset(ib_result_cpu, 0, bo_cmd_size);
 	base_cmd->attach_buf(base_cmd, ib_result_cpu, bo_cmd_size);
-	base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP , 16);
+	base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP, 16);
 
 	r = amdgpu_bo_list_create(device_handle, 1, &ib_result_handle, NULL, &bo_list);
 	igt_assert_eq(r, 0);
@@ -252,10 +253,11 @@ amdgpu_nop_cs(void *handle)
 }
 
 static pthread_t*
-amdgpu_create_cs_thread(struct amd_pci_unplug * unplug)
+amdgpu_create_cs_thread(struct amd_pci_unplug *unplug)
 {
 	int r;
 	pthread_t *thread = malloc(sizeof(*thread));
+
 	if (!thread)
 		return NULL;
 
@@ -270,7 +272,7 @@ amdgpu_create_cs_thread(struct amd_pci_unplug * unplug)
 }
 
 static void
-amdgpu_wait_cs_thread(struct amd_pci_unplug * unplug, pthread_t *thread)
+amdgpu_wait_cs_thread(struct amd_pci_unplug *unplug, pthread_t *thread)
 {
 	unplug->do_cs = false;
 
@@ -280,13 +282,13 @@ amdgpu_wait_cs_thread(struct amd_pci_unplug * unplug, pthread_t *thread)
 
 static void
 amdgpu_hotunplug_test(bool render_mode, const struct amd_pci_unplug_setup *setup,
-					  struct amd_pci_unplug * unplug,  bool with_cs)
+					  struct amd_pci_unplug *unplug,  bool with_cs)
 {
 	int r;
 	pthread_t *thread = NULL;
 
 	r = amdgpu_hotunplug_setup_test(render_mode, setup, unplug);
-	igt_assert_eq(r , 1);
+	igt_assert_eq(r, 1);
 
 	if (with_cs)
 		thread = amdgpu_create_cs_thread(unplug);
@@ -311,9 +313,9 @@ amdgpu_hotunplug_simple(struct amd_pci_unplug_setup *setup,
 	amdgpu_hotunplug_test(true, setup, unplug, false);
 }
 
- void
- amdgpu_hotunplug_with_cs(struct amd_pci_unplug_setup *setup,
- 						 struct amd_pci_unplug *unplug)
+void
+amdgpu_hotunplug_with_cs(struct amd_pci_unplug_setup *setup,
+						struct amd_pci_unplug *unplug)
 {
 	memset(unplug, 0, sizeof(*unplug));
 	setup->open_device = true;
@@ -327,39 +329,44 @@ amdgpu_hotunplug_with_exported_bo(struct amd_pci_unplug_setup *setup,
 	int r;
 	uint32_t dma_buf_fd;
 	unsigned int *ptr;
-	amdgpu_bo_handle bo_handle;
+	amdgpu_bo_handle bo;
+	amdgpu_va_handle va_handle;
+	uint64_t bo_mc;
 
-	struct amdgpu_bo_alloc_request request = {
-		.alloc_size = 4096,
-		.phys_alignment = 4096,
-		.preferred_heap = AMDGPU_GEM_DOMAIN_GTT,
-		.flags = 0,
-	};
 	memset(unplug, 0, sizeof(*unplug));
 	setup->open_device = true;
 
 	r = amdgpu_hotunplug_setup_test(true, setup, unplug);
-	igt_assert_eq(r , 1);
+	igt_assert_eq(r, 1);
 
-	r = amdgpu_bo_alloc(unplug->device_handle, &request, &bo_handle);
+	bo = gpu_mem_alloc(unplug->device_handle,
+			   4096, 4096,
+			   AMDGPU_GEM_DOMAIN_VRAM,
+			   AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			   &bo_mc, &va_handle);
+
+	r = amdgpu_bo_export(bo, amdgpu_bo_handle_type_dma_buf_fd, &dma_buf_fd);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_bo_export(bo_handle, amdgpu_bo_handle_type_dma_buf_fd, &dma_buf_fd);
-	igt_assert_eq(r, 0);
-
-	ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, dma_buf_fd, 0);
+	r = amdgpu_bo_cpu_map(bo, (void **)&ptr);
 
 	r = amdgpu_hotunplug_remove(unplug);
 	igt_assert_eq(r > 0, 1);
 
-	amdgpu_bo_free(bo_handle);
-
 	amdgpu_hotunplug_teardown_test(unplug);
 
-	*ptr = 0xdeafbeef;
+	if (ptr && ptr != MAP_FAILED)
+		*ptr = 0xdeafbeef;
 
-	munmap(ptr, 4096);
-	close (dma_buf_fd);
+	amdgpu_bo_cpu_unmap(bo);
+
+	r = amdgpu_bo_va_op(bo, 0, 4096, bo_mc, 0, AMDGPU_VA_OP_UNMAP);
+	/* here the expected failure EBADF  9 Bad file number */
+	r = amdgpu_va_range_free(va_handle);
+	igt_assert_eq(r, 0);
+	r = amdgpu_bo_free(bo);
+	igt_assert_eq(r, 0);
+	close(dma_buf_fd);
 
 	r = amdgpu_hotunplug_rescan();
 	igt_assert_eq(r > 0, 1);
@@ -382,7 +389,7 @@ amdgpu_hotunplug_with_exported_fence(struct amd_pci_unplug_setup *setup,
 	struct amdgpu_cs_fence fence_status = {0};
 	int shared_fd;
 	int bo_cmd_size = 4096;
-	struct amdgpu_cmd_base * base_cmd = get_cmd_base();
+	struct amdgpu_cmd_base *base_cmd = get_cmd_base();
 
 	memset(unplug, 0, sizeof(*unplug));
 	setup->open_device = true;
@@ -390,9 +397,8 @@ amdgpu_hotunplug_with_exported_fence(struct amd_pci_unplug_setup *setup,
 
 
 	r = amdgpu_hotunplug_setup_test(true, setup, unplug);
-	if( r != 1) {
+	if (r != 1)
 		goto release;
-	}
 
 	r = amdgpu_cs_ctx_create(unplug->device_handle, &context);
 	igt_assert_eq(r, 0);
@@ -404,7 +410,7 @@ amdgpu_hotunplug_with_exported_fence(struct amd_pci_unplug_setup *setup,
 	igt_assert_eq(r, 0);
 	memset(ib_result_cpu, 0, bo_cmd_size);
 	base_cmd->attach_buf(base_cmd, ib_result_cpu, bo_cmd_size);
-	base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP , 16);
+	base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP, 16);
 
 	r = amdgpu_bo_list_create(unplug->device_handle, 1, &ib_result_handle, NULL,
 							  &bo_list);
