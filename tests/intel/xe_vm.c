@@ -957,7 +957,7 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 		xe_cork_end(&cork);
 		xe_cork_wait_done(&cork);
 		xe_cork_fini(&cork);
-		n_execs = n_execs / 2;
+		n_execs = n_execs / 4;
 	}
 
 	xe_vm_bind_array(fd, vm, bind_exec_queue, bind_ops, n_execs, sync, 1);
