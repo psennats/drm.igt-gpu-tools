@@ -96,6 +96,7 @@
  * arg[1]:
  *
  * @crc-primary-basic:           Primary plane CRC compatibility
+ * @crc-primary-suspend:         Primary plane CRC after suspend
  * @crc-sprite-planes-basic:     Sprite plane CRC compatability
  * @random-ccs-data:             Random CCS data
  *
@@ -159,6 +160,7 @@ enum test_flags {
 	TEST_BAD_AUX_STRIDE		= 1 << 7,
 	TEST_RANDOM			= 1 << 8,
 	TEST_ALL_PLANES			= 1 << 9,
+	TEST_SUSPEND			= 1 << 10,
 };
 
 #define TEST_BAD_CCS_PLANE	(TEST_NO_AUX_BUFFER | TEST_BAD_CCS_HANDLE | \
@@ -252,6 +254,12 @@ static const struct {
 	{TEST_BAD_CCS_HANDLE, "ccs-on-another-bo", "Test CCS with different BO with given modifier"},
 	{TEST_BAD_AUX_STRIDE, "bad-aux-stride", "Test with bad AUX stride with given CCS modifier"},
 	{TEST_CRC | TEST_ALL_PLANES, "crc-sprite-planes-basic", "Test sprite plane CRC compatibility with given CCS modifier"},
+
+	/*
+	 * suspend test has to be kept last because it will decompress
+	 * framebuffers when run on BMG
+	 */
+	{TEST_CRC | TEST_SUSPEND, "crc-primary-suspend", "Test primary plane CRC with suspend on XR24 and P016 formats"},
 };
 
 /*
@@ -666,6 +674,18 @@ static struct igt_fb *get_fb(data_t *data, u64 modifier, double r, double g,
 	return &data->fb_list[data->fb_list_length++].fb;
 }
 
+static void remove_compressed_bmg_fbs(data_t *data) {
+	/* if running on bmg ccs become uncompressed at suspend. Here marked
+	 * bmg ccs in book keeping as not there hence it will not match to
+	 * anything. Here cannot remove fb yet since it's on screen. Remove
+	 * will happen at final fixture.
+	 */
+	for (int i = 0; i < data->fb_list_length; i++) {
+		if (data->fb_list[i].modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS)
+			data->fb_list[i].modifier = ~1;
+	}
+}
+
 static void generate_fb(data_t *data, struct igt_fb *fb,
 			int width, int height,
 			enum test_fb_flags fb_flags)
@@ -817,8 +837,22 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 
 	ret = igt_display_try_commit2(display, data->commit);
 
-	if (ret == 0 && !(fb_flags & TEST_BAD_ROTATION_90) && crc)
+	if (ret == 0 && !(fb_flags & TEST_BAD_ROTATION_90) && crc) {
+		if (data->flags & TEST_SUSPEND && fb_flags & FB_COMPRESSED) {
+			igt_system_suspend_autoresume(SUSPEND_STATE_MEM,
+						      SUSPEND_TEST_NONE);
+
+			/* on resume check flat ccs is still compressed */
+			if (is_xe_device(data->drm_fd) &&
+			    HAS_FLATCCS(intel_get_drm_devid(data->drm_fd))) {
+				if (IS_BATTLEMAGE(intel_get_drm_devid(data->drm_fd)))
+					remove_compressed_bmg_fbs(data);
+				else
+					access_flat_ccs_surface(&fb, true);
+			}
+		}
 		igt_pipe_crc_collect_crc(data->pipe_crc, crc);
+	}
 
 	igt_debug_wait_for_keypress("ccs");
 
@@ -845,6 +879,11 @@ static int test_ccs(data_t *data)
 {	int valid_tests = 0;
 	igt_crc_t crc, ref_crc;
 	enum test_fb_flags fb_flags = 0;
+
+	if (data->flags & TEST_SUSPEND &&
+	    !(data->format == DRM_FORMAT_XRGB8888 ||
+	      data->format == DRM_FORMAT_P016))
+	      return 0;
 
 	igt_info("Testing format " IGT_FORMAT_FMT " / modifier " IGT_MODIFIER_FMT "\n",
 		 IGT_FORMAT_ARGS(data->format), IGT_MODIFIER_ARGS(data->ccs_modifier));
