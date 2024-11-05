@@ -14,7 +14,7 @@
 
 static void
 amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
-			    uint32_t ip_type, uint32_t ring,
+			    uint32_t ip_type, uint32_t priority,
 			    uint32_t version)
 {
 	amdgpu_context_handle context_handle;
@@ -37,7 +37,11 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 
 	struct amdgpu_cmd_base *base_cmd = get_cmd_base();
 
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+	if (priority == AMDGPU_CTX_PRIORITY_HIGH)
+		r = amdgpu_cs_ctx_create2(device_handle, AMDGPU_CTX_PRIORITY_HIGH, &context_handle);
+	else
+		r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+
 	igt_assert_eq(r, 0);
 
 	r = amdgpu_bo_alloc_and_map(device_handle, bo_cmd_size, 4096,
@@ -121,7 +125,7 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 	ib_info.ib_mc_address = mc_address_cmd;
 	ib_info.size = base_cmd->cdw;
 	ibs_request.ip_type = ip_type;
-	ibs_request.ring = ring;
+	ibs_request.ring = 0;
 	ibs_request.resources = bo_list;
 	ibs_request.number_of_ibs = 1;
 	ibs_request.ibs = &ib_info;
@@ -136,7 +140,7 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 
 	fence_status.ip_type = ip_type;
 	fence_status.ip_instance = 0;
-	fence_status.ring = ring;
+	fence_status.ring = 0;
 	fence_status.context = context_handle;
 	fence_status.fence = ibs_request.seq_no;
 
@@ -162,8 +166,8 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 int
 amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 				amdgpu_context_handle context_handle_param,
-				uint32_t ip_type, uint32_t ring, uint32_t version,
-				enum cmd_error_type hang,
+				uint32_t ip_type, uint32_t ring, uint32_t priority,
+				uint32_t version, enum cmd_error_type hang,
 				struct amdgpu_cs_err_codes *err_codes)
 {
 	amdgpu_context_handle context_handle_free = NULL;
@@ -188,9 +192,15 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	struct amdgpu_cmd_base *base_cmd = get_cmd_base();
 
 	if (context_handle_param == NULL) {
-		r = amdgpu_cs_ctx_create(device_handle, &context_handle_in_use);
-		context_handle_free = context_handle_in_use;
-		igt_assert_eq(r, 0);
+		if( priority == AMDGPU_CTX_PRIORITY_HIGH) {
+			r = amdgpu_cs_ctx_create2(device_handle, AMDGPU_CTX_PRIORITY_HIGH, &context_handle_in_use);
+			context_handle_free = context_handle_in_use;
+			igt_assert_eq(r, 0);
+		} else {
+			r = amdgpu_cs_ctx_create(device_handle, &context_handle_in_use);
+			context_handle_free = context_handle_in_use;
+			igt_assert_eq(r, 0);
+		}
 	} else {
 		context_handle_in_use = context_handle_param;
 	}
@@ -303,7 +313,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	ib_info.ib_mc_address = mc_address_cmd;
 	ib_info.size = base_cmd->cdw;
 	ibs_request.ip_type = ip_type;
-	ibs_request.ring = ring;
+	ibs_request.ring = 0;
 	ibs_request.resources = bo_list;
 	ibs_request.number_of_ibs = 1;
 	ibs_request.ibs = &ib_info;
@@ -314,7 +324,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 
 	fence_status.ip_type = ip_type;
 	fence_status.ip_instance = 0;
-	fence_status.ring = ring;
+	fence_status.ring = 0;
 	fence_status.context = context_handle_in_use;
 	fence_status.fence = ibs_request.seq_no;
 
@@ -357,7 +367,7 @@ amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 
 static void
 amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
-				      uint32_t ip_type, uint32_t ring,
+				      uint32_t ip_type, uint32_t priority,
 				      int version, uint32_t gpu_reset_status_equel)
 {
 	amdgpu_context_handle context_handle;
@@ -386,7 +396,11 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 	r = amdgpu_query_gpu_info(device_handle, &gpu_info);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+	if( priority == AMDGPU_CTX_PRIORITY_HIGH)
+		r = amdgpu_cs_ctx_create2(device_handle, AMDGPU_CTX_PRIORITY_HIGH, &context_handle);
+	else
+		r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+
 	igt_assert_eq(r, 0);
 
 	r = amdgpu_bo_alloc_and_map(device_handle, bo_cmd_size, 4096,
@@ -487,7 +501,7 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 	ib_info.ib_mc_address = mc_address_cmd;
 	ib_info.size = base_cmd->cdw;
 	ibs_request.ip_type = ip_type;
-	ibs_request.ring = ring;
+	ibs_request.ring = 0;
 	ibs_request.resources = bo_list;
 	ibs_request.number_of_ibs = 1;
 	ibs_request.ibs = &ib_info;
@@ -497,7 +511,7 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 
 	fence_status.ip_type = ip_type;
 	fence_status.ip_instance = 0;
-	fence_status.ring = ring;
+	fence_status.ring = 0;
 	fence_status.context = context_handle;
 	fence_status.fence = ibs_request.seq_no;
 
@@ -538,8 +552,13 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 				 uint32_t ip_type)
 {
 	int r;
+	FILE *fp;
+	char cmd[1024];
+	char buffer[128];
+	long sched_mask = 0;
 	struct drm_amdgpu_info_hw_ip info;
-	uint32_t ring_id, version;
+	uint32_t ring_id, version, prio;
+	char sysfs[125];
 
 	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
 	igt_assert_eq(r, 0);
@@ -551,22 +570,85 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 		igt_info("SKIP ... unsupported gfx version %d\n", version);
 		return;
 	}
-	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
-		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type,
-					    ring_id,  version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
-		amdgpu_memcpy_dispatch_hang_slow_test(device_handle, ip_type,
-						      ring_id, version, AMDGPU_CTX_UNKNOWN_RESET);
 
-		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id,
+	if (ip_type == AMD_IP_GFX)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_gfx_sched_mask");
+	else if (ip_type == AMD_IP_COMPUTE)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_compute_sched_mask");
+	else if (ip_type == AMD_IP_DMA)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+
+	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
+	r = access(sysfs, R_OK);
+	if (!r) {
+		fp = popen(cmd, "r");
+		if (fp == NULL)
+			igt_skip("read the sysfs failed: %s \n",sysfs);
+
+		if (fgets(buffer, 128, fp) != NULL)
+			sched_mask = strtol(buffer, NULL, 16);
+
+		pclose(fp);
+	} else
+		sched_mask = 1;
+
+	for (ring_id = 0; (0x1 << ring_id) <= sched_mask; ring_id++) {
+		/* check sched is ready is on the ring. */
+		if (!((1 << ring_id) & sched_mask))
+			continue;
+
+		if (sched_mask > 1 && ring_id == 0 &&
+			ip_type == AMD_IP_COMPUTE) {
+			/* for the compute multiple rings, the first queue
+			 * as high priority compute queue.
+			 * Need to create a high priority ctx.
+			 */
+			prio = AMDGPU_CTX_PRIORITY_HIGH;
+		} else if (sched_mask > 1 && ring_id == 1 &&
+			 ip_type == AMD_IP_GFX) {
+			/* for the gfx multiple rings, pipe1 queue0 as
+			 * high priority graphics queue.
+			 * Need to create a high priority ctx.
+			 */
+			prio = AMDGPU_CTX_PRIORITY_HIGH;
+		} else {
+			prio = AMDGPU_CTX_PRIORITY_NORMAL;
+		}
+
+		if (sched_mask > 1) {
+			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+						0x1 << ring_id, sysfs);
+			r = system(cmd);
+			igt_assert_eq(r, 0);
+		}
+
+		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type,
+					    ring_id, prio, version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
+		amdgpu_memcpy_dispatch_hang_slow_test(device_handle, ip_type,
+						      prio, version, AMDGPU_CTX_UNKNOWN_RESET);
+
+		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id, prio,
 					    version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
+	}
+
+	/* recover the sched mask */
+	if (sched_mask > 1) {
+		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s",sched_mask, sysfs);
+		r = system(cmd);
+		igt_assert_eq(r, 0);
 	}
 }
 
 void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type, enum cmd_error_type hang)
 {
 	int r;
+	FILE *fp;
+	char cmd[1024];
+	char buffer[128];
+	long sched_mask = 0;
 	struct drm_amdgpu_info_hw_ip info;
-	uint32_t ring_id, version;
+	uint32_t ring_id, version, prio;
+	char sysfs[125];
 
 	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
 	igt_assert_eq(r, 0);
@@ -581,11 +663,68 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 	if (version < 9)
 		version = 9;
 
-	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
-		amdgpu_memset_dispatch_test(device_handle, ip_type, ring_id,
+	if (ip_type == AMD_IP_GFX)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_gfx_sched_mask");
+	else if (ip_type == AMD_IP_COMPUTE)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_compute_sched_mask");
+	else if (ip_type == AMD_IP_DMA)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+
+	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
+	r = access(sysfs, R_OK);
+	if (!r) {
+		fp = popen(cmd, "r");
+		if (fp == NULL)
+			igt_skip("read the sysfs failed: %s \n",sysfs);
+
+		if (fgets(buffer, 128, fp) != NULL)
+			sched_mask = strtol(buffer, NULL, 16);
+
+		pclose(fp);
+	} else
+		sched_mask = 1;
+
+	for (ring_id = 0; (0x1 << ring_id) <= sched_mask; ring_id++) {
+		/* check sched is ready is on the ring. */
+		if (!((1 << ring_id) & sched_mask))
+			continue;
+
+		if (sched_mask > 1 && ring_id == 0 &&
+			ip_type == AMD_IP_COMPUTE) {
+			/* for the compute multiple rings, the first queue
+			 * as high priority compute queue.
+			 * Need to create a high priority ctx.
+			 */
+			prio = AMDGPU_CTX_PRIORITY_HIGH;
+		} else if (sched_mask > 1 && ring_id == 1 &&
+			 ip_type == AMD_IP_GFX) {
+			/* for the gfx multiple rings, pipe1 queue0 as
+			 * high priority graphics queue.
+			 * Need to create a high priority ctx.
+			 */
+			prio = AMDGPU_CTX_PRIORITY_HIGH;
+		} else {
+			prio = AMDGPU_CTX_PRIORITY_NORMAL;
+		}
+
+		if (sched_mask > 1) {
+			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+						0x1 << ring_id, sysfs);
+			igt_info("cmd: %s\n", cmd);
+			r = system(cmd);
+			igt_assert_eq(r, 0);
+		}
+		amdgpu_memset_dispatch_test(device_handle, ip_type, prio,
 					    version);
-		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id,
+		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id, prio,
 					    version, hang, NULL);
+	}
+
+	/* recover the sched mask */
+	if (sched_mask > 1) {
+		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s",sched_mask, sysfs);
+		r = system(cmd);
+		igt_assert_eq(r, 0);
 	}
 }
 
