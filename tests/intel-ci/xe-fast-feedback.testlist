@@ -176,6 +176,7 @@ igt@xe_query@query-invalid-query
 igt@xe_query@query-invalid-size
 igt@xe_spin_batch@spin-basic
 igt@xe_spin_batch@spin-batch
+igt@xe_sriov_flr@flr-vf1-clear
 igt@xe_sysfs_defaults@engine-defaults
 igt@xe_sysfs_scheduler@preempt_timeout_us-invalid
 igt@xe_sysfs_scheduler@preempt_timeout_us-min-max
