@@ -995,3 +995,54 @@ asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask,
 		arr[i++] = is_rings_available(device_handle, mask, ip);
 }
 
+/**
+ * is_reset_enable:
+ * @ip_type: such as gfx, compute and dma.
+ * @reset_type: includes full adapter reset, soft reset, queue reset, and pipeline reset
+ *
+ * Check if reset supports certain reset types.
+ */
+
+bool
+is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type)
+{
+        char cmd[256];
+        FILE *fp, *fp2;
+        char buffer[100];
+        bool enable = false;
+        char reset_mask[100];
+
+        if(ip_type == AMD_IP_GFX)
+                snprintf(reset_mask, sizeof(reset_mask) - 1, "gfx_reset_mask");
+        else if (ip_type == AMD_IP_COMPUTE)
+                snprintf(reset_mask, sizeof(reset_mask) - 1, "compute_reset_mask");
+        else
+                snprintf(reset_mask, sizeof(reset_mask) - 1, "sdma_reset_mask");
+
+        snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/0/name |grep -oP '(?<=dev=)[0-9:.]+'");
+        fp = popen(cmd, "r");
+        if (fp == NULL)
+                return false;
+
+        if (fgets(buffer, 13, fp) != NULL) {
+                snprintf(cmd,sizeof(cmd) - 1,"sudo cat /sys/bus/pci/devices/%s/%s | grep -oP '%s'",
+                        buffer,reset_mask,
+			reset_type & AMDGPU_RESET_TYPE_FULL ? "full":
+			reset_type & AMDGPU_RESET_TYPE_SOFT_RESET ? "soft":
+			reset_type & AMDGPU_RESET_TYPE_PER_QUEUE ? "queue": "pipe");
+
+                fp2 = popen(cmd, "r");
+                if (fp2 == NULL) {
+                        pclose(fp);
+                        return false;
+                }
+
+                if (fgets(buffer, 13, fp2) != NULL) {
+                        enable = true;
+                }
+                pclose(fp2);
+        }
+        pclose(fp);
+
+        return enable;
+}

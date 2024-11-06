@@ -14,6 +14,12 @@
 
 #define MAX_CARDS_SUPPORTED 4
 
+/* reset mask */
+#define AMDGPU_RESET_TYPE_FULL (1 << 0) /* full adapter reset, mode1/mode2/BACO/etc. */
+#define AMDGPU_RESET_TYPE_SOFT_RESET (1 << 1) /* IP level soft reset */
+#define AMDGPU_RESET_TYPE_PER_QUEUE (1 << 2) /* per queue */
+#define AMDGPU_RESET_TYPE_PER_PIPE (1 << 3) /* per pipe */
+
 enum amd_ip_block_type {
 	AMD_IP_GFX = 0,
 	AMD_IP_COMPUTE,
@@ -212,4 +218,6 @@ amdgpu_open_devices(bool open_render_node, int max_cards_supported, int drm_amdg
 void
 asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask, bool arr[AMD_IP_MAX]);
 
+bool
+is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type);
 #endif
