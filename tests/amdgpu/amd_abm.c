@@ -225,7 +225,7 @@ static void backlight_dpms_cycle(data_t *data)
 	igt_output_t *output;
 	enum pipe pipe;
 
-	for_each_pipe_with_valid_output(&data->display, pipe, output) {
+	for_each_valid_output_on_pipe(&data->display, pipe, output) {
 		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 
@@ -257,7 +257,7 @@ static void backlight_monotonic_basic(data_t *data)
 	enum pipe pipe;
 	igt_output_t *output;
 
-	for_each_pipe_with_valid_output(&data->display, pipe, output) {
+	for_each_valid_output_on_pipe(&data->display, pipe, output) {
 		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 		ret = backlight_read_max_brightness(&max_brightness);
@@ -291,7 +291,7 @@ static void backlight_monotonic_abm(data_t *data)
 	enum pipe pipe;
 	igt_output_t *output;
 
-	for_each_pipe_with_valid_output(&data->display, pipe, output) {
+	for_each_valid_output_on_pipe(&data->display, pipe, output) {
 		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 		ret = backlight_read_max_brightness(&max_brightness);
@@ -299,7 +299,7 @@ static void backlight_monotonic_abm(data_t *data)
 
 		brightness_step = max_brightness / 10;
 		for (i = 1; i < 5; i++) {
-			set_abm_level(data, output, 0);
+			set_abm_level(data, output, i);
 			backlight_write_brightness(max_brightness);
 			usleep(100000);
 			prev_pwm = read_target_backlight_pwm(data->drm_fd, output->name);
@@ -324,7 +324,7 @@ static void abm_enabled(data_t *data)
 	enum pipe pipe;
 	igt_output_t *output;
 
-	for_each_pipe_with_valid_output(&data->display, pipe, output) {
+	for_each_valid_output_on_pipe(&data->display, pipe, output) {
 		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 
@@ -357,7 +357,7 @@ static void abm_gradual(data_t *data)
 	enum pipe pipe;
 	igt_output_t *output;
 
-	for_each_pipe_with_valid_output(&data->display, pipe, output) {
+	for_each_valid_output_on_pipe(&data->display, pipe, output) {
 		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 
