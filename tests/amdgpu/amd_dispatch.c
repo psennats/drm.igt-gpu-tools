@@ -116,7 +116,8 @@ igt_main
 
 	igt_describe("Test GPU reset using a binary shader to hang the job on gfx ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-hang-test-gfx-with-IP-GFX") {
-		if (arr_cap[AMD_IP_GFX]) {
+		if (arr_cap[AMD_IP_GFX] &&
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
 			igt_dynamic_f("amdgpu-dispatch-hang-test-gfx")
 			amdgpu_dispatch_hang_gfx(device, BACKEND_SE_GC_SHADER_INVALID_SHADER);
 		}
@@ -124,7 +125,8 @@ igt_main
 
 	igt_describe("Test GPU reset using a binary shader to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-hang-test-compute-with-IP-COMPUTE") {
-		if (arr_cap[AMD_IP_COMPUTE]) {
+		if (arr_cap[AMD_IP_COMPUTE] &&
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
 			igt_dynamic_f("amdgpu-dispatch-hang-test-compute")
 			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_SHADER);
 		}
@@ -132,7 +134,8 @@ igt_main
 
 	igt_describe("Test GPU reset using a invalid shader program address to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-invalid-program-addr-test-compute-with-IP-COMPUTE") {
-		if (arr_cap[AMD_IP_COMPUTE]) {
+		if (arr_cap[AMD_IP_COMPUTE] &&
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
 			igt_dynamic_f("amdgpu-dispatch-invalid-program-addr-test-compute")
 			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR);
 		}
@@ -140,7 +143,8 @@ igt_main
 
 	igt_describe("Test GPU reset using a invalid shader program setting to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-invalid-setting-test-compute-with-IP-COMPUTE") {
-		if (arr_cap[AMD_IP_COMPUTE]) {
+		if (arr_cap[AMD_IP_COMPUTE] &&
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
 			igt_dynamic_f("amdgpu-dispatch-invalid-setting-test-compute")
 			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING);
 		}
@@ -148,7 +152,8 @@ igt_main
 
 	igt_describe("Test GPU reset using a invalid shader user data to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-invalid-user-data-test-compute-with-IP-COMPUTE") {
-		if (arr_cap[AMD_IP_COMPUTE]) {
+		if (arr_cap[AMD_IP_COMPUTE] &&
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
 			igt_dynamic_f("amdgpu-dispatch-invalid-user-data-test-compute")
 			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_USER_DATA);
 		}
