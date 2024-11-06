@@ -504,37 +504,6 @@ is_queue_reset_tests_enable(const struct amdgpu_gpu_info *gpu_info, uint32_t ver
 	return enable;
 }
 
-static bool
-is_sub_test_queue_reset_enable(const struct amdgpu_gpu_info *gpu_info,
-		struct asic_id_filter exclude_filter[_MAX_NUM_ASIC_ID_EXCLUDE_FILTER],
-		const struct dynamic_test *it)
-{
-	int i;
-	bool enable = true;
-	int chip_id;
-	char error_str[128];
-	bool is_dispatch;
-
-	for (i = 0; i < _MAX_NUM_ASIC_ID_EXCLUDE_FILTER; i++) {
-		if (gpu_info->family_id == exclude_filter[i].family_id) {
-			chip_id = gpu_info->chip_external_rev - gpu_info->chip_rev;
-			if (chip_id >= exclude_filter[i].chip_id_begin &&
-				chip_id < exclude_filter[i].chip_id_end) {
-				enable = false;
-				is_dispatch_shader_test(it->test, error_str, &is_dispatch);
-				igt_info("PID %d SKIP subtest %s CHIP family (%s) %d chip %d, begin end [%d %d] excluded\n",
-						getpid(), error_str, g_pChip->name,
-						gpu_info->family_id, chip_id,
-						exclude_filter[i].chip_id_begin,
-						exclude_filter[i].chip_id_end);
-				break;
-			}
-		}
-	}
-
-	return enable;
-}
-
 static int
 amdgpu_write_linear(amdgpu_device_handle device, amdgpu_context_handle context_handle,
 		const struct amdgpu_ip_block_version *ip_block,
@@ -1151,6 +1120,7 @@ igt_main
 	int r;
 	char shm_name[256] = {0};
 	bool arr_cap[AMD_IP_MAX] = {0};
+	uint32_t reset;
 	unsigned int ring_id_good;
 	unsigned int ring_id_bad;
 	unsigned int ring_id_job_good;
@@ -1164,10 +1134,10 @@ igt_main
 	struct dynamic_test arr_err[] = {
 			{CMD_STREAM_EXEC_INVALID_PACKET_LENGTH, "CMD_STREAM_EXEC_INVALID_PACKET_LENGTH",
 				"Stressful-and-multiple-cs-of-bad and good length-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0xFF }, {FAMILY_AI, 0x3C, 0xFF } }, {-ECANCELED, -ECANCELED, -ECANCELED }, true},
+				{}, {-ECANCELED, -ECANCELED, -ECANCELED }, true},
 			{CMD_STREAM_EXEC_INVALID_OPCODE, "CMD_STREAM_EXEC_INVALID_OPCODE",
 				"Stressful-and-multiple-cs-of-bad and good opcode-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0xFF }, {FAMILY_AI, 0x3C, 0xFF } }, {-ECANCELED, -ECANCELED, -ECANCELED }, true },
+				{}, {-ECANCELED, -ECANCELED, -ECANCELED }, true },
 			//TODO  not job timeout, debug why for n31.
 			//{CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC,"CMD_STREAM_TRANS_BAD_MEM_ADDRESS_BY_SYNC",
 			//	"Stressful-and-multiple-cs-of-bad and good mem-sync-operations-using-multiple-processes"},
@@ -1176,16 +1146,16 @@ igt_main
 			//	"Stressful-and-multiple-cs-of-bad and good reg-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR, "BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } }, {-ENODATA, -ENODATA, -ENODATA }, false },
+				{}, {-ENODATA, -ENODATA, -ENODATA }, false },
 			//TODO  KGQ cannot recover by queue reset, it maybe need a fw bugfix on naiv31
 			//{BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING,"BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING",
 			//	"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes"},
 			{BACKEND_SE_GC_SHADER_INVALID_USER_DATA, "BACKEND_SE_GC_SHADER_INVALID_USER_DATA",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } }, {-ENODATA, -ENODATA, -ENODATA }, false },
+				{}, {-ENODATA, -ENODATA, -ENODATA }, false },
 			{BACKEND_SE_GC_SHADER_INVALID_SHADER, "BACKEND_SE_GC_SHADER_INVALID_SHADER",
 				"Stressful-and-multiple-cs-of-bad and good shader-operations-using-multiple-processes",
-				{ {FAMILY_UNKNOWN, 0x10, 0x20 }, {FAMILY_AI, 0x32, 0x3C }, {FAMILY_AI, 0x3C, 0xFF } }, {-ENODATA, -ENODATA, -ENODATA }, false },
+				{}, {-ENODATA, -ENODATA, -ENODATA }, false },
 			{}
 	};
 
@@ -1263,7 +1233,10 @@ igt_main
 			igt_describe("Stressful-and-multiple-cs-of-bad-and-good-length-operations-using-multiple-processes");
 			igt_subtest_with_dynamic_f("amdgpu-%s-%s", ip_tests[i] == AMD_IP_COMPUTE ? "COMPUTE":
 					ip_tests[i] == AMD_IP_GFX ? "GFX" : "SDMA", it->name) {
-				if (arr_cap[ip_tests[i]] && is_sub_test_queue_reset_enable(&gpu_info, it->exclude_filter, it) &&
+				reset = (ip_tests[i] != AMD_IP_DMA) && (it->test == CMD_STREAM_EXEC_INVALID_PACKET_LENGTH) ?
+					AMDGPU_RESET_TYPE_PER_QUEUE : AMDGPU_RESET_TYPE_PER_PIPE;
+
+				if (arr_cap[ip_tests[i]] && is_reset_enable(ip_tests[i], reset) &&
 						get_next_rings(&ring_id_good, &ring_id_bad, info[0].available_rings,
 						info[i].available_rings, ip_background != ip_tests[i], &ring_id_job_good, &ring_id_job_bad)) {
 					igt_dynamic_f("amdgpu-%s-ring-good-%d-bad-%d-%s", it->name, ring_id_job_good, ring_id_job_bad,
