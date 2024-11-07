@@ -10,7 +10,6 @@ ignore_headers = [
 	'gpgpu_fill.h',
 	'i830_reg.h',
 	'i915_3d.h',
-	'i915_pciids.h',
 	'i915_reg.h',
 	'igt_edid_template.h',
 	'intel_reg.h',
@@ -21,8 +20,8 @@ ignore_headers = [
 	'media_spin.h',
 	'media_fill_gen9.h',
 	'gen9_render.h',
+	'pciids.h',
 	'version.h',
-	'xe_pciids.h',
 ]
 
 test_groups = [

@@ -21,9 +21,9 @@
 #include "intel_hwconfig_types.h"
 #include "ioctl_wrappers.h"
 #include "linux_scaffold.h"
+#include "pciids.h"
 #include "xe_ioctl.h"
 #include "xe_oa.h"
-#include "xe_pciids.h"
 #include "xe_query.h"
 
 #include "xe_oa_metrics_tglgt1.h"
@@ -119,8 +119,8 @@ static bool
 is_acm_gt1(const struct intel_xe_perf_devinfo *devinfo)
 {
 	static const uint32_t devids[] = {
-		XE_DG2_G11_IDS(DEVID),
-		XE_ATS_M75_IDS(DEVID),
+		INTEL_DG2_G11_IDS(DEVID),
+		INTEL_ATS_M75_IDS(DEVID),
 	};
 	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
 		if (devids[i] == devinfo->devid)
@@ -134,7 +134,7 @@ static bool
 is_acm_gt2(const struct intel_xe_perf_devinfo *devinfo)
 {
 	static const uint32_t devids[] = {
-		XE_DG2_G12_IDS(DEVID),
+		INTEL_DG2_G12_IDS(DEVID),
 	};
 	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
 		if (devids[i] == devinfo->devid)
@@ -148,8 +148,8 @@ static bool
 is_acm_gt3(const struct intel_xe_perf_devinfo *devinfo)
 {
 	static const uint32_t devids[] = {
-		XE_DG2_G10_IDS(DEVID),
-		XE_ATS_M150_IDS(DEVID),
+		INTEL_DG2_G10_IDS(DEVID),
+		INTEL_ATS_M150_IDS(DEVID),
 	};
 	for (uint32_t i = 0; i < ARRAY_SIZE(devids); i++) {
 		if (devids[i] == devinfo->devid)

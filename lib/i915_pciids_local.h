@@ -5,7 +5,7 @@
 #ifndef _I915_PCIIDS_LOCAL_H_
 #define _I915_PCIIDS_LOCAL_H_
 
-#include "i915_pciids.h"
+#include "pciids.h"
 
 /* MTL perf */
 #ifndef INTEL_MTL_M_IDS

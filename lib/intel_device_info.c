@@ -1,7 +1,6 @@
 #include "intel_chipset.h"
-#include "i915_pciids.h"
+#include "pciids.h"
 #include "i915_pciids_local.h"
-#include "xe_pciids.h"
 
 #include <strings.h> /* ffs() */
 
@@ -635,12 +634,13 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_ATS_M_IDS(INTEL_PCI_ID_INIT, &intel_ats_m_info),
 
 	INTEL_MTL_IDS(INTEL_PCI_ID_INIT, &intel_meteorlake_info),
+	INTEL_ARL_IDS(INTEL_PCI_ID_INIT, &intel_meteorlake_info),
 
 	INTEL_PVC_IDS(INTEL_PCI_ID_INIT, &intel_pontevecchio_info),
 
-	XE_LNL_IDS(INTEL_PCI_ID_INIT, &intel_lunarlake_info),
+	INTEL_LNL_IDS(INTEL_PCI_ID_INIT, &intel_lunarlake_info),
 
-	XE_BMG_IDS(INTEL_PCI_ID_INIT, &intel_battlemage_info),
+	INTEL_BMG_IDS(INTEL_PCI_ID_INIT, &intel_battlemage_info),
 
 	INTEL_PCI_ID_INIT(PCI_MATCH_ANY, &intel_generic_info),
 };
