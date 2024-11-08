@@ -45,6 +45,9 @@
  * Description: Check flatccs data are physically tagged and visible i
  *		different contexts
  *
+ * SUBTEST: large-ctrl-surf-copy
+ * Description: Check flatccs data can be copied from large surface
+ *
  * SUBTEST: suspend-resume
  * Description: Check flatccs data persists after suspend / resume (S0)
  * Feature: flat_ccs_mapping, suspend
@@ -76,6 +79,8 @@ struct test_config {
 	bool surfcopy;
 	bool new_ctx;
 	bool suspend_resume;
+	int overwrite_width;
+	int overwrite_height;
 };
 
 #define PRINT_SURFACE_INFO(name, obj) do { \
@@ -520,6 +525,85 @@ static void block_multicopy(int i915,
 	igt_assert_f(!result, "source and destination surfaces differs!\n");
 }
 
+static void block_copy_large(int i915,
+			     intel_ctx_t *ctx,
+			     const struct intel_execution_engine2 *e,
+			     uint32_t region1, uint32_t region2,
+			     uint32_t width, uint32_t height,
+			     enum blt_tiling_type tiling,
+			     const struct test_config *config)
+{
+	struct blt_copy_data blt = {};
+	struct blt_block_copy_data_ext ext = {}, *pext = &ext;
+	struct blt_copy_object *src, *dst;
+	const uint32_t bpp = 32;
+	uint64_t bb_size = SZ_4K;
+	uint64_t ahnd = intel_allocator_open(i915, ctx->vm, INTEL_ALLOCATOR_RELOC);
+	uint64_t size;
+	uint32_t run_id = tiling;
+	uint32_t bb;
+	uint32_t *ptr;
+	uint8_t uc_mocs = intel_get_uc_mocs_index(i915);
+	bool result = true;
+	int i;
+
+	igt_assert(__gem_create_in_memory_regions(i915, &bb, &bb_size, region1) == 0);
+
+	if (!blt_uses_extended_block_copy(i915))
+		pext = NULL;
+
+	blt_copy_init(i915, &blt);
+
+	src = blt_create_object(&blt, region1, width, height, bpp, uc_mocs,
+				T_LINEAR, COMPRESSION_DISABLED,
+				COMPRESSION_TYPE_3D, true);
+	dst = blt_create_object(&blt, region2, width, height, bpp, uc_mocs,
+				tiling, COMPRESSION_ENABLED,
+				COMPRESSION_TYPE_3D, true);
+	PRINT_SURFACE_INFO("src", src);
+	PRINT_SURFACE_INFO("dst", dst);
+
+	blt_surface_fill_rect(i915, src, width, height);
+	WRITE_PNG(i915, run_id, "src", src, width, height, bpp);
+
+	blt.color_depth = CD_32bit;
+	blt.print_bb = param.print_bb;
+	blt_set_copy_object(&blt.src, src);
+	blt_set_copy_object(&blt.dst, dst);
+	blt_set_object_ext(&ext.src, 0, width, height, SURFACE_TYPE_2D);
+	blt_set_object_ext(&ext.dst, param.compression_format,
+			   width, height, SURFACE_TYPE_2D);
+	blt_set_batch(&blt.bb, bb, bb_size, region1);
+	blt_block_copy(i915, ctx, e, ahnd, &blt, pext);
+	gem_sync(i915, blt.dst.handle);
+
+	blt_surface_get_flatccs_data(i915, ctx, e, ahnd, dst, &ptr, &size);
+	for (i = 0; i < size / sizeof(*ptr); i++) {
+		if (ptr[i] == 0) {
+			result = false;
+			break;
+		}
+	}
+
+	if (!result) {
+		for (i = 0; i < size / sizeof(*ptr); i += 8)
+			igt_debug("[%08x]: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+				  i,
+				  ptr[i], ptr[i + 1], ptr[i + 2], ptr[i + 3],
+				  ptr[i + 4], ptr[i + 5], ptr[i + 6], ptr[i + 7]);
+	}
+
+	WRITE_PNG(i915, run_id, "dst", &blt.dst, width, height, bpp);
+
+	/* Politely clean vm */
+	blt_destroy_object(i915, src);
+	blt_destroy_object(i915, dst);
+	gem_close(i915, bb);
+	put_ahnd(ahnd);
+
+	igt_assert_f(result, "ccs data must have no zeros!\n");
+}
+
 enum copy_func {
 	BLOCK_COPY,
 	BLOCK_MULTICOPY,
@@ -588,6 +672,44 @@ static void block_copy_test(int i915,
 				free(regtxt);
 			}
 		}
+	}
+}
+
+static void large_surf_ctrl_copy(int i915, const struct test_config *config,
+				 intel_ctx_t *ctx)
+{
+	uint16_t dev_id = intel_get_drm_devid(i915);
+	const struct intel_execution_engine2 *e;
+	int tiling, width, height;
+	uint32_t region1, region2;
+
+	igt_require(HAS_FLATCCS(dev_id));
+
+	region1 = REGION_SMEM;
+	region2 = gem_has_lmem(i915) ? REGION_LMEM(0) : REGION_SMEM;
+
+	width = config->overwrite_width;
+	height = config->overwrite_height;
+
+	/* Prefer TILE4 if supported */
+	if (blt_block_copy_supports_tiling(i915, T_TILE4)) {
+		tiling = T_TILE4;
+	} else {
+		for_each_tiling(tiling) {
+			if (!blt_block_copy_supports_tiling(i915, tiling))
+				continue;
+			break;
+		}
+	}
+
+	for_each_ctx_engine(i915, ctx, e) {
+		if (!gem_engine_can_block_copy(i915, e))
+			continue;
+
+		block_copy_large(i915, ctx, e, region1, region2, width, height,
+				 tiling, config);
+
+		break;
 	}
 }
 
@@ -708,6 +830,14 @@ igt_main_args("bf:pst:W:H:", NULL, help_str, opt_handler, NULL)
 					      .new_ctx = true };
 
 		block_copy_test(i915, &config, ctx, set, BLOCK_COPY);
+	}
+
+	igt_describe("Check flatccs data can be copied from large surface");
+	igt_subtest("large-ctrl-surf-copy") {
+		struct test_config config = { .overwrite_width = 4096,
+					      .overwrite_height = 4096+64, };
+
+		large_surf_ctrl_copy(i915, &config, (intel_ctx_t *) ctx);
 	}
 
 	igt_describe("Check flatccs data persists after suspend / resume (S0)");
