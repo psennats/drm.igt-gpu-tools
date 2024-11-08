@@ -1115,7 +1115,13 @@ int blt_block_copy(int fd,
 	return ret;
 }
 
-static uint16_t __ccs_size(int fd, const struct blt_ctrl_surf_copy_data *surf)
+/*
+ * Function calculates CCS bytes used for the surface. Size field in
+ * ctrl-surf-copy command struct is for Xe and Xe2 10-bit length, so caller
+ * has to divide ccs copy of bigger surfaces to couple of separate commands.
+ * This function returns total size of ccs data used for the surface.
+ */
+static uint32_t __ccs_size(int fd, const struct blt_ctrl_surf_copy_data *surf)
 {
 	uint32_t src_size, dst_size;
 	uint16_t ccsratio = CCS_RATIO(fd);
@@ -1286,8 +1292,8 @@ uint64_t emit_blt_ctrl_surf_copy(int fd,
 	uint64_t dst_offset, src_offset, bb_offset, alignment;
 	uint32_t bbe = MI_BATCH_BUFFER_END;
 	uint32_t *bb;
-	uint16_t num_ccs_blocks = (ip_ver >= IP_VER(20, 0)) ?
-				(xe_get_default_alignment(fd) / CCS_RATIO(fd)) : CCS_RATIO(fd);
+	uint32_t ccs_per_page, max_blocks, src_step, dst_step;
+	int32_t left_blocks;
 
 	igt_assert_f(ahnd, "ctrl-surf-copy supports softpin only\n");
 	igt_assert_f(surf, "ctrl-surf-copy requires data to do ctrl-surf-copy blit\n");
@@ -1299,68 +1305,113 @@ uint64_t emit_blt_ctrl_surf_copy(int fd,
 					  alignment, surf->dst.pat_index);
 	bb_offset = get_offset(ahnd, surf->bb.handle, surf->bb.size, alignment);
 
+	bb = bo_map(fd, surf->bb.handle, surf->bb.size, surf->driver);
+
+	/*
+	 * Copying in/out CCS data is limited by bitfield size_of_ctrl_copy size
+	 * what means operation on bigger surface needs to be handled on couple
+	 * of ctrl-surf-copy commands.
+	 *
+	 * Instead of hardcoding maximum number of blocks copied in single
+	 * command we may calculate it from bitfield size (Xe and Xe2 differs
+	 * in bitfield location [and in future platforms potentially size]).
+	 */
 	if (ip_ver >= IP_VER(20, 0)) {
+		ccs_per_page = SZ_4K / CCS_RATIO(fd);
+
 		data.xe2.dw00.client = 0x2;
 		data.xe2.dw00.opcode = 0x48;
 		data.xe2.dw00.src_access_type = surf->src.access_type;
 		data.xe2.dw00.dst_access_type = surf->dst.access_type;
-
-		/* Ensure dst has size capable to keep src ccs aux */
-		data.xe2.dw00.size_of_ctrl_copy = __ccs_size(fd, surf) / num_ccs_blocks - 1;
 		data.xe2.dw00.length = 0x3;
 
-		data.xe2.dw01.src_address_lo = src_offset;
-		data.xe2.dw02.src_address_hi = src_offset >> 32;
-		data.xe2.dw02.src_mocs_index = surf->src.mocs_index;
+		data.xe2.dw00.size_of_ctrl_copy = -1;
+		max_blocks = data.xe2.dw00.size_of_ctrl_copy + 1;
 
-		data.xe2.dw03.dst_address_lo = dst_offset;
-		data.xe2.dw04.dst_address_hi = dst_offset >> 32;
+		/*
+		 * For Xe2+ each size_of_ctrl_copy increment covers 4K page size
+		 * of surface, which in turn is covered by 8B of CCS data.
+		 */
+		src_step = surf->src.access_type == DIRECT_ACCESS ? ccs_per_page : SZ_4K;
+		src_step *= max_blocks;
+		dst_step = surf->dst.access_type == DIRECT_ACCESS ? ccs_per_page : SZ_4K;
+		dst_step *= max_blocks;
+
+		data.xe2.dw02.src_mocs_index = surf->src.mocs_index;
 		data.xe2.dw04.dst_mocs_index = surf->dst.mocs_index;
 
 		data_sz = sizeof(data.xe2);
 	} else {
+		ccs_per_page = SZ_64K / CCS_RATIO(fd);
+
 		data.gen12.dw00.client = 0x2;
 		data.gen12.dw00.opcode = 0x48;
 		data.gen12.dw00.src_access_type = surf->src.access_type;
 		data.gen12.dw00.dst_access_type = surf->dst.access_type;
-
-		/* Ensure dst has size capable to keep src ccs aux */
-		data.gen12.dw00.size_of_ctrl_copy = __ccs_size(fd, surf) / num_ccs_blocks - 1;
 		data.gen12.dw00.length = 0x3;
 
-		data.gen12.dw01.src_address_lo = src_offset;
-		data.gen12.dw02.src_address_hi = src_offset >> 32;
-		data.gen12.dw02.src_mocs_index = surf->src.mocs_index;
+		data.gen12.dw00.size_of_ctrl_copy = -1;
+		max_blocks = data.gen12.dw00.size_of_ctrl_copy + 1;
 
-		data.gen12.dw03.dst_address_lo = dst_offset;
-		data.gen12.dw04.dst_address_hi = dst_offset >> 32;
+		/*
+		 * For Xe each size_of_ctrl_copy increment covers 64K page size
+		 * of surface, which in turn is covered by 256B of CCS data.
+		 */
+		src_step = surf->src.access_type == DIRECT_ACCESS ? ccs_per_page : SZ_64K;
+		src_step *= max_blocks;
+		dst_step = surf->dst.access_type == DIRECT_ACCESS ? ccs_per_page : SZ_64K;
+		dst_step *= max_blocks;
+
+		data.gen12.dw02.src_mocs_index = surf->src.mocs_index;
 		data.gen12.dw04.dst_mocs_index = surf->dst.mocs_index;
 
 		data_sz = sizeof(data.gen12);
 	}
 
-	bb = bo_map(fd, surf->bb.handle, surf->bb.size, surf->driver);
+	left_blocks = __ccs_size(fd, surf) / ccs_per_page;
 
-	igt_assert(bb_pos + data_sz < surf->bb.size);
-	memcpy(bb + bb_pos, &data, data_sz);
-	bb_pos += data_sz;
+	while (left_blocks > 0) {
+		int32_t nblocks = min_t(int32_t, left_blocks, max_blocks);
+
+		if (ip_ver >= IP_VER(20, 0)) {
+			data.xe2.dw00.size_of_ctrl_copy = nblocks - 1;
+			data.xe2.dw01.src_address_lo = src_offset;
+			data.xe2.dw02.src_address_hi = src_offset >> 32;
+			data.xe2.dw03.dst_address_lo = dst_offset;
+			data.xe2.dw04.dst_address_hi = dst_offset >> 32;
+		} else {
+			data.gen12.dw00.size_of_ctrl_copy = nblocks - 1;
+			data.gen12.dw01.src_address_lo = src_offset;
+			data.gen12.dw02.src_address_hi = src_offset >> 32;
+			data.gen12.dw03.dst_address_lo = dst_offset;
+			data.gen12.dw04.dst_address_hi = dst_offset >> 32;
+		}
+
+		left_blocks -= max_blocks;
+		dst_offset += dst_step;
+		src_offset += src_step;
+
+		igt_assert(bb_pos + data_sz < surf->bb.size);
+		memcpy(bb + bb_pos, &data, data_sz);
+		bb_pos += data_sz;
+
+		if (surf->print_bb) {
+			igt_info("[CTRL SURF]:\n");
+			igt_info("src offset: 0x%" PRIx64 ", dst offset: 0x%" PRIx64
+				 ", bb offset: 0x%" PRIx64 ", copy nblocks: 0x%x\n",
+				 src_offset, dst_offset, bb_offset, nblocks);
+
+			if (ip_ver >= IP_VER(20, 0))
+				xe2_dump_bb_surf_ctrl_cmd(&data.xe2);
+			else
+				dump_bb_surf_ctrl_cmd(&data.gen12);
+		}
+	}
 
 	if (emit_bbe) {
 		igt_assert(bb_pos + sizeof(uint32_t) < surf->bb.size);
 		memcpy(bb + bb_pos, &bbe, sizeof(bbe));
 		bb_pos += sizeof(uint32_t);
-	}
-
-	if (surf->print_bb) {
-		igt_info("[CTRL SURF]:\n");
-		igt_info("src offset: %" PRIx64 ", dst offset: %" PRIx64
-			 ", bb offset: %" PRIx64 "\n",
-			 src_offset, dst_offset, bb_offset);
-
-		if (ip_ver >= IP_VER(20, 0))
-			xe2_dump_bb_surf_ctrl_cmd(&data.xe2);
-		else
-			dump_bb_surf_ctrl_cmd(&data.gen12);
 	}
 
 	munmap(bb, surf->bb.size);
