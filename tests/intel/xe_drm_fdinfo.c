@@ -82,7 +82,7 @@ struct pceu_cycles {
 	uint64_t total_cycles;
 };
 
-const unsigned long batch_duration_usec = (1 * USEC_PER_SEC) / 4;
+const unsigned long batch_duration_usec = (1 * USEC_PER_SEC);
 
 static const char *engine_map[] = {
 	"rcs",
