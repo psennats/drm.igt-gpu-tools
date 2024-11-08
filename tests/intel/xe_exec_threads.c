@@ -404,15 +404,31 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		}
 	}
 
-	j = flags & INVALIDATE ?
-		(flags & RACE ? n_execs / 2 + 1 : n_execs - 1) : 0;
+	j = 0; /* wait for all submissions to complete */
+	if (flags & INVALIDATE)
+		/*
+		 * For !RACE cases xe_wait_ufence has been called in above for-loop
+		 * except the last batch of submissions. For RACE cases we will need
+		 * to wait for the second half of the submissions to complete. There
+		 * is a potential race here because the first half submissions might
+		 * have updated the fence in the old physical location while the test
+		 * is remapping the buffer from a different physical location, but the
+		 * wait_ufence only checks the fence from the new location which would
+		 * never be updated. We have to assume the first half of the submissions
+		 * complete before the second half. Will have a follow up patch to fix
+		 * this completely.
+		 */
+		j = (flags & RACE) ? (n_execs / 2 + 1) : (((n_execs - 1) & ~0x1f) + 1);
+	else if (flags & REBIND)
+		/*
+		 * For REBIND cases xe_wait_ufence has been called in above for-loop
+		 * except the last batch of submissions.
+		 */
+		j = ((n_execs - 1) & ~0x1f) + 1;
+
 	for (i = j; i < n_execs; i++)
 		xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
 			       exec_queues[i % n_exec_queues], fence_timeout);
-
-	/* Wait for all execs to complete */
-	if (flags & INVALIDATE)
-		sleep(1);
 
 	sync[0].addr = to_user_pointer(&data[0].vm_sync);
 	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
