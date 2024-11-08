@@ -340,7 +340,7 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		xe_exec(fd, &exec);
 
 		if (flags & REBIND && i && !(i & 0x1f)) {
-			for (j = i - 0x20; j <= i; ++j)
+			for (j = i == 0x20 ? 0 : i - 0x1f; j <= i; ++j)
 				xe_wait_ufence(fd, &data[j].exec_sync,
 					       USER_FENCE_VALUE,
 					       exec_queues[e], fence_timeout);
