@@ -241,6 +241,7 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		  struct drm_xe_engine_class_instance *eci,
 		  int n_exec_queues, int n_execs, unsigned int flags)
 {
+	uint64_t sync_addr = addr + 0x10000000;
 #define USER_FENCE_VALUE	0xdeadbeefdeadbeefull
 	struct drm_xe_sync sync[1] = {
 		{ .type = DRM_XE_SYNC_TYPE_USER_FENCE, .flags = DRM_XE_SYNC_FLAG_SIGNAL,
@@ -253,15 +254,15 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 	};
 	int64_t fence_timeout;
 	uint32_t exec_queues[MAX_N_EXEC_QUEUES];
-	size_t bo_size;
+	size_t bo_size, sync_size;
 	uint32_t bo = 0;
 	struct {
 		uint32_t batch[16];
 		uint64_t pad;
 		uint64_t vm_sync;
-		uint64_t exec_sync;
 		uint32_t data;
 	} *data;
+	uint64_t *exec_sync;
 	int i, j, b;
 	int map_fd = -1;
 	bool owns_vm = false, owns_fd = false;
@@ -280,6 +281,8 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 
 	bo_size = sizeof(*data) * n_execs;
 	bo_size = xe_bb_size(fd, bo_size);
+	sync_size = sizeof(*exec_sync) * n_execs;
+	sync_size = xe_bb_size(fd, sync_size);
 
 	if (flags & USERPTR) {
 		if (flags & INVALIDATE) {
@@ -301,6 +304,12 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 	}
 	memset(data, 0, bo_size);
 
+	exec_sync = mmap(from_user_pointer(userptr + 0x10000000),
+			 sync_size, PROT_READ | PROT_WRITE,
+			 MAP_SHARED | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
+	igt_assert(exec_sync != MAP_FAILED);
+	memset(exec_sync, 0, sync_size);
+
 	for (i = 0; i < n_exec_queues; i++)
 		exec_queues[i] = xe_exec_queue_create(fd, vm, eci, 0);
 
@@ -312,9 +321,12 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 	else
 		xe_vm_bind_userptr_async(fd, vm, 0, to_user_pointer(data), addr,
 					 bo_size, sync, 1);
-
 	fence_timeout = (igt_run_in_simulation() ? 30 : 3) * NSEC_PER_SEC;
+	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, fence_timeout);
+	data[0].vm_sync = 0;
 
+	xe_vm_bind_userptr_async(fd, vm, 0, to_user_pointer(exec_sync),
+				 sync_addr, sync_size, sync, 1);
 	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, fence_timeout);
 	data[0].vm_sync = 0;
 
@@ -333,7 +345,7 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		data[i].batch[b++] = MI_BATCH_BUFFER_END;
 		igt_assert(b <= ARRAY_SIZE(data[i].batch));
 
-		sync[0].addr = addr + (char *)&data[i].exec_sync - (char *)data;
+		sync[0].addr = sync_addr + (char *)&exec_sync[i] - (char *)exec_sync;
 
 		exec.exec_queue_id = exec_queues[e];
 		exec.address = batch_addr;
@@ -341,7 +353,7 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 
 		if (flags & REBIND && i && !(i & 0x1f)) {
 			for (j = i == 0x20 ? 0 : i - 0x1f; j <= i; ++j)
-				xe_wait_ufence(fd, &data[j].exec_sync,
+				xe_wait_ufence(fd, &exec_sync[j],
 					       USER_FENCE_VALUE,
 					       exec_queues[e], fence_timeout);
 			xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size,
@@ -371,7 +383,7 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 				 * an invalidate.
 				 */
 				for (j = i == 0x20 ? 0 : i - 0x1f; j <= i; ++j)
-					xe_wait_ufence(fd, &data[j].exec_sync,
+					xe_wait_ufence(fd, &exec_sync[j],
 						       USER_FENCE_VALUE,
 						       exec_queues[e],
 						       fence_timeout);
@@ -409,16 +421,9 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		/*
 		 * For !RACE cases xe_wait_ufence has been called in above for-loop
 		 * except the last batch of submissions. For RACE cases we will need
-		 * to wait for the second half of the submissions to complete. There
-		 * is a potential race here because the first half submissions might
-		 * have updated the fence in the old physical location while the test
-		 * is remapping the buffer from a different physical location, but the
-		 * wait_ufence only checks the fence from the new location which would
-		 * never be updated. We have to assume the first half of the submissions
-		 * complete before the second half. Will have a follow up patch to fix
-		 * this completely.
+		 * to wait for all submissions to complete.
 		 */
-		j = (flags & RACE) ? (n_execs / 2 + 1) : (((n_execs - 1) & ~0x1f) + 1);
+		j = (flags & RACE) ? 0 : (((n_execs - 1) & ~0x1f) + 1);
 	else if (flags & REBIND)
 		/*
 		 * For REBIND cases xe_wait_ufence has been called in above for-loop
@@ -427,19 +432,31 @@ test_compute_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		j = ((n_execs - 1) & ~0x1f) + 1;
 
 	for (i = j; i < n_execs; i++)
-		xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
+		xe_wait_ufence(fd, &exec_sync[i], USER_FENCE_VALUE,
 			       exec_queues[i % n_exec_queues], fence_timeout);
 
-	sync[0].addr = to_user_pointer(&data[0].vm_sync);
-	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
-	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, fence_timeout);
-
+	/*
+	 * For INVALIDATE && RACE cases, due the the remmap in the
+	 * middle of the execution, we lose access to some of the
+	 * 0xc0ffee written to the old location, so check only for
+	 * the second half of the submissions.
+	 */
+	if (flags & INVALIDATE && flags & RACE)
+		j = n_execs / 2 + 1;
 	for (i = j; i < n_execs; i++)
 		igt_assert_eq(data[i].data, 0xc0ffee);
+
+	sync[0].addr = to_user_pointer(&data[0].vm_sync);
+	xe_vm_unbind_async(fd, vm, 0, 0, sync_addr, sync_size, sync, 1);
+	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, fence_timeout);
+	data[0].vm_sync = 0;
+	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
+	xe_wait_ufence(fd, &data[0].vm_sync, USER_FENCE_VALUE, 0, fence_timeout);
 
 	for (i = 0; i < n_exec_queues; i++)
 		xe_exec_queue_destroy(fd, exec_queues[i]);
 
+	munmap(exec_sync, sync_size);
 	if (bo) {
 		munmap(data, bo_size);
 		gem_close(fd, bo);
