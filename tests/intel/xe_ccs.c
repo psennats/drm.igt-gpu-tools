@@ -51,6 +51,9 @@
  * SUBTEST: ctrl-surf-copy-new-ctx
  * Description: Check flatccs data are physically tagged and visible in vm
  *
+ * SUBTEST: large-ctrl-surf-copy
+ * Description: Check flatccs data can be copied from large surface
+ *
  * SUBTEST: suspend-resume
  * Description: Check flatccs data persists after suspend / resume (S0)
  */
@@ -85,6 +88,8 @@ struct test_config {
 	bool suspend_resume;
 	int width_increment;
 	int width_steps;
+	int overwrite_width;
+	int overwrite_height;
 };
 
 #define PRINT_SURFACE_INFO(name, obj) do { \
@@ -563,9 +568,92 @@ static void block_multicopy(int xe,
 	igt_assert_f(!result, "source and destination surfaces differs!\n");
 }
 
+static void block_copy_large(int xe,
+			     intel_ctx_t *ctx,
+			     uint32_t region1, uint32_t region2,
+			     uint32_t width, uint32_t height,
+			     enum blt_tiling_type tiling,
+			     const struct test_config *config)
+{
+	struct blt_copy_data blt = {};
+	struct blt_block_copy_data_ext ext = {}, *pext = &ext;
+	struct blt_copy_object *src, *dst;
+	const uint32_t bpp = 32;
+	uint64_t bb_size = xe_bb_size(xe, SZ_4K);
+	uint64_t ahnd = intel_allocator_open(xe, ctx->vm, INTEL_ALLOCATOR_RELOC);
+	uint64_t size;
+	uint32_t run_id = tiling;
+	uint32_t bb;
+	uint32_t *ptr;
+	uint8_t uc_mocs = intel_get_uc_mocs_index(xe);
+	bool result = true;
+	int i;
+
+	bb = xe_bo_create(xe, 0, bb_size, region1, 0);
+
+	if (!blt_uses_extended_block_copy(xe))
+		pext = NULL;
+
+	blt_copy_init(xe, &blt);
+
+	src = blt_create_object(&blt, region1, width, height, bpp, uc_mocs,
+				T_LINEAR, COMPRESSION_DISABLED,
+				COMPRESSION_TYPE_3D, true);
+	dst = blt_create_object(&blt, region2, width, height, bpp, uc_mocs,
+				tiling, COMPRESSION_ENABLED,
+				COMPRESSION_TYPE_3D, true);
+	PRINT_SURFACE_INFO("src", src);
+	PRINT_SURFACE_INFO("dst", dst);
+
+	blt_surface_fill_rect(xe, src, width, height);
+	WRITE_PNG(xe, run_id, "src", src, width, height, bpp);
+
+	blt.color_depth = CD_32bit;
+	blt.print_bb = param.print_bb;
+	blt_set_copy_object(&blt.src, src);
+	blt_set_copy_object(&blt.dst, dst);
+	blt_set_object_ext(&ext.src, 0, width, height, SURFACE_TYPE_2D);
+	blt_set_object_ext(&ext.dst, param.compression_format,
+			   width, height, SURFACE_TYPE_2D);
+	blt_set_batch(&blt.bb, bb, bb_size, region1);
+	blt_block_copy(xe, ctx, NULL, ahnd, &blt, pext);
+	intel_ctx_xe_sync(ctx, true);
+
+	blt_surface_get_flatccs_data(xe, ctx, NULL, ahnd, dst, &ptr, &size);
+	for (i = 0; i < size / sizeof(*ptr); i++) {
+		if (ptr[i] == 0) {
+			result = false;
+			break;
+		}
+	}
+
+	if (!result) {
+		for (i = 0; i < size / sizeof(*ptr); i += 8)
+			igt_debug("[%08x]: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+				  i,
+				  ptr[i], ptr[i + 1], ptr[i + 2], ptr[i + 3],
+				  ptr[i + 4], ptr[i + 5], ptr[i + 6], ptr[i + 7]);
+	}
+
+	WRITE_PNG(xe, run_id, "dst", &blt.dst, width, height, bpp);
+
+	/* Politely clean vm */
+	put_offset(ahnd, src->handle);
+	put_offset(ahnd, dst->handle);
+	put_offset(ahnd, bb);
+	intel_allocator_bind(ahnd, 0, 0);
+	blt_destroy_object(xe, src);
+	blt_destroy_object(xe, dst);
+	gem_close(xe, bb);
+	put_ahnd(ahnd);
+
+	igt_assert_f(result, "ccs data must have no zeros!\n");
+}
+
 enum copy_func {
 	BLOCK_COPY,
 	BLOCK_MULTICOPY,
+	LARGE_SURFCOPY,
 };
 
 static const struct {
@@ -579,6 +667,7 @@ static const struct {
 } copyfns[] = {
 	[BLOCK_COPY] = { "", block_copy },
 	[BLOCK_MULTICOPY] = { "-multicopy", block_multicopy },
+	[LARGE_SURFCOPY] = { "", block_copy_large },
 };
 
 static void single_copy(int xe, const struct test_config *config,
@@ -619,7 +708,8 @@ static void block_copy_test(int xe,
 {
 	uint16_t dev_id = intel_get_drm_devid(xe);
 	struct igt_collection *regions;
-	int tiling;
+	int tiling, width, height;
+
 
 	if (intel_gen(dev_id) >= 20 && config->compression)
 		igt_require(HAS_FLATCCS(dev_id));
@@ -629,6 +719,9 @@ static void block_copy_test(int xe,
 
 	if (config->inplace && !config->compression)
 		return;
+
+	width = config->overwrite_width ?: param.width;
+	height = config->overwrite_height ?: param.height;
 
 	for_each_tiling(tiling) {
 		if (!blt_block_copy_supports_tiling(xe, tiling) ||
@@ -660,7 +753,7 @@ static void block_copy_test(int xe,
 			if (!config->width_increment) {
 				igt_dynamic(testname)
 					single_copy(xe, config, region1, region2,
-						    param.width, param.height,
+						    width, height,
 						    tiling, copy_function);
 			} else {
 				for (int w = param.incdim_width;
@@ -684,6 +777,35 @@ static void block_copy_test(int xe,
 			free(regtxt);
 		}
 	}
+}
+
+static void large_surf_ctrl_copy(int xe, const struct test_config *config)
+{
+	uint16_t dev_id = intel_get_drm_devid(xe);
+	int tiling, width, height;
+	uint32_t region1, region2;
+
+	igt_require(HAS_FLATCCS(dev_id));
+
+	region1 = system_memory(xe);
+	region2 = vram_if_possible(xe, 0);
+
+	width = config->overwrite_width;
+	height = config->overwrite_height;
+
+	/* Prefer TILE4 if supported */
+	if (blt_block_copy_supports_tiling(xe, T_TILE4)) {
+		tiling = T_TILE4;
+	} else {
+		for_each_tiling(tiling) {
+			if (!blt_block_copy_supports_tiling(xe, tiling))
+				continue;
+			break;
+		}
+	}
+
+	single_copy(xe, config, region1, region2, width, height, tiling,
+		    LARGE_SURFCOPY);
 }
 
 static int opt_handler(int opt, int opt_index, void *data)
@@ -813,6 +935,25 @@ igt_main_args("bf:pst:W:H:", NULL, help_str, opt_handler, NULL)
 					      .new_ctx = true };
 
 		block_copy_test(xe, &config, set, BLOCK_COPY);
+	}
+
+	/*
+	 * Why 4096x4160 is chosen as WxH?
+	 *
+	 * On Xe ctrl-surf-copy size single increment does 256B ccs copy which
+	 * covers 64KiB surface. Size field is 10-bit so to exceed 64K * 1024
+	 * surface which is bigger than 4K x 4K x 32bpp (>64MiB) must be used.
+	 *
+	 * On Xe2+ ctrl-surf-copy has finer granularity - single size increment
+	 * copies 8B ccs which in turn covers 4KiB surface. So 64MiB+ surface
+	 * will require > 16 separate ctrl-surf-copy commands.
+	 */
+	igt_describe("Check flatccs data can be copied from large surface");
+	igt_subtest("large-ctrl-surf-copy") {
+		struct test_config config = { .overwrite_width = 4096,
+					      .overwrite_height = 4096+64, };
+
+		large_surf_ctrl_copy(xe, &config);
 	}
 
 	igt_describe("Check flatccs data persists after suspend / resume (S0)");
