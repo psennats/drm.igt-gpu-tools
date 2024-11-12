@@ -11,8 +11,6 @@
  * Test category: fault injection
  */
 
-#include <regex.h>
-
 #include "igt.h"
 #include "igt_device.h"
 #include "igt_kmod.h"
@@ -22,7 +20,6 @@
 #define PATH_FUNCTIONS_INJECTABLE	"/sys/kernel/debug/fail_function/injectable"
 #define PATH_FUNCTIONS_INJECT		"/sys/kernel/debug/fail_function/inject"
 #define PATH_FUNCTIONS_RETVAL		"/sys/kernel/debug/fail_function/%s/retval"
-#define REGEX_XE_FUNCTIONS		"^(.+)\\[xe\\]"
 #define INJECT_ERRNO			-ENOMEM
 
 enum injection_list_action {
@@ -45,7 +42,7 @@ static bool function_error_injection_enabled(void)
 	return false;
 }
 
-static void injection_list_do(enum injection_list_action action, char function_name[])
+static void injection_list_do(enum injection_list_action action, const char function_name[])
 {
 	FILE *file_inject;
 
@@ -114,7 +111,7 @@ static void cleanup_injection_fault(void)
 	fclose(file);
 }
 
-static void set_retval(char function_name[], long long retval)
+static void set_retval(const char function_name[], long long retval)
 {
 	FILE *file_retval;
 	char file_path[MAX_LINE_SIZE];
@@ -129,12 +126,27 @@ static void set_retval(char function_name[], long long retval)
 }
 
 /**
- * SUBTEST: inject-fault-probe
- * Description: inject an error in the injectable function then reprobe driver
+ * SUBTEST: inject-fault-probe-function-%s
+ * Description: inject an error in the injectable function %arg[1] then reprobe driver
  * Functionality: fault
+ *
+ * arg[1]:
+ * @wait_for_lmem_ready:	wait_for_lmem_ready
+ * @xe_device_create:		xe_device_create
+ * @xe_ggtt_init_early:		xe_ggtt_init_early
+ * @xe_guc_ads_init:		xe_guc_ads_init
+ * @xe_guc_ct_init:		xe_guc_ct_init
+ * @xe_guc_log_init:		xe_guc_log_init
+ * @xe_guc_relay_init:		xe_guc_relay_init
+ * @xe_pm_init_early:		xe_pm_init_early
+ * @xe_sriov_init:		xe_sriov_init
+ * @xe_tile_init_early:		xe_tile_init_early
+ * @xe_uc_fw_init:		xe_uc_fw_init
+ * @xe_wa_init:			xe_wa_init
+ * @xe_wopcm_init:		xe_wopcm_init
  */
 static void
-inject_fault_try_bind(int fd, char pci_slot[], char function_name[])
+inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 {
 	igt_info("Injecting error \"%s\" (%d) in function \"%s\"\n",
 		 strerror(-INJECT_ERRNO), INJECT_ERRNO, function_name);
@@ -149,41 +161,39 @@ inject_fault_try_bind(int fd, char pci_slot[], char function_name[])
 igt_main
 {
 	int fd;
-	FILE *file_injectable;
-	char line[MAX_LINE_SIZE];
-	char function_name[64];
 	char pci_slot[MAX_LINE_SIZE];
-	regex_t regex;
-	regmatch_t pmatch[2];
+	const struct section {
+		const char *name;
+	} probe_function_sections[] = {
+		{ "wait_for_lmem_ready" },
+		{ "xe_device_create" },
+		{ "xe_ggtt_init_early" },
+		{ "xe_guc_ads_init" },
+		{ "xe_guc_ct_init" },
+		{ "xe_guc_log_init" },
+		{ "xe_guc_relay_init" },
+		{ "xe_pm_init_early" },
+		{ "xe_sriov_init" },
+		{ "xe_tile_init_early" },
+		{ "xe_uc_fw_init" },
+		{ "xe_wa_init" },
+		{ "xe_wopcm_init" },
+		{ }
+	};
 
 	igt_fixture {
 		igt_require(function_error_injection_enabled());
 		fd = drm_open_driver(DRIVER_XE);
 		igt_device_get_pci_slot_name(fd, pci_slot);
 		setup_injection_fault();
-		file_injectable = fopen(PATH_FUNCTIONS_INJECTABLE, "r");
-		igt_assert(file_injectable);
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_UNBIND);
-		igt_assert_eq(regcomp(&regex, REGEX_XE_FUNCTIONS, REG_EXTENDED), 0);
 	}
 
-	/*
-	 * Iterate over each error injectable function of the xe module
-	 */
-	igt_subtest_with_dynamic("inject-fault-probe") {
-		while ((fgets(line, MAX_LINE_SIZE, file_injectable)) != NULL) {
-			if (regexec(&regex, line, 2, pmatch, 0) == 0) {
-				strcpy(function_name, line);
-				function_name[pmatch[1].rm_eo - 1] = '\0';
-				igt_dynamic_f("function-%s", function_name)
-					inject_fault_try_bind(fd, pci_slot, function_name);
-			}
-		}
-	}
+	for (const struct section *s = probe_function_sections; s->name; s++)
+		igt_subtest_f("inject-fault-probe-function-%s", s->name)
+			inject_fault_probe(fd, pci_slot, s->name);
 
 	igt_fixture {
-		regfree(&regex);
-		fclose(file_injectable);
 		cleanup_injection_fault();
 		drm_close_driver(fd);
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_BIND);
