@@ -125,6 +125,11 @@ uint32_t igt_sysfs_get_u32(int dir, const char *attr);
 bool __igt_sysfs_set_u32(int dir, const char *attr, uint32_t value);
 void igt_sysfs_set_u32(int dir, const char *attr, uint32_t value);
 
+bool __igt_sysfs_get_s32(int dir, const char *attr, int32_t *value);
+int32_t igt_sysfs_get_s32(int dir, const char *attr);
+bool __igt_sysfs_set_s32(int dir, const char *attr, int32_t value);
+void igt_sysfs_set_s32(int dir, const char *attr, int32_t value);
+
 bool __igt_sysfs_get_u64(int dir, const char *attr, uint64_t *value);
 uint64_t igt_sysfs_get_u64(int dir, const char *attr);
 bool __igt_sysfs_set_u64(int dir, const char *attr, uint64_t value);

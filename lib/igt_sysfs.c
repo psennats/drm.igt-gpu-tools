@@ -874,6 +874,77 @@ void igt_sysfs_set_u32(int dir, const char *attr, uint32_t value)
 }
 
 /**
+ * __igt_sysfs_get_s32:
+ * @dir: directory corresponding to attribute
+ * @attr: name of the sysfs node to read
+ * @value: pointer for storing read value
+ *
+ * Convenience wrapper to read a signed 32bit integer from a sysfs file.
+ *
+ * Returns:
+ * True if value successfully read, false otherwise.
+ */
+bool __igt_sysfs_get_s32(int dir, const char *attr, int32_t *value)
+{
+	if (igt_debug_on(igt_sysfs_scanf(dir, attr, "%d", value) != 1))
+		return false;
+
+	return true;
+}
+
+/**
+ * igt_sysfs_get_s32:
+ * @dir: directory corresponding to attribute
+ * @attr: name of the sysfs node to read
+ *
+ * Convenience wrapper to read a signed 32bit integer from a sysfs file.
+ * It asserts on failure.
+ *
+ * Returns:
+ * Read value.
+ */
+int32_t igt_sysfs_get_s32(int dir, const char *attr)
+{
+	int32_t value;
+
+	igt_assert_f(__igt_sysfs_get_s32(dir, attr, &value),
+		     "Failed to read %s attribute (%s)\n", attr, strerror(errno));
+
+	return value;
+}
+
+/**
+ * __igt_sysfs_set_s32:
+ * @dir: directory corresponding to attribute
+ * @attr: name of the sysfs node to write
+ * @value: value to set
+ *
+ * Convenience wrapper to write a signed 32bit integer to a sysfs file.
+ *
+ * Returns:
+ * True if successfully written, false otherwise.
+ */
+bool __igt_sysfs_set_s32(int dir, const char *attr, int32_t value)
+{
+	return igt_sysfs_printf(dir, attr, "%d", value) > 0;
+}
+
+/**
+ * igt_sysfs_set_s32:
+ * @dir: directory corresponding to attribute
+ * @attr: name of the sysfs node to write
+ * @value: value to set
+ *
+ * Convenience wrapper to write a signed 32bit integer to a sysfs file.
+ * It asserts on failure.
+ */
+void igt_sysfs_set_s32(int dir, const char *attr, int32_t value)
+{
+	igt_assert_f(__igt_sysfs_set_s32(dir, attr, value),
+		     "Failed to write %d to %s attribute (%s)\n", value, attr, strerror(errno));
+}
+
+/**
  * __igt_sysfs_get_u64:
  * @dir: directory corresponding to attribute
  * @attr: name of the sysfs node to read
