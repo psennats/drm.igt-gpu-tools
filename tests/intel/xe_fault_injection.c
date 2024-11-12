@@ -17,10 +17,13 @@
 #include "igt_device.h"
 #include "igt_kmod.h"
 #include "igt_sysfs.h"
+#include "lib/igt_syncobj.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 
-#define INJECT_ERRNO			-ENOMEM
+#define INJECT_ERRNO	-ENOMEM
+#define BO_ADDR		0x1a0000
+#define BO_SIZE		(1024*1024)
 
 enum injection_list_action {
 	INJECTION_LIST_ADD,
@@ -189,6 +192,65 @@ vm_create_fail(int fd, const char function_name[], unsigned int flags)
 	igt_assert_eq(simple_vm_create(fd, flags), 0);
 }
 
+static int
+simple_vm_bind(int fd, uint32_t vm)
+{
+	struct {
+		uint32_t batch[16];
+		uint64_t pad;
+		uint32_t data;
+	} *data;
+	struct drm_xe_sync syncobj = {
+		.type = DRM_XE_SYNC_TYPE_SYNCOBJ,
+		.flags = DRM_XE_SYNC_FLAG_SIGNAL,
+		.handle = syncobj_create(fd, 0),
+	};
+	struct drm_xe_vm_bind bind = {
+		.vm_id = vm,
+		.num_binds = 1,
+		.bind.obj = 0,
+		.bind.range = BO_SIZE,
+		.bind.addr = BO_ADDR,
+		.bind.op = DRM_XE_VM_BIND_OP_MAP_USERPTR,
+		.bind.flags = 0,
+		.num_syncs = 1,
+		.syncs = (uintptr_t)&syncobj,
+		.exec_queue_id = 0,
+	};
+
+	data = aligned_alloc(xe_get_default_alignment(fd), BO_SIZE);
+	bind.bind.obj_offset = to_user_pointer(data);
+
+	return igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
+}
+
+/**
+ * SUBTEST: vm-bind-fail-%s
+ * Description: inject an error in function %arg[1] used in vm bind IOCTL to make it fail
+ * Functionality: fault
+ *
+ * arg[1]:
+ * @vm_bind_ioctl_ops_create:		vm_bind_ioctl_ops_create
+ * @vm_bind_ioctl_ops_execute:		vm_bind_ioctl_ops_execute
+ * @xe_pt_update_ops_prepare:		xe_pt_update_ops_prepare
+ * @xe_pt_update_ops_run:		xe_pt_update_ops_run
+ * @xe_vma_ops_alloc:			xe_vma_ops_alloc
+ */
+static void
+vm_bind_fail(int fd, const char function_name[])
+{
+	uint32_t vm = xe_vm_create(fd, 0, 0);
+
+	igt_assert_eq(simple_vm_bind(fd, vm), 0);
+
+	injection_list_do(INJECTION_LIST_ADD, function_name);
+	set_retval(function_name, INJECT_ERRNO);
+	igt_assert(simple_vm_bind(fd, vm) != 0);
+	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+
+	igt_assert_eq(simple_vm_bind(fd, vm), 0);
+}
+
 igt_main
 {
 	int fd;
@@ -218,6 +280,14 @@ igt_main
 		{ "xe_vm_create_scratch", DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE },
 		{ }
 	};
+	const struct section vm_bind_fail_functions[] = {
+		{ "vm_bind_ioctl_ops_create" },
+		{ "vm_bind_ioctl_ops_execute" },
+		{ "xe_pt_update_ops_prepare" },
+		{ "xe_pt_update_ops_run" },
+		{ "xe_vma_ops_alloc" },
+		{ }
+	};
 
 	igt_fixture {
 		igt_require(fail_function_injection_enabled());
@@ -229,6 +299,10 @@ igt_main
 	for (const struct section *s = vm_create_fail_functions; s->name; s++)
 		igt_subtest_f("vm-create-fail-%s", s->name)
 			vm_create_fail(fd, s->name, s->flags);
+
+	for (const struct section *s = vm_bind_fail_functions; s->name; s++)
+		igt_subtest_f("vm-bind-fail-%s", s->name)
+			vm_bind_fail(fd, s->name);
 
 	igt_fixture {
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_UNBIND);
