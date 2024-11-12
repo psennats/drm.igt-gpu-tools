@@ -760,10 +760,6 @@ static void test_setup(data_t *data, enum pipe p)
 					  data->primary->pipe->pipe,
 					  IGT_PIPE_CRC_SOURCE_AUTO);
 
-	igt_display_require_output_on_pipe(&data->display, p);
-	data->output = igt_get_single_output_for_pipe(&data->display, p);
-	igt_require(data->output);
-
 	igt_display_reset(&data->display);
 }
 
