@@ -17,6 +17,8 @@
 #include "igt_device.h"
 #include "igt_kmod.h"
 #include "igt_sysfs.h"
+#include "xe/xe_ioctl.h"
+#include "xe/xe_query.h"
 
 #define INJECT_ERRNO			-ENOMEM
 
@@ -154,13 +156,47 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 	injection_list_do(INJECTION_LIST_REMOVE, function_name);
 }
 
+static int
+simple_vm_create(int fd, unsigned int flags)
+{
+	struct drm_xe_vm_create create = {
+		.flags = flags,
+	};
+
+	return igt_ioctl(fd, DRM_IOCTL_XE_VM_CREATE, &create);
+}
+
+/**
+ * SUBTEST: vm-create-fail-%s
+ * Description: inject an error in function %arg[1] used in vm create IOCTL to make it fail
+ * Functionality: fault
+ *
+ * arg[1]:
+ * @xe_exec_queue_create_bind:	xe_exec_queue_create_bind
+ * @xe_pt_create:		xe_pt_create
+ * @xe_vm_create_scratch:	xe_vm_create_scratch
+ */
+static void
+vm_create_fail(int fd, const char function_name[], unsigned int flags)
+{
+	igt_assert_eq(simple_vm_create(fd, flags), 0);
+
+	injection_list_do(INJECTION_LIST_ADD, function_name);
+	set_retval(function_name, INJECT_ERRNO);
+	igt_assert(simple_vm_create(fd, flags) != 0);
+	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+
+	igt_assert_eq(simple_vm_create(fd, flags), 0);
+}
+
 igt_main
 {
 	int fd;
 	char pci_slot[NAME_MAX];
 	const struct section {
 		const char *name;
-	} probe_function_sections[] = {
+		unsigned int flags;
+	} probe_fail_functions[] = {
 		{ "wait_for_lmem_ready" },
 		{ "xe_device_create" },
 		{ "xe_ggtt_init_early" },
@@ -176,16 +212,29 @@ igt_main
 		{ "xe_wopcm_init" },
 		{ }
 	};
+	const struct section vm_create_fail_functions[] = {
+		{ "xe_exec_queue_create_bind", 0 },
+		{ "xe_pt_create", 0 },
+		{ "xe_vm_create_scratch", DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE },
+		{ }
+	};
 
 	igt_fixture {
 		igt_require(fail_function_injection_enabled());
 		fd = drm_open_driver(DRIVER_XE);
 		igt_device_get_pci_slot_name(fd, pci_slot);
 		setup_injection_fault();
+	}
+
+	for (const struct section *s = vm_create_fail_functions; s->name; s++)
+		igt_subtest_f("vm-create-fail-%s", s->name)
+			vm_create_fail(fd, s->name, s->flags);
+
+	igt_fixture {
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_UNBIND);
 	}
 
-	for (const struct section *s = probe_function_sections; s->name; s++)
+	for (const struct section *s = probe_fail_functions; s->name; s++)
 		igt_subtest_f("inject-fault-probe-function-%s", s->name)
 			inject_fault_probe(fd, pci_slot, s->name);
 
@@ -193,4 +242,6 @@ igt_main
 		drm_close_driver(fd);
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_BIND);
 	}
+
+
 }
