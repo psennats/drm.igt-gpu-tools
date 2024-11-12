@@ -11,15 +11,13 @@
  * Test category: fault injection
  */
 
+#include <limits.h>
+
 #include "igt.h"
 #include "igt_device.h"
 #include "igt_kmod.h"
 #include "igt_sysfs.h"
 
-#define MAX_LINE_SIZE			1024
-#define PATH_FUNCTIONS_INJECTABLE	"/sys/kernel/debug/fail_function/injectable"
-#define PATH_FUNCTIONS_INJECT		"/sys/kernel/debug/fail_function/inject"
-#define PATH_FUNCTIONS_RETVAL		"/sys/kernel/debug/fail_function/%s/retval"
 #define INJECT_ERRNO			-ENOMEM
 
 enum injection_list_action {
@@ -27,40 +25,66 @@ enum injection_list_action {
 	INJECTION_LIST_REMOVE,
 };
 
+static int fail_function_open(void)
+{
+	int debugfs_fail_function_dir_fd;
+	const char *debugfs_root;
+	char path[96];
+
+	debugfs_root = igt_debugfs_mount();
+	igt_assert(debugfs_root);
+
+	sprintf(path, "%s/fail_function", debugfs_root);
+
+	if (access(path, F_OK))
+		return -1;
+
+	debugfs_fail_function_dir_fd = open(path, O_RDONLY);
+	igt_debug_on_f(debugfs_fail_function_dir_fd < 0, "path: %s\n", path);
+
+	return debugfs_fail_function_dir_fd;
+}
+
 /*
  * The injectable file requires CONFIG_FUNCTION_ERROR_INJECTION in kernel.
  */
-static bool function_error_injection_enabled(void)
+static bool fail_function_injection_enabled(void)
 {
-	FILE *file = fopen(PATH_FUNCTIONS_INJECTABLE, "rw");
+	char *contents;
+	int dir;
 
-	if (file) {
-		fclose(file);
-		return true;
-	}
+	dir = fail_function_open();
+	if (dir < 0)
+		return false;
 
-	return false;
+	contents = igt_sysfs_get(dir, "injectable");
+	if (contents == NULL)
+		return false;
+
+	free(contents);
+
+	return true;
 }
 
 static void injection_list_do(enum injection_list_action action, const char function_name[])
 {
-	FILE *file_inject;
+	int dir;
 
-	file_inject = fopen(PATH_FUNCTIONS_INJECT, "w");
-	igt_assert(file_inject);
+	dir = fail_function_open();
+	igt_assert_lte(0, dir);
 
 	switch(action) {
 	case INJECTION_LIST_ADD:
-		fprintf(file_inject, "%s", function_name);
+		igt_assert_lte(0, igt_sysfs_printf(dir, "inject", "%s", function_name));
 		break;
 	case INJECTION_LIST_REMOVE:
-		fprintf(file_inject, "!%s", function_name);
+		igt_assert_lte(0, igt_sysfs_printf(dir, "inject", "!%s", function_name));
 		break;
 	default:
 		igt_assert(!"missing");
 	}
 
-	fclose(file_inject);
+	close(dir);
 }
 
 /*
@@ -68,61 +92,33 @@ static void injection_list_do(enum injection_list_action action, const char func
  */
 static void setup_injection_fault(void)
 {
-	FILE *file;
+	int dir;
 
-	file = fopen("/sys/kernel/debug/fail_function/task-filter", "w");
-	igt_assert(file);
-	fprintf(file, "N");
-	fclose(file);
+	dir = fail_function_open();
+	igt_assert_lte(0, dir);
 
-	file = fopen("/sys/kernel/debug/fail_function/probability", "w");
-	igt_assert(file);
-	fprintf(file, "100");
-	fclose(file);
+	igt_assert_lte(0, igt_sysfs_printf(dir, "task-filter", "N"));
+	igt_sysfs_set_u32(dir, "probability", 100);
+	igt_sysfs_set_u32(dir, "interval", 0);
+	igt_sysfs_set_s32(dir, "times", -1);
+	igt_sysfs_set_u32(dir, "space", 0);
+	igt_sysfs_set_u32(dir, "verbose", 1);
 
-	file = fopen("/sys/kernel/debug/fail_function/interval", "w");
-	igt_assert(file);
-	fprintf(file, "0");
-	fclose(file);
-
-	file = fopen("/sys/kernel/debug/fail_function/times", "w");
-	igt_assert(file);
-	fprintf(file, "-1");
-	fclose(file);
-
-	file = fopen("/sys/kernel/debug/fail_function/space", "w");
-	igt_assert(file);
-	fprintf(file, "0");
-	fclose(file);
-
-	file = fopen("/sys/kernel/debug/fail_function/verbose", "w");
-	igt_assert(file);
-	fprintf(file, "1");
-	fclose(file);
-}
-
-static void cleanup_injection_fault(void)
-{
-	FILE *file;
-
-	file = fopen(PATH_FUNCTIONS_INJECT, "w");
-	igt_assert(file);
-	fprintf(file, "\n");
-	fclose(file);
+	close(dir);
 }
 
 static void set_retval(const char function_name[], long long retval)
 {
-	FILE *file_retval;
-	char file_path[MAX_LINE_SIZE];
+	char path[96];
+	int dir;
 
-	sprintf(file_path, PATH_FUNCTIONS_RETVAL, function_name);
+	dir = fail_function_open();
+	igt_assert_lte(0, dir);
 
-	file_retval = fopen(file_path, "w");
-	igt_assert(file_retval);
+	sprintf(path, "%s/retval", function_name);
+	igt_assert_lte(0, igt_sysfs_printf(dir, path, "%#016llx", retval));
 
-	fprintf(file_retval, "%#016llx", retval);
-	fclose(file_retval);
+	close(dir);
 }
 
 /**
@@ -161,7 +157,7 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 igt_main
 {
 	int fd;
-	char pci_slot[MAX_LINE_SIZE];
+	char pci_slot[NAME_MAX];
 	const struct section {
 		const char *name;
 	} probe_function_sections[] = {
@@ -182,7 +178,7 @@ igt_main
 	};
 
 	igt_fixture {
-		igt_require(function_error_injection_enabled());
+		igt_require(fail_function_injection_enabled());
 		fd = drm_open_driver(DRIVER_XE);
 		igt_device_get_pci_slot_name(fd, pci_slot);
 		setup_injection_fault();
@@ -194,7 +190,6 @@ igt_main
 			inject_fault_probe(fd, pci_slot, s->name);
 
 	igt_fixture {
-		cleanup_injection_fault();
 		drm_close_driver(fd);
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_BIND);
 	}
