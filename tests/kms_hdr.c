@@ -696,6 +696,12 @@ static void test_hdr(data_t *data, uint32_t flags)
 			continue;
 		}
 
+		if ((flags & TEST_BRIGHTNESS) && !output_is_internal_panel(output)) {
+			igt_info("%s: Can't run brightness test on non-internal panel.\n",
+				 igt_output_name(output));
+			continue;
+		}
+
 		for_each_pipe(display, pipe) {
 			igt_output_set_pipe(output, pipe);
 			if (!intel_pipe_output_combo_valid(display)) {
