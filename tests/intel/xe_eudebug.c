@@ -20,6 +20,7 @@
 #include <sys/prctl.h>
 
 #include "igt.h"
+#include "igt_sysfs.h"
 #include "intel_pat.h"
 #include "lib/igt_syncobj.h"
 #include "xe/xe_eudebug.h"
@@ -61,6 +62,7 @@ static void test_sysfs_toggle(int fd)
 #define VM_METADATA		(1 << 5)
 #define VM_BIND_METADATA	(1 << 6)
 #define VM_BIND_OP_MAP_USERPTR	(1 << 7)
+#define EXEC_QUEUES_PLACEMENTS	(1 << 8)
 #define TEST_DISCOVERY		(1 << 31)
 
 #define PAGE_SIZE SZ_4K
@@ -420,6 +422,80 @@ static void vm_bind_client(int fd, struct xe_eudebug_client *c)
 	xe_eudebug_client_vm_destroy(c, fd, vm);
 }
 
+static void placements_client(int fd, struct xe_eudebug_client *c)
+{
+	struct drm_xe_ext_set_property eq_ext = {
+		.base.name = DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY,
+		.property = DRM_XE_EXEC_QUEUE_SET_PROPERTY_EUDEBUG,
+		.value = DRM_XE_EXEC_QUEUE_EUDEBUG_FLAG_ENABLE,
+	};
+	struct drm_xe_exec_queue_create create = {
+		.extensions = to_user_pointer(&eq_ext),
+	};
+	struct drm_xe_engine_class_instance *eci;
+	bool at_least_4_ccs = false;
+	uint32_t vm;
+	int i, gt;
+
+	xe_for_each_gt(fd, gt) {
+		int count = 0;
+
+		xe_for_each_engine(fd, eci)
+			if (eci->engine_class == DRM_XE_ENGINE_CLASS_COMPUTE &&
+			    eci->gt_id == gt)
+				count++;
+
+		if (count < 4)
+			continue;
+
+		at_least_4_ccs = true;
+
+		vm = xe_eudebug_client_vm_create(c, fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
+
+		eci = calloc(count * count - 2, sizeof(*eci));
+
+		for (i = 0; i < count * count - 2; i++) {
+			eci[i].engine_class = DRM_XE_ENGINE_CLASS_COMPUTE;
+			eci[i].gt_id = gt;
+		}
+
+		for (i = 0; i < count; i++)
+			eci[i].engine_instance = i;
+
+		create.instances = to_user_pointer(eci);
+		create.vm_id = vm;
+		create.width = 1;
+		create.num_placements = count;
+		xe_eudebug_client_exec_queue_create(c, fd, &create);
+		xe_eudebug_client_exec_queue_destroy(c, fd, &create);
+
+		create.width = count;
+		create.num_placements = 1;
+		xe_eudebug_client_exec_queue_create(c, fd, &create);
+		xe_eudebug_client_exec_queue_destroy(c, fd, &create);
+
+		// every other instance (logical_mask ~ 1010, 0101)
+		create.width = 2;
+		create.num_placements = count/2;
+		xe_eudebug_client_exec_queue_create(c, fd, &create);
+		xe_eudebug_client_exec_queue_destroy(c, fd, &create);
+
+		// logically contigous placement (logical_mask ~ 1100, 0110, 0011)
+		for (i = 0; i < count * count - 2; i++)
+			eci[i].engine_instance = i / 2 + i % 2;
+
+		create.width = 2;
+		create.num_placements = count - 1;
+		xe_eudebug_client_exec_queue_create(c, fd, &create);
+		xe_eudebug_client_exec_queue_destroy(c, fd, &create);
+
+		xe_eudebug_client_vm_destroy(c, fd, vm);
+		free(eci);
+	}
+
+	igt_require(at_least_4_ccs);
+}
+
 static void run_basic_client(struct xe_eudebug_client *c)
 {
 	int fd, i;
@@ -469,6 +545,9 @@ static void run_basic_client(struct xe_eudebug_client *c)
 
 		xe_eudebug_client_vm_destroy(c, fd, vm);
 	}
+
+	if (c->flags & EXEC_QUEUES_PLACEMENTS)
+		placements_client(fd, c);
 
 	if (c->flags & VM_BIND || c->flags & VM_BIND_METADATA)
 		basic_vm_bind_client(fd, c);
@@ -907,6 +986,11 @@ static void test_read_event(int fd)
  * Description:
  *	Attach the debugger to a process that performs bind, bind array, rebind,
  *	partial unbind, unbind and unbind all operations.
+ *
+ * SUBTEST: exec-queue-placements
+ * Description:
+ *	Create compute exec_queues with various placements and compare them against
+ *	event sent to the debugger.
  *
  * SUBTEST: multigpu-basic-client
  * Description:
@@ -2644,14 +2728,40 @@ static void test_basic_exec_queues_enable(int fd)
 	xe_vm_destroy(fd, vm_non_lr);
 }
 
+static void ccs_mode_all_engines(int num_gt)
+{
+	int fd, gt, gt_fd, num_slices, ccs_mode;
+	int num_gts_with_ccs_mode = 0;
+
+	for (gt = 0; gt < num_gt; gt++) {
+		fd = drm_open_driver(DRIVER_XE);
+		gt_fd = xe_sysfs_gt_open(fd, gt);
+		close(fd);
+
+		if (igt_sysfs_scanf(gt_fd, "num_cslices", "%u", &num_slices) <= 0)
+			continue;
+
+		num_gts_with_ccs_mode++;
+
+		igt_assert(igt_sysfs_printf(gt_fd, "ccs_mode", "%u", num_slices) > 0);
+		igt_assert(igt_sysfs_scanf(gt_fd, "ccs_mode", "%u", &ccs_mode) > 0);
+		igt_assert(num_slices == ccs_mode);
+		close(gt_fd);
+	}
+
+	errno = 0;
+	igt_require(num_gts_with_ccs_mode > 0);
+}
+
 igt_main
 {
 	bool was_enabled;
 	bool *multigpu_was_enabled;
-	int fd, gpu_count;
+	int fd, gpu_count, gt_count;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
+		gt_count = xe_number_gt(fd);
 		was_enabled = xe_eudebug_enable(fd, true);
 	}
 
@@ -2744,6 +2854,17 @@ igt_main
 
 	igt_subtest("discovery-empty-clients")
 		test_empty_discovery(fd, DISCOVERY_DESTROY_RESOURCES, 16);
+
+	igt_subtest_group {
+		igt_fixture {
+			drm_close_driver(fd);
+			ccs_mode_all_engines(gt_count);
+			fd = drm_open_driver(DRIVER_XE);
+		}
+
+		igt_subtest("exec-queue-placements")
+			test_basic_sessions(fd, EXEC_QUEUES_PLACEMENTS, 1, true);
+	}
 
 	igt_fixture {
 		xe_eudebug_enable(fd, was_enabled);
