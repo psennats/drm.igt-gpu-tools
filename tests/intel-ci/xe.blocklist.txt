@@ -29,6 +29,10 @@ igt@drm_buddy
 igt@drm_mm
 igt@kms_selftest.*
 ##################################################################
+# Exclude slow KUnit test which should run as manual test
+##################################################################
+igt@xe_live_ktest@xe_bo@xe_bo_shrink_kunit
+##################################################################
 # Exclude all other non-Xe tests
 ##################################################################
 igt@debugfs.*

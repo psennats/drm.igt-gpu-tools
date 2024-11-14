@@ -218,7 +218,8 @@ igt@xe_waitfence@reltime
 igt@core_hotunplug@unbind-rebind
 
 # Run KUnit tests at the end
-igt@xe_live_ktest@xe_bo
+igt@xe_live_ktest@xe_bo@xe_ccs_migrate_kunit
+igt@xe_live_ktest@xe_bo@xe_bo_evict_kunit
 igt@xe_live_ktest@xe_dma_buf
 igt@xe_live_ktest@xe_migrate
 
