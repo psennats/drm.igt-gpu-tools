@@ -478,13 +478,13 @@ static void placements_client(int fd, struct xe_eudebug_client *c)
 		xe_eudebug_client_exec_queue_create(c, fd, &create);
 		xe_eudebug_client_exec_queue_destroy(c, fd, &create);
 
-		// every other instance (logical_mask ~ 1010, 0101)
+		/* every other instance (logical_mask ~ 1010, 0101) */
 		create.width = 2;
 		create.num_placements = count/2;
 		xe_eudebug_client_exec_queue_create(c, fd, &create);
 		xe_eudebug_client_exec_queue_destroy(c, fd, &create);
 
-		// logically contigous placement (logical_mask ~ 1100, 0110, 0011)
+		/* logically contigous placement (logical_mask ~ 1100, 0110, 0011) */
 		for (i = 0; i < count * count - 2; i++)
 			eci[i].engine_instance = i / 2 + i % 2;
 
