@@ -4,6 +4,16 @@
 igt@xe.*
 
 igt@meta_test(@.*)?
+
+###############################################
+# Expects the i915 module not loaded, SKIPs if one is loaded.
+# Intended only for CI BAT runs as the very first test executed.
+# Not suitable for CI runs with random test selection and ordering.
+# Omitting it from non-BAT runs doesn't affect coverage, then
+# let's blocklist it instead of maintainig as expected SKIP.
+###############################################
+igt@i915_module_load@load
+
 ###############################################
 # Handle module reloads with great care!
 #
