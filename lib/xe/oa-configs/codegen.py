@@ -352,6 +352,10 @@ class Gen:
         m = re.search(r'\$GtSlice([0-9]+)XeCore([0-9]+)$', name)
         if m:
             return 'intel_xe_perf_devinfo_subslice_available(&perf->devinfo, {0}, {1})'.format(m.group(1), m.group(2))
+        # FIXME: The below needs to be fixed later if this is used
+        m = re.search(r'\$GtXeCore([0-99]+)$', name)
+        if m:
+            return 'intel_xe_perf_devinfo_subslice_available(&perf->devinfo, {0}, 0)'.format(m.group(1))
         return None
 
     def output_rpn_equation_code(self, set, counter, equation):

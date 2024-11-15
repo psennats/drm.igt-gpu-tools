@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<metrics version="1725302004" merge_md5="">
+<metrics version="1731613844" merge_md5="">
   <set name="RenderBasic"
        chipset="LNL"
        symbol_name="RenderBasic"
@@ -4920,7 +4920,7 @@
     <counter name="RT Callable Thread Ray Dispatch"
              symbol_name="RT_CALLABLE_THREAD_RAY_DISPATCH"
              underscore_name="rt_callable_thread_ray_dispatch"
-             description="Number of callable threads dispatched"
+             description="Number of BTD shader spawn requests dispatched"
              data_type="uint64"
              units="events"
              semantic_type="event"
@@ -6766,6 +6766,346 @@
     <register_config type="FLEX">
         <register type="FLEX" address="0x0000E458" value="0x00000000" />
         <register type="FLEX" address="0x0000E558" value="0x00000000" />
+    </register_config>
+  </set>
+
+  <set name="TestOa"
+       chipset="LNL"
+       symbol_name="TestOa"
+       underscore_name="test_oa"
+       mdapi_supported_apis="VK OGL OCL IO"
+       oa_format="576B_PEC64LL"
+       hw_config_guid="24c33f2c-f8d9-40d9-b2db-64e863b4d625"
+       >
+    <counter name="GPU Time Elapsed"
+             symbol_name="GpuTime"
+             underscore_name="gpu_time"
+             description="Time elapsed on the GPU during the measurement."
+             data_type="uint64"
+             units="ns"
+             semantic_type="event"
+             equation="GPU_TIME 0 READ 1000000000 UMUL $GpuTimestampFrequency UDIV"
+             mdapi_group="GPU"
+             mdapi_usage_flags="Tier1 Overview System Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="GPU Core Clocks"
+             symbol_name="GpuCoreClocks"
+             underscore_name="gpu_core_clocks"
+             description="The total number of GPU core clocks elapsed during the measurement."
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="GPU_CLOCK 0 READ"
+             mdapi_group="GPU"
+             mdapi_usage_flags="Tier1 Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="AVG GPU Core Frequency"
+             symbol_name="AvgGpuCoreFrequency"
+             underscore_name="avg_gpu_core_frequency"
+             description="Average GPU Core Frequency in the measurement."
+             data_type="uint64"
+             max_equation="$GpuMaxFrequency"
+             units="hz"
+             semantic_type="event"
+             equation="$GpuCoreClocks 1000000000 UMUL $GpuTime UDIV"
+             mdapi_group="GPU"
+             mdapi_usage_flags="Tier1 Overview System Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="GPU Busy"
+             symbol_name="GPU_BUSY"
+             underscore_name="gpu_busy"
+             description="Percentage of time in which GPU is not idle including all GPU engines"
+             data_type="float"
+             units="percent"
+             semantic_type="duration"
+             equation="PEC 32 READ 100 UMUL $GpuCoreClocks FDIV"
+             mdapi_group="Front End"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="IA Vertex"
+             symbol_name="IA_VERTEX"
+             underscore_name="ia_vertex"
+             description="Number of vertices in a draw"
+             data_type="uint64"
+             units="events"
+             semantic_type="event"
+             equation="PEC 33 READ"
+             mdapi_group="Geometry"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="GpGpu Threadgroup Count"
+             symbol_name="GPGPU_THREADGROUP_COUNT"
+             underscore_name="gpgpu_threadgroup_count"
+             description="Number of GPGPU threadgroups dispatched"
+             data_type="uint64"
+             units="events"
+             semantic_type="event"
+             equation="PEC 0 READ"
+             mdapi_group="Thread Dispatcher"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Async GpGpu Threadgroup Count"
+             symbol_name="ASYNC_GPGPU_THREADGROUP_COUNT"
+             underscore_name="async_gpgpu_threadgroup_count"
+             description="Number of Async GPGPU threadgroups dispatched"
+             data_type="uint64"
+             units="events"
+             semantic_type="event"
+             equation="PEC 1 READ"
+             mdapi_group="Thread Dispatcher"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Rasterizer Sample Output"
+             symbol_name="RASTERIZER_SAMPLE_OUTPUT"
+             underscore_name="rasterizer_sample_output"
+             description="Number of lit samples emitted by Rasterizer"
+             data_type="uint64"
+             units="events"
+             semantic_type="event"
+             equation="PEC 34 READ"
+             mdapi_group="Rasterizer"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1"
+             symbol_name="TEST_EVENT1"
+             underscore_name="test_event1"
+             description="Number of GPU (gt) clock cycles at every clock period"
+             data_type="float"
+             units="percent"
+             semantic_type="duration"
+             equation="PEC 2 READ $XeCoreTotalCount UDIV 100 UMUL $GpuCoreClocks FDIV"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles"
+             symbol_name="TEST_EVENT1_CYCLES"
+             underscore_name="test_event1_cycles"
+             description="Number of GPU (gt) clock cycles at every clock period"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 2 READ"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore0"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE0"
+             underscore_name="test_event1_cycles_xecore0"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE0)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 3 READ"
+             availability="$GtXeCore0"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore1"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE1"
+             underscore_name="test_event1_cycles_xecore1"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE1)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 4 READ"
+             availability="$GtXeCore1"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore2"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE2"
+             underscore_name="test_event1_cycles_xecore2"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE2)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 5 READ"
+             availability="$GtXeCore2"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore3"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE3"
+             underscore_name="test_event1_cycles_xecore3"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE3)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 6 READ"
+             availability="$GtXeCore3"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore4"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE4"
+             underscore_name="test_event1_cycles_xecore4"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE4)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 21 READ"
+             availability="$GtXeCore4"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore5"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE5"
+             underscore_name="test_event1_cycles_xecore5"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE5)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 22 READ"
+             availability="$GtXeCore5"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore6"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE6"
+             underscore_name="test_event1_cycles_xecore6"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE6)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 23 READ"
+             availability="$GtXeCore6"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Xecore7"
+             symbol_name="TEST_EVENT1_CYCLES_XECORE7"
+             underscore_name="test_event1_cycles_xecore7"
+             description="Number of GPU (gt) clock cycles at every clock period (XECORE7)"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 24 READ"
+             availability="$GtXeCore7"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event1 Cycles Average"
+             symbol_name="TEST_EVENT1_CYCLES_AVERAGE"
+             underscore_name="test_event1_cycles_average"
+             description="Average number of GPU (gt) clock cycles at every clock period"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 2 READ $XeCoreTotalCount UDIV"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event2"
+             symbol_name="TEST_EVENT2"
+             underscore_name="test_event2"
+             description="Number of GPU (gt) clock cycles at every other clock period"
+             data_type="float"
+             units="percent"
+             semantic_type="duration"
+             equation="PEC 35 READ $SliceTotalCount UDIV 100 UMUL $GpuCoreClocks FDIV"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <counter name="Test Event2 Cycles"
+             symbol_name="TEST_EVENT2_CYCLES"
+             underscore_name="test_event2_cycles"
+             description="Number of GPU (gt) clock cycles at every other clock period"
+             data_type="uint64"
+             units="cycles"
+             semantic_type="event"
+             equation="PEC 35 READ"
+             mdapi_group="Test"
+             mdapi_usage_flags="Frame Batch Draw"
+             mdapi_supported_apis=""
+             mdapi_hw_unit_type="gpu"
+             />
+    <register_config type="OA">
+        <register type="OA" address="0x00013000" value="0x00001801" />
+        <register type="OA" address="0x00013004" value="0x00000000" />
+        <register type="OA" address="0x00013008" value="0x00001802" />
+        <register type="OA" address="0x0001300C" value="0x00000000" />
+        <register type="OA" address="0x00013010" value="0x00003E00" />
+        <register type="OA" address="0x00013014" value="0x00000000" />
+        <register type="OA" address="0x00013018" value="0x00013E00" />
+        <register type="OA" address="0x0001301C" value="0x00000000" />
+        <register type="OA" address="0x00013020" value="0x00113E00" />
+        <register type="OA" address="0x00013024" value="0x00000000" />
+        <register type="OA" address="0x00013028" value="0x00213E00" />
+        <register type="OA" address="0x0001302C" value="0x00000000" />
+        <register type="OA" address="0x00013030" value="0x00313E00" />
+        <register type="OA" address="0x00013034" value="0x00000000" />
+        <register type="OA" address="0x000130A8" value="0x00413E00" />
+        <register type="OA" address="0x000130AC" value="0x00000000" />
+        <register type="OA" address="0x000130B0" value="0x00513E00" />
+        <register type="OA" address="0x000130B4" value="0x00000000" />
+        <register type="OA" address="0x000130B8" value="0x00613E00" />
+        <register type="OA" address="0x000130BC" value="0x00000000" />
+        <register type="OA" address="0x000130C0" value="0x00713E00" />
+        <register type="OA" address="0x000130C4" value="0x00000000" />
+        <register type="OA" address="0x00013300" value="0x00005A00" />
+        <register type="OA" address="0x00013304" value="0x00000000" />
+        <register type="OA" address="0x00013500" value="0x00005A00" />
+        <register type="OA" address="0x00013504" value="0x00000000" />
+        <register type="OA" address="0x00013700" value="0x00005A00" />
+        <register type="OA" address="0x00013704" value="0x00000000" />
+        <register type="OA" address="0x00013308" value="0x00004405" />
+        <register type="OA" address="0x0001330C" value="0x00000000" />
+        <register type="OA" address="0x00013508" value="0x00004405" />
+        <register type="OA" address="0x0001350C" value="0x00000000" />
+        <register type="OA" address="0x00013708" value="0x00004405" />
+        <register type="OA" address="0x0001370C" value="0x00000000" />
+        <register type="OA" address="0x00013310" value="0x00006805" />
+        <register type="OA" address="0x00013314" value="0x00000000" />
+        <register type="OA" address="0x00013510" value="0x00006805" />
+        <register type="OA" address="0x00013514" value="0x00000000" />
+        <register type="OA" address="0x00013710" value="0x00006805" />
+        <register type="OA" address="0x00013714" value="0x00000000" />
+        <register type="OA" address="0x00013318" value="0x00007E00" />
+        <register type="OA" address="0x0001331C" value="0x00000000" />
+        <register type="OA" address="0x00013518" value="0x00007E00" />
+        <register type="OA" address="0x0001351C" value="0x00000000" />
+        <register type="OA" address="0x00013718" value="0x00007E00" />
+        <register type="OA" address="0x0001371C" value="0x00000000" />
     </register_config>
   </set>
 
