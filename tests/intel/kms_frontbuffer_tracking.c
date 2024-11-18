@@ -763,18 +763,22 @@
 /**
  * SUBTEST: fbc-%dp-%s-fliptrack-mmap-gtt
  * Description: Check if the hardware tracking works after page flips
+ * Driver requirement: i915
  * Functionality: fbc, fbt, kms_core
  *
  * SUBTEST: fbcdrrs-%dp-%s-fliptrack-mmap-gtt
  * Description: Check if the hardware tracking works after page flips
+ * Driver requirement: i915
  * Functionality: drrs, fbc, fbt, kms_core
  *
  * SUBTEST: fbcpsr-%dp-%s-fliptrack-mmap-gtt
  * Description: Check if the hardware tracking works after page flips
+ * Driver requirement: i915
  * Functionality: fbc, fbt, kms_core, psr1
  *
  * SUBTEST: fbcpsrdrrs-%dp-%s-fliptrack-mmap-gtt
  * Description: Check if the hardware tracking works after page flips
+ * Driver requirement: i915
  * Functionality: drrs, fbc, fbt, kms_core, psr1
  *
  * arg[1].values:   1, 2
