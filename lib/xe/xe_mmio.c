@@ -23,13 +23,8 @@ void xe_mmio_vf_access_init(int pf_fd, int vf_id, struct xe_mmio *mmio)
 
 	igt_assert_f(pci_dev, "No PCI device found for VF%u\n", vf_id);
 
-	intel_mmio_use_pci_bar(&mmio->intel_mmio, pci_dev);
-
-	igt_assert(mmio->intel_mmio.igt_mmio);
-
+	intel_register_access_init(&mmio->intel_mmio, pci_dev, false);
 	mmio->fd = pf_fd;
-	mmio->intel_mmio.safe = false;
-	mmio->intel_mmio.pci_device_id = pci_dev->device_id;
 }
 
 /**
@@ -53,8 +48,7 @@ void xe_mmio_access_init(int pf_fd, struct xe_mmio *mmio)
  */
 void xe_mmio_access_fini(struct xe_mmio *mmio)
 {
-	mmio->intel_mmio.pci_device_id = 0;
-	intel_mmio_unmap_pci_bar(&mmio->intel_mmio);
+	intel_register_access_fini(&mmio->intel_mmio);
 }
 
 /**
