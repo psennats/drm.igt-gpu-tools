@@ -63,9 +63,6 @@
 #define PIPE_CONTROL_PPGTT_WRITE	(0 << 2)
 #define PIPE_CONTROL_GLOBAL_GTT_WRITE   (1 << 2)
 
-#define MAX_OA_BUF_SIZE (16 * 1024 * 1024)
-#define OA_BUFFER_SIZE MAX_OA_BUF_SIZE
-
 #define RING_FORCE_TO_NONPRIV_ADDRESS_MASK 0x03fffffc
 /*
  * Engine specific registers defined as offsets from engine->mmio_base. For
@@ -303,6 +300,7 @@ struct drm_xe_engine_class_instance default_hwe;
 
 static struct intel_xe_perf *intel_xe_perf;
 static uint64_t oa_exp_1_millisec;
+static size_t default_oa_buffer_size;
 struct intel_mmio_data mmio_data;
 static igt_render_copyfunc_t render_copy;
 
@@ -509,6 +507,30 @@ __perf_open(int fd, struct intel_xe_oa_open_prop *param, bool prevent_pm)
 	}
 
 	return ret;
+}
+
+static size_t get_default_oa_buffer_size(int fd)
+{
+	struct drm_xe_oa_stream_info info;
+	uint64_t properties[] = {
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
+
+		/* OA unit configuration */
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, default_test_set->perf_oa_metrics_set,
+		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(default_test_set->perf_oa_format),
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exp_1_millisec,
+	};
+	struct intel_xe_oa_open_prop param = {
+		.num_properties = ARRAY_SIZE(properties) / 2,
+		.properties_ptr = to_user_pointer(properties),
+	};
+
+	stream_fd = __perf_open(fd, &param, false);
+	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_INFO, &info);
+	__perf_close(stream_fd);
+
+	return info.oa_buf_size;
 }
 
 static uint64_t
@@ -1074,6 +1096,9 @@ init_sys_info(void)
 
 	oa_exp_1_millisec = max_oa_exponent_for_period_lte(1000000);
 
+	default_oa_buffer_size = get_default_oa_buffer_size(drm_fd);
+	igt_debug("default_oa_buffer_size: %zu\n", default_oa_buffer_size);
+
 	return true;
 }
 
@@ -1263,7 +1288,7 @@ read_2_oa_reports(int format_id,
 	 * to indicate that the OA unit may be over taxed if lots of reports
 	 * are being lost.
 	 */
-	int max_reports = MAX_OA_BUF_SIZE / format_size;
+	int max_reports = default_oa_buffer_size / format_size;
 	int buf_size = format_size * max_reports * 1.5;
 	uint8_t *buf = malloc(buf_size);
 	int n = 0;
@@ -1685,7 +1710,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 		};
 		uint64_t expected_timestamp_delta = 2ULL << exponent;
 		size_t format_size = get_oa_format(fmt).size;
-		int max_reports = MAX_OA_BUF_SIZE / format_size;
+		int max_reports = default_oa_buffer_size / format_size;
 		int buf_size = format_size * max_reports * 1.5;
 		uint8_t *buf = calloc(1, buf_size);
 		int ret, n_timer_reports = 0;
@@ -2367,8 +2392,7 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 	int buf_size = 65536 * report_size;
 	uint8_t *buf = malloc(buf_size);
 	int len;
-	size_t oa_buf_size = MAX_OA_BUF_SIZE;
-	int n_full_oa_reports = oa_buf_size / report_size;
+	int n_full_oa_reports = default_oa_buffer_size / report_size;
 	uint64_t fill_duration = n_full_oa_reports * oa_period;
 	uint32_t *last_periodic_report = malloc(report_size);
 	u32 oa_status;
@@ -2592,8 +2616,7 @@ test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 	size_t report_size = get_oa_format(fmt).size;
 	int buf_size = 65536 * report_size;
 	uint8_t *buf = malloc(buf_size);
-	size_t oa_buf_size = MAX_OA_BUF_SIZE;
-	int n_full_oa_reports = oa_buf_size / report_size;
+	int n_full_oa_reports = default_oa_buffer_size / report_size;
 	uint64_t fill_duration = n_full_oa_reports * oa_period;
 	uint32_t *last_periodic_report = malloc(report_size);
 
@@ -4012,7 +4035,7 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 	stream_fd = __perf_open(drm_fd, &param, false);
         set_fd_flags(stream_fd, O_CLOEXEC);
 
-	buf = mmap(0, OA_BUFFER_SIZE, PROT_READ, MAP_PRIVATE, stream_fd, 0);
+	buf = mmap(0, default_oa_buffer_size, PROT_READ, MAP_PRIVATE, stream_fd, 0);
 	igt_assert(buf != NULL);
 
 	emit_oa_reg_read(ibb, dst_buf, 0, OAG_OABUFFER);
@@ -4061,7 +4084,7 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 
 	igt_assert_eq(mmio_triggered_reports, 2);
 
-	munmap(buf, OA_BUFFER_SIZE);
+	munmap(buf, default_oa_buffer_size);
 	intel_buf_close(bops, &src);
 	intel_buf_close(bops, &dst);
 	intel_buf_unmap(dst_buf);
@@ -4241,10 +4264,10 @@ test_oa_unit_concurrent_oa_buffer_read(void)
 
 static void *map_oa_buffer(u32 *size)
 {
-	void *vaddr = mmap(0, OA_BUFFER_SIZE, PROT_READ, MAP_PRIVATE, stream_fd, 0);
+	void *vaddr = mmap(0, default_oa_buffer_size, PROT_READ, MAP_PRIVATE, stream_fd, 0);
 
 	igt_assert(vaddr != NULL);
-	*size = OA_BUFFER_SIZE;
+	*size = default_oa_buffer_size;
 	return vaddr;
 }
 
@@ -4254,32 +4277,32 @@ static void invalid_param_map_oa_buffer(const struct drm_xe_engine_class_instanc
 
 	/* try a couple invalid mmaps */
 	/* bad prots */
-	oa_vaddr = mmap(0, OA_BUFFER_SIZE, PROT_WRITE, MAP_PRIVATE, stream_fd, 0);
+	oa_vaddr = mmap(0, default_oa_buffer_size, PROT_WRITE, MAP_PRIVATE, stream_fd, 0);
 	igt_assert(oa_vaddr == MAP_FAILED);
 
-	oa_vaddr = mmap(0, OA_BUFFER_SIZE, PROT_EXEC, MAP_PRIVATE, stream_fd, 0);
+	oa_vaddr = mmap(0, default_oa_buffer_size, PROT_EXEC, MAP_PRIVATE, stream_fd, 0);
 	igt_assert(oa_vaddr == MAP_FAILED);
 
 	/* bad MAPs */
-	oa_vaddr = mmap(0, OA_BUFFER_SIZE, PROT_READ, MAP_SHARED, stream_fd, 0);
+	oa_vaddr = mmap(0, default_oa_buffer_size, PROT_READ, MAP_SHARED, stream_fd, 0);
 	igt_assert(oa_vaddr == MAP_FAILED);
 
 	/* bad size */
-	oa_vaddr = mmap(0, OA_BUFFER_SIZE + 1, PROT_READ, MAP_PRIVATE, stream_fd, 0);
+	oa_vaddr = mmap(0, default_oa_buffer_size + 1, PROT_READ, MAP_PRIVATE, stream_fd, 0);
 	igt_assert(oa_vaddr == MAP_FAILED);
 
 	/* do the right thing */
-	oa_vaddr = mmap(0, OA_BUFFER_SIZE, PROT_READ, MAP_PRIVATE, stream_fd, 0);
+	oa_vaddr = mmap(0, default_oa_buffer_size, PROT_READ, MAP_PRIVATE, stream_fd, 0);
 	igt_assert(oa_vaddr != MAP_FAILED && oa_vaddr != NULL);
 
-	munmap(oa_vaddr, OA_BUFFER_SIZE);
+	munmap(oa_vaddr, default_oa_buffer_size);
 }
 
 static void unprivileged_try_to_map_oa_buffer(void)
 {
 	void *oa_vaddr;
 
-	oa_vaddr = mmap(0, OA_BUFFER_SIZE, PROT_READ, MAP_PRIVATE, stream_fd, 0);
+	oa_vaddr = mmap(0, default_oa_buffer_size, PROT_READ, MAP_PRIVATE, stream_fd, 0);
 	igt_assert(oa_vaddr == MAP_FAILED);
 	igt_assert_eq(errno, EACCES);
 }
