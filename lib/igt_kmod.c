@@ -593,14 +593,6 @@ static int igt_always_unload_audio_driver(char **who)
 	return 0;
 }
 
-struct module_ref {
-	char *name;
-	unsigned long mem;
-	unsigned int ref_count;
-	unsigned int num_required;
-	unsigned int *required_by;
-};
-
 int igt_audio_driver_unload(char **who)
 {
 	/*
