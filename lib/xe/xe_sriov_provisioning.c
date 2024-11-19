@@ -3,7 +3,7 @@
  * Copyright(c) 2024 Intel Corporation. All rights reserved.
  */
 
-#include <stdlib.h>
+#include <errno.h>
 
 #include "igt_core.h"
 #include "intel_chipset.h"
@@ -48,6 +48,37 @@ static uint64_t get_vfid_mask(int fd)
 		GGTT_PTE_VFID_MASK : PRE_1250_IP_VER_GGTT_PTE_VFID_MASK;
 }
 
+#define MAX_DEBUG_ENTRIES 70
+
+static int append_range(struct xe_sriov_provisioned_range **ranges,
+			unsigned int *nr_ranges, unsigned int vf_id,
+			uint32_t start, uint32_t end)
+{
+	struct xe_sriov_provisioned_range *new_ranges;
+
+	new_ranges = realloc(*ranges,
+			     (*nr_ranges + 1) * sizeof(struct xe_sriov_provisioned_range));
+	if (!new_ranges) {
+		free(*ranges);
+		*ranges = NULL;
+		*nr_ranges = 0;
+		return -ENOMEM;
+	}
+
+	*ranges = new_ranges;
+	if (*nr_ranges < MAX_DEBUG_ENTRIES)
+		igt_debug("Found VF%u GGTT range [%#x-%#x] num_ptes=%ld\n",
+			  vf_id, start, end,
+			  (end - start + sizeof(xe_ggtt_pte_t)) /
+			  sizeof(xe_ggtt_pte_t));
+	(*ranges)[*nr_ranges].vf_id = vf_id;
+	(*ranges)[*nr_ranges].start = start;
+	(*ranges)[*nr_ranges].end = end;
+	(*nr_ranges)++;
+
+	return 0;
+}
+
 /**
  * xe_sriov_find_ggtt_provisioned_pte_offsets - Find GGTT provisioned PTE offsets
  * @pf_fd: File descriptor for the Physical Function
@@ -76,6 +107,7 @@ int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio
 	uint32_t current_start = 0;
 	uint32_t current_end = 0;
 	xe_ggtt_pte_t pte;
+	int ret;
 
 	*ranges = NULL;
 	*nr_ranges = 0;
@@ -86,18 +118,11 @@ int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio
 
 		if (vf_id != current_vf_id) {
 			if (current_vf_id != -1) {
-				/* End the current range */
-				*ranges = realloc(*ranges, (*nr_ranges + 1) *
-						  sizeof(struct xe_sriov_provisioned_range));
-				igt_assert(*ranges);
-				igt_debug("Found VF%u ggtt range [%#x-%#x] num_ptes=%ld\n",
-					  current_vf_id, current_start, current_end,
-					  (current_end - current_start + sizeof(xe_ggtt_pte_t)) /
-					  sizeof(xe_ggtt_pte_t));
-				(*ranges)[*nr_ranges].vf_id = current_vf_id;
-				(*ranges)[*nr_ranges].start = current_start;
-				(*ranges)[*nr_ranges].end = current_end;
-				(*nr_ranges)++;
+				/* End the current range and append it */
+				ret = append_range(ranges, nr_ranges, current_vf_id,
+						   current_start, current_end);
+				if (ret < 0)
+					return ret;
 			}
 			/* Start a new range */
 			current_vf_id = vf_id;
@@ -107,18 +132,16 @@ int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio
 	}
 
 	if (current_vf_id != -1) {
-		*ranges = realloc(*ranges, (*nr_ranges + 1) *
-				  sizeof(struct xe_sriov_provisioned_range));
-		igt_assert(*ranges);
-		igt_debug("Found VF%u ggtt range [%#x-%#x] num_ptes=%ld\n",
-			  current_vf_id, current_start, current_end,
-			  (current_end - current_start + sizeof(xe_ggtt_pte_t)) /
-			  sizeof(xe_ggtt_pte_t));
-		(*ranges)[*nr_ranges].vf_id = current_vf_id;
-		(*ranges)[*nr_ranges].start = current_start;
-		(*ranges)[*nr_ranges].end = current_end;
-		(*nr_ranges)++;
+		/* Append the last range */
+		ret = append_range(ranges, nr_ranges, current_vf_id,
+				   current_start, current_end);
+		if (ret < 0)
+			return ret;
 	}
+
+	if (*nr_ranges > MAX_DEBUG_ENTRIES)
+		igt_debug("Ranges output trimmed to first %u entries out of %u\n",
+			  MAX_DEBUG_ENTRIES, *nr_ranges);
 
 	return 0;
 }
