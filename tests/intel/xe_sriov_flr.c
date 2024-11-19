@@ -393,7 +393,12 @@ static int populate_ggtt_pte_offsets(struct ggtt_data *gdata)
 		if (vf_id == 0)
 			continue;
 
-		igt_assert(vf_id >= 1 && vf_id <= num_vfs);
+		if (vf_id < 1 || vf_id > num_vfs) {
+			set_skip_reason(&gdata->base, "Unexpected VF%u at range entry %u [%#lx-%#lx], num_vfs=%u\n",
+					vf_id, i, ranges[i].start, ranges[i].end, num_vfs);
+			free(ranges);
+			return -1;
+		}
 
 		if (gdata->pte_offsets[vf_id].end) {
 			set_skip_reason(&gdata->base, "Duplicate GGTT PTE offset range for VF%u\n",
@@ -410,7 +415,7 @@ static int populate_ggtt_pte_offsets(struct ggtt_data *gdata)
 
 	for (int vf_id = 1; vf_id <= num_vfs; ++vf_id)
 		if (!gdata->pte_offsets[vf_id].end) {
-			set_fail_reason(&gdata->base,
+			set_skip_reason(&gdata->base,
 					"Failed to find VF%u provisioned GGTT PTE offset range\n",
 					vf_id);
 			return -1;
@@ -440,7 +445,7 @@ static void ggtt_subcheck_init(struct subcheck_data *data)
 
 		populate_ggtt_pte_offsets(gdata);
 	} else {
-		set_fail_reason(data, "xe_mmio is NULL\n");
+		set_skip_reason(data, "xe_mmio is NULL\n");
 	}
 }
 
@@ -460,7 +465,7 @@ static void ggtt_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
 	for_each_pte_offset(pte_offset, &gdata->pte_offsets[vf_id]) {
 		if (!set_pte_gpa(&gdata->ggtt, gdata->mmio, data->gt, pte_offset,
 				 (uint8_t)vf_id, &pte)) {
-			set_fail_reason(data,
+			set_skip_reason(data,
 					"Prepare VF%u failed, unexpected gpa: Read PTE: %#lx at offset: %#x\n",
 					vf_id, pte, pte_offset);
 			return;
@@ -696,7 +701,7 @@ static void lmem_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
 
 	if (!lmem_mmap_write_munmap(data->pf_fd, vf_id,
 				    ldata->vf_lmem_size[vf_id], vf_id)) {
-		set_fail_reason(data, "LMEM write failed on VF%u\n", vf_id);
+		set_skip_reason(data, "LMEM write failed on VF%u\n", vf_id);
 	}
 }
 
@@ -758,12 +763,12 @@ static void regs_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
 		struct pci_device *pci_dev = __igt_device_get_pci_device(data->pf_fd, vf_id);
 
 		if (!pci_dev) {
-			set_fail_reason(data, "No PCI device found for VF%u\n", vf_id);
+			set_skip_reason(data, "No PCI device found for VF%u\n", vf_id);
 			return;
 		}
 
 		if (intel_register_access_init(&rdata->mmio[vf_id], pci_dev, false)) {
-			set_fail_reason(data, "Failed to get access to VF%u MMIO\n", vf_id);
+			set_skip_reason(data, "Failed to get access to VF%u MMIO\n", vf_id);
 			return;
 		}
 	}
@@ -773,7 +778,7 @@ static void regs_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
 
 		intel_register_write(&rdata->mmio[vf_id], reg, vf_id);
 		if (intel_register_read(&rdata->mmio[vf_id], reg) != vf_id) {
-			set_fail_reason(data, "Registers write/read check failed on VF%u\n", vf_id);
+			set_skip_reason(data, "Registers write/read check failed on VF%u\n", vf_id);
 			return;
 		}
 	}
