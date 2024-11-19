@@ -50,6 +50,30 @@ static int fail_function_open(void)
 	return debugfs_fail_function_dir_fd;
 }
 
+static bool function_is_part_of_guc(const char function_name[])
+{
+	return strstr(function_name, "_guc_") != NULL ||
+	       strstr(function_name, "_uc_") != NULL ||
+	       strstr(function_name, "_wopcm_") != NULL;
+}
+
+static void ignore_faults_in_dmesg(const char function_name[])
+{
+	/* Driver probe is expected to fail in all cases, so ignore in igt_runner */
+	char regex[1024] = "probe with driver xe failed with error -12";
+
+	/*
+	 * If GuC module fault is injected, GuC is expected to fail,
+	 * so also ignore GuC init failures in igt_runner.
+	 */
+	if (function_is_part_of_guc(function_name)) {
+		strcat(regex, "|GT[0-9a-fA-F]*: GuC init failed with -ENOMEM");
+		strcat(regex, "|GT[0-9a-fA-F]*: Failed to initialize uC .-ENOMEM");
+	}
+
+	igt_emit_ignore_dmesg_regex(regex);
+}
+
 /*
  * The injectable file requires CONFIG_FUNCTION_ERROR_INJECTION in kernel.
  */
@@ -152,6 +176,7 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 	igt_info("Injecting error \"%s\" (%d) in function \"%s\"\n",
 		 strerror(-INJECT_ERRNO), INJECT_ERRNO, function_name);
 
+	ignore_faults_in_dmesg(function_name);
 	injection_list_do(INJECTION_LIST_ADD, function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_TRY_BIND);
@@ -184,6 +209,7 @@ vm_create_fail(int fd, const char function_name[], unsigned int flags)
 {
 	igt_assert_eq(simple_vm_create(fd, flags), 0);
 
+	ignore_faults_in_dmesg(function_name);
 	injection_list_do(INJECTION_LIST_ADD, function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(simple_vm_create(fd, flags) != 0);
@@ -243,6 +269,7 @@ vm_bind_fail(int fd, const char function_name[])
 
 	igt_assert_eq(simple_vm_bind(fd, vm), 0);
 
+	ignore_faults_in_dmesg(function_name);
 	injection_list_do(INJECTION_LIST_ADD, function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(simple_vm_bind(fd, vm) != 0);
