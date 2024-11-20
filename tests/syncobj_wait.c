@@ -80,8 +80,6 @@
  *
  * SUBTEST: invalid-wait-illegal-handle
  *
- * SUBTEST: invalid-wait-zero-handles
- *
  * SUBTEST: multi-wait-all-for-submit-signaled
  *
  * SUBTEST: multi-wait-all-for-submit-submitted
@@ -177,6 +175,8 @@
  * SUBTEST: wait-for-submit-delayed-submit
  *
  * SUBTEST: wait-for-submit-snapshot
+ *
+ * SUBTEST: wait-zero-handles
  */
 
 IGT_TEST_DESCRIPTION("Tests for the drm sync object wait API");
@@ -297,7 +297,7 @@ static void
 test_wait_zero_handles(int fd)
 {
 	struct drm_syncobj_wait wait = { 0 };
-	igt_assert_eq(__syncobj_wait(fd, &wait), -EINVAL);
+	igt_assert_eq(__syncobj_wait(fd, &wait), 0);
 }
 
 static void
@@ -918,7 +918,7 @@ igt_main
 	igt_subtest("invalid-wait-bad-flags")
 		test_wait_bad_flags(fd);
 
-	igt_subtest("invalid-wait-zero-handles")
+	igt_subtest("wait-zero-handles")
 		test_wait_zero_handles(fd);
 
 	igt_subtest("invalid-wait-illegal-handle")
