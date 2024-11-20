@@ -75,10 +75,6 @@ igt@kms_pm_lpsp@screens-disabled
 igt@kms_pm_rpm@(fences|fences-dpms|pm-caching|pm-tiling)
 igt@kms_pm_rpm@.*pc8-residency.*
 ##################################################################
-# KMS: Invalid combo:- PSR + DRRS can't be tested together
-##################################################################
-igt@kms_frontbuffer_tracking@(fbcpsrdrrs|psrdrrs).*
-##################################################################
 # KMS: Yet to add/missing XE support
 ##################################################################
 igt@kms_prime@.*
