@@ -658,8 +658,8 @@ static const struct pci_id_match intel_device_match[] = {
  */
 const struct intel_device_info *intel_get_device_info(uint16_t devid)
 {
-	static const struct intel_device_info *cache = &intel_generic_info;
-	static uint16_t cached_devid;
+	static __thread const struct intel_device_info *cache = &intel_generic_info;
+	static __thread uint16_t cached_devid;
 	int i;
 
 	if (cached_devid == devid)
