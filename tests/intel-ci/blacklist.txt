@@ -83,11 +83,6 @@ igt@gem_exec_alignment@pi-shared
 ###############################################
 igt@kms_frontbuffer_tracking@.*drrs.*
 ###############################################
-# Invalid combo:- PSR + DRRS can't be tested
-# together
-###############################################
-igt@kms_frontbuffer_tracking@(fbcpsrdrrs|psrdrrs).*
-###############################################
 # Tends to generate invalid configurations
 # using CCS planes or configurations that
 # exceed HW capabilities resulting in sporadic
