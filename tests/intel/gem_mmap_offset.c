@@ -745,6 +745,9 @@ static void *thread_clear(void *data)
 		npages = get_npages(&arg->max, npages);
 		size = npages << 12;
 
+		/* Execbuf requires sufficient amount of free physical memory */
+		if (arg->flags & CLEAR_IN_EXECBUF && arg->region.memory_class == I915_MEMORY_CLASS_SYSTEM)
+			igt_require_memory(1, size, CHECK_RAM);
 		igt_assert_eq(__gem_create_in_memory_region_list(i915, &handle, &size, 0, &arg->region, 1), 0);
 		/* Zero-init bo in execbuf or pagefault handler path as requested */
 		if (arg->flags & CLEAR_IN_EXECBUF)
