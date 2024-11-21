@@ -39,6 +39,10 @@ const char *xe_sriov_shared_res_to_string(enum xe_sriov_shared_res res)
 #define PRE_1250_IP_VER_GGTT_PTE_VFID_MASK	GENMASK_ULL(4, 2)
 #define GGTT_PTE_VFID_MASK			GENMASK_ULL(11, 2)
 #define GGTT_PTE_VFID_SHIFT			2
+#define GUC_GGTT_TOP				0xFEE00000
+#define MAX_WOPCM_SIZE				SZ_8M
+#define START_PTE_OFFSET			(MAX_WOPCM_SIZE / SZ_4K * sizeof(xe_ggtt_pte_t))
+#define MAX_PTE_OFFSET				(GUC_GGTT_TOP / SZ_4K * sizeof(xe_ggtt_pte_t))
 
 static uint64_t get_vfid_mask(int fd)
 {
@@ -112,7 +116,8 @@ int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio
 	*ranges = NULL;
 	*nr_ranges = 0;
 
-	for (uint32_t offset = 0; offset < SZ_8M; offset += sizeof(xe_ggtt_pte_t)) {
+	for (uint32_t offset = START_PTE_OFFSET; offset < MAX_PTE_OFFSET;
+	     offset += sizeof(xe_ggtt_pte_t)) {
 		pte = xe_mmio_ggtt_read(mmio, gt, offset);
 		vf_id = (pte & vfid_mask) >> GGTT_PTE_VFID_SHIFT;
 
