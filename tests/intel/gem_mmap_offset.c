@@ -53,6 +53,7 @@
  * SUBTEST: basic-uaf
  * SUBTEST: blt-coherency
  * SUBTEST: clear
+ * SUBTEST: clear-via-pagefault
  * SUBTEST: close-race
  * SUBTEST: isolation
  * SUBTEST: mmap-boundaries
@@ -720,6 +721,8 @@ struct thread_clear {
 	struct drm_i915_gem_memory_class_instance region;
 	int timeout;
 	int i915;
+	unsigned flags;
+#define CLEAR_IN_EXECBUF	0x1 << 0
 };
 
 static void *thread_clear(void *data)
@@ -743,8 +746,8 @@ static void *thread_clear(void *data)
 		size = npages << 12;
 
 		igt_assert_eq(__gem_create_in_memory_region_list(i915, &handle, &size, 0, &arg->region, 1), 0);
-		/* Zero-init bo in execbuf or pagefault handler path randomly */
-		if (random() & 1)
+		/* Zero-init bo in execbuf or pagefault handler path as requested */
+		if (arg->flags & CLEAR_IN_EXECBUF)
 			make_resident(i915, batch, handle);
 
 		ptr = __mmap_offset(i915, handle, 0, size,
@@ -784,13 +787,14 @@ static void *thread_clear(void *data)
 	return (void *)(uintptr_t)checked;
 }
 
-static void always_clear(int i915, const struct gem_memory_region *r, int timeout)
+static void always_clear(int i915, const struct gem_memory_region *r, int timeout, unsigned flags)
 {
 	struct thread_clear arg = {
 		.i915 = i915,
 		.region = r->ci,
 		.max = r->cpu_size / 2 >> 12, /* in pages */
 		.timeout = timeout,
+		.flags = flags,
 	};
 	const int ncpus = sysconf(_SC_NPROCESSORS_ONLN);
 	unsigned long checked;
@@ -1200,7 +1204,14 @@ igt_main
 	igt_subtest_with_dynamic("clear") {
 		for_each_memory_region(r, i915) {
 			igt_dynamic_f("%s", r->name)
-				always_clear(i915, r, 20);
+				always_clear(i915, r, 20, CLEAR_IN_EXECBUF);
+		}
+	}
+
+	igt_subtest_with_dynamic("clear-via-pagefault") {
+		for_each_memory_region(r, i915) {
+			igt_dynamic_f("%s", r->name)
+				always_clear(i915, r, 20, 0);
 		}
 	}
 
