@@ -1197,8 +1197,8 @@ void igt_kunit(const char *module_name, const char *suite, const char *opts)
 	char debugfs_path[PATH_MAX] = { '\0', };
 	struct igt_ktest tst = { .kmsg = -1, };
 	struct igt_ktap_results *ktap = NULL;
-	const char *subtest = suite;
 	DIR *debugfs_dir = NULL;
+	char *subtest;
 	IGT_LIST_HEAD(tests);
 
 	/*
@@ -1206,7 +1206,9 @@ void igt_kunit(const char *module_name, const char *suite, const char *opts)
 	 * we take the module name, drop the trailing "_test" or "_kunit"
 	 * suffix, if any, and use the result as our IGT subtest name.
 	 */
-	if (!subtest) {
+	if (suite) {
+		subtest = strdup(suite);
+	} else {
 		subtest = strdup(module_name);
 		if (!igt_debug_on(!subtest)) {
 			char *suffix = strstr(subtest, "_test");
@@ -1259,6 +1261,7 @@ void igt_kunit(const char *module_name, const char *suite, const char *opts)
 		igt_ktest_end(&tst);
 	}
 
+	free(subtest);
 	igt_ktest_fini(&tst);
 }
 
