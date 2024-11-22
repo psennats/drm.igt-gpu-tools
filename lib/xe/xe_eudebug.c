@@ -91,6 +91,8 @@ static const char *type_to_str(unsigned int type)
 		return "metadata";
 	case DRM_XE_EUDEBUG_EVENT_VM_BIND_OP_METADATA:
 		return "vm_bind_op_metadata";
+	case DRM_XE_EUDEBUG_EVENT_PAGEFAULT:
+		return "pagefault";
 	}
 
 	return "UNKNOWN";
@@ -220,6 +222,15 @@ static const char *event_members_to_str(struct drm_xe_eudebug_event *e, char *bu
 
 		sprintf(buf, "vm_bind_op_ref_seqno=%lld, metadata_handle=%llu, metadata_cookie=%llu",
 			op->vm_bind_op_ref_seqno, op->metadata_handle, op->metadata_cookie);
+		break;
+	}
+	case DRM_XE_EUDEBUG_EVENT_PAGEFAULT: {
+		struct drm_xe_eudebug_event_pagefault *pf = igt_container_of(e, pf, base);
+
+		sprintf(buf, "client_handle=%llu, exec_queue_handle=%llu, "
+			"lrc_handle=%llu, bitmask_size=%d, pagefault_address=0x%llx",
+			pf->client_handle, pf->exec_queue_handle, pf->lrc_handle,
+			pf->bitmask_size, pf->pagefault_address);
 		break;
 	}
 	default:
