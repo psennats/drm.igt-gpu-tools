@@ -893,3 +893,93 @@ void gpgpu_shader__write_a64_d32(struct gpgpu_shader *shdr, uint64_t ppgtt_addr,
 #endif										\n\
 	", lower_32_bits(addr), upper_32_bits(addr), value);
 }
+
+/**
+ * gpgpu_shader__read_a64_d32:
+ * @shdr: shader to be modified
+ * @ppgtt_addr: read target ppgtt virtual address
+ *
+ * Read one D32 data (DW; DoubleWord) directly from the target ppgtt virtual
+ * address (A64 Flat Address model).
+ *
+ * Note: for the read to succeed, the address specified by @ppgtt_addr has
+ * to be bound. Otherwise a load page fault will be triggered.
+ */
+void gpgpu_shader__read_a64_d32(struct gpgpu_shader *shdr, uint64_t ppgtt_addr)
+{
+	uint64_t addr = CANONICAL(ppgtt_addr);
+
+	igt_assert_f((addr & 0x3) == 0, "address must be aligned to DWord!\n");
+
+	emit_iga64_code(shdr, read_a64_d32, "					\n\
+#if GEN_VER >= 2000								\n\
+// Unyped 2D Block Array Load 							\n\
+// Instruction_Load2DBlockArray							\n\
+// bspec: 63972									\n\
+// src0 address payload (Untyped2DBLOCKAddressPayload) specifies both		\n\
+//	the block parameters and the 2D Surface parameters.			\n\
+// Untyped2DBLOCKAddressPayload							\n\
+// bspec: 63986									\n\
+// [243:240] Array Length: 0 (length is 1)					\n\
+// [239:232] Block Height: 0 (height is 1)					\n\
+// [231:224] Block Width: 0x3 (width is 4 bytes)				\n\
+// [223:192] Block Start Y: 0							\n\
+// [191:160] Block Start X: 0							\n\
+// [159:128] Untyped 2D Surface Pitch: 0x3f (pitch is 64 bytes)			\n\
+// [127:96] Untyped 2D Surface Height: 0 (height is 1)				\n\
+// [95:64] Untyped 2D Surface Width: 0x3f (width is 64 bytes)			\n\
+// [63:0] Untyped 2D Surface Base Address					\n\
+// initialize register								\n\
+(W)	mov (8)			r30.0<1>:uq	0x0:uq				\n\
+// [31:0] Untyped 2D Surface Base Address low					\n\
+(W)	mov (1)			r30.0<1>:ud	ARG(0):ud			\n\
+// [63:32] Untyped 2D Surface Base Address high					\n\
+(W)	mov (1)			r30.1<1>:ud ARG(1):ud				\n\
+// [95:64] Untyped 2D Surface Width: 0x3f					\n\
+//	   (Width minus 1 (in bytes) of the 2D surface, it represents 64)	\n\
+(W)	mov (1) 		r30.2<1>:ud	0x3f:ud				\n\
+// [159:128] Untyped 2D Surface Pitch: 0x3f					\n\
+//	     (Pitch minus 1 (in bytes) of the 2D surface, it represents 64)	\n\
+(W)	mov (1)			r30.4<1>:ud	0x3f:ud				\n\
+// [231:224] Block Width: 0x3 (4 bytes)						\n\
+//	     (Specifies the width minus 1 (in number of data elements) for this	\n\
+//	     rectangular region, it represents 4)				\n\
+// Block width (encoded_value + 1) must be a multiple of DW (4 bytes).		\n\
+// [239:232] Block Height: 0							\n\
+//	     (Specifies the height minus 1 (in number of data elements) for	\n\
+//	     this rectangular region, it represents 1)				\n\
+// [243:240] Array Length: 0							\n\
+//	     (Specifies Array Length minus 1 for Load2DBlockArray messages,	\n\
+//	     must be zero for 2D Block Store messages, it represents 1)		\n\
+(W)	mov (1)			r30.7<1>:ud	0x3:ud				\n\
+//										\n\
+// dest data payload format is selected by Data Size.				\n\
+// Block Height x Block Width x Data size / GRF Register size			\n\
+//	=> 1 x 16 x 32bit / 512bit = 1						\n\
+// data payload format size is 1 GRF Register.					\n\
+//										\n\
+// send.ugm Untyped 2D Block Array Load						\n\
+// Format: send.ugm (1) dst src0 src1 ExtMsg MsgDesc				\n\
+// Execution Mask restriction: SIMT1						\n\
+//										\n\
+// Extended Message Descriptor (Dataport Extended Descriptor Imm 2D Block)	\n\
+// bspec: 67780									\n\
+// 0x0 =>									\n\
+// [32:22] Global Y_offset: 0							\n\
+// [21:12] Global X_offset: 0							\n\
+//										\n\
+// Message Descriptor								\n\
+// bspec: 63972									\n\
+// 0x2128403 =>									\n\
+// [30:29] Address Type: 0 (FLAT)						\n\
+// [28:25] Src0 Length: 1							\n\
+// [24:20] Dest Length: 1							\n\
+// [19:16] Cache : 2 (L1UC_L3UC) 10						\n\
+// [15] Transpose Block: 1							\n\
+// [11:9] Data Size: 2 (D32) 10							\n\
+// [7] VNNI Transform: 0							\n\
+// [5:0] Load Operation: 3 (Load 2D Block) 11					\n\
+(W)	send.ugm (1)		r31	r30	null	0x0	0x2128403	\n\
+#endif										\n\
+	", lower_32_bits(addr), upper_32_bits(addr));
+}
