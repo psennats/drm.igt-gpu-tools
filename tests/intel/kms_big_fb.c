@@ -965,6 +965,19 @@ static const struct {
 	{ 0, "" },
 	{ IGT_REFLECT_X, "-hflip" },
 };
+
+static bool test_requirements(data_t *input_data, int l)
+{
+	/* Intel display version 20 onwards cannot do reflect-x with tile4 */
+	if (!(!is_intel_device(input_data->drm_fd) ||
+	      intel_display_ver(intel_get_drm_devid(input_data->drm_fd)) < 20 ||
+	      !(fliptab[l].flip == IGT_REFLECT_X &&
+	      input_data->modifier == I915_FORMAT_MOD_4_TILED)))
+		return false;
+
+	return true;
+}
+
 igt_main
 {
 	igt_fixture {
@@ -1123,6 +1136,8 @@ igt_main
 					igt_describe("test async flip on maximum hardware supported stride length for given bpp and modifiers.");
 					igt_subtest_f("%s-max-hw-stride-%dbpp-rotate-%d%s-async-flip", modifiers[i].name,
 						formats[j].bpp, rotations[k].angle, fliptab[l].flipname) {
+							igt_require_f(test_requirements(&data, l),
+								      "Can't use reflect-x with Tile4 on intel display version 20+\n");
 							igt_require(igt_has_drm_cap(data.drm_fd, DRM_CAP_ASYNC_PAGE_FLIP));
 							data.max_hw_fb_width = min(data.hw_stride / (formats[j].bpp >> 3), data.max_fb_width);
 							test_scanout(&data);
