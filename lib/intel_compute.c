@@ -1406,7 +1406,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 		igt_assert(f1 == f2 * f2);
 	}
 
-	bo_execenv_unbind(&execenv, bo_dict, XEHPC_BO_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv, bo_dict, XE2_BO_DICT_ENTRIES);
 	bo_execenv_destroy(&execenv);
 }
 
