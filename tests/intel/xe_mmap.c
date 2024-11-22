@@ -207,7 +207,8 @@ static void test_small_bar(int fd)
 	gem_close(fd, bo);
 }
 
-static void assert_caching(int fd, uint64_t placement, uint16_t cpu_caching, bool fail)
+static void assert_caching(int fd, uint64_t placement, uint32_t flags,
+			   uint16_t cpu_caching, bool fail)
 {
 	uint64_t size = xe_get_default_alignment(fd);
 	uint64_t mmo;
@@ -215,7 +216,7 @@ static void assert_caching(int fd, uint64_t placement, uint16_t cpu_caching, boo
 	uint32_t *map;
 	bool ret;
 
-	ret = __xe_bo_create_caching(fd, 0, size, placement, 0, cpu_caching, &handle);
+	ret = __xe_bo_create_caching(fd, 0, size, placement, flags, cpu_caching, &handle);
 	igt_assert(ret == fail);
 
 	if (fail)
@@ -237,22 +238,26 @@ static void test_cpu_caching(int fd)
 {
 	if (vram_memory(fd, 0)) {
 		assert_caching(fd, vram_memory(fd, 0),
+			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
 			       DRM_XE_GEM_CPU_CACHING_WC, false);
 		assert_caching(fd, vram_memory(fd, 0) | system_memory(fd),
+			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
 			       DRM_XE_GEM_CPU_CACHING_WC, false);
 
 		assert_caching(fd, vram_memory(fd, 0),
+			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
 			       DRM_XE_GEM_CPU_CACHING_WB, true);
 		assert_caching(fd, vram_memory(fd, 0) | system_memory(fd),
+			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
 			       DRM_XE_GEM_CPU_CACHING_WB, true);
 	}
 
-	assert_caching(fd, system_memory(fd), DRM_XE_GEM_CPU_CACHING_WB, false);
-	assert_caching(fd, system_memory(fd), DRM_XE_GEM_CPU_CACHING_WC, false);
+	assert_caching(fd, system_memory(fd), 0, DRM_XE_GEM_CPU_CACHING_WB, false);
+	assert_caching(fd, system_memory(fd), 0, DRM_XE_GEM_CPU_CACHING_WC, false);
 
-	assert_caching(fd, system_memory(fd), -1, true);
-	assert_caching(fd, system_memory(fd), 0, true);
-	assert_caching(fd, system_memory(fd), DRM_XE_GEM_CPU_CACHING_WC + 1, true);
+	assert_caching(fd, system_memory(fd), 0, -1, true);
+	assert_caching(fd, system_memory(fd), 0, 0, true);
+	assert_caching(fd, system_memory(fd), 0, DRM_XE_GEM_CPU_CACHING_WC + 1, true);
 }
 
 igt_main
