@@ -136,7 +136,7 @@ static uint32_t
 bs_read_ue(struct buffer_info *buf_info);
 
 static bool
-is_vcn_tests_enable(amdgpu_device_handle device_handle, struct mmd_context *context)
+is_vcn_tests_enable(amdgpu_device_handle device_handle, struct mmd_shared_context *context)
 {
 	struct drm_amdgpu_info_hw_ip info;
 	int r;
@@ -234,15 +234,16 @@ amdgpu_cs_sq_ib_tail(struct vcn_context *v_context, uint32_t *end)
 }
 
 static void
-vcn_dec_cmd(struct mmd_context *context, struct vcn_context *v_context,
+vcn_dec_cmd(struct mmd_shared_context *shared_context,
+		struct mmd_context *context, struct vcn_context *v_context,
 		uint64_t addr, unsigned int cmd, int *idx)
 {
-	if (context->vcn_dec_sw_ring == false) {
-		context->ib_cpu[(*idx)++] = reg[context->vcn_reg_index].data0;
+	if (shared_context->vcn_dec_sw_ring == false) {
+		context->ib_cpu[(*idx)++] = reg[shared_context->vcn_reg_index].data0;
 		context->ib_cpu[(*idx)++] = addr;
-		context->ib_cpu[(*idx)++] = reg[context->vcn_reg_index].data1;
+		context->ib_cpu[(*idx)++] = reg[shared_context->vcn_reg_index].data1;
 		context->ib_cpu[(*idx)++] = addr >> 32;
-		context->ib_cpu[(*idx)++] = reg[context->vcn_reg_index].cmd;
+		context->ib_cpu[(*idx)++] = reg[shared_context->vcn_reg_index].cmd;
 		context->ib_cpu[(*idx)++] = cmd << 1;
 		return;
 	}
@@ -251,7 +252,7 @@ vcn_dec_cmd(struct mmd_context *context, struct vcn_context *v_context,
 	if (!(*idx)) {
 		struct rvcn_decode_ib_package *ib_header;
 
-		if (context->vcn_unified_ring)
+		if (shared_context->vcn_unified_ring)
 			amdgpu_cs_sq_head(v_context, context->ib_cpu, idx, false);
 
 		ib_header = (struct rvcn_decode_ib_package *)&context->ib_cpu[*idx];
@@ -319,8 +320,9 @@ vcn_dec_cmd(struct mmd_context *context, struct vcn_context *v_context,
 }
 
 static void
-amdgpu_cs_vcn_dec_create(amdgpu_device_handle device_handle, struct mmd_context *context,
-			struct vcn_context *v_context)
+amdgpu_cs_vcn_dec_create(amdgpu_device_handle device_handle,
+		struct mmd_shared_context *shared_context,  struct mmd_context *context,
+		struct vcn_context *v_context)
 {
 	struct amdgpu_mmd_bo msg_buf;
 	unsigned int ip;
@@ -339,22 +341,22 @@ amdgpu_cs_vcn_dec_create(amdgpu_device_handle device_handle, struct mmd_context 
 	memcpy(msg_buf.ptr, vcn_dec_create_msg, sizeof(vcn_dec_create_msg));
 
 	len = 0;
-	vcn_dec_cmd(context, v_context, v_context->session_ctx_buf.addr, 5, &len);
-	if (context->vcn_dec_sw_ring == true) {
-		vcn_dec_cmd(context, v_context, msg_buf.addr, 0, &len);
+	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr, 5, &len);
+	if (shared_context->vcn_dec_sw_ring == true) {
+		vcn_dec_cmd(shared_context, context, v_context, msg_buf.addr, 0, &len);
 	} else {
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].data0;
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].data0;
 		context->ib_cpu[len++] = msg_buf.addr;
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].data1;
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].data1;
 		context->ib_cpu[len++] = msg_buf.addr >> 32;
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].cmd;
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].cmd;
 		context->ib_cpu[len++] = 0;
 		for (; len % 16; ) {
-			context->ib_cpu[len++] = reg[context->vcn_reg_index].nop;
+			context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].nop;
 			context->ib_cpu[len++] = 0;
 		}
 	}
-	if (context->vcn_unified_ring) {
+	if (shared_context->vcn_unified_ring) {
 		amdgpu_cs_sq_ib_tail(v_context, context->ib_cpu + len);
 		ip = AMDGPU_HW_IP_VCN_ENC;
 	} else
@@ -368,7 +370,9 @@ amdgpu_cs_vcn_dec_create(amdgpu_device_handle device_handle, struct mmd_context 
 }
 
 static void
-amdgpu_cs_vcn_dec_decode(amdgpu_device_handle device_handle, struct mmd_context *context,
+amdgpu_cs_vcn_dec_decode(amdgpu_device_handle device_handle,
+			struct mmd_shared_context *shared_context,
+			struct mmd_context *context,
 			struct vcn_context *v_context)
 {
 	const unsigned int dpb_size = 15923584, dt_size = 737280;
@@ -422,25 +426,25 @@ amdgpu_cs_vcn_dec_decode(amdgpu_device_handle device_handle, struct mmd_context 
 
 
 	len = 0;
-	vcn_dec_cmd(context, v_context, v_context->session_ctx_buf.addr, 0x5, &len);
-	vcn_dec_cmd(context, v_context, msg_addr, 0x0, &len);
-	vcn_dec_cmd(context, v_context, dpb_addr, 0x1, &len);
-	vcn_dec_cmd(context, v_context, dt_addr, 0x2, &len);
-	vcn_dec_cmd(context, v_context, fb_addr, 0x3, &len);
-	vcn_dec_cmd(context, v_context, bs_addr, 0x100, &len);
-	vcn_dec_cmd(context, v_context, it_addr, 0x204, &len);
-	vcn_dec_cmd(context, v_context, ctx_addr, 0x206, &len);
+	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr, 0x5, &len);
+	vcn_dec_cmd(shared_context, context, v_context, msg_addr, 0x0, &len);
+	vcn_dec_cmd(shared_context, context, v_context, dpb_addr, 0x1, &len);
+	vcn_dec_cmd(shared_context, context, v_context, dt_addr, 0x2, &len);
+	vcn_dec_cmd(shared_context, context, v_context, fb_addr, 0x3, &len);
+	vcn_dec_cmd(shared_context, context, v_context, bs_addr, 0x100, &len);
+	vcn_dec_cmd(shared_context, context, v_context, it_addr, 0x204, &len);
+	vcn_dec_cmd(shared_context, context, v_context, ctx_addr, 0x206, &len);
 
-	if (context->vcn_dec_sw_ring == false) {
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].cntl;
+	if (shared_context->vcn_dec_sw_ring == false) {
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].cntl;
 		context->ib_cpu[len++] = 0x1;
 		for (; len % 16; ) {
-			context->ib_cpu[len++] = reg[context->vcn_reg_index].nop;
+			context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].nop;
 			context->ib_cpu[len++] = 0;
 		}
 	}
 
-	if (context->vcn_unified_ring) {
+	if (shared_context->vcn_unified_ring) {
 		amdgpu_cs_sq_ib_tail(v_context, context->ib_cpu + len);
 		ip = AMDGPU_HW_IP_VCN_ENC;
 	} else
@@ -459,7 +463,8 @@ amdgpu_cs_vcn_dec_decode(amdgpu_device_handle device_handle, struct mmd_context 
 
 static void
 amdgpu_cs_vcn_dec_destroy(amdgpu_device_handle device_handle,
-			struct mmd_context *context, struct vcn_context *v_context)
+		struct mmd_shared_context *shared_context,
+		struct mmd_context *context, struct vcn_context *v_context)
 {
 	struct amdgpu_mmd_bo msg_buf;
 	unsigned int ip;
@@ -477,22 +482,22 @@ amdgpu_cs_vcn_dec_destroy(amdgpu_device_handle device_handle,
 	memcpy(msg_buf.ptr, vcn_dec_destroy_msg, sizeof(vcn_dec_destroy_msg));
 
 	len = 0;
-	vcn_dec_cmd(context, v_context, v_context->session_ctx_buf.addr, 5, &len);
-	if (context->vcn_dec_sw_ring == true) {
-		vcn_dec_cmd(context, v_context, msg_buf.addr, 0, &len);
+	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr, 5, &len);
+	if (shared_context->vcn_dec_sw_ring == true) {
+		vcn_dec_cmd(shared_context, context, v_context, msg_buf.addr, 0, &len);
 	} else {
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].data0;
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].data0;
 		context->ib_cpu[len++] = msg_buf.addr;
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].data1;
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].data1;
 		context->ib_cpu[len++] = msg_buf.addr >> 32;
-		context->ib_cpu[len++] = reg[context->vcn_reg_index].cmd;
+		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].cmd;
 		context->ib_cpu[len++] = 0;
 		for (; len % 16; ) {
-			context->ib_cpu[len++] = reg[context->vcn_reg_index].nop;
+			context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].nop;
 			context->ib_cpu[len++] = 0;
 		}
 	}
-	if (context->vcn_unified_ring) {
+	if (shared_context->vcn_unified_ring) {
 		amdgpu_cs_sq_ib_tail(v_context, context->ib_cpu + len);
 		ip = AMDGPU_HW_IP_VCN_ENC;
 	} else
@@ -507,6 +512,7 @@ amdgpu_cs_vcn_dec_destroy(amdgpu_device_handle device_handle,
 
 static void
 amdgpu_cs_vcn_enc_create(amdgpu_device_handle device_handle,
+			struct mmd_shared_context *shared_context,
 			struct mmd_context *context, struct vcn_context *v_context)
 {
 	int len, r;
@@ -516,10 +522,10 @@ amdgpu_cs_vcn_enc_create(amdgpu_device_handle device_handle,
 	unsigned int width = 160, height = 128, buf_size;
 	uint32_t fw_maj = 1, fw_min = 9;
 
-	if (context->vcn_ip_version_major == 2) {
+	if (shared_context->vcn_ip_version_major == 2) {
 		fw_maj = 1;
 		fw_min = 1;
-	} else if (context->vcn_ip_version_major == 3) {
+	} else if (shared_context->vcn_ip_version_major == 3) {
 		fw_maj = 1;
 		fw_min = 0;
 	}
@@ -546,7 +552,7 @@ amdgpu_cs_vcn_enc_create(amdgpu_device_handle device_handle,
 
 	len = 0;
 
-	if (context->vcn_unified_ring)
+	if (shared_context->vcn_unified_ring)
 		amdgpu_cs_sq_head(v_context, context->ib_cpu, &len, true);
 
 	/* session info */
@@ -609,7 +615,7 @@ amdgpu_cs_vcn_enc_create(amdgpu_device_handle device_handle,
 	context->ib_cpu[len++] = 1;	/* quarter pel enabled */
 	context->ib_cpu[len++] = 100;	/* BASELINE profile */
 	context->ib_cpu[len++] = 11;	/* level */
-	if (context->vcn_ip_version_major >= 3) {
+	if (shared_context->vcn_ip_version_major >= 3) {
 		context->ib_cpu[len++] = 0;	/* b_picture_enabled */
 		context->ib_cpu[len++] = 0;	/* weighted_bipred_idc */
 	}
@@ -650,7 +656,7 @@ amdgpu_cs_vcn_enc_create(amdgpu_device_handle device_handle,
 	context->ib_cpu[len++] = 0;	/* scene change sensitivity */
 	context->ib_cpu[len++] = 0;	/* scene change min idr interval */
 	context->ib_cpu[len++] = 0;
-	if (context->vcn_ip_version_major >= 3)
+	if (shared_context->vcn_ip_version_major >= 3)
 		context->ib_cpu[len++] = 0;
 	*st_size = (len - st_offset) * 4;
 
@@ -710,7 +716,7 @@ amdgpu_cs_vcn_enc_create(amdgpu_device_handle device_handle,
 
 	*p_task_size = (len - task_offset) * 4;
 
-	if (context->vcn_unified_ring)
+	if (shared_context->vcn_unified_ring)
 		amdgpu_cs_sq_ib_tail(v_context, context->ib_cpu + len);
 
 	r = submit(device_handle, context, len, AMDGPU_HW_IP_VCN_ENC);
@@ -1062,6 +1068,7 @@ check_result(struct vcn_context *v_context, struct amdgpu_mmd_bo fb_buf,
 
 static void
 amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
+			struct mmd_shared_context *shared_context,
 			struct mmd_context *context, struct vcn_context *v_context,
 			int frame_type)
 {
@@ -1073,10 +1080,10 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	uint32_t *st_size = NULL;
 	uint32_t fw_maj = 1, fw_min = 9;
 
-	if (context->vcn_ip_version_major == 2) {
+	if (shared_context->vcn_ip_version_major == 2) {
 		fw_maj = 1;
 		fw_min = 1;
-	} else if (context->vcn_ip_version_major == 3) {
+	} else if (shared_context->vcn_ip_version_major == 3) {
 		fw_maj = 1;
 		fw_min = 0;
 	}
@@ -1114,7 +1121,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 
 	len = 0;
 
-	if (context->vcn_unified_ring)
+	if (shared_context->vcn_unified_ring)
 		amdgpu_cs_sq_head(v_context, context->ib_cpu, &len, true);
 
 	/* session info */
@@ -1141,7 +1148,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 		/* sps */
 		st_offset = len;
 		st_size = &context->ib_cpu[len++];	/* size */
-		if (context->vcn_ip_version_major == 1)
+		if (shared_context->vcn_ip_version_major == 1)
 			context->ib_cpu[len++] = 0x00000020;	/* RENCODE_IB_PARAM_DIRECT_OUTPUT_NALU vcn 1 */
 		else
 			context->ib_cpu[len++] = 0x0000000a;	/* RENCODE_IB_PARAM_DIRECT_OUTPUT_NALU other vcn */
@@ -1157,7 +1164,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 		/* pps */
 		st_offset = len;
 		st_size = &context->ib_cpu[len++];	/* size */
-		if (context->vcn_ip_version_major == 1)
+		if (shared_context->vcn_ip_version_major == 1)
 			context->ib_cpu[len++] = 0x00000020;	/* RENCODE_IB_PARAM_DIRECT_OUTPUT_NALU vcn 1*/
 		else
 			context->ib_cpu[len++] = 0x0000000a;	/* RENCODE_IB_PARAM_DIRECT_OUTPUT_NALU other vcn*/
@@ -1171,7 +1178,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	/* slice header */
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];	/* size */
-	if (context->vcn_ip_version_major == 1)
+	if (shared_context->vcn_ip_version_major == 1)
 		context->ib_cpu[len++] = 0x0000000a; /* RENCODE_IB_PARAM_SLICE_HEADER vcn 1 */
 	else
 		context->ib_cpu[len++] = 0x0000000b; /* RENCODE_IB_PARAM_SLICE_HEADER vcn 2,3 */
@@ -1202,7 +1209,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	/* encode params */
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];	/* size */
-	if (context->vcn_ip_version_major == 1)
+	if (shared_context->vcn_ip_version_major == 1)
 		context->ib_cpu[len++] = 0x0000000b;	/* RENCODE_IB_PARAM_ENCODE_PARAMS vcn 1*/
 	else
 		context->ib_cpu[len++] = 0x0000000f;	/* RENCODE_IB_PARAM_ENCODE_PARAMS other vcn*/
@@ -1223,7 +1230,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];	/* size */
 	context->ib_cpu[len++] = 0x00200003;	/* RENCODE_H264_IB_PARAM_ENCODE_PARAMS */
-	if (context->vcn_ip_version_major <= 2) {
+	if (shared_context->vcn_ip_version_major <= 2) {
 		context->ib_cpu[len++] = 0x00000000;
 		context->ib_cpu[len++] = 0x00000000;
 		context->ib_cpu[len++] = 0x00000000;
@@ -1253,7 +1260,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	/* encode context */
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];	/* size */
-	if (context->vcn_ip_version_major == 1)
+	if (shared_context->vcn_ip_version_major == 1)
 		context->ib_cpu[len++] = 0x0000000d;	/* ENCODE_CONTEXT_BUFFER  vcn 1 */
 	else
 		context->ib_cpu[len++] = 0x00000011;	/* ENCODE_CONTEXT_BUFFER  other vcn*/
@@ -1265,7 +1272,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	context->ib_cpu[len++] = 0x00000002; /* no reconstructed picture */
 	context->ib_cpu[len++] = 0x00000000;	/* reconstructed pic 1 luma offset */
 	context->ib_cpu[len++] = ALIGN(width, 256) * ALIGN(height, 32);	/* pic1 chroma offset */
-	if (context->vcn_ip_version_major == 4)
+	if (shared_context->vcn_ip_version_major == 4)
 		amdgpu_cs_vcn_ib_zero_count(context, &len, 2);
 	context->ib_cpu[len++] = ALIGN(width, 256) * ALIGN(height, 32) * 3 / 2;	/* pic2 luma offset */
 	context->ib_cpu[len++] = ALIGN(width, 256) * ALIGN(height, 32) * 5 / 2;	/* pic2 chroma offset */
@@ -1276,7 +1283,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	/* bitstream buffer */
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];	/* size */
-	if (context->vcn_ip_version_major == 1)
+	if (shared_context->vcn_ip_version_major == 1)
 		context->ib_cpu[len++] = 0x0000000e;	/* VIDEO_BITSTREAM_BUFFER vcn 1 */
 	else
 		context->ib_cpu[len++] = 0x00000012;	/* VIDEO_BITSTREAM_BUFFER other vcn */
@@ -1290,7 +1297,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	/* feedback */
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];	/* size */
-	if (context->vcn_ip_version_major == 1)
+	if (shared_context->vcn_ip_version_major == 1)
 		context->ib_cpu[len++] = 0x00000010;	/* FEEDBACK_BUFFER vcn 1 */
 	else
 		context->ib_cpu[len++] = 0x00000015;	/* FEEDBACK_BUFFER vcn 2,3 */
@@ -1304,7 +1311,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	/* intra refresh */
 	st_offset = len;
 	st_size = &context->ib_cpu[len++];
-	if (context->vcn_ip_version_major == 1)
+	if (shared_context->vcn_ip_version_major == 1)
 		context->ib_cpu[len++] = 0x0000000c;	/* INTRA_REFRESH vcn 1 */
 	else
 		context->ib_cpu[len++] = 0x00000010;	/* INTRA_REFRESH vcn 2,3 */
@@ -1313,7 +1320,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 	context->ib_cpu[len++] = 0x00000000;
 	*st_size = (len - st_offset) * 4;
 
-	if (context->vcn_ip_version_major != 1) {
+	if (shared_context->vcn_ip_version_major != 1) {
 		/* Input Format */
 		st_offset = len;
 		st_size = &context->ib_cpu[len++];
@@ -1351,7 +1358,7 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 
 	*p_task_size = (len - task_offset) * 4;
 
-	if (context->vcn_unified_ring)
+	if (shared_context->vcn_unified_ring)
 		amdgpu_cs_sq_ib_tail(v_context, context->ib_cpu + len);
 
 	r = submit(device_handle, context, len, AMDGPU_HW_IP_VCN_ENC);
@@ -1367,13 +1374,17 @@ amdgpu_cs_vcn_enc_encode_frame(amdgpu_device_handle device_handle,
 
 static void
 amdgpu_cs_vcn_enc_encode(amdgpu_device_handle device_handle,
+			struct mmd_shared_context *shared_context,
 			struct mmd_context *context, struct vcn_context *v_context)
 {
-	amdgpu_cs_vcn_enc_encode_frame(device_handle, context, v_context, 2);	/* IDR frame */
+	amdgpu_cs_vcn_enc_encode_frame(device_handle, shared_context,
+			context, v_context, 2);	/* IDR frame */
 }
 
 static void
-amdgpu_cs_vcn_enc_destroy(amdgpu_device_handle device_handle, struct mmd_context *context,
+amdgpu_cs_vcn_enc_destroy(amdgpu_device_handle device_handle,
+			struct mmd_shared_context *shared_context,
+			struct mmd_context *context,
 			struct vcn_context *v_context)
 {
 	int len = 0, r;
@@ -1382,10 +1393,10 @@ amdgpu_cs_vcn_enc_destroy(amdgpu_device_handle device_handle, struct mmd_context
 	uint32_t *st_size = NULL;
 	uint32_t fw_maj = 1, fw_min = 9;
 
-	if (context->vcn_ip_version_major == 2) {
+	if (shared_context->vcn_ip_version_major == 2) {
 		fw_maj = 1;
 		fw_min = 1;
-	} else if (context->vcn_ip_version_major == 3) {
+	} else if (shared_context->vcn_ip_version_major == 3) {
 		fw_maj = 1;
 		fw_min = 0;
 	}
@@ -1395,7 +1406,7 @@ amdgpu_cs_vcn_enc_destroy(amdgpu_device_handle device_handle, struct mmd_context
 	context->resources[context->num_resources++] = v_context->enc_buf.handle;
 	context->resources[context->num_resources++] = context->ib_handle;
 
-	if (context->vcn_unified_ring)
+	if (shared_context->vcn_unified_ring)
 		amdgpu_cs_sq_head(v_context, context->ib_cpu, &len, true);
 
 	/* session info */
@@ -1426,7 +1437,7 @@ amdgpu_cs_vcn_enc_destroy(amdgpu_device_handle device_handle, struct mmd_context
 
 	*p_task_size = (len - task_offset) * 4;
 
-	if (context->vcn_unified_ring)
+	if (shared_context->vcn_unified_ring)
 		amdgpu_cs_sq_ib_tail(v_context, context->ib_cpu + len);
 
 	r = submit(device_handle, context, len, AMDGPU_HW_IP_VCN_ENC);
@@ -1441,6 +1452,7 @@ igt_main
 	amdgpu_device_handle device;
 	struct mmd_context context = {};
 	struct vcn_context v_context = {};
+	struct mmd_shared_context shared_context = {};
 	int fd = -1;
 
 	igt_fixture {
@@ -1452,33 +1464,35 @@ igt_main
 		igt_require(err == 0);
 		igt_info("Initialized amdgpu, driver version %d.%d\n",
 			 major, minor);
+		err = mmd_shared_context_init(device, &shared_context);
+		igt_require(err == 0);
 		err = mmd_context_init(device, &context);
 		igt_require(err == 0);
-		igt_skip_on(!is_vcn_tests_enable(device, &context));
-		igt_skip_on_f(!context.dec_ring && !context.enc_ring, "vcn no decorder and encoder rings\n");
+		igt_skip_on(!is_vcn_tests_enable(device, &shared_context));
+		igt_skip_on_f(!shared_context.dec_ring && !shared_context.enc_ring, "vcn no decorder and encoder rings\n");
 	}
 
 	igt_describe("Test whether vcn decorder is created, decodes, destroyed");
 	igt_subtest_with_dynamic("vcn-decoder-create-decode-destroy") {
-		if (context.dec_ring) {
+		if (shared_context.dec_ring) {
 			igt_dynamic_f("vcn-decoder-create")
-			amdgpu_cs_vcn_dec_create(device, &context, &v_context);
+			amdgpu_cs_vcn_dec_create(device, &shared_context, &context, &v_context);
 			igt_dynamic_f("vcn-decoder-decode")
-			amdgpu_cs_vcn_dec_decode(device, &context, &v_context);
+			amdgpu_cs_vcn_dec_decode(device, &shared_context, &context, &v_context);
 			igt_dynamic_f("vcn-decoder-destroy")
-			amdgpu_cs_vcn_dec_destroy(device, &context, &v_context);
+			amdgpu_cs_vcn_dec_destroy(device, &shared_context, &context, &v_context);
 		}
 	}
 
 	igt_describe("Test whether vcn encoder is created, encodes, destroyed");
 	igt_subtest_with_dynamic("vcn-encoder-create-encode-destroy") {
-		if (context.enc_ring) {
+		if (shared_context.enc_ring) {
 			igt_dynamic_f("vcn-encoder-create")
-			amdgpu_cs_vcn_enc_create(device, &context, &v_context);
+			amdgpu_cs_vcn_enc_create(device, &shared_context, &context, &v_context);
 			igt_dynamic_f("vcn-encoder-encodes")
-			amdgpu_cs_vcn_enc_encode(device, &context, &v_context);
+			amdgpu_cs_vcn_enc_encode(device, &shared_context, &context, &v_context);
 			igt_dynamic_f("vcn-encoder-destroy")
-			amdgpu_cs_vcn_enc_destroy(device, &context, &v_context);
+			amdgpu_cs_vcn_enc_destroy(device, &shared_context, &context, &v_context);
 		}
 	}
 

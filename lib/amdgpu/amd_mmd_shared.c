@@ -52,7 +52,6 @@ int
 mmd_context_init(amdgpu_device_handle device_handle, struct mmd_context *context)
 {
 	int r;
-	struct amdgpu_gpu_info gpu_info = {0};
 
 	r = amdgpu_cs_ctx_create(device_handle, &context->context_handle);
 	igt_assert_eq(r, 0);
@@ -61,17 +60,6 @@ mmd_context_init(amdgpu_device_handle device_handle, struct mmd_context *context
 				    &context->ib_handle, (void **)&context->ib_cpu,
 				    &context->ib_mc_address,
 				    &context->ib_va_handle);
-
-	r = amdgpu_query_gpu_info(device_handle, &gpu_info);
-	igt_assert_eq(r, 0);
-
-	context->family_id = gpu_info.family_id;
-	context->chip_id = gpu_info.chip_external_rev;
-	context->chip_rev = gpu_info.chip_rev;
-	context->asic_id = gpu_info.asic_id;
-
-	/*vce*/
-	context->vce_harvest_config = gpu_info.vce_harvest_config;
 
 	return r;
 }
@@ -86,6 +74,26 @@ mmd_context_clean(amdgpu_device_handle device_handle,
 
 	amdgpu_cs_ctx_free(context->context_handle);
 
+}
+
+int
+mmd_shared_context_init(amdgpu_device_handle device_handle, struct mmd_shared_context *context)
+{
+	int r;
+	struct amdgpu_gpu_info gpu_info = {0};
+
+	r = amdgpu_query_gpu_info(device_handle, &gpu_info);
+	igt_assert_eq(r, 0);
+
+	context->family_id = gpu_info.family_id;
+	context->chip_id = gpu_info.chip_external_rev;
+	context->chip_rev = gpu_info.chip_rev;
+	context->asic_id = gpu_info.asic_id;
+
+	/*vce*/
+	context->vce_harvest_config = gpu_info.vce_harvest_config;
+
+	return r;
 }
 
 void

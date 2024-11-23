@@ -27,19 +27,11 @@
 #define IB_SIZE		4096
 #define MAX_RESOURCES	16
 
-struct mmd_context {
+struct mmd_shared_context {
 	uint32_t family_id;
 	uint32_t chip_id;
 	uint32_t chip_rev;
 	uint32_t asic_id;
-	amdgpu_context_handle context_handle;
-	amdgpu_bo_handle ib_handle;
-	amdgpu_va_handle ib_va_handle;
-	uint64_t ib_mc_address;
-	uint32_t *ib_cpu;
-
-	amdgpu_bo_handle resources[MAX_RESOURCES];
-	unsigned int num_resources;
 
 	/* vce */
 	uint32_t vce_harvest_config;
@@ -59,6 +51,17 @@ struct mmd_context {
 	uint32_t vpe_ip_version_major;
 	uint32_t vpe_ip_version_minor;
 	bool vpe_ring;
+};
+
+struct mmd_context {
+	amdgpu_context_handle context_handle;
+	amdgpu_bo_handle ib_handle;
+	amdgpu_va_handle ib_va_handle;
+	uint64_t ib_mc_address;
+	uint32_t *ib_cpu;
+
+	amdgpu_bo_handle resources[MAX_RESOURCES];
+	unsigned int num_resources;
 };
 
 struct amdgpu_mmd_bo {
@@ -82,7 +85,6 @@ struct amdgpu_uvd_enc {
 struct uvd_enc_context {
 	struct mmd_context uvd;
 	struct amdgpu_uvd_enc enc;
-
 };
 
 bool
@@ -100,6 +102,9 @@ mmd_context_init(amdgpu_device_handle device_handle, struct mmd_context *context
 void
 mmd_context_clean(amdgpu_device_handle device_handle,
 		struct mmd_context *context);
+
+int
+mmd_shared_context_init(amdgpu_device_handle device_handle, struct mmd_shared_context *context);
 
 int
 submit(amdgpu_device_handle device_handle, struct mmd_context *context,

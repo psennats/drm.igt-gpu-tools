@@ -21,6 +21,7 @@ uvd_cmd(uint32_t family_id, uint64_t addr, uint32_t cmd, uint32_t *idx,
 
 static void
 amdgpu_uvd_dec_create(amdgpu_device_handle device_handle,
+		struct mmd_shared_context *shared_context,
 		struct mmd_context *context)
 {
 	struct amdgpu_bo_alloc_request req = {0};
@@ -51,10 +52,10 @@ amdgpu_uvd_dec_create(amdgpu_device_handle device_handle,
 
 	memcpy(msg, uvd_create_msg, sizeof(uvd_create_msg));
 
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
 		((uint8_t *)msg)[0x10] = 7;
-		if (amdgpu_is_vega_or_polaris(context->family_id, context->chip_id,
-				context->chip_rev)) {
+		if (amdgpu_is_vega_or_polaris(shared_context->family_id, shared_context->chip_id,
+				shared_context->chip_rev)) {
 			/* dpb size */
 			((uint8_t *)msg)[0x28] = 0x00;
 			((uint8_t *)msg)[0x29] = 0x94;
@@ -71,7 +72,7 @@ amdgpu_uvd_dec_create(amdgpu_device_handle device_handle,
 	context->resources[context->num_resources++] = context->ib_handle;
 
 	i = 0;
-	uvd_cmd(context->family_id, va, 0x0, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, va, 0x0, &i, context->ib_cpu);
 
 	for (; i % 16; ++i)
 		context->ib_cpu[i] = 0x80000000;
@@ -91,7 +92,7 @@ amdgpu_uvd_dec_create(amdgpu_device_handle device_handle,
 
 static void
 amdgpu_uvd_decode(amdgpu_device_handle device_handle,
-		struct mmd_context *context)
+		struct mmd_context *context, struct mmd_shared_context *shared_context)
 {
 	const unsigned int dpb_size = 15923584, dt_size = 737280;
 	uint64_t msg_addr, fb_addr, bs_addr, dpb_addr, ctx_addr, dt_addr, it_addr;
@@ -106,7 +107,7 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 
 	req.alloc_size = 4 * 1024; /* msg */
 	req.alloc_size += 4 * 1024; /* fb */
-	if (context->family_id >= AMDGPU_FAMILY_VI)
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI)
 		req.alloc_size += IB_SIZE; /*it_scaling_table*/
 	req.alloc_size += ALIGN(sizeof(uvd_bitstream), 4 * 1024);
 	req.alloc_size += ALIGN(dpb_size, 4*1024);
@@ -133,12 +134,12 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 	memcpy(ptr, uvd_decode_msg, sizeof(uvd_decode_msg));
 	memcpy(ptr + sizeof(uvd_decode_msg), avc_decode_msg, sizeof(avc_decode_msg));
 
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
 		ptr[0x10] = 7;
 		ptr[0x98] = 0x00;
 		ptr[0x99] = 0x02;
-		if (amdgpu_is_vega_or_polaris(context->family_id, context->chip_id,
-				context->chip_rev)) {
+		if (amdgpu_is_vega_or_polaris(shared_context->family_id, shared_context->chip_id,
+				shared_context->chip_rev)) {
 			/* dpb size */
 			ptr[0x24] = 0x00;
 			ptr[0x25] = 0x94;
@@ -154,7 +155,7 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 
 	ptr += 4 * 1024;
 	memset(ptr, 0, 4 * 1024);
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
 		ptr += 4 * 1024;
 		memcpy(ptr, uvd_it_scaling_table, sizeof(uvd_it_scaling_table));
 	}
@@ -174,7 +175,7 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 
 	msg_addr = va;
 	fb_addr = msg_addr + 4 * 1024;
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
 		it_addr = fb_addr + 4 * 1024;
 		bs_addr = it_addr + 4 * 1024;
 	} else
@@ -182,9 +183,9 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 	dpb_addr = ALIGN(bs_addr + sizeof(uvd_bitstream), 4 * 1024);
 
 	ctx_addr = 0;
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
-		if (amdgpu_is_vega_or_polaris(context->family_id, context->chip_id,
-				context->chip_rev)) {
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
+		if (amdgpu_is_vega_or_polaris(shared_context->family_id, shared_context->chip_id,
+				shared_context->chip_rev)) {
 			ctx_addr = ALIGN(dpb_addr + 0x006B9400, 4 * 1024);
 		}
 	}
@@ -192,21 +193,21 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 	dt_addr = ALIGN(dpb_addr + dpb_size, 4 * 1024);
 
 	i = 0;
-	uvd_cmd(context->family_id, msg_addr, 0x0, &i, context->ib_cpu);
-	uvd_cmd(context->family_id, dpb_addr, 0x1, &i, context->ib_cpu);
-	uvd_cmd(context->family_id, dt_addr, 0x2, &i, context->ib_cpu);
-	uvd_cmd(context->family_id, fb_addr, 0x3, &i, context->ib_cpu);
-	uvd_cmd(context->family_id, bs_addr, 0x100, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, msg_addr, 0x0, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, dpb_addr, 0x1, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, dt_addr, 0x2, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, fb_addr, 0x3, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, bs_addr, 0x100, &i, context->ib_cpu);
 
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
-		uvd_cmd(context->family_id, it_addr, 0x204, &i, context->ib_cpu);
-		if (amdgpu_is_vega_or_polaris(context->family_id, context->chip_id,
-				context->chip_rev)) {
-			uvd_cmd(context->family_id, ctx_addr, 0x206, &i, context->ib_cpu);
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
+		uvd_cmd(shared_context->family_id, it_addr, 0x204, &i, context->ib_cpu);
+		if (amdgpu_is_vega_or_polaris(shared_context->family_id, shared_context->chip_id,
+				shared_context->chip_rev)) {
+			uvd_cmd(shared_context->family_id, ctx_addr, 0x206, &i, context->ib_cpu);
 		}
 	}
 
-	context->ib_cpu[i++] = (context->family_id < AMDGPU_FAMILY_AI) ?
+	context->ib_cpu[i++] = (shared_context->family_id < AMDGPU_FAMILY_AI) ?
 			UVD_4_0__ENGINE_CNTL : VEGA_20_UVD_ENGINE_CNTL;
 	context->ib_cpu[i++] = 0x1;
 	for (; i % 16; ++i)
@@ -234,7 +235,8 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 }
 
 static void
-amdgpu_uvd_dec_destroy(amdgpu_device_handle device_handle, struct mmd_context *context)
+amdgpu_uvd_dec_destroy(amdgpu_device_handle device_handle, struct mmd_context *context,
+		 struct mmd_shared_context *shared_context)
 {
 	struct amdgpu_bo_alloc_request req = {0};
 	amdgpu_bo_handle buf_handle;
@@ -264,7 +266,7 @@ amdgpu_uvd_dec_destroy(amdgpu_device_handle device_handle, struct mmd_context *c
 	igt_assert_eq(r, 0);
 
 	memcpy(msg, uvd_destroy_msg, sizeof(uvd_destroy_msg));
-	if (context->family_id >= AMDGPU_FAMILY_VI)
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI)
 		((uint8_t *)msg)[0x10] = 7;
 
 	r = amdgpu_bo_cpu_unmap(buf_handle);
@@ -275,7 +277,7 @@ amdgpu_uvd_dec_destroy(amdgpu_device_handle device_handle, struct mmd_context *c
 	context->resources[context->num_resources++] = context->ib_handle;
 
 	i = 0;
-	uvd_cmd(context->family_id, va, 0x0, &i, context->ib_cpu);
+	uvd_cmd(shared_context->family_id, va, 0x0, &i, context->ib_cpu);
 	for (; i % 16; ++i)
 		context->ib_cpu[i] = 0x80000000;
 
@@ -296,6 +298,7 @@ igt_main
 {
 	amdgpu_device_handle device;
 	struct mmd_context context = {};
+	struct mmd_shared_context shared_context = {};
 	int fd = -1;
 
 	igt_fixture {
@@ -307,22 +310,24 @@ igt_main
 		igt_require(err == 0);
 		igt_info("Initialized amdgpu, driver version %d.%d\n",
 			 major, minor);
+		err = mmd_shared_context_init(device, &shared_context);
+		igt_require(err == 0);
 		err = mmd_context_init(device, &context);
 		igt_require(err == 0);
-		igt_skip_on(!is_uvd_tests_enable(context.family_id, context.chip_id,
-				context.chip_rev));
+		igt_skip_on(!is_uvd_tests_enable(shared_context.family_id, shared_context.chip_id,
+				shared_context.chip_rev));
 	}
 	igt_describe("Test whether uvd dec is created");
 	igt_subtest("amdgpu_uvd_dec_create")
-	amdgpu_uvd_dec_create(device, &context);
+	amdgpu_uvd_dec_create(device, &shared_context, &context);
 
 	igt_describe("Test whether uvd dec can decode");
 	igt_subtest("amdgpu_uvd_decode")
-	amdgpu_uvd_decode(device, &context);
+	amdgpu_uvd_decode(device, &context, &shared_context);
 
 	igt_describe("Test whether uvd dec is destroyed");
 	igt_subtest("amdgpu_uvd_dec_destroy")
-	amdgpu_uvd_dec_destroy(device, &context);
+	amdgpu_uvd_dec_destroy(device, &context, &shared_context);
 
 	igt_fixture {
 		mmd_context_clean(device, &context);

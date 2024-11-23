@@ -60,9 +60,10 @@ is_vce_tests_enable(amdgpu_device_handle device_handle, uint32_t family_id,
 
 static void
 amdgpu_cs_vce_create(amdgpu_device_handle device_handle,
-		struct amdgpu_vce_encode *enc, struct mmd_context *context, bool is_mv_supported)
+		struct amdgpu_vce_encode *enc, struct mmd_context *context,
+		struct mmd_shared_context *shared_context, bool is_mv_supported)
 {
-	unsigned int align = (context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 	int len, r;
 
 	enc->width = vce_create[6];
@@ -82,7 +83,7 @@ amdgpu_cs_vce_create(amdgpu_device_handle device_handle,
 	context->ib_cpu[len + 8] = ALIGN(enc->width, align);
 	context->ib_cpu[len + 9] = ALIGN(enc->width, align);
 	if (is_mv_supported == true) {/* disableTwoInstance */
-		if (context->family_id >= AMDGPU_FAMILY_AI)
+		if (shared_context->family_id >= AMDGPU_FAMILY_AI)
 			context->ib_cpu[len + 11] = 0x01000001;
 		else
 			context->ib_cpu[len + 11] = 0x01000201;
@@ -129,11 +130,12 @@ amdgpu_cs_vce_config(amdgpu_device_handle device_handle,
 }
 
 static void amdgpu_cs_vce_encode_idr(amdgpu_device_handle device_handle,
-		struct mmd_context *context, struct amdgpu_vce_encode *enc)
+		struct mmd_shared_context *shared_context, struct mmd_context *context,
+		struct amdgpu_vce_encode *enc)
 {
 
 	uint64_t luma_offset, chroma_offset;
-	unsigned int align = (context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 	unsigned int luma_size = ALIGN(enc->width, align) * ALIGN(enc->height, 16);
 	int len = 0, i, r;
 
@@ -180,11 +182,12 @@ static void amdgpu_cs_vce_encode_idr(amdgpu_device_handle device_handle,
 }
 
 static void amdgpu_cs_vce_encode_p(amdgpu_device_handle device_handle,
+		struct mmd_shared_context *shared_context,
 		struct mmd_context *context, struct amdgpu_vce_encode *enc)
 {
 	uint64_t luma_offset, chroma_offset;
 	int len, i, r;
-	unsigned int align = (context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 	unsigned int luma_size = ALIGN(enc->width, align) * ALIGN(enc->height, 16);
 
 	len = (enc->two_instance) ? enc->ib_len : 0;
@@ -265,11 +268,12 @@ static void check_result(struct amdgpu_vce_encode *enc)
 }
 
 static void
-amdgpu_cs_vce_encode(amdgpu_device_handle device_handle, struct mmd_context *context,
+amdgpu_cs_vce_encode(amdgpu_device_handle device_handle,
+		struct mmd_shared_context *shared_context, struct mmd_context *context,
 		struct amdgpu_vce_encode *enc, bool is_mv_supported)
 {
 	uint32_t vbuf_size, bs_size = 0x154000, cpb_size;
-	unsigned int align = (context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 	int i, r;
 
 	vbuf_size = ALIGN(enc->width, align) * ALIGN(enc->height, 16) * 1.5;
@@ -308,34 +312,34 @@ amdgpu_cs_vce_encode(amdgpu_device_handle device_handle, struct mmd_context *con
 
 	amdgpu_cs_vce_config(device_handle, context, is_mv_supported);
 
-	if (context->family_id >= AMDGPU_FAMILY_VI) {
+	if (shared_context->family_id >= AMDGPU_FAMILY_VI) {
 		vce_taskinfo[3] = 3;
-		amdgpu_cs_vce_encode_idr(device_handle, context, enc);
-		amdgpu_cs_vce_encode_p(device_handle, context, enc);
+		amdgpu_cs_vce_encode_idr(device_handle, shared_context, context, enc);
+		amdgpu_cs_vce_encode_p(device_handle, shared_context, context, enc);
 		check_result(enc);
 
 		/* two pipes */
 		vce_encode[16] = 0;
-		amdgpu_cs_vce_encode_idr(device_handle, context, enc);
-		amdgpu_cs_vce_encode_p(device_handle, context, enc);
+		amdgpu_cs_vce_encode_idr(device_handle, shared_context, context, enc);
+		amdgpu_cs_vce_encode_p(device_handle, shared_context, context, enc);
 		check_result(enc);
 
 		/* two instances */
-		if (context->vce_harvest_config == 0) {
+		if (shared_context->vce_harvest_config == 0) {
 			enc->two_instance = true;
 			vce_taskinfo[2] = 0x83;
 			vce_taskinfo[4] = 1;
-			amdgpu_cs_vce_encode_idr(device_handle, context, enc);
+			amdgpu_cs_vce_encode_idr(device_handle, shared_context, context, enc);
 			vce_taskinfo[2] = 0xffffffff;
 			vce_taskinfo[4] = 2;
-			amdgpu_cs_vce_encode_p(device_handle, context, enc);
+			amdgpu_cs_vce_encode_p(device_handle, shared_context, context, enc);
 			check_result(enc);
 		}
 	} else {
 		vce_taskinfo[3] = 3;
 		vce_encode[16] = 0;
-		amdgpu_cs_vce_encode_idr(device_handle, context, enc);
-		amdgpu_cs_vce_encode_p(device_handle, context, enc);
+		amdgpu_cs_vce_encode_idr(device_handle, shared_context, context, enc);
+		amdgpu_cs_vce_encode_p(device_handle, shared_context, context, enc);
 		check_result(enc);
 	}
 
@@ -348,11 +352,12 @@ amdgpu_cs_vce_encode(amdgpu_device_handle device_handle, struct mmd_context *con
 }
 
 static void amdgpu_cs_vce_mv(amdgpu_device_handle device_handle,
+		struct mmd_shared_context *shared_context,
 		struct mmd_context *context, struct amdgpu_vce_encode *enc)
 {
 	uint64_t luma_offset, chroma_offset;
 	uint64_t mv_ref_luma_offset;
-	unsigned int align = (context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 	unsigned int luma_size = ALIGN(enc->width, align) * ALIGN(enc->height, 16);
 	int len = 0, i, r;
 
@@ -456,11 +461,13 @@ static void check_mv_result(struct amdgpu_vce_encode *enc)
 }
 
 static void
-amdgpu_cs_vce_encode_mv(amdgpu_device_handle device_handle, struct mmd_context *context,
+amdgpu_cs_vce_encode_mv(amdgpu_device_handle device_handle,
+		struct mmd_shared_context *shared_context,
+		struct mmd_context *context,
 		struct amdgpu_vce_encode *enc, bool is_mv_supported)
 {
 	uint32_t vbuf_size, bs_size = 0x154000, cpb_size;
-	unsigned int align = (context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 	int i, r;
 
 	vbuf_size = ALIGN(enc->width, align) * ALIGN(enc->height, 16) * 1.5;
@@ -517,7 +524,7 @@ amdgpu_cs_vce_encode_mv(amdgpu_device_handle device_handle, struct mmd_context *
 	amdgpu_cs_vce_config(device_handle, context, is_mv_supported);
 
 	vce_taskinfo[3] = 3;
-	amdgpu_cs_vce_mv(device_handle, context, enc);
+	amdgpu_cs_vce_mv(device_handle, shared_context, context, enc);
 	check_mv_result(enc);
 
 	free_resource(&enc->fb[0]);
@@ -559,21 +566,30 @@ amdgpu_cs_vce_destroy(amdgpu_device_handle device_handle, struct mmd_context *co
 }
 
 static void
-amdgpu_vce_enc_test(amdgpu_device_handle device, struct mmd_context *context,
-		struct amdgpu_vce_encode *enc, bool is_mv_supported)
+amdgpu_vce_enc_test(amdgpu_device_handle device, struct mmd_shared_context *shared_context,
+		bool is_mv_supported)
 {
-	amdgpu_cs_vce_create(device, enc, context, is_mv_supported);
-	amdgpu_cs_vce_encode(device, context, enc, is_mv_supported);
+	int err;
+	struct mmd_context acontext = {};
+	struct amdgpu_vce_encode aenc = {};
+
+	struct mmd_context *context = &acontext;
+	struct amdgpu_vce_encode *enc = &aenc;
+
+	err = mmd_context_init(device, context);
+	igt_require(err == 0);
+	amdgpu_cs_vce_create(device, enc, context, shared_context, is_mv_supported);
+	amdgpu_cs_vce_encode(device, shared_context ,context, enc, is_mv_supported);
 	if (is_mv_supported)
-		amdgpu_cs_vce_encode_mv(device, context, enc, is_mv_supported);
+		amdgpu_cs_vce_encode_mv(device, shared_context, context, enc, is_mv_supported);
 	amdgpu_cs_vce_destroy(device, context, enc);
+	mmd_context_clean(device, context);
 }
 
 igt_main
 {
 	amdgpu_device_handle device;
-	struct mmd_context context = {};
-	struct amdgpu_vce_encode enc = {};
+	struct mmd_shared_context shared_context = {};
 	int fd = -1;
 	bool is_mv_supported = false;
 
@@ -586,17 +602,16 @@ igt_main
 		igt_require(err == 0);
 		igt_info("Initialized amdgpu, driver version %d.%d\n",
 			 major, minor);
-		err = mmd_context_init(device, &context);
+		err = mmd_shared_context_init(device, &shared_context);
 		igt_require(err == 0);
-		igt_skip_on(!is_vce_tests_enable(device, context.family_id, context.chip_id,
-				context.chip_rev, &is_mv_supported));
+		igt_skip_on(!is_vce_tests_enable(device, shared_context.family_id, shared_context.chip_id,
+				shared_context.chip_rev, &is_mv_supported));
 	}
 	igt_describe("Test vce enc is created, encode, destroy");
 	igt_subtest("amdgpu_vce_encoder")
-		amdgpu_vce_enc_test(device, &context, &enc, is_mv_supported);
+		amdgpu_vce_enc_test(device, &shared_context, is_mv_supported);
 
 	igt_fixture {
-		mmd_context_clean(device, &context);
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
 	}

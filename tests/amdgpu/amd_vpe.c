@@ -51,7 +51,7 @@ static uint32_t vpe_config[] = {
 };
 
 static bool is_vpe_tests_enabled(amdgpu_device_handle device_handle,
-				 struct mmd_context *context)
+		struct mmd_shared_context *shared_context)
 {
 	struct drm_amdgpu_info_hw_ip info;
 	int r;
@@ -59,11 +59,11 @@ static bool is_vpe_tests_enabled(amdgpu_device_handle device_handle,
 	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_VPE, 0, &info);
 	igt_assert_eq(r, 0);
 
-	context->vpe_ip_version_major = info.hw_ip_version_major;
-	context->vpe_ip_version_minor = info.hw_ip_version_minor;
-	context->vpe_ring = !!info.available_rings;
+	shared_context->vpe_ip_version_major = info.hw_ip_version_major;
+	shared_context->vpe_ip_version_minor = info.hw_ip_version_minor;
+	shared_context->vpe_ring = !!info.available_rings;
 
-	if (!context->vpe_ring) {
+	if (!shared_context->vpe_ring) {
 		igt_info("VPE no available rings");
 		igt_info("VPE fence test disable");
 		igt_info("VPE blit test disable");
@@ -142,7 +142,7 @@ static int check_argb8888(void *addr, uint32_t width, uint32_t height)
 }
 
 static void amdgpu_cs_vpe_blit(amdgpu_device_handle device_handle,
-			       struct mmd_context *context)
+				struct mmd_context *context)
 {
 	const uint32_t vpep_config_offsets[] = {0x34, 0x128, 0x184, 0x1c0};
 	struct amdgpu_mmd_bo vpe_config_bo, src_plane_bo, dst_plane_bo;
@@ -218,6 +218,7 @@ static void amdgpu_cs_vpe_blit(amdgpu_device_handle device_handle,
 igt_main
 {
 	struct mmd_context context = {};
+	struct mmd_shared_context shared_context = {};
 	amdgpu_device_handle device;
 	int fd = -1;
 
@@ -233,10 +234,12 @@ igt_main
 
 		igt_info("Initialized amdgpu, driver version %d.%d\n", major, minor);
 
+		r = mmd_shared_context_init(device, &shared_context);
+		igt_require(r == 0);
 		r = mmd_context_init(device, &context);
 		igt_require(r == 0);
 
-		igt_skip_on(!is_vpe_tests_enabled(device, &context));
+		igt_skip_on(!is_vpe_tests_enabled(device, &shared_context));
 	}
 
 	igt_describe("Test VPE fence");

@@ -124,7 +124,7 @@ static uint32_t jpeg_chroma_base0_0;
 
 static bool
 is_jpeg_tests_enable(amdgpu_device_handle device_handle,
-		struct mmd_context *context)
+		struct mmd_shared_context *context)
 {
 	struct drm_amdgpu_info_hw_ip info;
 	int r;
@@ -464,7 +464,7 @@ send_cmd_target_direct(struct mmd_context *context, uint64_t addr,
 
 static void
 amdgpu_cs_jpeg_decode(amdgpu_device_handle device_handle,
-		struct mmd_context *context)
+		struct mmd_shared_context *shared_context)
 {
 
 	struct amdgpu_mmd_bo dec_buf;
@@ -472,7 +472,11 @@ amdgpu_cs_jpeg_decode(amdgpu_device_handle device_handle,
 	uint8_t *dec;
 	int sum = 0, i, j;
 	uint32_t idx;
+	struct mmd_context acontext = {0};
+	struct mmd_context *context = &acontext;
 
+	r = mmd_context_init(device_handle, context);
+	igt_assert_eq(r, 0);
 	size = 32 * 1024; /* 8K bitstream + 24K output */
 
 	context->num_resources = 0;
@@ -485,7 +489,7 @@ amdgpu_cs_jpeg_decode(amdgpu_device_handle device_handle,
 
 	idx = 0;
 
-	if (context->jpeg_direct_reg == true) {
+	if (shared_context->jpeg_direct_reg == true) {
 		send_cmd_bitstream_direct(context, dec_buf.addr, &idx);
 		send_cmd_target_direct(context, dec_buf.addr + (size / 4), &idx);
 	} else {
@@ -514,12 +518,13 @@ amdgpu_cs_jpeg_decode(amdgpu_device_handle device_handle,
 	igt_assert_eq(sum, JPEG_DEC_SUM);
 
 	free_resource(&dec_buf);
+	mmd_context_clean(device_handle, context);
 }
 
 igt_main
 {
 	amdgpu_device_handle device;
-	struct mmd_context context = {};
+	struct mmd_shared_context shared_context = {};
 	int fd = -1;
 
 	igt_fixture {
@@ -531,16 +536,15 @@ igt_main
 		igt_require(err == 0);
 		igt_info("Initialized amdgpu, driver version %d.%d\n",
 			 major, minor);
-		err = mmd_context_init(device, &context);
+		err = mmd_shared_context_init(device, &shared_context);
 		igt_require(err == 0);
-		igt_skip_on(!is_jpeg_tests_enable(device, &context));
+		igt_skip_on(!is_jpeg_tests_enable(device, &shared_context));
 	}
 	igt_describe("Test whether jpeg dec decodes");
 	igt_subtest("amdgpu_cs_jpeg_decode")
-	amdgpu_cs_jpeg_decode(device, &context);
+	amdgpu_cs_jpeg_decode(device, &shared_context);
 
 	igt_fixture {
-		mmd_context_clean(device, &context);
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
 	}

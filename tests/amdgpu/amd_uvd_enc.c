@@ -114,13 +114,13 @@ amdgpu_uvd_enc_session_init(amdgpu_device_handle device_handle,
 
 static void
 amdgpu_uvd_enc_encode(amdgpu_device_handle device_handle,
-		struct uvd_enc_context *context)
+		struct uvd_enc_context *context, struct mmd_shared_context *shared_context)
 {
 	int len, r, i;
 	uint64_t luma_offset, chroma_offset;
 	unsigned int luma_size;
 	uint32_t vbuf_size, bs_size = 0x003f4800, cpb_size;
-	unsigned int align = (context->uvd.family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
+	unsigned int align = (shared_context->family_id >= AMDGPU_FAMILY_AI) ? 256 : 16;
 
 	vbuf_size = ALIGN(context->enc.width, align) *
 			ALIGN(context->enc.height, 16) * 1.5;
@@ -293,18 +293,26 @@ amdgpu_uvd_enc_destroy(amdgpu_device_handle device_handle,
 }
 
 static void
-amdgpu_uvd_enc_test(amdgpu_device_handle device, struct uvd_enc_context *context)
+amdgpu_uvd_enc_test(amdgpu_device_handle device, struct mmd_shared_context *shared_context)
 {
-	amdgpu_uvd_enc_create(device, context);
-	amdgpu_uvd_enc_session_init(device, context);
-	amdgpu_uvd_enc_encode(device, context);
-	amdgpu_uvd_enc_destroy(device, context);
+	struct uvd_enc_context context = {0};
+	int r;
+
+	r = mmd_context_init(device, &context.uvd);
+	igt_require(r == 0);
+	amdgpu_uvd_enc_create(device, &context);
+	amdgpu_uvd_enc_session_init(device, &context);
+	amdgpu_uvd_enc_encode(device, &context, shared_context);
+	amdgpu_uvd_enc_destroy(device, &context);
+
+	mmd_context_clean(device, &context.uvd);
+
 }
 
 igt_main
 {
 	amdgpu_device_handle device;
-	struct uvd_enc_context context = {};
+	struct mmd_shared_context shared_context = {};
 	int fd = -1;
 
 	igt_fixture {
@@ -316,8 +324,8 @@ igt_main
 		igt_require(err == 0);
 		igt_info("Initialized amdgpu, driver version %d.%d\n",
 			 major, minor);
-		memset(&context, 0, sizeof(context));
-		err = mmd_context_init(device, &context.uvd);
+		memset(&shared_context, 0, sizeof(shared_context));
+		err = mmd_shared_context_init(device, &shared_context);
 		igt_require(err == 0);
 
 		igt_skip_on(!is_uvd_enc_enable(device));
@@ -325,10 +333,9 @@ igt_main
 
 	igt_describe("Test uvd session, encode, destroy");
 	igt_subtest("uvd_encoder")
-		amdgpu_uvd_enc_test(device, &context);
+		amdgpu_uvd_enc_test(device, &shared_context);
 
 	igt_fixture {
-		mmd_context_clean(device, &context.uvd);
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
 	}
