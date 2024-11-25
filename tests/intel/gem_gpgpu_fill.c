@@ -58,6 +58,10 @@
  * Feature: compute
  *
  * SUBTEST: basic
+ * Description: run gpgpu fill
+ *
+ * SUBTEST: offset-16x16
+ * Description: run gpgpu fill with <x,y> start position == <16,16>
  */
 
 #define WIDTH 64
@@ -237,6 +241,14 @@ igt_main_args("dW:H:X:Y:", NULL, help_str, opt_handler, NULL)
 
 			free(name);
 		}
+	}
+
+	igt_subtest("offset-16x16") {
+		gpgpu_fill(&data, fill_fn, 0,
+			   surfwidth, surfheight,
+			   16, 16,
+			   surfwidth / 2,
+			   surfheight / 2);
 	}
 
 	igt_fixture {
