@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: MIT */
 /* Copyright © 2024 Intel Corporation */
 
-/* Header used during pre-process phase of iga64 assembly. */
+/* Header used during pre-process phase of iga64 assembly.
+ * WARNING: changing this file causes rebuild of all shaders.
+ * Do not touch without current version of iga64 compiler.
+ */
 
 #ifndef IGA64_MACROS_H
 #define IGA64_MACROS_H
