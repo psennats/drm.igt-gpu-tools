@@ -18,6 +18,7 @@
 #include "igt_kmod.h"
 #include "igt_sysfs.h"
 #include "lib/igt_syncobj.h"
+#include "lib/intel_pat.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 
@@ -238,6 +239,7 @@ simple_vm_bind(int fd, uint32_t vm)
 		.bind.range = BO_SIZE,
 		.bind.addr = BO_ADDR,
 		.bind.op = DRM_XE_VM_BIND_OP_MAP_USERPTR,
+		.bind.pat_index = intel_get_pat_idx_wb(fd),
 		.bind.flags = 0,
 		.num_syncs = 1,
 		.syncs = (uintptr_t)&syncobj,
