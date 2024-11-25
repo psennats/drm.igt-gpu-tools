@@ -21,6 +21,13 @@
 #define R0_TGIDY r0.6<0;1,0>:ud
 #define R0_FFTID r0.5<0;1,0>:ud
 
+/* Inline data from COMPUTE_WALKER*, Bspec: 47203, 73584
+ * Filled by __xe*_gpgpu_execfunc.
+ */
+#define R1_TGT_ADDRESS r1.0<0;1,0>:uq
+#define R1_TGT_WIDTH r1.2<0;1,0>:ud
+#define R1_TGT_HEIGHT r1.3<0;1,0>:ud
+
 #define SET_SHARED_MEDIA_BLOCK_MSG_HDR(dst, y, width)	\
 (W)	mov (8)		dst.0<1>:ud	0x0:ud		;\
 (W)	mov (1)		dst.1<1>:ud	y		;\
@@ -35,13 +42,25 @@
 (W)	mov (1)		dst.2<1>:ud	(width - 1):ud		;\
 (W)	mov (1)		dst.4<1>:ud	R0_FFTID
 
+#if GEN_VER < 3000
+#define SET_SURFACE_DESC(dst)			\
+(W)	mov (8)		dst.0<1>:ud	0x0:ud
+#else
+#define SET_SURFACE_DESC(dst)					\
+(W)	mov (1)		dst.0<1>:uq	R1_TGT_ADDRESS		;\
+(W)	add (1)		dst.2<1>:ud	R1_TGT_WIDTH	-1:d	;\
+(W)	add (1)		dst.3<1>:ud	R1_TGT_HEIGHT	-1:d	;\
+(W)	add (1)		dst.4<1>:ud	R1_TGT_WIDTH	-1:d
+#endif
+
 #define SET_SHARED_MEDIA_A2DBLOCK_PAYLOAD(dst, y, width)	\
-(W)	mov (8)		dst.0<1>:ud	0x0:ud		;\
-(W)	mov (1)		dst.6<1>:ud	y		;\
+	SET_SURFACE_DESC(dst)					;\
+(W)	mov (1)		dst.5<1>:ud	0x0:ud			;\
+(W)	mov (1)		dst.6<1>:ud	y			;\
 (W)	mov (1)		dst.7<1>:ud	(width - 1):ud
 
-#define SET_THREAD_MEDIA_A2DBLOCK_PAYLOAD(dst, x, y, width)		\
-(W)	mov (8)		dst.0<1>:ud	0x0:ud			;\
+#define SET_THREAD_MEDIA_A2DBLOCK_PAYLOAD(dst, x, y, width)	\
+	SET_SURFACE_DESC(dst)					;\
 (W)	shl (1)		dst.5<1>:ud	R0_TGIDX	0x2:ud	;\
 (W)	add (1)		dst.5<1>:ud	dst.5<0;1,0>:ud	x:ud	;\
 (W)	add (1)		dst.6<1>:ud	R0_TGIDY	y	;\
@@ -55,8 +74,13 @@
 #else
 #define SET_SHARED_SPACE_ADDR(dst, y, width) SET_SHARED_MEDIA_A2DBLOCK_PAYLOAD(dst, y, width)
 #define SET_THREAD_SPACE_ADDR(dst, x, y, width) SET_THREAD_MEDIA_A2DBLOCK_PAYLOAD(dst, x, y, width)
+#if GEN_VER < 3000
 #define LOAD_SPACE_DW(dst, src) send.tgm (1)	dst	src	null:0	0x0	0x62100003
 #define STORE_SPACE_DW(dst, src) send.tgm (1)	null	dst	null:0	0x0	0x64000007
+#else
+#define LOAD_SPACE_DW(dst, src) send.ugm (1)	dst	src	null:0	0x0	0x2120003
+#define STORE_SPACE_DW(dst, src) send.ugm (1)	null	dst	src:1	0x0	0x2020007
+#endif
 #endif
 
 #endif
