@@ -149,6 +149,16 @@ __xelp_gpgpu_execfunc(struct intel_bb *ibb,
 }
 
 static void
+fill_inline_data(uint32_t *inline_data, uint64_t target_offset, struct intel_buf *target)
+{
+	igt_assert(target->surface[0].stride == intel_buf_width(target) * target->bpp/8);
+	*inline_data++ = lower_32_bits(target_offset);
+	*inline_data++ = upper_32_bits(target_offset);
+	*inline_data++ = target->surface[0].stride;
+	*inline_data++ = intel_buf_height(target);
+}
+
+static void
 __xehp_gpgpu_execfunc(struct intel_bb *ibb,
 		      struct intel_buf *target,
 		      unsigned int x_dim, unsigned int y_dim,
@@ -159,6 +169,7 @@ __xehp_gpgpu_execfunc(struct intel_bb *ibb,
 	struct xehp_interface_descriptor_data idd;
 	uint32_t sip_offset;
 	uint64_t engine;
+	uint32_t *inline_data;
 
 	intel_bb_add_intel_buf(ibb, target, true);
 
@@ -186,7 +197,10 @@ __xehp_gpgpu_execfunc(struct intel_bb *ibb,
 	if (sip_offset)
 		emit_sip(ibb, sip_offset);
 
+	/* Inline data is at 31th/32th dword of COMPUTE_WALKER, BSpec: 67028 */
+	inline_data = intel_bb_ptr(ibb) + 4 * (shdr->gen_ver < 2000 ? 31 : 32);
 	xehp_emit_compute_walk(ibb, 0, 0, x_dim * 16, y_dim, &idd, 0x0);
+	fill_inline_data(inline_data, CANONICAL(target->addr.offset), target);
 
 	intel_bb_out(ibb, MI_BATCH_BUFFER_END);
 	intel_bb_ptr_align(ibb, 32);
@@ -194,6 +208,17 @@ __xehp_gpgpu_execfunc(struct intel_bb *ibb,
 	engine = explicit_engine ? ring : I915_EXEC_DEFAULT;
 	intel_bb_exec(ibb, intel_bb_offset(ibb),
 		      engine | I915_EXEC_NO_RELOC, false);
+}
+
+static void gpgpu_alloc_gpu_addr(struct intel_bb *ibb, struct intel_buf *target)
+{
+	uint64_t ahnd;
+
+	ahnd = intel_allocator_open_vm_full(ibb->fd, ibb->vm_id, 0, 0, INTEL_ALLOCATOR_SIMPLE,
+					 ALLOC_STRATEGY_LOW_TO_HIGH, 0);
+	target->addr.offset = intel_allocator_alloc(ahnd, target->handle,
+						    target->surface[0].size, 0);
+	intel_allocator_close(ahnd);
 }
 
 /**
@@ -220,6 +245,9 @@ void gpgpu_shader_exec(struct intel_bb *ibb,
 	igt_require(shdr->gen_ver >= SUPPORTED_GEN_VER);
 	igt_assert(ibb->size >= PAGE_SIZE);
 	igt_assert(ibb->ptr == ibb->batch);
+
+	if (target->addr.offset == INTEL_BUF_INVALID_ADDRESS)
+		gpgpu_alloc_gpu_addr(ibb, target);
 
 	if (shdr->gen_ver >= 1250)
 		__xehp_gpgpu_execfunc(ibb, target, x_dim, y_dim, shdr, sip,
