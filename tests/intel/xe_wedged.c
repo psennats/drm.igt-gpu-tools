@@ -213,6 +213,7 @@ igt_main
 	igt_subtest("basic-wedged") {
 		igt_require(igt_debugfs_exists(fd, "fail_gt_reset/probability",
 					       O_RDWR));
+		igt_debugfs_write(fd, "fail_gt_reset/verbose", "1");
 
 		igt_assert_eq(simple_ioctl(fd), 0);
 		ignore_wedged_in_dmesg();
