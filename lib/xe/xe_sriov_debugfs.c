@@ -9,6 +9,7 @@
 #include "drmtest.h"
 #include "igt_debugfs.h"
 #include "igt_sriov_device.h"
+#include "igt_sysfs.h"
 #include "xe/xe_query.h"
 #include "xe/xe_sriov_debugfs.h"
 #include "xe/xe_sriov_provisioning.h"
@@ -204,3 +205,153 @@ cleanup:
 
 	return ret;
 }
+
+static int xe_sriov_pf_debugfs_path_open(int pf, unsigned int vf_num,
+					 unsigned int gt_num)
+{
+	char path[PATH_MAX];
+
+	if (igt_debug_on_f(!xe_sriov_pf_debugfs_path(pf, vf_num, gt_num, path,
+						     sizeof(path)),
+			   "path: %s\n", path))
+		return -1;
+
+	return open(path, O_RDONLY);
+}
+
+/**
+ * DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC - Define a function for accessing debugfs attributes
+ * @type: Data type of the value to read or write (e.g., `uint32_t`, `bool`, etc.)
+ * @suffix: Function name suffix appended to `__xe_sriov_pf_debugfs_`
+ * @sysfs_func: The sysfs helper function to perform the actual read or write operation
+ *
+ * Generates a function for accessing a debugfs attribute of a PF device.
+ * It handles opening the debugfs path, performing the sysfs operation, and closing the
+ * debugfs directory.
+ *
+ * The generated function has the following signature:
+ *
+ *	int __xe_sriov_pf_debugfs_<suffix>(int pf, unsigned int vf_num,
+ *					   unsigned int gt_num,
+ *					   const char *attr, type value)
+ *
+ * where:
+ * - `pf` is the PF device file descriptor.
+ * - `vf_num` is the VF number.
+ * - `gt_num` is the GT number.
+ * - `attr` is the name of the debugfs attribute.
+ * - `value` is the data to read or write, depending on the sysfs function.
+ *
+ * Example:
+ *
+ *	DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(uint32_t, set_u32, __igt_sysfs_set_u32);
+ *
+ * This expands to a function:
+ *
+ *	int __xe_sriov_pf_debugfs_set_u32(int pf, unsigned int vf_num,
+ *					  unsigned int gt_num,
+ *					  const char *attr, uint32_t value);
+ *
+ * The function returns:
+ * - `0` on success
+ * - Negative error code on failure
+ */
+#define DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(type, suffix, sysfs_func)		\
+	int __xe_sriov_pf_debugfs_##suffix(int pf, unsigned int vf_num,		\
+					   unsigned int gt_num,			\
+					   const char *attr, type value)	\
+	{									\
+		bool ret;							\
+		int dir = xe_sriov_pf_debugfs_path_open(pf, vf_num, gt_num);	\
+										\
+		if (igt_debug_on(dir < 0))					\
+			return dir;						\
+										\
+		ret = sysfs_func(dir, attr, value);				\
+		close(dir);							\
+		return ret ? 0 : -1;						\
+	}
+
+/**
+ * __xe_sriov_pf_debugfs_get_u32 - Get a 32-bit unsigned integer from debugfs
+ * @pf: PF device file descriptor
+ * @vf_num: VF number
+ * @gt_num: GT number
+ * @attr: Debugfs attribute to read
+ * @value: Pointer to store the retrieved value
+ *
+ * Reads a 32-bit unsigned integer from the specified debugfs attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(uint32_t *, get_u32, __igt_sysfs_get_u32)
+
+/**
+ * __xe_sriov_pf_debugfs_set_u32 - Set a 32-bit unsigned integer in debugfs
+ * @pf: PF device file descriptor
+ * @vf_num: VF number
+ * @gt_num: GT number
+ * @attr: Debugfs attribute to write to
+ * @value: The value to set
+ *
+ * Writes a 32-bit unsigned integer to the specified debugfs attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(uint32_t, set_u32, __igt_sysfs_set_u32)
+
+/**
+ * __xe_sriov_pf_debugfs_get_u64 - Get a 64-bit unsigned integer from debugfs
+ * @pf: PF device file descriptor
+ * @vf_num: VF number
+ * @gt_num: GT number
+ * @attr: Debugfs attribute to read
+ * @value: Pointer to store the retrieved value
+ *
+ * Reads a 64-bit unsigned integer from the specified debugfs attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(uint64_t *, get_u64, __igt_sysfs_get_u64)
+
+/**
+ * __xe_sriov_pf_debugfs_set_u64 - Set a 64-bit unsigned integer in debugfs
+ * @pf: PF device file descriptor
+ * @vf_num: VF number
+ * @gt_num: GT number
+ * @attr: Debugfs attribute to write to
+ * @value: The value to set
+ *
+ * Writes a 64-bit unsigned integer to the specified debugfs attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(uint64_t, set_u64, __igt_sysfs_set_u64)
+
+/**
+ * __xe_sriov_pf_debugfs_get_boolean - Get a boolean value from debugfs
+ * @pf: PF device file descriptor
+ * @vf_num: VF number
+ * @gt_num: GT number
+ * @attr: Debugfs attribute to read
+ * @value: Pointer to store the retrieved value
+ *
+ * Reads a boolean value from the specified debugfs attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(bool *, get_boolean, __igt_sysfs_get_boolean)
+
+/**
+ * __xe_sriov_pf_debugfs_set_boolean - Set a boolean value in debugfs
+ * @pf: PF device file descriptor
+ * @vf_num: VF number
+ * @gt_num: GT number
+ * @attr: Debugfs attribute to write to
+ * @value: The value to set
+ *
+ * Writes a boolean value to the specified debugfs attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(bool, set_boolean, __igt_sysfs_set_boolean)

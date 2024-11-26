@@ -16,5 +16,23 @@ int xe_sriov_pf_debugfs_read_provisioned_ranges(int pf_fd, enum xe_sriov_shared_
 						unsigned int gt_id,
 						struct xe_sriov_provisioned_range **ranges,
 						unsigned int *nr_ranges);
+int __xe_sriov_pf_debugfs_get_u32(int pf, unsigned int vf_num,
+				  unsigned int gt_num, const char *attr,
+				  uint32_t *value);
+int __xe_sriov_pf_debugfs_set_u32(int pf, unsigned int vf_num,
+				  unsigned int gt_num, const char *attr,
+				  uint32_t value);
+int __xe_sriov_pf_debugfs_get_u64(int pf, unsigned int vf_num,
+				  unsigned int gt_num, const char *attr,
+				  uint64_t *value);
+int __xe_sriov_pf_debugfs_set_u64(int pf, unsigned int vf_num,
+				  unsigned int gt_num, const char *attr,
+				  uint64_t value);
+int __xe_sriov_pf_debugfs_get_boolean(int pf, unsigned int vf_num,
+				      unsigned int gt_num, const char *attr,
+				      bool *value);
+int __xe_sriov_pf_debugfs_set_boolean(int pf, unsigned int vf_num,
+				      unsigned int gt_num, const char *attr,
+				      bool value);
 
 #endif /* __XE_SRIOV_DEBUGFS_H__ */
