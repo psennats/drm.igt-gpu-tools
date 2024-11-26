@@ -160,6 +160,7 @@ if libdrm_amdgpu.found()
 		'amdgpu/amd_dispatch_helpers.c',
 		'amdgpu/amd_deadlock_helpers.c',
 		'amdgpu/amd_pci_unplug.c',
+		'amdgpu/amd_shared_process.c',
 		'amdgpu/xalloc.h',
 		'amdgpu/amd_cp_dma.c',
 		'amdgpu/amd_mmd_shared.c'
