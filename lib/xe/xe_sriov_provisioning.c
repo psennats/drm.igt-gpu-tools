@@ -9,6 +9,7 @@
 #include "intel_chipset.h"
 #include "linux_scaffold.h"
 #include "xe/xe_mmio.h"
+#include "xe/xe_sriov_debugfs.h"
 #include "xe/xe_sriov_provisioning.h"
 
 /**
@@ -149,4 +150,127 @@ int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio
 			  MAX_DEBUG_ENTRIES, *nr_ranges);
 
 	return 0;
+}
+
+/**
+ * xe_sriov_shared_res_attr_name - Retrieve the attribute name for a shared resource
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based) or 0 for PF
+ *
+ * Returns the attribute name corresponding to the specified
+ * shared resource type and VF number. For VF (vf_num > 0), the "quota"
+ * attribute name is returned (e.g., "contexts_quota"). For PF (vf_num == 0),
+ * the "spare" attribute name is returned (e.g., "contexts_spare").
+ *
+ * Return:
+ * The attribute name as a string if the resource type is valid.
+ * NULL if the resource type is invalid.
+ */
+const char *xe_sriov_shared_res_attr_name(enum xe_sriov_shared_res res,
+					  unsigned int vf_num)
+{
+	switch (res) {
+	case XE_SRIOV_SHARED_RES_CONTEXTS:
+		return vf_num ? "contexts_quota" : "contexts_spare";
+	case XE_SRIOV_SHARED_RES_DOORBELLS:
+		return vf_num ? "doorbells_quota" : "doorbells_spare";
+	case XE_SRIOV_SHARED_RES_GGTT:
+		return vf_num ? "ggtt_quota" : "ggtt_spare";
+	case XE_SRIOV_SHARED_RES_LMEM:
+		return vf_num ? "lmem_quota" : "lmem_spare";
+	}
+
+	return NULL;
+}
+
+/**
+ * __xe_sriov_pf_get_shared_res_attr - Read shared resource attribute
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based) or 0 for PF
+ * @gt_num: GT number
+ * @value: Pointer to store the read attribute value
+ *
+ * Reads the specified shared resource attribute for the given PF device @pf,
+ * VF number @vf_num, and GT @gt_num. The attribute depends on @vf_num:
+ * - For VF (vf_num > 0), reads the "quota" attribute.
+ * - For PF (vf_num == 0), reads the "spare" attribute.
+ *
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int __xe_sriov_pf_get_shared_res_attr(int pf, enum xe_sriov_shared_res res,
+				      unsigned int vf_num, unsigned int gt_num,
+				      uint64_t *value)
+{
+	return __xe_sriov_pf_debugfs_get_u64(pf, vf_num, gt_num,
+					     xe_sriov_shared_res_attr_name(res, vf_num),
+					     value);
+}
+
+/**
+ * xe_sriov_pf_get_shared_res_attr - Read shared resource attribute
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based) or 0 for PF
+ * @gt_num: GT number
+ *
+ * A throwing version of __xe_sriov_pf_get_shared_res_attr().
+ * Instead of returning an error code, it returns the quota value and asserts
+ * in case of an error.
+ *
+ * Return: The value for the given shared resource attribute.
+ *         Asserts in case of failure.
+ */
+uint64_t xe_sriov_pf_get_shared_res_attr(int pf, enum xe_sriov_shared_res res,
+					 unsigned int vf_num,
+					 unsigned int gt_num)
+{
+	uint64_t value;
+
+	igt_fail_on(__xe_sriov_pf_get_shared_res_attr(pf, res, vf_num, gt_num, &value));
+
+	return value;
+}
+
+/**
+ * __xe_sriov_pf_set_shared_res_attr - Set a shared resource attribute
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based) or 0 for PF
+ * @gt_num: GT number
+ * @value: Value to set for the shared resource attribute
+ *
+ * Sets the specified shared resource attribute for the given PF device @pf,
+ * VF number @vf_num, and GT @gt_num. The attribute depends on @vf_num:
+ * - For VF (vf_num > 0), reads the "quota" attribute.
+ * - For PF (vf_num == 0), reads the "spare" attribute.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int __xe_sriov_pf_set_shared_res_attr(int pf, enum xe_sriov_shared_res res,
+				      unsigned int vf_num, unsigned int gt_num,
+				      uint64_t value)
+{
+	return __xe_sriov_pf_debugfs_set_u64(pf, vf_num, gt_num,
+					     xe_sriov_shared_res_attr_name(res, vf_num),
+					     value);
+}
+
+/**
+ * xe_sriov_pf_set_shared_res_attr - Set the shared resource attribute value
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based) or 0 for PF
+ * @gt_num: GT number
+ * @value: Value to set
+ *
+ * A throwing version of __xe_sriov_pf_set_shared_res_attr().
+ * Instead of returning an error code, it asserts in case of an error.
+ */
+void xe_sriov_pf_set_shared_res_attr(int pf, enum xe_sriov_shared_res res,
+				     unsigned int vf_num, unsigned int gt_num,
+				     uint64_t value)
+{
+	igt_fail_on(__xe_sriov_pf_set_shared_res_attr(pf, res, vf_num, gt_num, value));
 }
