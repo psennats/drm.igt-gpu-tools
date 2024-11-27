@@ -721,3 +721,45 @@ void xe_sriov_set_sched_priority(int pf, unsigned int vf_num, unsigned int gt_nu
 {
 	igt_fail_on(__xe_sriov_set_sched_priority(pf, vf_num, gt_num, value));
 }
+
+/**
+ * xe_sriov_require_default_scheduling_attributes - Ensure default SR-IOV scheduling attributes
+ * @pf_fd: PF device file descriptor
+ *
+ * Skips the current test if non-default SR-IOV scheduling attributes are set.
+ *
+ * Default scheduling attributes are as follows for each VF and PF:
+ * - exec_quantum_ms equals zero (meaning infinity)
+ * - preempt_timeout_us equals zero (meaning infinity)
+ * - sched_if_idle equals false
+ * - reset_engine equals false
+ * - sched_priority equals XE_SRIOV_SCHED_PRIORITY_LOW
+ */
+void xe_sriov_require_default_scheduling_attributes(int pf)
+{
+	unsigned int totalvfs = igt_sriov_get_total_vfs(pf);
+	enum xe_sriov_sched_priority sched_priority;
+	bool sched_if_idle, reset_engine;
+	uint32_t eq, pt;
+	unsigned int gt;
+
+	xe_for_each_gt(pf, gt) {
+		igt_skip_on(__xe_sriov_get_sched_if_idle(pf, gt, &sched_if_idle));
+		igt_require_f(!sched_if_idle, "sched_if_idle != false on gt%u\n", gt);
+		igt_skip_on(__xe_sriov_get_engine_reset(pf, gt, &reset_engine));
+		igt_require_f(!reset_engine, "reset_engine != false on gt%u\n", gt);
+
+		for (unsigned int vf_num = 0; vf_num <= totalvfs; ++vf_num) {
+			igt_skip_on(__xe_sriov_get_exec_quantum_ms(pf, vf_num, gt, &eq));
+			igt_require_f(eq == 0, "exec_quantum_ms != 0 on gt%u/VF%u\n", gt, vf_num);
+
+			igt_skip_on(__xe_sriov_get_preempt_timeout_us(pf, vf_num, gt, &pt));
+			igt_require_f(pt == 0, "preempt_timeout_us != 0 on gt%u/VF%u\n",
+				      gt, vf_num);
+
+			igt_skip_on(__xe_sriov_get_sched_priority(pf, vf_num, gt, &sched_priority));
+			igt_require_f(sched_priority == XE_SRIOV_SCHED_PRIORITY_LOW,
+				      "sched_priority != LOW on gt%u/VF%u\n", gt, vf_num);
+		}
+	}
+}
