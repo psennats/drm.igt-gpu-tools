@@ -12,6 +12,8 @@
  * Test category: functionality test
  */
 
+#include <fcntl.h>
+
 #include "igt.h"
 #include "lib/igt_syncobj.h"
 #include "lib/intel_reg.h"
@@ -715,6 +717,44 @@ gt_reset(int fd, int n_threads, int n_sec)
 	free(threads);
 }
 
+/**
+ * SUBTEST: gt-mocs-reset
+ * Description: Validate mocs register contents over GT reset
+ * Test category: mocs
+ *
+ */
+static void
+gt_mocs_reset(int fd, int gt)
+{
+	char path[256];
+
+	/* Mocs debugfs contents before and after GT reset.
+	 * Allocate memory to store 10k characters sufficient enough
+	 * to store global mocs and lncf mocs data.
+	 */
+	char *mocs_content_pre = (char *)malloc(10000 * sizeof(char));
+	char *mocs_contents_post = (char *)malloc(10000 * sizeof(char));
+
+	igt_assert(mocs_content_pre);
+	igt_assert(mocs_contents_post);
+
+	sprintf(path, "gt%d/mocs", gt);
+	igt_assert(igt_debugfs_exists(fd, path, O_RDONLY));
+	igt_debugfs_dump(fd, path);
+	igt_debugfs_read(fd, path, mocs_content_pre);
+
+	xe_force_gt_reset_sync(fd, gt);
+
+	igt_assert(igt_debugfs_exists(fd, path, O_RDONLY));
+	igt_debugfs_dump(fd, path);
+	igt_debugfs_read(fd, path, mocs_contents_post);
+
+	igt_assert(strcmp(mocs_content_pre, mocs_contents_post) == 0);
+
+	free(mocs_content_pre);
+	free(mocs_contents_post);
+}
+
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe;
@@ -819,6 +859,10 @@ igt_main
 
 	igt_subtest("gt-reset-stress")
 		gt_reset(fd, 4, 1);
+
+	igt_subtest("gt-mocs-reset")
+		xe_for_each_gt(fd, gt)
+			gt_mocs_reset(fd, gt);
 
 	igt_fixture
 		drm_close_driver(fd);
