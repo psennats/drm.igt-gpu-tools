@@ -1029,6 +1029,9 @@ test_saturated_hostile_all(int i915, const intel_ctx_t *base_ctx,
 	igt_spin_busywait_until_started(spin);
 	intel_ctx_destroy(i915, ctx);
 
+	/* Give the kernel some time to terminate the context */
+	usleep(reset_timeout_ms * 1000);
+
 	/* Hostile request requires a GPU reset to terminate */
 	igt_assert_eq(wait_for_status(spin->out_fence, reset_timeout_ms), -EIO);
 
@@ -1172,6 +1175,9 @@ static void __smoker(int i915, const intel_ctx_cfg_t *cfg,
 
 	drm_close_driver(fd);
 	flush_delayed_fput(i915);
+
+	/* Give the kernel some time to terminate the context */
+	usleep(reset_timeout_ms * 1000);
 
 	igt_spin_end(spin);
 
