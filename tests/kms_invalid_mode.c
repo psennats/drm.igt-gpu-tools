@@ -57,6 +57,7 @@
  * @zero-clock:       Clock as zero
  * @zero-hdisplay:    hdisplay as zero
  * @zero-vdisplay:    vdisplay as zero
+ * @overflow-vrefresh: vrefresh calculation overflow
  */
 
 IGT_TEST_DESCRIPTION("Make sure all modesets are rejected when the requested mode is invalid");
@@ -239,6 +240,20 @@ adjust_mode_bad_vtotal(data_t *data, drmModeModeInfoPtr mode)
 	return true;
 }
 
+static bool
+adjust_mode_overflow_vrefresh(data_t *data, drmModeModeInfoPtr mode)
+{
+	/*
+	 * htotal * vtotal * vscan == 2^32
+	 * overflow during vrefresh calculation
+	 */
+	mode->htotal = 32768;
+	mode->vtotal = 32768;
+	mode->vscan = 4;
+
+	return true;
+}
+
 static void
 test_output(data_t *data)
 {
@@ -313,6 +328,9 @@ static const struct {
 	},
 	{ .name = "bad-vtotal",
 	  .adjust_mode = adjust_mode_bad_vtotal,
+	},
+	{ .name = "overflow-vrefresh",
+	  .adjust_mode = adjust_mode_overflow_vrefresh,
 	},
 };
 
