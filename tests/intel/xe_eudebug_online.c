@@ -1151,7 +1151,9 @@ static bool intel_gen_has_lockstep_eus(int fd)
 
 static int query_attention_bitmask_size(int fd, int gt)
 {
-	const unsigned int threads = 8;
+	uint32_t thread_count_len;
+	uint32_t *thread_count_ptr;
+	uint32_t thread_count;
 	struct drm_xe_query_topology_mask *c_dss = NULL, *g_dss = NULL, *eu_per_dss = NULL;
 	struct drm_xe_query_topology_mask *topology;
 	struct drm_xe_device_query query = {
@@ -1162,6 +1164,12 @@ static int query_attention_bitmask_size(int fd, int gt)
 	};
 	int pos = 0, eus;
 	uint8_t *any_dss;
+
+	thread_count_ptr = xe_hwconfig_lookup_value(fd, INTEL_HWCONFIG_NUM_THREADS_PER_EU,
+						    &thread_count_len);
+	igt_assert(thread_count_ptr);
+	igt_assert(thread_count_len == 1);
+	thread_count = *thread_count_ptr;
 
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 	igt_assert_neq(query.size, 0);
@@ -1212,7 +1220,7 @@ static int query_attention_bitmask_size(int fd, int gt)
 	free(any_dss);
 	free(topology);
 
-	return eus * threads / 8;
+	return eus * DIV_ROUND_UP(thread_count, 8);
 }
 
 static struct drm_xe_eudebug_event_exec_queue *
