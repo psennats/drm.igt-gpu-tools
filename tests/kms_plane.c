@@ -293,8 +293,11 @@ test_plane_position_with_output(data_t *data,
 	create_fb_for_mode(data, mode, &green, &rect, 1, &primary_fb);
 	igt_plane_set_fb(primary, &primary_fb);
 
-	if (!igt_plane_has_format_mod(sprite, DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_LINEAR))
+	if (!igt_plane_has_format_mod(sprite, DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_LINEAR)) {
+		igt_info("plane-%d does not supports XRGB format and Linear modifier\n",
+			 sprite->index);
 		return;
+	}
 
 	igt_create_color_fb(data->drm_fd,
 			    64, 64, /* width, height */
@@ -493,7 +496,7 @@ test_plane_panning(data_t *data, enum pipe pipe)
 		mode_found = true;
 		break;
 	}
-	igt_require(mode_found);
+	igt_require_f(mode_found, "All connector modes are skipped due to low memory\n");
 
 	if (data->flags & TEST_PANNING_TOP_LEFT)
 		test_grab_crc(data, output, pipe, &red, data->flags, &ref_crc);
@@ -1263,7 +1266,7 @@ static void test_planar_settings(data_t *data)
 	 * If here is added non-intel tests below require will need to be
 	 * changed to if(..)
 	 */
-	igt_require(data->display.is_atomic);
+	igt_require_f(data->display.is_atomic, "Atomic mode-set not supported\n");
 	igt_require_intel(data->drm_fd);
 	devid = intel_get_drm_devid(data->drm_fd);
 	igt_require(intel_display_ver(devid) >= 9);
