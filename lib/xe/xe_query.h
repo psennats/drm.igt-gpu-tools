@@ -26,6 +26,12 @@ struct xe_device {
 	/** @config: xe configuration */
 	struct drm_xe_query_config *config;
 
+	/** @hwconfig: xe hwconfig table data */
+	uint32_t *hwconfig;
+
+	/** @hwconfig_size: size of hwconfig in bytes */
+	uint32_t hwconfig_size;
+
 	/** @gt_list: gt info */
 	struct drm_xe_query_gt_list *gt_list;
 

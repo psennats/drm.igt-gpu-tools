@@ -39,6 +39,32 @@ static struct drm_xe_query_config *xe_query_config_new(int fd)
 	return config;
 }
 
+static uint32_t *xe_query_hwconfig_new(int fd, uint32_t *hwconfig_size)
+{
+	uint32_t *hwconfig;
+	struct drm_xe_device_query query = {
+		.extensions = 0,
+		.query = DRM_XE_DEVICE_QUERY_HWCONFIG,
+		.size = 0,
+		.data = 0,
+	};
+
+	/* Perform the initial query to get the size */
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+	igt_assert_neq(query.size, 0);
+
+	hwconfig = malloc(query.size);
+	igt_assert(hwconfig);
+
+	query.data = to_user_pointer(hwconfig);
+
+	/* Perform the query to get the actual data */
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	*hwconfig_size = query.size;
+	return hwconfig;
+}
+
 static struct drm_xe_query_gt_list *xe_query_gt_list_new(int fd)
 {
 	struct drm_xe_query_gt_list *gt_list;
@@ -239,6 +265,7 @@ static struct xe_device *find_in_cache(int fd)
 static void xe_device_free(struct xe_device *xe_dev)
 {
 	free(xe_dev->config);
+	free(xe_dev->hwconfig);
 	free(xe_dev->gt_list);
 	free(xe_dev->engines);
 	free(xe_dev->mem_regions);
@@ -268,6 +295,7 @@ struct xe_device *xe_device_get(int fd)
 
 	xe_dev->fd = fd;
 	xe_dev->config = xe_query_config_new(fd);
+	xe_dev->hwconfig = xe_query_hwconfig_new(fd, &xe_dev->hwconfig_size);
 	xe_dev->va_bits = xe_dev->config->info[DRM_XE_QUERY_CONFIG_VA_BITS];
 	xe_dev->dev_id = xe_dev->config->info[DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID] & 0xffff;
 	xe_dev->gt_list = xe_query_gt_list_new(fd);
