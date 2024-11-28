@@ -28,6 +28,34 @@ enum xe_sriov_shared_res {
 };
 
 /**
+ * XE_SRIOV_SHARED_RES_NUM - Number of shared resource types
+ */
+#define XE_SRIOV_SHARED_RES_NUM (XE_SRIOV_SHARED_RES_LMEM + 1)
+
+/**
+ * xe_sriov_for_each_shared_res - Iterate over all shared resource types
+ * @res: Loop counter variable of type `enum xe_sriov_shared_res`
+ *
+ * Iterates over each shared resource type defined in the `enum xe_sriov_shared_res`.
+ */
+#define xe_sriov_for_each_shared_res(res) \
+	for ((res) = 0; (res) < XE_SRIOV_SHARED_RES_NUM; (res)++)
+
+/**
+ * xe_sriov_for_each_provisionable_shared_res - Iterate over provisionable shared
+ * resource types
+ * @res: Loop counter variable of type `enum xe_sriov_shared_res`
+ * @pf: PF device file descriptor of type int
+ * @gt: GT number of type unsigned int
+ *
+ * Iterates over each provisionable shared resource type for the given PF device
+ * and GT number.
+ */
+#define xe_sriov_for_each_provisionable_shared_res(res, pf, gt) \
+	for ((res) = 0; (res) < XE_SRIOV_SHARED_RES_NUM; (res)++) \
+		for_if(xe_sriov_is_shared_res_provisionable((pf), (res), (gt)))
+
+/**
  * struct xe_sriov_provisioned_range - Provisioned range for a Virtual Function (VF)
  * @vf_id: The ID of the VF
  * @start: The inclusive start of the provisioned range
@@ -43,6 +71,7 @@ struct xe_sriov_provisioned_range {
 };
 
 const char *xe_sriov_shared_res_to_string(enum xe_sriov_shared_res res);
+bool xe_sriov_is_shared_res_provisionable(int pf, enum xe_sriov_shared_res res, unsigned int gt);
 int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio *mmio,
 					       struct xe_sriov_provisioned_range **ranges,
 					       unsigned int *nr_ranges);

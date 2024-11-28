@@ -9,6 +9,7 @@
 #include "intel_chipset.h"
 #include "linux_scaffold.h"
 #include "xe/xe_mmio.h"
+#include "xe/xe_query.h"
 #include "xe/xe_sriov_debugfs.h"
 #include "xe/xe_sriov_provisioning.h"
 
@@ -273,4 +274,25 @@ void xe_sriov_pf_set_shared_res_attr(int pf, enum xe_sriov_shared_res res,
 				     uint64_t value)
 {
 	igt_fail_on(__xe_sriov_pf_set_shared_res_attr(pf, res, vf_num, gt_num, value));
+}
+
+/**
+ * xe_sriov_is_shared_res_provisionable - Check if a shared resource is provisionable
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @gt_num: GT number
+ *
+ * Determines whether a specified shared resource can be provisioned.
+ *
+ * Return: true if the shared resource is provisionable, false otherwise.
+ */
+bool xe_sriov_is_shared_res_provisionable(int pf, enum xe_sriov_shared_res res,
+					  unsigned int gt_num)
+{
+	if (res == XE_SRIOV_SHARED_RES_LMEM)
+		return xe_has_vram(pf) && !xe_is_media_gt(pf, gt_num);
+	else if (res == XE_SRIOV_SHARED_RES_GGTT)
+		return !xe_is_media_gt(pf, gt_num);
+
+	return true;
 }
