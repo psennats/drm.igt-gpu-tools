@@ -15,6 +15,7 @@
 #include "igt_aux.h"
 #include "igt_list.h"
 #include "igt_sizes.h"
+#include "intel_hwconfig_types.h"
 
 #define XE_DEFAULT_ALIGNMENT           SZ_4K
 #define XE_DEFAULT_ALIGNMENT_64K       SZ_64K
@@ -118,6 +119,7 @@ struct drm_xe_engine *xe_find_engine_by_class(int fd, uint16_t engine_class);
 bool xe_has_media_gt(int fd);
 bool xe_is_media_gt(int fd, int gt);
 uint16_t xe_gt_get_tile_id(int fd, int gt);
+uint32_t *xe_hwconfig_lookup_value(int fd, enum intel_hwconfig attribute, uint32_t *len);
 
 struct xe_device *xe_device_get(int fd);
 void xe_device_put(int fd);

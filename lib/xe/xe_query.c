@@ -839,6 +839,45 @@ uint16_t xe_gt_get_tile_id(int fd, int gt)
 	return xe_dev->gt_list->gt_list[gt].tile_id;
 }
 
+/**
+ * xe_hwconfig_lookup_value:
+ * @fd: xe device fd
+ * @attribute: hwconfig attribute id
+ * @len: pointer to store length of the value (in uint32_t sized elements)
+ *
+ * Returns a pointer to the value of the hwconfig attribute @attribute and
+ * writes the number of uint32_t elements indicating the length of the value to @len.
+ */
+uint32_t *xe_hwconfig_lookup_value(int fd, enum intel_hwconfig attribute, uint32_t *len)
+{
+	struct xe_device *xe_dev;
+	uint32_t *hwconfig;
+	uint32_t pos, hwconfig_len;
+
+	xe_dev = find_in_cache(fd);
+	igt_assert(xe_dev);
+
+	hwconfig = xe_dev->hwconfig;
+	igt_assert(hwconfig);
+
+	/* Extract the value from the hwconfig */
+	pos = 0;
+	hwconfig_len = xe_dev->hwconfig_size / sizeof(uint32_t);
+	while (pos + 2 < hwconfig_len) {
+		uint32_t attribute_id = hwconfig[pos];
+		uint32_t attribute_len = hwconfig[pos + 1];
+		uint32_t *attribute_data = &hwconfig[pos + 2];
+
+		if (attribute_id == attribute) {
+			*len = attribute_len;
+			return attribute_data;
+		}
+		pos += 2 + attribute_len;
+	}
+
+	return NULL;
+}
+
 igt_constructor
 {
 	xe_device_cache_init();
