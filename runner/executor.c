@@ -1336,8 +1336,12 @@ static int monitor_output(pid_t child,
 
 				aborting = true;
 				killed = SIGQUIT;
-				if (!kill_child(killed, child))
+				if (!kill_child(killed, child)) {
+					errf("Error terminating child with %s, errno=%d\n",
+					     killed == SIGQUIT ? "SIGQUIT" : "SIGKILL", errno);
+
 					return -1;
+				}
 				time_killed = time_now;
 
 				continue;
