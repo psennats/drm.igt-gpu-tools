@@ -1510,8 +1510,12 @@ static int monitor_output(pid_t child,
 			}
 
 			killed = next_kill_signal(killed);
-			if (!kill_child(killed, child))
-				return -1;
+			if (!kill_child(killed, child)) {
+				errf("Error at terminating test with %s, errno=%d\n",
+				     killed == SIGQUIT ? "SIGQUIT" : "SIGKILL", errno);
+				killed = -1;
+				break; /* while */
+			}
 			time_killed = time_now;
 		}
 	}
