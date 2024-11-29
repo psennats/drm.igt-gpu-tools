@@ -585,13 +585,14 @@ void close_outputs(int *fds)
 }
 
 /* Returns the number of bytes written to disk, or a negative number on error */
-static long dump_dmesg(int kmsgfd, int outfd)
+static long dump_dmesg(int kmsgfd, int outfd, ssize_t size)
 {
 	/*
 	 * Write kernel messages to the log file until we reach
-	 * 'now'. Unfortunately, /dev/kmsg doesn't support seeking to
-	 * -1 from SEEK_END so we need to use a second fd to read a
-	 * message to match against, or stop when we reach EAGAIN.
+	 * 'now' or we read at least size bytes. Unfortunately,
+	 * /dev/kmsg doesn't support seeking to -1 from SEEK_END
+	 * so we need to use a second fd to read a message to
+	 *  match against, or stop when we reach EAGAIN.
 	 */
 
 	int comparefd;
@@ -604,6 +605,9 @@ static long dump_dmesg(int kmsgfd, int outfd)
 	long written = 0;
 
 	if (kmsgfd < 0)
+		return 0;
+
+	if (size < 0)
 		return 0;
 
 	comparefd = open("/dev/kmsg", O_RDONLY | O_NONBLOCK);
@@ -666,6 +670,13 @@ static long dump_dmesg(int kmsgfd, int outfd)
 			 */
 			if (seq >= cmpseq)
 				return written;
+		}
+
+		if (size && written >= size) {
+			if (comparefd >= 0)
+				close(comparefd);
+
+			return written;
 		}
 	}
 }
@@ -860,6 +871,25 @@ static void write_packet_with_canary(int fd, struct runnerpacket *packet, bool s
 /* TODO: Refactor this macro from here and from various tests to lib */
 #define KB(x) ((x) * 1024)
 
+#if !defined(SIZE_MAX)
+#define SIZE_MAX (((size_t)-1) ^ (1 << (8 * sizeof(size_t) - 1)))
+#endif
+
+/* Calculates disk limit to use when dumping dmesg, returns:
+ * number > 0	: size of limit to use
+ * number < 0	: negative number when limit exceeded, no more dumping
+ **/
+static size_t calc_last_dmesg_chunk(size_t limit, size_t disk_usage)
+{
+	size_t dt = limit - disk_usage;
+
+	assert(SIZE_MAX > 0);
+	if (!limit)
+		return SIZE_MAX; /* no limit */
+
+	return dt != 0 ? dt : -1;
+}
+
 /*
  * Returns:
  *  =0 - Success
@@ -892,6 +922,8 @@ static int monitor_output(pid_t child,
 	unsigned long taints = 0;
 	bool aborting = false;
 	size_t disk_usage = 0;
+	size_t dmsg_chunk_size = 4096 * max_t(size_t, sysconf(_SC_NPROCESSORS_ONLN), 16);
+	long dmesgwritten;
 	bool socket_comms_used = false; /* whether the test actually uses comms */
 	bool results_received = false; /* whether we already have test results that might need overriding if we detect an abort condition */
 
@@ -1217,11 +1249,9 @@ static int monitor_output(pid_t child,
 	socket_end:
 
 		if (kmsgfd >= 0 && FD_ISSET(kmsgfd, &set)) {
-			long dmesgwritten;
-
 			time_last_activity = time_now;
 
-			dmesgwritten = dump_dmesg(kmsgfd, outputs[_F_DMESG]);
+			dmesgwritten = dump_dmesg(kmsgfd, outputs[_F_DMESG], dmsg_chunk_size);
 			if (settings->sync)
 				fdatasync(outputs[_F_DMESG]);
 
@@ -1459,7 +1489,8 @@ static int monitor_output(pid_t child,
 					asprintf(abortreason, "Child refuses to die, tainted 0x%lx.", taints);
 				}
 
-				dump_dmesg(kmsgfd, outputs[_F_DMESG]);
+				dmsg_chunk_size = calc_last_dmesg_chunk(settings->disk_usage_limit, disk_usage);
+				dump_dmesg(kmsgfd, outputs[_F_DMESG], dmsg_chunk_size);
 				if (settings->sync)
 					fdatasync(outputs[_F_DMESG]);
 
@@ -1485,9 +1516,24 @@ static int monitor_output(pid_t child,
 		}
 	}
 
-	dump_dmesg(kmsgfd, outputs[_F_DMESG]);
+	dmsg_chunk_size = calc_last_dmesg_chunk(settings->disk_usage_limit, disk_usage);
+	dmesgwritten = dump_dmesg(kmsgfd, outputs[_F_DMESG], dmsg_chunk_size);
 	if (settings->sync)
 		fdatasync(outputs[_F_DMESG]);
+	if (dmesgwritten > 0) {
+		disk_usage += dmesgwritten;
+		if (settings->disk_usage_limit && disk_usage > settings->disk_usage_limit) {
+			char disk[1024];
+
+			snprintf(disk, sizeof(disk), "igt_runner: disk limit exceeded at dmesg dump, %ld > %ld\n", disk_usage, settings->disk_usage_limit);
+			if (settings->log_level >= LOG_LEVEL_NORMAL) {
+				outf("%s", disk);
+				fflush(stdout);
+			} else if (killed) {
+				errf("%s", disk);
+			}
+		}
+	}
 
 	free(buf);
 	free(outbuf);
