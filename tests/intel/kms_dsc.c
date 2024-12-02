@@ -281,9 +281,13 @@ static void test_dsc(data_t *data, uint32_t test_type, int bpc,
 		data->pipe = pipe;
 
 		if (!is_dsc_supported_by_sink(data->drm_fd, data->output) ||
-		    !check_gen11_dp_constraint(data->drm_fd, data->output, data->pipe) ||
-		     igt_get_output_max_bpc(data->drm_fd, output->name) < MIN_DSC_BPC)
+		    !check_gen11_dp_constraint(data->drm_fd, data->output, data->pipe))
 			continue;
+
+		if (igt_get_output_max_bpc(data->drm_fd, output->name) < MIN_DSC_BPC) {
+			igt_info("Output %s doesn't support min %d-bpc\n", igt_output_name(data->output), MIN_DSC_BPC);
+			continue;
+		}
 
 		if ((test_type & TEST_DSC_OUTPUT_FORMAT) &&
 		    (!is_dsc_output_format_supported(data->drm_fd, data->disp_ver,
