@@ -69,14 +69,14 @@ bool is_dsc_supported_by_source(int drmfd)
 bool is_dsc_supported_by_sink(int drmfd, igt_output_t *output)
 {
 	if (!igt_is_dsc_supported_by_sink(drmfd, output->name)) {
-		igt_debug("DSC not supported on connector %s\n",
+		igt_info("DSC not supported on connector %s\n",
 			  output->name);
 		return false;
 	}
 
 	if (!output_is_internal_panel(output) &&
 	    !igt_is_fec_supported(drmfd, output->name)) {
-		igt_debug("DSC cannot be enabled without FEC on %s\n",
+		igt_info("DSC cannot be enabled without FEC on %s\n",
 			  output->name);
 		return false;
 	}
@@ -91,7 +91,7 @@ bool check_gen11_dp_constraint(int drmfd, igt_output_t *output, enum pipe pipe)
 
 	if ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) &&
 	    (pipe == PIPE_A) && IS_GEN11(devid)) {
-		igt_debug("DSC not supported on pipe A on external DP in gen11 platforms\n");
+		igt_info("DSC not supported on pipe %s on %s in gen11 platforms\n", kmstest_pipe_name(pipe), output->name);
 		return false;
 	}
 
@@ -126,7 +126,7 @@ void force_dsc_output_format(int drmfd, igt_output_t *output,
 static bool is_dsc_output_format_supported_by_source(int disp_ver, enum dsc_output_format output_format)
 {
 	if (disp_ver < 14 && output_format == DSC_FORMAT_YCBCR420) {
-		igt_debug("Output format DSC YCBCR420 not supported on D13 and older platforms\n");
+		igt_info("Output format DSC YCBCR420 not supported on D13 and older platforms\n");
 		return false;
 	}
 
@@ -140,7 +140,7 @@ bool is_dsc_output_format_supported(int drmfd, int disp_ver, igt_output_t *outpu
 		return false;
 
 	if (!igt_is_dsc_output_format_supported_by_sink(drmfd, output->name, output_format)) {
-		igt_debug("DSC %s output format not supported on connector %s\n",
+		igt_info("DSC %s output format not supported on connector %s\n",
 			  kmstest_dsc_output_format_str(output_format), output->name);
 		return false;
 	}
@@ -182,7 +182,7 @@ void restore_force_dsc_fractional_bpp_en(void)
 static bool is_dsc_fractional_bpp_supported_by_source(int disp_ver)
 {
 	if (disp_ver < 14) {
-		igt_debug("DSC fractional bpp not supported on D13 and older platforms\n");
+		igt_info("DSC fractional bpp not supported on D13 and older platforms\n");
 		return false;
 	}
 
@@ -195,7 +195,7 @@ bool is_dsc_fractional_bpp_supported(int disp_ver, int drmfd, igt_output_t *outp
 		return false;
 
 	if (!igt_is_dsc_fractional_bpp_supported_by_sink(drmfd, output->name)) {
-		igt_debug("DSC fractional bpp not supported on connector %s\n", output->name);
+		igt_info("DSC fractional bpp not supported on connector %s\n", output->name);
 		return false;
 	}
 
