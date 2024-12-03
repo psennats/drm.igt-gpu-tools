@@ -376,9 +376,17 @@ static bool igt_pipe_is_free(igt_display_t *display, enum pipe pipe)
 static void test_cp_lic(igt_output_t *output)
 {
 	bool ret;
+	uint64_t val;
 
 	/* Wait for 4Secs (min 2 cycles of Link Integrity Check) */
 	ret = wait_for_prop_value(output, CP_DESIRED, LIC_PERIOD_MSEC);
+	val = igt_output_get_prop(output,
+				  IGT_CONNECTOR_CONTENT_PROTECTION);
+	if (val == CP_DESIRED) {
+		igt_debug("Link Integrity Check failed, waiting for reauthentication\n");
+		ret = wait_for_prop_value(output, CP_DESIRED, LIC_PERIOD_MSEC);
+	}
+
 	igt_assert_f(!ret, "Content Protection LIC Failed\n");
 }
 
