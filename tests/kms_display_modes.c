@@ -232,6 +232,12 @@ static void run_extendedmode_test(data_t *data) {
 
 	for_each_pipe(display, pipe1) {
 		for_each_valid_output_on_pipe(display, pipe1, output1) {
+
+			if (is_joiner_mode(data->drm_fd, output1)) {
+				igt_info("Skipping joiner output %s", output1->name);
+				continue;
+			}
+
 			for_each_pipe(display, pipe2) {
 				if (pipe1 == pipe2)
 					continue;
@@ -318,6 +324,10 @@ igt_main
 		igt_display_require_output(&data.display);
 
 		for_each_connected_output(&data.display, output) {
+			if (is_joiner_mode(data.drm_fd, output)) {
+				igt_info("Skipping joiner output %s", output->name);
+				continue;
+			}
 			data.mst_output[count++] = output;
 			if (output_is_dp_mst(&data, output, dp_mst_outputs))
 				dp_mst_outputs++;
