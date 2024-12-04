@@ -1308,6 +1308,67 @@ static uint16_t xe_get_engine_class(char *name)
 }
 
 /**
+ * igt_sysfs_get_engine_list:
+ * @engines: fd of the directory engine
+ *
+ * Iterates over sysfs/engines and returns an array of
+ * opened engines.  The user will be in charge of closing
+ * the opened engines.
+ *
+ * The returned array will always be terminated by a -1.
+ */
+int *igt_sysfs_get_engine_list(int engines)
+{
+	struct dirent *de;
+	DIR *dir;
+	const int array_max = 16;
+	int *ret = calloc(array_max, sizeof(int));
+	int size = 0;
+
+	igt_assert(ret);
+
+	lseek(engines, 0, SEEK_SET);
+
+	dir = fdopendir(engines);
+	if (!dir)
+		close(engines);
+
+	while ((de = readdir(dir))) {
+		if (*de->d_name == '.')
+			continue;
+		igt_assert_lt(size, array_max);
+		ret[size] = openat(engines, de->d_name, O_RDONLY);
+		if (ret[size] < 0) {
+			ret[size] = 0;
+			continue;
+		}
+		size += 1;
+	}
+
+	igt_assert_lt(size, array_max);
+	ret[size] = -1;
+
+	return ret;
+}
+
+/**
+ * igt_sysfs_free_engine_list:
+ * @list: list of opened engines
+ * @size: number of engines in list
+ *
+ * Helper for cleaning up after igt_sysfs_get_engine_list.
+ * Closes all engines in list before freeing the list.
+ */
+void igt_sysfs_free_engine_list(int *list)
+{
+	int i = 0;
+
+	while (list[i] != -1)
+		close(list[i++]);
+	free(list);
+}
+
+/**
  * igt_sysfs_engines:
  * @xe: fd of the device
  * @engines: fd of the directory engine
