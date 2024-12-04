@@ -107,10 +107,19 @@ static void test_min_max(int xe, int engine, const char **property,
 
 	/* Reset property, max, min to original values */
 	igt_sysfs_printf(engine, property[0], "%d", store);
+	igt_sysfs_scanf(engine, property[0], "%u", &set);
+	igt_assert_eq(set, store);
+
 	igt_sysfs_printf(engine, property[1], "%d", default_min);
+	igt_sysfs_scanf(engine, property[1], "%u", &set);
+	igt_assert_eq(set, default_min);
+
 	igt_sysfs_printf(engine, property[2], "%d", default_max);
+	igt_sysfs_scanf(engine, property[2], "%u", &set);
+	igt_assert_eq(set, default_max);
 }
 
+#define MAX_GTS 8
 igt_main
 {
 	static const struct {
@@ -126,10 +135,15 @@ igt_main
 				      {"timeslice_duration_us", "timeslice_duration_min", "timeslice_duration_max"},
 				      {"job_timeout_ms", "job_timeout_min", "job_timeout_max"},
 	};
+
+	unsigned int store[MAX_GTS][3][3];
 	int count = sizeof(property) / sizeof(property[0]);
+	int gt_count = 0;
 	int xe = -1;
 	int sys_fd;
 	int gt;
+	int engines_fd[MAX_GTS], gt_fd[MAX_GTS];
+	int *engine_list[MAX_GTS];
 
 	igt_fixture {
 		xe = drm_open_driver(DRIVER_XE);
@@ -138,28 +152,83 @@ igt_main
 		sys_fd = igt_sysfs_open(xe);
 		igt_require(sys_fd != -1);
 		close(sys_fd);
+
+		xe_for_each_gt(xe, gt) {
+			int *list, i = 0;
+
+			igt_require(gt_count < MAX_GTS);
+
+			gt_fd[gt_count] = xe_sysfs_gt_open(xe, gt);
+			igt_require(gt_fd[gt_count] != -1);
+			engines_fd[gt_count] = openat(gt_fd[gt_count], "engines", O_RDONLY);
+			igt_require(engines_fd[gt_count] != -1);
+
+			list = igt_sysfs_get_engine_list(engines_fd[gt_count]);
+
+			while (list[i] != -1) {
+				for (int j = 0; j < count; j++) {
+					const char **pl = property[j];
+
+					for (int k = 0; k < 3; k++) {
+						unsigned int *loc = &store[i][j][k];
+
+						igt_require(igt_sysfs_scanf(list[i], pl[k],
+									    "%u", loc) == 1);
+					}
+				}
+				i++;
+			}
+
+			igt_require(i > 0);
+			engine_list[gt_count] = list;
+			gt_count++;
+		}
 	}
 
 	for (int i = 0; i < count; i++) {
 		for (typeof(*tests) *t = tests; t->name; t++) {
 			igt_subtest_with_dynamic_f("%s-%s", property[i][0], t->name) {
+				int j = 0;
 				xe_for_each_gt(xe, gt) {
-					int engines_fd = -1;
-					int gt_fd = -1;
+					int e = engines_fd[j];
 
-					gt_fd = xe_sysfs_gt_open(xe, gt);
-					igt_require(gt_fd != -1);
-					engines_fd = openat(gt_fd, "engines", O_RDONLY);
-					igt_require(engines_fd != -1);
-
-					igt_sysfs_engines(xe, engines_fd, 0, 0, property[i], t->fn);
-					close(engines_fd);
-					close(gt_fd);
+					igt_sysfs_engines(xe, e, 0, 0, property[i], t->fn);
+					j++;
 				}
 			}
 		}
 	}
+
 	igt_fixture {
+		for (int gtn = gt_count - 1; gtn >= 0; gtn--) {
+			int *list, i = 0;
+
+			list = engine_list[gtn];
+
+			while (list[i] != -1) {
+				int e = list[i];
+
+				for (int j = count - 1; j >= 0; j--) {
+					const char **pl = property[j];
+
+					for (int k = 2; k >= 0; k--) {
+						unsigned int read = UINT_MAX;
+						unsigned int val = store[i][j][k];
+
+						igt_sysfs_printf(e, pl[k], "%u", val);
+						igt_sysfs_scanf(e, pl[k], "%u", &read);
+						igt_abort_on_f(read != val,
+							       "%s not restored!\n", pl[k]);
+					}
+				}
+				i++;
+			}
+
+			igt_sysfs_free_engine_list(list);
+			close(engines_fd[gtn]);
+			close(gt_fd[gtn]);
+		}
+
 		xe_device_put(xe);
 		close(xe);
 	}
