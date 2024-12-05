@@ -1021,7 +1021,8 @@ static void __intel_buf_init(struct buf_ops *bops,
 				cpu_caching = DRM_XE_GEM_CPU_CACHING_WC;
 
 			bo_size = ALIGN(bo_size, xe_get_default_alignment(bops->fd));
-			buf->handle = xe_bo_create_caching(bops->fd, 0, bo_size, region, 0,
+			buf->handle = xe_bo_create_caching(bops->fd, 0, bo_size, region,
+							   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
 							   cpu_caching);
 		}
 	}
