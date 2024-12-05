@@ -1132,6 +1132,8 @@ static void run_online_client(struct xe_eudebug_client *c)
 					   DRM_XE_DEBUG_METADATA_PROGRAM_MODULE,
 					   2 * sizeof(*metadata));
 
+	intel_buf_destroy(buf);
+
 	xe_eudebug_client_close_driver(c, fd);
 }
 
