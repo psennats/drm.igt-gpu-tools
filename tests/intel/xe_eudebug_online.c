@@ -919,6 +919,10 @@ static void eu_attention_resume_caching_trigger(struct xe_eudebug_debugger *d,
 	const uint32_t breakpoint_bit = 1 << 30;
 	struct gpgpu_shader *shader_preamble;
 	struct gpgpu_shader *shader_write_instr;
+	const unsigned int instruction_count =
+			caching_get_instruction_count(d->master_fd, s_dim.x, d->flags);
+	uint64_t seqno = 0;
+	int ret;
 
 	shader_preamble = gpgpu_shader_create(d->master_fd);
 	gpgpu_shader__write_dword(shader_preamble, SHADER_CANARY, 0);
@@ -935,7 +939,7 @@ static void eu_attention_resume_caching_trigger(struct xe_eudebug_debugger *d,
 	}
 
 	/* set breakpoint on next write instruction */
-	if (*counter < caching_get_instruction_count(d->master_fd, s_dim.x, d->flags)) {
+	if (*counter < instruction_count) {
 		igt_assert_eq(pread(data->vm_fd, &instr_usdw, sizeof(instr_usdw),
 				    data->bb_offset + *kernel_offset + shader_preamble->size * 4 +
 				    shader_write_instr->size * 4 * *counter),
@@ -949,7 +953,7 @@ static void eu_attention_resume_caching_trigger(struct xe_eudebug_debugger *d,
 	}
 
 	/* restore current instruction */
-	if (*counter && *counter <= caching_get_instruction_count(d->master_fd, s_dim.x, d->flags))
+	if (*counter && *counter <= instruction_count)
 		overwrite_immediate_value_in_common_target_write(data->vm_fd,
 								 data->bb_offset + *kernel_offset +
 								 shader_preamble->size * 4 +
@@ -958,7 +962,7 @@ static void eu_attention_resume_caching_trigger(struct xe_eudebug_debugger *d,
 								 CACHING_VALUE(*counter - 1));
 
 	/* poison next instruction */
-	if (*counter < caching_get_instruction_count(d->master_fd, s_dim.x, d->flags))
+	if (*counter < instruction_count)
 		overwrite_immediate_value_in_common_target_write(data->vm_fd,
 								 data->bb_offset + *kernel_offset +
 								 shader_preamble->size * 4 +
@@ -969,15 +973,28 @@ static void eu_attention_resume_caching_trigger(struct xe_eudebug_debugger *d,
 	gpgpu_shader_destroy(shader_write_instr);
 	gpgpu_shader_destroy(shader_preamble);
 
-	for (int i = 0; i < data->target_size; i += sizeof(uint32_t)) {
-		igt_assert_eq(pread(data->vm_fd, &val, sizeof(val), data->target_offset + i),
-			      sizeof(val));
-		igt_assert_f(val != CACHING_POISON_VALUE, "Poison value found at %04d!\n", i);
-	}
+	/* check surface at each breakpoint that is after write instruction */
+	if (*counter > 1 && *counter <= instruction_count + 1)
+		for (int i = 0; i < data->target_size; i += sizeof(uint32_t)) {
+			igt_assert_eq(pread(data->vm_fd, &val, sizeof(val),
+					    data->target_offset + i), sizeof(val));
+			igt_assert_f(val != CACHING_POISON_VALUE,
+				     "Poison value found at %04d!\n", i);
+		}
 
-	eu_ctl_resume(d->master_fd, d->fd, att->client_handle,
-		      att->exec_queue_handle, att->lrc_handle,
-		      att->bitmask, att->bitmask_size);
+	ret = __eu_ctl(d->fd, att->client_handle, att->exec_queue_handle, att->lrc_handle,
+		       att->bitmask, &att->bitmask_size, DRM_XE_EUDEBUG_EU_CONTROL_CMD_RESUME,
+		       &seqno);
+
+	/*
+	 * XXX: build a better sync between workload lifetime vs resume.
+	 *
+	 * Right now, it is possible to get attention after the workload has vanished - in result,
+	 * eu_ctl above fails. Band-aid it by checking the eu_ctl return value only n times it is
+	 * actually expected - that is, instruction_count of writes + 2 nops.
+	 */
+	if (*counter < instruction_count + 2)
+		igt_assert_eq(ret, 0);
 
 	(*counter)++;
 }
