@@ -152,12 +152,19 @@ void xe_post_hang_ring(int fd, igt_hang_t arg)
 int xe_gt_stats_get_count(int fd, int gt, const char *stat)
 {
 	FILE *f;
+	struct stat st;
 	char tlb_path[4096];
 	char path[256];
 	int count;
 
-	sprintf(path, "/sys/kernel/debug/dri/0/gt%d/stats", gt);
+	igt_assert_eq(fstat(fd, &st), 0);
+
+	sprintf(path, "/sys/kernel/debug/dri/%d/gt%d/stats",
+		minor(st.st_rdev), gt);
 	f = fopen(path, "r");
+
+	igt_assert_f(f, "Failed to open /sys/kernel/debug/dri/%d/gt%d/stats",
+		     minor(st.st_rdev), gt);
 
 	while (fgets(tlb_path, sizeof(tlb_path), f)) {
 		if (strstr(tlb_path, stat) != NULL) {
@@ -165,5 +172,8 @@ int xe_gt_stats_get_count(int fd, int gt, const char *stat)
 			break;
 		}
 	}
+
+	fclose(f);
+
 	return count;
 }
