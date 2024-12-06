@@ -1786,7 +1786,7 @@ test_frequency_idle(int gem_fd, unsigned int gt)
 	sysfs = igt_sysfs_gt_open(gem_fd, gt);
 	igt_require(sysfs >= 0);
 
-	min_freq = igt_sysfs_get_u32(sysfs, "rps_RPn_freq_mhz");
+	igt_require(__igt_sysfs_get_u32(sysfs, "rps_RPn_freq_mhz", &min_freq));
 	close(sysfs);
 
 	/* While parked, our convention is to report the GPU at 0Hz */
@@ -2403,23 +2403,23 @@ static void save_sysfs_freq(int i915)
 
 	num_gts = igt_sysfs_get_num_gt(i915);
 
-	stash_min = (uint32_t *)malloc(sizeof(uint32_t) * num_gts);
-	stash_max = (uint32_t *)malloc(sizeof(uint32_t) * num_gts);
-	stash_boost = (uint32_t *)malloc(sizeof(uint32_t) * num_gts);
+	stash_min = (uint32_t *)calloc(num_gts, sizeof(uint32_t) * num_gts);
+	stash_max = (uint32_t *)calloc(num_gts, sizeof(uint32_t) * num_gts);
+	stash_boost = (uint32_t *)calloc(num_gts, sizeof(uint32_t) * num_gts);
 
 	/* Save boost, min and max across GTs */
 	i915_for_each_gt(i915, tmp, gt) {
 		sysfs = igt_sysfs_gt_open(i915, gt);
 		igt_require(sysfs >= 0);
 
-		stash_min[gt] = igt_sysfs_get_u32(sysfs, "rps_min_freq_mhz");
-		stash_max[gt] = igt_sysfs_get_u32(sysfs, "rps_max_freq_mhz");
-		stash_boost[gt] = igt_sysfs_get_u32(sysfs, "rps_boost_freq_mhz");
+		__igt_sysfs_get_u32(sysfs, "rps_min_freq_mhz", &stash_min[gt]);
+		__igt_sysfs_get_u32(sysfs, "rps_max_freq_mhz", &stash_max[gt]);
+		__igt_sysfs_get_u32(sysfs, "rps_boost_freq_mhz", &stash_boost[gt]);
 		igt_debug("GT: %d, min: %d, max: %d, boost:%d\n",
 			  gt, stash_min[gt], stash_max[gt], stash_boost[gt]);
 
-		rpn_freq = igt_sysfs_get_u32(sysfs, "rps_RPn_freq_mhz");
-		rp0_freq = igt_sysfs_get_u32(sysfs, "rps_RP0_freq_mhz");
+		__igt_sysfs_get_u32(sysfs, "rps_RPn_freq_mhz", &rpn_freq);
+		__igt_sysfs_get_u32(sysfs, "rps_RP0_freq_mhz", &rp0_freq);
 
 		/* Set pre-conditions, in case frequencies are in non-default state */
 		igt_require(__igt_sysfs_set_u32(sysfs, "rps_max_freq_mhz", rp0_freq));
