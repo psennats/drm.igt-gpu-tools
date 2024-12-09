@@ -47,6 +47,11 @@ option('xe_eudebug',
        value : 'disabled',
        description : 'Build library and tests for Xe EU debugger')
 
+option('vmtb',
+       type : 'feature',
+       value : 'disabled',
+       description : 'Build VM Test Bench')
+
 option('libdrm_drivers',
        type : 'array',
        value : ['auto'],

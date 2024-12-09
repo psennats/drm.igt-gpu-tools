@@ -113,6 +113,10 @@ if libudev.found()
 			install : true)
 endif
 
+if build_vmtb
+	install_subdir('vmtb', install_dir: libexecdir)
+endif
+
 subdir('i915-perf')
 subdir('xe-perf')
 subdir('null_state_gen')
