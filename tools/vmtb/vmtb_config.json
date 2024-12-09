@@ -1,0 +1,31 @@
+{
+    "host": {
+        "card_index": 0,
+        "driver": "xe",
+        "igt": {
+            "test_dir": "/usr/local/libexec/igt-gpu-tools/",
+            "tool_dir": "/usr/local/bin/",
+            "lib_dir": "/usr/local/lib/x86_64-linux-gnu",
+            "result_dir": "/usr/local/results",
+            "options": "--piglit-style-dmesg --dmesg-warn-level=4 --abort-on-monitored-error=taint --overwrite"
+        }
+    },
+    "guest": {
+        "os_image": "guest_os.img",
+        "driver": "xe",
+        "igt": {
+            "test_dir": "/usr/local/libexec/igt-gpu-tools/",
+            "tool_dir": "/usr/local/bin/",
+            "lib_dir": "/usr/local/lib/x86_64-linux-gnu",
+            "result_dir": "/usr/local/results",
+            "options": "--piglit-style-dmesg --dmesg-warn-level=4 --abort-on-monitored-error=taint --overwrite"
+        }
+    },
+    "resources": {
+        "vgpu_profiles_path": "vmm_flows/resources/vgpu_profiles",
+        "guc_ver_path": "vmm_flows/resources/guc"
+    },
+    "ci": {
+        "host_dmesg_file": "/tmp/vm-test-bench-host_dmesg.log.tmp"
+    }
+}
