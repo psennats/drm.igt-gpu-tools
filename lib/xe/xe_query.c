@@ -51,7 +51,8 @@ static uint32_t *xe_query_hwconfig_new(int fd, uint32_t *hwconfig_size)
 
 	/* Perform the initial query to get the size */
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
-	igt_assert_neq(query.size, 0);
+	if (!query.size)
+		return NULL;
 
 	hwconfig = malloc(query.size);
 	igt_assert(hwconfig);
@@ -858,7 +859,8 @@ uint32_t *xe_hwconfig_lookup_value(int fd, enum intel_hwconfig attribute, uint32
 	igt_assert(xe_dev);
 
 	hwconfig = xe_dev->hwconfig;
-	igt_assert(hwconfig);
+	if (!hwconfig)
+		return NULL;
 
 	/* Extract the value from the hwconfig */
 	pos = 0;
