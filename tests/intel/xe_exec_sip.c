@@ -5,12 +5,12 @@
 
 /**
  * TEST: Tests for GPGPU shader and system routine (SIP) execution
- * Category: Software building block
- * Description: Exercise interaction between GPGPU shader and system routine
- *              (SIP), which should handle exceptions raised on Execution Unit.
- * Functionality: system routine
+ * Category: Core
  * Mega feature: Compute
  * Sub-category: GPGPU tests
+ * Functionality: system routine
+ * Description: Exercise interaction between GPGPU shader and system routine
+ *              (SIP), which should handle exceptions raised on Execution Unit.
  * Test category: functionality test
  */
 

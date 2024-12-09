@@ -15,7 +15,7 @@
 
 /**
  * TEST: Check Translation Lookaside Buffer Invalidation.
- * Category: Software building block
+ * Category: Core
  * Mega feature: General Core features
  * Sub-category: CMD submission
  * Functionality: TLB invalidate
