@@ -742,7 +742,7 @@ static void *buf_map(int fd, struct intel_buf *buf, bool write)
 	void *p;
 
 	if (is_xe_device(fd)) {
-		buf->ptr = xe_bo_map(fd, buf->handle, buf->surface[0].size);
+		buf->ptr = xe_bo_map(fd, buf->handle, buf->bo_size);
 		p = buf->ptr;
 	} else {
 		if (gem_has_llc(fd))
