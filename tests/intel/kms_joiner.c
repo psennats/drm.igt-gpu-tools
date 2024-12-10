@@ -457,7 +457,8 @@ igt_main
 
 			if (ultrajoiner_found)
 				data.ultra_joiner_output[data.ultra_joiner_output_count++] = output;
-			else if (force_joiner_supported && is_dsc_supported_by_sink(data.drm_fd, output))
+			else if (force_joiner_supported && is_dsc_supported_by_sink(data.drm_fd, output) &&
+				 igt_get_dsc_sink_max_slice_count(data.drm_fd, output->name) >= 8)
 				data.non_ultra_joiner_output[data.non_ultra_joiner_output_count++] = output;
 
 			if (bigjoiner_found)
