@@ -4834,14 +4834,14 @@ igt_main
 		devid = intel_get_drm_devid(drm_fd);
 		sysfs = igt_sysfs_open(drm_fd);
 
+		/* Currently only run on Xe2+ */
+		igt_require(intel_graphics_ver(devid) >= IP_VER(20, 0));
+
 		igt_require(init_sys_info());
 
 		write_u64_file("/proc/sys/dev/xe/observation_paranoid", 1);
 
 		render_copy = igt_get_render_copyfunc(devid);
-
-		/* Currently only run on Xe2+ */
-		igt_require(intel_graphics_ver(devid) >= IP_VER(20, 0));
 	}
 
 	igt_subtest("non-system-wide-paranoid")
