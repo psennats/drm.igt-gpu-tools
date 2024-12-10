@@ -6467,6 +6467,9 @@ bool is_joiner_mode(int drm_fd, igt_output_t *output)
 	int max_dotclock;
 	drmModeModeInfo mode;
 
+        if (!is_intel_device(drm_fd))
+                return false;
+
 	max_dotclock = igt_get_max_dotclock(drm_fd);
 	is_joiner = bigjoiner_mode_found(drm_fd,
 					 output->config.connector,
