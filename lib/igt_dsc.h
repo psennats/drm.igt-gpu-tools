@@ -27,5 +27,6 @@ int igt_get_dsc_fractional_bpp_supported(int drmfd, char *connector_name);
 bool igt_is_force_dsc_fractional_bpp_enabled(int drmfd, char *connector_name);
 int igt_force_dsc_fractional_bpp_enable(int drmfd, char *connector_name);
 int igt_get_dsc_fractional_bpp_debugfs_fd(int drmfd, char *connector_name);
+int igt_get_dsc_sink_max_slice_count(int drmfd, char *connector_name);
 
 #endif

@@ -308,3 +308,27 @@ int igt_get_dsc_fractional_bpp_debugfs_fd(int drmfd, char *connector_name)
 
 	return openat(igt_debugfs_dir(drmfd), file_name, O_WRONLY);
 }
+
+/**
+ * igt_get_dsc_sink_max_slice_count:
+ * @drmfd: A drm file descriptor
+ * @connector_name: Name of the libdrm connector we're going to use
+ *
+ * Returns: The maximum dsc sink slice count from the connector debugfs.
+ */
+int igt_get_dsc_sink_max_slice_count(int drmfd, char *connector_name)
+{
+	char file_name[128] = {0};
+	char buf[512];
+	char *start_loc;
+	int max_slice_count;
+
+	sprintf(file_name, "%s/i915_dsc_fec_support", connector_name);
+	igt_debugfs_read(drmfd, file_name, buf);
+
+	igt_assert(start_loc = strstr(buf, "DSC_Sink_Max_Slice_Count: "));
+	igt_assert_eq(sscanf(start_loc, "DSC_Sink_Max_Slice_Count: %d", &max_slice_count), 1);
+	igt_assert(max_slice_count > 0);
+
+	return max_slice_count;
+}
