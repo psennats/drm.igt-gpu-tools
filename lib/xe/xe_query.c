@@ -242,6 +242,31 @@ const char *xe_engine_class_string(uint32_t engine_class)
 	}
 }
 
+/**
+ * xe_engine_class_short_string:
+ * @engine_class: engine class
+ *
+ * Returns short name for engine class or 'unknown' otherwise.
+ */
+const char *xe_engine_class_short_string(uint32_t engine_class)
+{
+	switch (engine_class) {
+	case DRM_XE_ENGINE_CLASS_RENDER:
+		return "rcs";
+	case DRM_XE_ENGINE_CLASS_COPY:
+		return "bcs";
+	case DRM_XE_ENGINE_CLASS_VIDEO_DECODE:
+		return "vcs";
+	case DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE:
+		return "vecs";
+	case DRM_XE_ENGINE_CLASS_COMPUTE:
+		return "ccs";
+	default:
+		igt_warn("Engine class 0x%x unknown\n", engine_class);
+		return "unknown";
+	}
+}
+
 static struct xe_device_cache {
 	pthread_mutex_t cache_mutex;
 	struct igt_map *map;

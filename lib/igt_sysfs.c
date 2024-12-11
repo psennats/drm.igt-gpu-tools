@@ -48,6 +48,7 @@
 #include "igt_device.h"
 #include "igt_io.h"
 #include "intel_chipset.h"
+#include "xe/xe_query.h"
 
 /**
  * SECTION:igt_sysfs
@@ -291,22 +292,6 @@ bool xe_sysfs_gt_has_node(int xe_device, int gt, const char *node)
 	return has_node;
 }
 
-static const char *xe_engine_class_to_str(__u16 class)
-{
-	static const char * const str[] = {
-		[DRM_XE_ENGINE_CLASS_RENDER] = "rcs",
-		[DRM_XE_ENGINE_CLASS_COPY] = "bcs",
-		[DRM_XE_ENGINE_CLASS_VIDEO_DECODE] = "vcs",
-		[DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE] = "vecs",
-		[DRM_XE_ENGINE_CLASS_COMPUTE] = "ccs",
-	};
-
-	if (class < ARRAY_SIZE(str))
-		return str[class];
-
-	return "unk";
-}
-
 /**
  * xe_sysfs_engine_path:
  * @xe_device: fd of the device
@@ -331,7 +316,8 @@ xe_sysfs_engine_path(int xe_device, int gt, int class, char *path, int pathlen)
 		return NULL;
 
 	snprintf(path, pathlen, "/sys/dev/char/%d:%d/device/tile%d/gt%d/engines/%s",
-		 major(st.st_rdev), minor(st.st_rdev), tile, gt, xe_engine_class_to_str(class));
+		 major(st.st_rdev), minor(st.st_rdev), tile, gt,
+		 xe_engine_class_short_string(class));
 
 	if (!access(path, F_OK))
 		return path;
@@ -1567,14 +1553,14 @@ bool xe_sysfs_engine_class_get_property(int xe_device, int gt, uint16_t class, c
 	engines_fd = xe_sysfs_engine_open(xe_device, gt, class);
 
 	if (engines_fd == -1) {
-		igt_debug("Failed to open %s on gt%d.\n", xe_engine_class_to_str(class), gt);
+		igt_debug("Failed to open %s on gt%d.\n", xe_engine_class_short_string(class), gt);
 
 		return false;
 	}
 
 	if (!__igt_sysfs_get_u32(engines_fd, property, value)) {
 		igt_debug("Failed to read %s property of %s on gt%d.\n", property,
-			  xe_engine_class_to_str(class), gt);
+			  xe_engine_class_short_string(class), gt);
 		close(engines_fd);
 
 		return false;
@@ -1606,14 +1592,14 @@ bool xe_sysfs_engine_class_set_property(int xe_device, int gt, uint16_t class, c
 	engines_fd = xe_sysfs_engine_open(xe_device, gt, class);
 
 	if (engines_fd == -1) {
-		igt_debug("Failed to open %s on gt%d.\n", xe_engine_class_to_str(class), gt);
+		igt_debug("Failed to open %s on gt%d.\n", xe_engine_class_short_string(class), gt);
 
 		return false;
 	}
 
 	if (old_value && !__igt_sysfs_get_u32(engines_fd, property, old_value)) {
 		igt_debug("Failed to read %s property of %s on gt%d.\n", property,
-			  xe_engine_class_to_str(class), gt);
+			  xe_engine_class_short_string(class), gt);
 		close(engines_fd);
 
 		return false;
@@ -1621,7 +1607,7 @@ bool xe_sysfs_engine_class_set_property(int xe_device, int gt, uint16_t class, c
 
 	if (!__igt_sysfs_set_u32(engines_fd, property, new_value)) {
 		igt_debug("Failed to write %s property of %s on gt%d.\n", property,
-			  xe_engine_class_to_str(class), gt);
+			  xe_engine_class_short_string(class), gt);
 		close(engines_fd);
 
 		return false;
