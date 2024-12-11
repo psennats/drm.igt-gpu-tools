@@ -197,6 +197,11 @@ else
 	chamelium = disabler()
 endif
 
+libghe = dependency('libghe', required : false)
+if libghe.found()
+      config.set('HAVE_LIBGHE', 1)
+endif
+
 build_info += 'Build Chamelium test: @0@'.format(chamelium.found())
 
 pthreads = dependency('threads')
