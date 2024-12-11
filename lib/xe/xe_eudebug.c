@@ -16,6 +16,7 @@
 #include "intel_pat.h"
 #include "xe_eudebug.h"
 #include "xe_ioctl.h"
+#include "xe/xe_query.h"
 
 struct event_trigger {
 	xe_eudebug_trigger_fn fn;
@@ -124,18 +125,6 @@ static const char *flags_to_str(unsigned int flags)
 	return "flags unknown";
 }
 
-static const char *eu_engine_class_to_str(uint16_t engine_class)
-{
-	switch (engine_class) {
-	case DRM_XE_ENGINE_CLASS_COMPUTE:
-		return "ccs";
-	case DRM_XE_ENGINE_CLASS_RENDER:
-		return "rcs";
-	default:
-		return "unsupported class";
-	}
-}
-
 static const char *event_members_to_str(struct drm_xe_eudebug_event *e, char *buf)
 {
 	switch (e->type) {
@@ -176,7 +165,7 @@ static const char *event_members_to_str(struct drm_xe_eudebug_event *e, char *bu
 
 		for (i = 0; i < ee->num_placements; i++)
 			l += sprintf(buf + l, "%s%d pad%d, ",
-				     eu_engine_class_to_str(instances[i].engine_class),
+				     xe_engine_class_short_string(instances[i].engine_class),
 				     instances[i].engine_instance, instances[i].pad);
 		buf[l - 2] = ']';
 
