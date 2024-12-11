@@ -226,19 +226,19 @@ static uint32_t __mem_default_alignment(struct drm_xe_query_mem_regions *mem_reg
 const char *xe_engine_class_string(uint32_t engine_class)
 {
 	switch (engine_class) {
-		case DRM_XE_ENGINE_CLASS_RENDER:
-			return "DRM_XE_ENGINE_CLASS_RENDER";
-		case DRM_XE_ENGINE_CLASS_COPY:
-			return "DRM_XE_ENGINE_CLASS_COPY";
-		case DRM_XE_ENGINE_CLASS_VIDEO_DECODE:
-			return "DRM_XE_ENGINE_CLASS_VIDEO_DECODE";
-		case DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE:
-			return "DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE";
-		case DRM_XE_ENGINE_CLASS_COMPUTE:
-			return "DRM_XE_ENGINE_CLASS_COMPUTE";
-		default:
-			igt_warn("Engine class 0x%x unknown\n", engine_class);
-			return "unknown engine class";
+	case DRM_XE_ENGINE_CLASS_RENDER:
+		return "DRM_XE_ENGINE_CLASS_RENDER";
+	case DRM_XE_ENGINE_CLASS_COPY:
+		return "DRM_XE_ENGINE_CLASS_COPY";
+	case DRM_XE_ENGINE_CLASS_VIDEO_DECODE:
+		return "DRM_XE_ENGINE_CLASS_VIDEO_DECODE";
+	case DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE:
+		return "DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE";
+	case DRM_XE_ENGINE_CLASS_COMPUTE:
+		return "DRM_XE_ENGINE_CLASS_COMPUTE";
+	default:
+		igt_warn("Engine class 0x%x unknown\n", engine_class);
+		return "unknown engine class";
 	}
 }
 
