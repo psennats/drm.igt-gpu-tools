@@ -241,7 +241,8 @@ static union buf_id *vm_create_objects(int fd, uint32_t bo_placement, uint32_t v
 
 	for (i = 0; i < n; i++) {
 		if (bo_placement) {
-			bo[i].fd = xe_bo_create(fd, vm, size, bo_placement, 0);
+			bo[i].fd = xe_bo_create(fd, vm, size, bo_placement,
+						DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 			igt_assert(bo[i].fd);
 		} else {
 			bo[i].userptr = aligned_alloc(PAGE_SIZE, size);
