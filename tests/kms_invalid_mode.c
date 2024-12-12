@@ -34,6 +34,7 @@
  */
 
 #include "igt.h"
+#include "xe/xe_query.h"
 #include <limits.h>
 #include <stdbool.h>
 
@@ -100,6 +101,28 @@ can_bigjoiner(data_t *data)
 }
 
 static bool
+can_ultrajoiner(data_t *data)
+{
+	bool ultra_joiner_supported = false;
+	bool is_dgfx;
+	int display_ver;
+
+	is_dgfx = is_xe_device(data->drm_fd) ? xe_has_vram(data->drm_fd) :
+					       gem_has_lmem(data->drm_fd);
+	display_ver = intel_display_ver(intel_get_drm_devid(data->drm_fd));
+
+	if ((is_dgfx && display_ver == 14) || display_ver > 14)
+		ultra_joiner_supported = true;
+
+	if (ultra_joiner_supported) {
+		igt_debug("Platform supports ultrajoiner\n");
+		return true;
+	}
+
+	return false;
+}
+
+static bool
 adjust_mode_clock_too_high(data_t *data, drmModeModeInfoPtr mode)
 {
 	int max_dotclock = data->max_dotclock;
@@ -126,6 +149,12 @@ adjust_mode_clock_too_high(data_t *data, drmModeModeInfoPtr mode)
 		igt_info("Platform supports bigjoiner with %s\n",
 			 data->output->name);
 		max_dotclock *= 2;
+	}
+
+	if (can_ultrajoiner(data)) {
+		igt_info("Platform supports ultrajoiner with %s\n",
+			 data->output->name);
+		max_dotclock *= 4;
 	}
 
 	mode->clock = max_dotclock + 1;
