@@ -252,7 +252,7 @@ iga64_generated_codes = custom_target(
     input : [ 'iga64_generated_codes.c' ] + iga64_assembly_libs,
     output : 'iga64_generated_codes.c',
     depend_files : 'iga64_macros.h',
-    command : [ generate_iga64_codes, '-o', '@OUTPUT@', '-i', '@INPUT@' ]
+    command : [ 'env', 'IGT_SRCDIR=@0@'.format(source_root), generate_iga64_codes, '-o', '@OUTPUT@', '-i', '@INPUT@' ]
 )
 
 lib_intermediates += static_library('igt-iga64_generated_codes.c',
