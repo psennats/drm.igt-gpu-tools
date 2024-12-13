@@ -267,7 +267,8 @@ static const char igt_edid_stress_resolution_desc[] =
 static void edid_stress_resolution(chamelium_data_t *data,
 				   struct chamelium_port *port,
 				   monitor_edid edids_list[],
-				   size_t edids_list_len)
+				   size_t edids_list_len,
+				   bool limit)
 {
 	int i;
 	struct chamelium *chamelium = data->chamelium;
@@ -280,7 +281,7 @@ static void edid_stress_resolution(chamelium_data_t *data,
 	 * if there is environment variable in CI when executing with igt_runner
 	 */
 
-	if (!extended && is_intel_device(data->drm_fd))
+	if (!extended && is_intel_device(data->drm_fd) && limit)
 		edids_list_len = CI_LIMIT;
 
 	for (i = 0; i < edids_list_len; ++i) {
@@ -559,13 +560,13 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 		igt_describe(igt_edid_stress_resolution_desc);
 		connector_subtest("dp-edid-stress-resolution-4k", DisplayPort)
 			edid_stress_resolution(&data, port, DP_EDIDS_4K,
-					       ARRAY_SIZE(DP_EDIDS_4K));
+					       ARRAY_SIZE(DP_EDIDS_4K), false);
 
 		igt_describe(igt_edid_stress_resolution_desc);
 		connector_subtest("dp-edid-stress-resolution-non-4k",
 				  DisplayPort)
 			edid_stress_resolution(&data, port, DP_EDIDS_NON_4K,
-					       ARRAY_SIZE(DP_EDIDS_NON_4K));
+					       ARRAY_SIZE(DP_EDIDS_NON_4K), false);
 
 		igt_describe(igt_edid_resolution_list_desc);
 		connector_subtest("dp-edid-resolution-list", DisplayPort)
@@ -613,12 +614,12 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 		igt_describe(igt_edid_stress_resolution_desc);
 		connector_subtest("hdmi-edid-stress-resolution-4k", HDMIA)
 			edid_stress_resolution(&data, port, HDMI_EDIDS_4K,
-					       ARRAY_SIZE(HDMI_EDIDS_4K));
+					       ARRAY_SIZE(HDMI_EDIDS_4K), false);
 
 		igt_describe(igt_edid_stress_resolution_desc);
 		connector_subtest("hdmi-edid-stress-resolution-non-4k", HDMIA)
 			edid_stress_resolution(&data, port, HDMI_EDIDS_NON_4K,
-					       ARRAY_SIZE(HDMI_EDIDS_NON_4K));
+					       ARRAY_SIZE(HDMI_EDIDS_NON_4K), true);
 
 		igt_describe(test_suspend_resume_edid_change_desc);
 		connector_subtest("hdmi-edid-change-during-suspend", HDMIA)
