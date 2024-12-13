@@ -1172,7 +1172,7 @@ static int query_attention_bitmask_size(int fd, int gt)
 {
 	uint32_t thread_count_len;
 	uint32_t *thread_count_ptr;
-	uint32_t thread_count;
+	uint32_t threads_per_eu = 8;
 	struct drm_xe_query_topology_mask *c_dss = NULL, *g_dss = NULL, *eu_per_dss = NULL;
 	struct drm_xe_query_topology_mask *topology;
 	struct drm_xe_device_query query = {
@@ -1186,9 +1186,10 @@ static int query_attention_bitmask_size(int fd, int gt)
 
 	thread_count_ptr = xe_hwconfig_lookup_value(fd, INTEL_HWCONFIG_NUM_THREADS_PER_EU,
 						    &thread_count_len);
-	igt_assert(thread_count_ptr);
-	igt_assert(thread_count_len == 1);
-	thread_count = *thread_count_ptr;
+	if (thread_count_ptr) {
+		igt_assert(thread_count_len == 1);
+		threads_per_eu = *thread_count_ptr;
+	}
 
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 	igt_assert_neq(query.size, 0);
@@ -1239,7 +1240,7 @@ static int query_attention_bitmask_size(int fd, int gt)
 	free(any_dss);
 	free(topology);
 
-	return eus * DIV_ROUND_UP(thread_count, 8);
+	return eus * DIV_ROUND_UP(threads_per_eu, 8);
 }
 
 static struct drm_xe_eudebug_event_exec_queue *
