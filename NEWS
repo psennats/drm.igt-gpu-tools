@@ -1,3 +1,77 @@
+Release 1.30 (2024-12-13)
+-------------------------
+
+General changes:
+
+- New meson options xe_eudebug and vmtb.
+
+Library changes:
+
+- Added PantherLake (PTL) support, unified PCI IDs into one
+  common header pciids.h (Ngai-Mint Kwan)
+
+- Added BMG support for OA (Observability Architecture) for Xe driver.
+  (José Roberto de Souza)
+
+- Added support for Xe3 platforms in GPGPU shader. (Andrzej Hajda)
+
+- Added 6k resolution support for a single CRTC. (Jeevan B)
+
+- Added support for MTL platform in GPGPU compute. (Nishit Sharma)
+
+Runner changes:
+
+- Set option PRUNE_KEEP_ALL as default. (Kamil Konieczny)
+
+- Allow to dynamically ignore dmesg warn messages when generating
+  results, usefull when driver is using kernel fault injection.
+  (Kamil Konieczny).
+
+Test changes:
+
+- Added sanity checks for KMS properties. (Dmitry Baryshkov, Maxime Ripard)
+
+- Improved GPGPU tests for i915 and Xe. (Zbigniew Kempczyński)
+
+- New SRIOV test for Functional Level Reset (FLR) for Xe. (Marcin Bernatowicz)
+
+- Added test that draws triangle without using 3d commands for vmwgfx.
+  (Maaz Mombasawala)
+
+- Added subtest for fallback for DP connector. (Kunal Joshi)
+
+- Added async flips suspend resume subtest. (Santhosh Reddy Guddati)
+
+- New test for error handling of Xe at probe time. (Francois Dugast)
+
+- Added testing SIZE_HINTS property in KMS cursor test. (Ville Syrjälä)
+
+- Added KMS testing for ultrajoiner. (Karthik B S)
+
+- New test for TLB invalidation in Xe. (Sai Gowtham Ch)
+
+- New test for timeslice duration in Xe. (Sai Gowtham Ch)
+
+- Display brightness test during DPMS on and off. (Mohammed Thasleem)
+
+- New tests for EU debugging for Xe. (Dominik Grzegorzek, Mika Kuoppala,
+  Christoph Manszewski, Karolina Stolarek, Maciej Patelczyk, Pawel Sikora,
+  Andrzej Hajda, Dominik Karol Piątkowski, Jonathan Cavitt et al)
+
+Tools changes:
+
+- New power tool for power/energy measurement. (Ville Syrjälä)
+
+- New VM Testbench (VMTB) - SR-IOV Virtual Machine testing tool.
+  (Adam Miszczak)
+
+- Fixes in amd_hdmi_compliance. (Stylon Wang and Wayne Lin)
+
+- Fixes in intel_reg. (Lucas De Marchi)
+
+And many other bug fixes, improvements, cleanups and new tests.
+
+
 Release 1.29 (2024-09-04)
 -------------------------
 
