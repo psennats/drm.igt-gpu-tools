@@ -329,10 +329,6 @@ static void test_hotplug_for_each_pipe(chamelium_data_t *data,
 			      data->ports, data->port_count);
 
 	igt_hpd_storm_set_threshold(data->drm_fd, 0);
-	/* Disconnect if any port got connected */
-	chamelium_unplug(data->chamelium, port);
-	chamelium_wait_for_connector_after_hotplug(data, mon, port,
-						   DRM_MODE_DISCONNECTED);
 
 	for_each_pipe(&data->display, pipe) {
 		igt_modeset_disable_all_outputs(&data->display);
