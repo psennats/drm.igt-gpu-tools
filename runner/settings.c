@@ -40,6 +40,7 @@ enum {
 	OPT_INCLUDE = 't',
 	OPT_EXCLUDE = 'x',
 	OPT_ENVIRONMENT = 'e',
+	OPT_FACTS = 'f',
 	OPT_SYNC = 's',
 	OPT_LOG_LEVEL = 'l',
 	OPT_OVERWRITE = 'o',
@@ -230,6 +231,7 @@ static const char *usage_str =
 	"                                   environment variable IGT_PING_HOSTNAME does\n"
 	"                                   not respond to ping.\n"
 	"                         all     - abort for all of the above.\n"
+	"  -f, --facts           Enable facts tracking\n"
 	"  -s, --sync            Sync results to disk after every test\n"
 	"  -l {quiet,verbose,dummy}, --log-level {quiet,verbose,dummy}\n"
 	"                        Set the logger verbosity level\n"
@@ -665,6 +667,7 @@ bool parse_options(int argc, char **argv,
 		{"environment", required_argument, NULL, OPT_ENVIRONMENT},
 		{"abort-on-monitored-error", optional_argument, NULL, OPT_ABORT_ON_ERROR},
 		{"disk-usage-limit", required_argument, NULL, OPT_DISK_USAGE_LIMIT},
+		{"facts", no_argument, NULL, OPT_FACTS},
 		{"sync", no_argument, NULL, OPT_SYNC},
 		{"log-level", required_argument, NULL, OPT_LOG_LEVEL},
 		{"test-list", required_argument, NULL, OPT_TEST_LIST},
@@ -695,7 +698,7 @@ bool parse_options(int argc, char **argv,
 	settings->dmesg_warn_level = -1;
 	settings->prune_mode = -1;
 
-	while ((c = getopt_long(argc, argv, "hn:dt:x:e:sl:omb:L",
+	while ((c = getopt_long(argc, argv, "hn:dt:x:e:fsl:omb:L",
 				long_options, NULL)) != -1) {
 		switch (c) {
 		case OPT_VERSION:
@@ -735,6 +738,9 @@ bool parse_options(int argc, char **argv,
 				usage(stderr, "Cannot parse disk usage limit");
 				goto error;
 			}
+			break;
+		case OPT_FACTS:
+			settings->facts = true;
 			break;
 		case OPT_SYNC:
 			settings->sync = true;
@@ -1098,6 +1104,7 @@ bool serialize_settings(struct settings *settings)
 		SERIALIZE_LINE(f, settings, name, "%s");
 	SERIALIZE_LINE(f, settings, dry_run, "%d");
 	SERIALIZE_LINE(f, settings, allow_non_root, "%d");
+	SERIALIZE_LINE(f, settings, facts, "%d");
 	SERIALIZE_LINE(f, settings, sync, "%d");
 	SERIALIZE_LINE(f, settings, log_level, "%d");
 	SERIALIZE_LINE(f, settings, overwrite, "%d");
@@ -1168,6 +1175,7 @@ bool read_settings_from_file(struct settings *settings, FILE *f)
 		PARSE_LINE(settings, name, val, name, val ? strdup(val) : NULL);
 		PARSE_LINE(settings, name, val, dry_run, numval);
 		PARSE_LINE(settings, name, val, allow_non_root, numval);
+		PARSE_LINE(settings, name, val, facts, numval);
 		PARSE_LINE(settings, name, val, sync, numval);
 		PARSE_LINE(settings, name, val, log_level, numval);
 		PARSE_LINE(settings, name, val, overwrite, numval);

@@ -30,6 +30,7 @@
 
 #include "igt_aux.h"
 #include "igt_core.h"
+#include "igt_facts.h"
 #include "igt_taints.h"
 #include "igt_vec.h"
 #include "executor.h"
@@ -2360,11 +2361,14 @@ bool execute(struct execute_state *state,
 	sigset_t sigmask;
 	double time_spent = 0.0;
 	bool status = true;
+	char *last_test = NULL;
 
 	if (state->dry) {
 		outf("Dry run, not executing. Invoke igt_resume if you want to execute.\n");
 		return true;
 	}
+	if (settings->facts)
+		igt_facts_lists_init();
 
 	if (state->next >= job_list->size) {
 		outf("All tests already executed.\n");
@@ -2492,6 +2496,12 @@ bool execute(struct execute_state *state,
 		int result;
 		bool already_written = false;
 
+		/* Collect facts before running each test */
+		if (settings->facts) {
+			igt_facts(last_test);
+			last_test = entry_display_name(&job_list->entries[state->next]);
+		}
+
 		if (should_die_because_signal(sigfd)) {
 			status = false;
 			goto end;
@@ -2580,6 +2590,10 @@ bool execute(struct execute_state *state,
 			return execute(state, settings, job_list);
 		}
 	}
+
+	/* Collect facts after the last test runs */
+	if (settings->facts)
+		igt_facts(last_test);
 
 	if ((timefd = openat(resdirfd, "endtime.txt", O_CREAT | O_WRONLY | O_EXCL, 0666)) >= 0) {
 		dprintf(timefd, "%f\n", timeofday_double());
