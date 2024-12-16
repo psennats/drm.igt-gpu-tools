@@ -64,6 +64,7 @@ static void test_sysfs_toggle(int fd)
 #define VM_BIND_OP_MAP_USERPTR		(1 << 7)
 #define EXEC_QUEUES_PLACEMENTS		(1 << 8)
 #define VM_BIND_DELAY_UFENCE_ACK	(1 << 9)
+#define VM_BIND_UFENCE_RECONNECT	(1 << 10)
 #define TEST_DISCOVERY			(1 << 31)
 
 #define PAGE_SIZE SZ_4K
@@ -2130,6 +2131,11 @@ static int wait_for_ufence_events(struct ufence_priv *priv, int timeout_ms)
  * SUBTEST: basic-vm-bind-ufence-delay-ack
  * Description:
  *	Give user fence in application and check if delayed ufence ack works
+ *
+ * SUBTEST: basic-vm-bind-ufence-reconnect
+ * Description:
+ *	Give user fence in application, hold it, drop the debugger connection and check if anything
+ *	breaks. Expect that held acks are released when connection is dropped.
  */
 static void test_basic_ufence(int fd, unsigned int flags)
 {
@@ -2137,6 +2143,7 @@ static void test_basic_ufence(int fd, unsigned int flags)
 	struct xe_eudebug_session *s;
 	struct xe_eudebug_client *c;
 	struct ufence_priv *priv;
+	uint32_t filter = XE_EUDEBUG_FILTER_EVENT_VM_BIND_UFENCE;
 
 	priv = ufence_priv_create();
 	s = xe_eudebug_session_create(fd, basic_ufence_client, flags, priv);
@@ -2158,7 +2165,15 @@ static void test_basic_ufence(int fd, unsigned int flags)
 	if (flags & VM_BIND_DELAY_UFENCE_ACK)
 		sleep(XE_EUDEBUG_DEFAULT_TIMEOUT_SEC * 4 / 5);
 
-	ack_fences(d);
+	if (flags & VM_BIND_UFENCE_RECONNECT) {
+		filter = XE_EUDEBUG_FILTER_EVENT_VM_BIND | XE_EUDEBUG_FILTER_EVENT_VM |
+				XE_EUDEBUG_FILTER_EVENT_OPEN;
+		xe_eudebug_debugger_detach(d);
+		xe_eudebug_client_wait_done(c);
+		igt_assert_eq(xe_eudebug_debugger_attach(d, c), 0);
+	} else {
+		ack_fences(d);
+	}
 
 	xe_eudebug_client_wait_done(c);
 	xe_eudebug_debugger_stop_worker(d, 1);
@@ -2166,7 +2181,7 @@ static void test_basic_ufence(int fd, unsigned int flags)
 	xe_eudebug_event_log_print(d->log, true);
 	xe_eudebug_event_log_print(c->log, true);
 
-	xe_eudebug_session_check(s, true, XE_EUDEBUG_FILTER_EVENT_VM_BIND_UFENCE);
+	xe_eudebug_session_check(s, true, filter);
 
 	xe_eudebug_session_destroy(s);
 	ufence_priv_destroy(priv);
@@ -2825,6 +2840,9 @@ igt_main
 
 	igt_subtest("basic-vm-bind-ufence-delay-ack")
 		test_basic_ufence(fd, VM_BIND_DELAY_UFENCE_ACK);
+
+	igt_subtest("basic-vm-bind-ufence-reconnect")
+		test_basic_ufence(fd, VM_BIND_UFENCE_RECONNECT);
 
 	igt_subtest("vma-ufence")
 		test_vma_ufence(fd, 0);
