@@ -8,6 +8,7 @@ lib_tests = [
 	'igt_dynamic_subtests',
 	'igt_edid',
 	'igt_exit_handler',
+	'igt_facts',
 	'igt_fork',
 	'igt_fork_helper',
 	'igt_hook',
