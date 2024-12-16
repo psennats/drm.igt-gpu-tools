@@ -54,16 +54,17 @@ static void test_sysfs_toggle(int fd)
 #define STAGE_PRE_DEBUG_RESOURCES_DONE	1
 #define STAGE_DISCOVERY_DONE		2
 
-#define CREATE_VMS		(1 << 0)
-#define CREATE_EXEC_QUEUES	(1 << 1)
-#define VM_BIND			(1 << 2)
-#define VM_BIND_VM_DESTROY	(1 << 3)
-#define VM_BIND_EXTENDED	(1 << 4)
-#define VM_METADATA		(1 << 5)
-#define VM_BIND_METADATA	(1 << 6)
-#define VM_BIND_OP_MAP_USERPTR	(1 << 7)
-#define EXEC_QUEUES_PLACEMENTS	(1 << 8)
-#define TEST_DISCOVERY		(1 << 31)
+#define CREATE_VMS			(1 << 0)
+#define CREATE_EXEC_QUEUES		(1 << 1)
+#define VM_BIND				(1 << 2)
+#define VM_BIND_VM_DESTROY		(1 << 3)
+#define VM_BIND_EXTENDED		(1 << 4)
+#define VM_METADATA			(1 << 5)
+#define VM_BIND_METADATA		(1 << 6)
+#define VM_BIND_OP_MAP_USERPTR		(1 << 7)
+#define EXEC_QUEUES_PLACEMENTS		(1 << 8)
+#define VM_BIND_DELAY_UFENCE_ACK	(1 << 9)
+#define TEST_DISCOVERY			(1 << 31)
 
 #define PAGE_SIZE SZ_4K
 #define MDATA_SIZE (WORK_IN_PROGRESS_DRM_XE_DEBUG_METADATA_NUM * PAGE_SIZE)
@@ -2125,6 +2126,10 @@ static int wait_for_ufence_events(struct ufence_priv *priv, int timeout_ms)
  * SUBTEST: basic-vm-bind-ufence
  * Description:
  *      Give user fence in application and check if ufence ack works
+ *
+ * SUBTEST: basic-vm-bind-ufence-delay-ack
+ * Description:
+ *	Give user fence in application and check if delayed ufence ack works
  */
 static void test_basic_ufence(int fd, unsigned int flags)
 {
@@ -2149,6 +2154,10 @@ static void test_basic_ufence(int fd, unsigned int flags)
 	xe_eudebug_debugger_wait_stage(s, STAGE_CLIENT_WAIT_ON_UFENCE_DONE);
 	xe_eudebug_assert_f(d, wait_for_ufence_events(priv, XE_EUDEBUG_DEFAULT_TIMEOUT_SEC * MSEC_PER_SEC) == 0,
 			    "missing ufence events\n");
+
+	if (flags & VM_BIND_DELAY_UFENCE_ACK)
+		sleep(XE_EUDEBUG_DEFAULT_TIMEOUT_SEC * 4 / 5);
+
 	ack_fences(d);
 
 	xe_eudebug_client_wait_done(c);
@@ -2813,6 +2822,9 @@ igt_main
 
 	igt_subtest("basic-vm-bind-ufence")
 		test_basic_ufence(fd, 0);
+
+	igt_subtest("basic-vm-bind-ufence-delay-ack")
+		test_basic_ufence(fd, VM_BIND_DELAY_UFENCE_ACK);
 
 	igt_subtest("vma-ufence")
 		test_vma_ufence(fd, 0);
