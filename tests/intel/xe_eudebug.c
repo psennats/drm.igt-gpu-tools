@@ -65,6 +65,7 @@ static void test_sysfs_toggle(int fd)
 #define EXEC_QUEUES_PLACEMENTS		(1 << 8)
 #define VM_BIND_DELAY_UFENCE_ACK	(1 << 9)
 #define VM_BIND_UFENCE_RECONNECT	(1 << 10)
+#define VM_BIND_UFENCE_SIGINT_CLIENT	(1 << 11)
 #define TEST_DISCOVERY			(1 << 31)
 
 #define PAGE_SIZE SZ_4K
@@ -2136,6 +2137,10 @@ static int wait_for_ufence_events(struct ufence_priv *priv, int timeout_ms)
  * Description:
  *	Give user fence in application, hold it, drop the debugger connection and check if anything
  *	breaks. Expect that held acks are released when connection is dropped.
+ *
+ * SUBTEST: basic-vm-bind-ufence-sigint-client
+ * Description:
+ *	Give user fence in application, hold it, send SIGINT to client and check if anything breaks.
  */
 static void test_basic_ufence(int fd, unsigned int flags)
 {
@@ -2165,7 +2170,12 @@ static void test_basic_ufence(int fd, unsigned int flags)
 	if (flags & VM_BIND_DELAY_UFENCE_ACK)
 		sleep(XE_EUDEBUG_DEFAULT_TIMEOUT_SEC * 4 / 5);
 
-	if (flags & VM_BIND_UFENCE_RECONNECT) {
+	if (flags & VM_BIND_UFENCE_SIGINT_CLIENT) {
+		filter = XE_EUDEBUG_FILTER_ALL;
+		kill(c->pid, SIGINT);
+		c->pid = 0;
+		c->done = 1;
+	} else if (flags & VM_BIND_UFENCE_RECONNECT) {
 		filter = XE_EUDEBUG_FILTER_EVENT_VM_BIND | XE_EUDEBUG_FILTER_EVENT_VM |
 				XE_EUDEBUG_FILTER_EVENT_OPEN;
 		xe_eudebug_debugger_detach(d);
@@ -2843,6 +2853,9 @@ igt_main
 
 	igt_subtest("basic-vm-bind-ufence-reconnect")
 		test_basic_ufence(fd, VM_BIND_UFENCE_RECONNECT);
+
+	igt_subtest("basic-vm-bind-ufence-sigint-client")
+		test_basic_ufence(fd, VM_BIND_UFENCE_SIGINT_CLIENT);
 
 	igt_subtest("vma-ufence")
 		test_vma_ufence(fd, 0);
