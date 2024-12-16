@@ -1282,11 +1282,33 @@ static void test_display_protected_crc(int i915, igt_display_t *display)
 	igt_remove_fb(i915, &protected_fb);
 }
 
+static void require_nopxp(bool pxp_supported, uint32_t devid)
+{
+	igt_require_f(!pxp_supported, "HW supports PXP, devid=%x\n", devid);
+}
+
+static void require_pxp(bool pxp_supported, uint32_t devid)
+{
+	igt_require_f(pxp_supported, "HW does not support PXP, devid=%x\n", devid);
+}
+
+static void require_pxp_render(bool pxp_supported, uint32_t devid, igt_render_copyfunc_t rendercopy)
+{
+	require_pxp(pxp_supported, devid);
+	igt_require_f(rendercopy, "No rendercopy found for devid=%x\n", devid);
+}
+
+static void require_init_powermgt(int i915, struct powermgt_data *pm)
+{
+	if (pm->debugfsdir == -1)
+		init_powermgt_resources(i915, pm);
+}
+
 igt_main
 {
 	int i915 = -1;
 	bool pxp_supported = false;
-	struct powermgt_data pm = {0};
+	struct powermgt_data pm = {-1};
 	igt_render_copyfunc_t rendercopy = NULL;
 	uint32_t devid = 0;
 	igt_display_t display;
@@ -1296,110 +1318,133 @@ igt_main
 		i915 = drm_open_driver(DRIVER_INTEL);
 		igt_require(i915);
 		igt_require_gem(i915);
+		devid = intel_get_drm_devid(i915);
+		igt_assert(devid);
 		pxp_supported = is_pxp_hw_supported(i915);
+		rendercopy = igt_get_render_copyfunc(devid);
 	}
 
 	igt_subtest_group {
-		igt_fixture {
-			igt_require((pxp_supported == 0));
-		}
-
 		igt_describe("Verify protected buffer on unsupported hw:");
-		igt_subtest("hw-rejects-pxp-buffer")
+		igt_subtest("hw-rejects-pxp-buffer") {
+			require_nopxp(pxp_supported, devid);
 			test_bo_alloc_pxp_nohw(i915);
+		}
 		igt_describe("Verify protected context on unsupported hw:");
-		igt_subtest("hw-rejects-pxp-context")
+		igt_subtest("hw-rejects-pxp-context") {
+			require_nopxp(pxp_supported, devid);
 			test_ctx_alloc_pxp_nohw(i915);
+		}
 	}
 
 	igt_subtest_group {
-		igt_fixture {
-			igt_require(pxp_supported);
-		}
-
 		igt_describe("Verify protected buffer on supported hw:");
-		igt_subtest("create-regular-buffer")
+		igt_subtest("create-regular-buffer") {
+			require_pxp(pxp_supported, devid);
 			test_bo_alloc_pxp_off(i915);
-		igt_subtest("create-protected-buffer")
+		}
+		igt_subtest("create-protected-buffer") {
+			require_pxp(pxp_supported, devid);
 			test_bo_alloc_pxp_on(i915);
+		}
 
 		igt_describe("Verify protected context on supported hw:");
-		igt_subtest("create-regular-context-1")
+		igt_subtest("create-regular-context-1") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_alloc_recover_off_protect_off(i915);
-		igt_subtest("create-regular-context-2")
+		}
+		igt_subtest("create-regular-context-2") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_alloc_recover_on_protect_off(i915);
-		igt_subtest("fail-invalid-protected-context")
+		}
+		igt_subtest("fail-invalid-protected-context") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_alloc_recover_on_protect_on(i915);
-		igt_subtest("create-valid-protected-context")
+		}
+		igt_subtest("create-valid-protected-context") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_alloc_recover_off_protect_on(i915);
+		}
 
 		igt_describe("Verify protected context integrity:");
-		igt_subtest("reject-modify-context-protection-on")
+		igt_subtest("reject-modify-context-protection-on") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_mod_regular_to_all_valid(i915);
-		igt_subtest("reject-modify-context-protection-off-1")
+		}
+		igt_subtest("reject-modify-context-protection-off-1") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_mod_recover_off_to_on(i915);
-		igt_subtest("reject-modify-context-protection-off-2")
+		}
+		igt_subtest("reject-modify-context-protection-off-2") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_mod_protected_on_to_off(i915);
-		igt_subtest("reject-modify-context-protection-off-3")
+		}
+		igt_subtest("reject-modify-context-protection-off-3") {
+			require_pxp(pxp_supported, devid);
 			test_ctx_mod_protected_to_all_invalid(i915);
+		}
 	}
 	igt_subtest_group {
-		igt_fixture {
-			igt_require(pxp_supported);
-			devid = intel_get_drm_devid(i915);
-			igt_assert(devid);
-			rendercopy = igt_get_render_copyfunc(devid);
-			igt_require(rendercopy);
-		}
-
 		igt_describe("Verify protected render operations:");
-		igt_subtest("regular-baseline-src-copy-readible")
+		igt_subtest("regular-baseline-src-copy-readible") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
 			test_render_baseline(i915);
-		igt_subtest("protected-raw-src-copy-not-readible")
-			test_render_pxp_src_to_protdest(i915);
-		igt_subtest("protected-encrypted-src-copy-not-readible")
-			test_render_pxp_protsrc_to_protdest(i915);
-		igt_subtest("dmabuf-shared-protected-dst-is-context-refcounted")
-			test_pxp_dmabuffshare_refcnt(i915);
-	}
-	igt_subtest_group {
-		igt_fixture {
-			igt_require(pxp_supported);
-			devid = intel_get_drm_devid(i915);
-			igt_assert(devid);
-			rendercopy = igt_get_render_copyfunc(devid);
-			igt_require(rendercopy);
-			init_powermgt_resources(i915, &pm);
 		}
-		igt_describe("Verify suspend-resume teardown management:");
-		igt_subtest("verify-pxp-key-change-after-suspend-resume")
-			test_pxp_pwrcycle_teardown_keychange(i915, &pm);
-		igt_subtest("verify-pxp-stale-ctx-execution")
-			test_pxp_stale_ctx_execution(i915);
-		igt_subtest("verify-pxp-stale-buf-execution")
-			test_pxp_stale_buf_execution(i915);
-		igt_subtest("verify-pxp-stale-buf-optout-execution")
-			test_pxp_stale_buf_optout_execution(i915);
-		igt_subtest("verify-pxp-execution-after-suspend-resume")
-			test_pxp_pwrcycle_staleasset_execution(i915, &pm);
+		igt_subtest("protected-raw-src-copy-not-readible") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			test_render_pxp_src_to_protdest(i915);
+		}
+		igt_subtest("protected-encrypted-src-copy-not-readible") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			test_render_pxp_protsrc_to_protdest(i915);
+		}
+		igt_subtest("dmabuf-shared-protected-dst-is-context-refcounted") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			test_pxp_dmabuffshare_refcnt(i915);
+		}
 	}
 	igt_subtest_group {
-		igt_fixture {
-			igt_require(pxp_supported);
-			devid = intel_get_drm_devid(i915);
-			igt_assert(devid);
-			rendercopy = igt_get_render_copyfunc(devid);
-			igt_require(rendercopy);
-
+		igt_describe("Verify suspend-resume teardown management:");
+		igt_subtest("verify-pxp-key-change-after-suspend-resume") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			require_init_powermgt(i915, &pm);
+			test_pxp_pwrcycle_teardown_keychange(i915, &pm);
+		}
+		igt_subtest("verify-pxp-stale-ctx-execution") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			require_init_powermgt(i915, &pm);
+			test_pxp_stale_ctx_execution(i915);
+		}
+		igt_subtest("verify-pxp-stale-buf-execution") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			require_init_powermgt(i915, &pm);
+			test_pxp_stale_buf_execution(i915);
+		}
+		igt_subtest("verify-pxp-stale-buf-optout-execution") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			require_init_powermgt(i915, &pm);
+			test_pxp_stale_buf_optout_execution(i915);
+		}
+		igt_subtest("verify-pxp-execution-after-suspend-resume") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
+			require_init_powermgt(i915, &pm);
+			test_pxp_pwrcycle_staleasset_execution(i915, &pm);
+		}
+	}
+	igt_subtest_group {
+		igt_describe("Test the display CRC");
+		igt_subtest("display-protected-crc") {
+			require_pxp_render(pxp_supported, devid, rendercopy);
 			igt_require_pipe_crc(i915);
 			igt_display_require(&display, i915);
-		}
-		igt_describe("Test the display CRC");
-		igt_subtest("display-protected-crc")
 			test_display_protected_crc(i915, &display);
+		}
 	}
 
 	igt_fixture {
+		if (pm.debugfsdir != -1)
+			close(pm.debugfsdir);
+
 		drm_close_driver(i915);
 	}
 }
