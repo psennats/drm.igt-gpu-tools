@@ -42,6 +42,7 @@ tools_progs = [
 	'intel_gem_info',
 	'intel_gvtg_test',
 	'dpcd_reg',
+	'lsfacts',
 	'lsgpu',
 	'power',
 ]
