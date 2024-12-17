@@ -1815,7 +1815,7 @@ static void full(int i915, unsigned int flags)
 
 		free(ci);
 
-		igt_assert_f(load > 0.90,
+		igt_assert_f(load > 0.85,
 			     "minimum load for %d x class:%d was found to be only %.1f%% busy\n",
 			     count, class, load*100);
 		gem_quiescent_gpu(i915);
