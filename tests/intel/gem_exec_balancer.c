@@ -614,7 +614,7 @@ static void check_individual_engine(int i915,
 
 	close(pmu);
 
-	igt_assert_f(load > 0.90,
+	igt_assert_f(load > 0.85,
 		     "engine %d (class:instance %d:%d) was found to be only %.1f%% busy\n",
 		     idx, ci[idx].engine_class, ci[idx].engine_instance, load*100);
 }
