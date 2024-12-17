@@ -2247,6 +2247,107 @@ static void bind_flag_invalid(int fd)
 	xe_vm_destroy(fd, vm);
 }
 
+/**
+ * TEST: Negative test for vm create/destroy ioctl
+ * Category: Core
+ * Mega feature: General Core features
+ * Sub-category: Synchronization
+ * Functionality: vm create
+ * Test category: negative test
+ */
+
+/**
+ * SUBTEST: invalid-flag-%s
+ * Description:  function %arg[1] used in vm create IOCTL to make it fail
+ * Functionality: fault
+ *
+ * arg[1]:
+ * @xe_vm_create_fault:  xe_vm_create_fault
+ * @xe_vm_create_scratch_fault: xe_vm_create_scrach_fault
+ * @xe_vm_create_scratch_fault_lr:    xe_vm_create_scrach_fault_lr
+ */
+
+static void invalid_flag(int fd, __u32 flags)
+{
+	struct drm_xe_vm_create create = {
+		.flags = flags,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_CREATE, &create, EINVAL);
+}
+
+/**
+ * SUBTEST: invalid-extensions
+ * Description: Check query with invalid extensions returns expected error code
+ *
+ * SUBTEST: vm-create-invalid-reserved
+ * Description: Send query with invalid reserved value for vm_create ioctl
+ */
+
+static void invalid_extensions(int fd)
+{
+	struct drm_xe_vm_create create = {
+		.extensions = -1,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_CREATE, &create, EINVAL);
+}
+
+static void vm_create_invalid_reserved(int fd)
+{
+	struct drm_xe_vm_create create = {
+		.reserved[0] = 0xffff,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_CREATE, &create, EINVAL);
+
+	create.reserved[0] = 0;
+	create.reserved[1] = 0xffff;
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_CREATE, &create, EINVAL);
+}
+
+/**
+ * SUBTEST: vm-destroy-invalid-reserved
+ * Description: Send query with invalid reserved value for vm_destroy ioctl
+ *
+ * SUBTEST: invalid-pad
+ * Description: Check query with invalid pad returns expected error code
+ *
+ * SUBTEST: invalid-vm-id
+ * Description: Check query with invalid vm_id returns expected error code
+ */
+
+static void vm_destroy_invalid_reserved(int fd)
+{
+	struct drm_xe_vm_destroy destroy = {
+		.reserved[0] = 0xffff,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_DESTROY, &destroy, EINVAL);
+
+	destroy.reserved[0] = 0;
+	destroy.reserved[1] = 0xffff;
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_DESTROY, &destroy, EINVAL);
+}
+
+static void invalid_pad(int fd)
+{
+	struct drm_xe_vm_destroy destroy = {
+		.pad = 1,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_DESTROY, &destroy, EINVAL);
+}
+
+static void invalid_vm_id(int fd)
+{
+	struct drm_xe_vm_destroy destroy = {
+		.vm_id = 0xdeadbeef,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_DESTROY, &destroy, ENOENT);
+}
+
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe, *hwe_non_copy = NULL;
@@ -2343,6 +2444,21 @@ igt_main
 		{ "userptr-either-side-full", 4, 4, 1, 2, MAP_FLAG_USERPTR },
 		{ NULL },
 	};
+
+        const struct vm_create_section {
+                const char *name;
+                __u32 flags;
+        } xe_vm_create_invalid_flags[] = {
+                { "xe_vm_create_fault", DRM_XE_VM_CREATE_FLAG_FAULT_MODE },
+                { "xe_vm_create_scratch_fault",
+                        DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE |
+                        DRM_XE_VM_CREATE_FLAG_FAULT_MODE },
+                { "xe_vm_create_scratch_fault_lr",
+                        ~(DRM_XE_VM_CREATE_FLAG_LR_MODE |
+                        DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE |
+                        DRM_XE_VM_CREATE_FLAG_FAULT_MODE) },
+                { }
+        };
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
@@ -2602,6 +2718,26 @@ igt_main
 					     s->flags);
 		}
 	}
+
+	for (const struct vm_create_section *s = xe_vm_create_invalid_flags; s->name; s++) {
+		igt_subtest_f("invalid-flag-%s", s->name)
+			invalid_flag(fd, s->flags);
+	}
+
+	igt_subtest("invalid-extensions")
+		invalid_extensions(fd);
+
+	igt_subtest("vm-create-invalid-reserved")
+		vm_create_invalid_reserved(fd);
+
+	igt_subtest("vm-destroy-invalid-reserved")
+		vm_destroy_invalid_reserved(fd);
+
+	igt_subtest("invalid-pad")
+		invalid_pad(fd);
+
+	igt_subtest("invalid-vm-id")
+		invalid_vm_id(fd);
 
 	igt_fixture
 		drm_close_driver(fd);
