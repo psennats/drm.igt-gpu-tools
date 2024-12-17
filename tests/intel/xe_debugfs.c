@@ -162,6 +162,16 @@ test_gt(int fd, int gt_id)
 		"pat",
 		"mocs",
 //		"force_reset"
+		"ggtt",
+		"register-save-restore",
+		"workarounds",
+		"default_lrc_rcs",
+		"default_lrc_ccs",
+		"default_lrc_bcs",
+		"default_lrc_vcs",
+		"default_lrc_vecs",
+		"hwconfig"
+
 	};
 	static const char * const expected_files_uc[] = {
 		"huc_info",
@@ -191,6 +201,42 @@ test_gt(int fd, int gt_id)
 	igt_debugfs_dump(fd, name);
 
 	sprintf(name, "gt%d/mocs", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/ggtt", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/register-save-restore", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/workarounds", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/default_lrc_rcs", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/default_lrc_ccs", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/default_lrc_bcs", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/default_lrc_vecs", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/default_lrc_vcs", gt_id);
+	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+	igt_debugfs_dump(fd, name);
+
+	sprintf(name, "gt%d/hwconfig", gt_id);
 	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
 	igt_debugfs_dump(fd, name);
 
