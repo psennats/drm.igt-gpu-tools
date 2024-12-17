@@ -292,77 +292,168 @@ void xe_spin_free(int fd, struct igt_spin *spin)
 	free(spin);
 }
 
-void xe_cork_init(int fd, struct drm_xe_engine_class_instance *hwe,
-		  struct xe_cork *cork)
+/**
+ * xe_cork_create:
+ * @fd: xe device fd
+ * @hwe: Xe engine class instance if device is Xe
+ * @vm: vm handle
+ * @width: number of batch buffers
+ * @num_placements: number of valid placements for this exec queue
+ * @opts: controlling options such as allocator handle, debug.
+ *
+ * xe_cork_create create vm, bo, exec_queue and bind the buffer
+ * using vmbind
+ *
+ * This returns xe_cork after binding buffer object.
+ */
+
+struct xe_cork *
+xe_cork_create(int fd, struct drm_xe_engine_class_instance *hwe,
+		uint32_t vm, uint16_t width, uint16_t num_placements,
+		struct xe_cork_opts *opts)
 {
-	uint64_t addr = xe_get_default_alignment(fd);
-	size_t bo_size = xe_bb_size(fd, SZ_4K);
-	uint32_t vm, bo, exec_queue, syncobj;
-	struct xe_spin *spin;
-	struct drm_xe_sync sync = {
-		.type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL,
-	};
-	struct drm_xe_exec exec = {
-		.num_batch_buffer = 1,
-		.num_syncs = 1,
-		.syncs = to_user_pointer(&sync),
-	};
+	struct xe_cork *ctx = calloc(1, sizeof(*ctx));
 
-	vm = xe_vm_create(fd, 0, 0);
+	igt_assert(ctx);
+	igt_assert(width && num_placements &&
+		   (width == 1 || num_placements == 1));
+	igt_assert_lt(width, XE_MAX_ENGINE_INSTANCE);
 
-	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, hwe->gt_id),
-			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
-	spin = xe_bo_map(fd, bo, 0x1000);
+	ctx->class = hwe->engine_class;
+	ctx->width = width;
+	ctx->num_placements = num_placements;
+	ctx->vm = vm;
+	ctx->cork_opts = *opts;
 
-	xe_vm_bind_sync(fd, vm, bo, 0, addr, bo_size);
+	ctx->exec.num_batch_buffer = width;
+	ctx->exec.num_syncs = 2;
+	ctx->exec.syncs = to_user_pointer(ctx->sync);
 
-	exec_queue = xe_exec_queue_create(fd, vm, hwe, 0);
-	syncobj = syncobj_create(fd, 0);
+	ctx->sync[0].type = DRM_XE_SYNC_TYPE_SYNCOBJ;
+	ctx->sync[0].flags = DRM_XE_SYNC_FLAG_SIGNAL;
+	ctx->sync[0].handle = syncobj_create(fd, 0);
 
-	xe_spin_init_opts(spin, .addr = addr, .preempt = true);
-	exec.exec_queue_id = exec_queue;
-	exec.address = addr;
-	sync.handle = syncobj;
-	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_EXEC, &exec), 0);
+	ctx->sync[1].type = DRM_XE_SYNC_TYPE_SYNCOBJ;
+	ctx->sync[1].flags = DRM_XE_SYNC_FLAG_SIGNAL;
+	ctx->sync[1].handle = syncobj_create(fd, 0);
 
-	cork->spin = spin;
-	cork->fd = fd;
-	cork->vm = vm;
-	cork->bo = bo;
-	cork->exec_queue = exec_queue;
-	cork->syncobj = syncobj;
+	ctx->bo_size = sizeof(struct xe_spin);
+	ctx->bo_size = xe_bb_size(fd, ctx->bo_size);
+	ctx->bo = xe_bo_create(fd, ctx->vm, ctx->bo_size,
+			       vram_if_possible(fd, hwe->gt_id),
+			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	if (ctx->cork_opts.ahnd) {
+		for (unsigned int i = 0; i < width; i++)
+			ctx->addr[i] = intel_allocator_alloc_with_strategy(ctx->cork_opts.ahnd,
+					ctx->bo, ctx->bo_size, 0,
+					ALLOC_STRATEGY_LOW_TO_HIGH);
+	} else {
+		for (unsigned int i = 0; i < width; i++)
+			ctx->addr[i] = 0x100000 + 0x100000 * hwe->engine_class;
+	}
+
+	ctx->spin = xe_bo_map(fd, ctx->bo, ctx->bo_size);
+
+	igt_assert_eq(__xe_exec_queue_create(fd, ctx->vm, width, num_placements,
+					     hwe, 0, &ctx->exec_queue), 0);
+
+	xe_vm_bind_async(fd, ctx->vm, 0, ctx->bo, 0, ctx->addr[0], ctx->bo_size,
+			 ctx->sync, 1);
+
+	return ctx;
 }
 
-bool xe_cork_started(struct xe_cork *cork)
+/**
+ * xe_cork_sync_start:
+ *
+ * @fd: xe device fd
+ * @ctx: pointer to xe_cork structure
+ *
+ * run the spinner using xe_spin_init submit batch using xe_exec
+ * and wait for fence using syncobj_wait
+ */
+void xe_cork_sync_start(int fd, struct xe_cork *ctx)
 {
-	return xe_spin_started(cork->spin);
+	igt_assert(ctx);
+
+	ctx->spin_opts.addr = ctx->addr[0];
+	ctx->spin_opts.write_timestamp = true;
+	ctx->spin_opts.preempt = true;
+	xe_spin_init(ctx->spin, &ctx->spin_opts);
+
+	/* reuse sync[0] as in-fence for exec */
+	ctx->sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
+
+	ctx->exec.exec_queue_id = ctx->exec_queue;
+
+	if (ctx->width > 1)
+		ctx->exec.address = to_user_pointer(ctx->addr);
+	else
+		ctx->exec.address = ctx->addr[0];
+
+	xe_exec(fd, &ctx->exec);
+
+	xe_spin_wait_started(ctx->spin);
+	igt_assert(!syncobj_wait(fd, &ctx->sync[1].handle, 1, 1, 0, NULL));
+
+	if (ctx->cork_opts.debug)
+		igt_info("%d: spinner started\n", ctx->class);
 }
 
-void xe_cork_wait_started(struct xe_cork *cork)
+/*
+ * xe_cork_sync_end
+ *
+ * @fd: xe device fd
+ * @ctx: pointer to xe_cork structure
+ *
+ * Wrapper to end spinner created by xe_cork_create. It will
+ * unbind the vm which was binded to the exec_queue and bo.
+ */
+void xe_cork_sync_end(int fd, struct xe_cork *ctx)
 {
-	xe_spin_wait_started(cork->spin);
+	igt_assert(ctx);
+
+	if (ctx->ended)
+		igt_warn("Don't attempt call end twice %d\n", ctx->ended);
+
+	xe_spin_end(ctx->spin);
+
+	igt_assert(syncobj_wait(fd, &ctx->sync[1].handle, 1, INT64_MAX, 0, NULL));
+
+	ctx->sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
+	syncobj_reset(fd, &ctx->sync[0].handle, 1);
+
+	xe_vm_unbind_async(fd, ctx->vm, 0, 0, ctx->addr[0], ctx->bo_size, ctx->sync, 1);
+	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
+
+	ctx->ended = true;
+
+	if (ctx->cork_opts.debug)
+		igt_info("%d: spinner ended (timestamp=%u)\n", ctx->class,
+			ctx->spin->timestamp);
 }
 
-void xe_cork_end(struct xe_cork *cork)
+/*
+ * xe_cork_destroy
+ *
+ * @fd: xe device fd
+ * @ctx: pointer to xe_cork structure
+ *
+ * It will destroy vm, exec_queue and free the ctx.
+ */
+void xe_cork_destroy(int fd, struct xe_cork *ctx)
 {
-	xe_spin_end(cork->spin);
-}
+	igt_assert(ctx);
 
-void xe_cork_wait_done(struct xe_cork *cork)
-{
-	igt_assert(syncobj_wait(cork->fd, &cork->syncobj, 1, INT64_MAX, 0,
-				NULL));
-}
+	syncobj_destroy(fd, ctx->sync[0].handle);
+	syncobj_destroy(fd, ctx->sync[1].handle);
+	xe_exec_queue_destroy(fd, ctx->exec_queue);
 
-void xe_cork_fini(struct xe_cork *cork)
-{
-	syncobj_destroy(cork->fd, cork->syncobj);
-	xe_exec_queue_destroy(cork->fd, cork->exec_queue);
-	xe_vm_destroy(cork->fd, cork->vm);
-	gem_close(cork->fd, cork->bo);
-}
+	if (ctx->cork_opts.ahnd)
+		intel_allocator_free(ctx->cork_opts.ahnd, ctx->bo);
 
-uint32_t xe_cork_sync_handle(struct xe_cork *cork)
-{
-	return cork->syncobj;
+	munmap(ctx->spin, ctx->bo_size);
+	gem_close(fd, ctx->bo);
+
+	free(ctx);
 }

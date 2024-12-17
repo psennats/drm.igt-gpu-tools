@@ -32,6 +32,11 @@ struct xe_spin_opts {
 	bool write_timestamp;
 };
 
+struct xe_cork_opts {
+	uint64_t ahnd;
+	bool debug;
+};
+
 /* Mapped GPU object */
 struct xe_spin {
 	uint32_t batch[128];
@@ -43,9 +48,36 @@ struct xe_spin {
 	uint32_t timestamp;
 };
 
+struct xe_cork {
+	struct xe_spin *spin;
+	int fd;
+	uint32_t vm;
+	uint32_t bo;
+	uint32_t exec_queue;
+	uint32_t syncobj;
+	uint64_t addr[XE_MAX_ENGINE_INSTANCE];
+	struct drm_xe_sync sync[2];
+	struct drm_xe_exec exec;
+	size_t bo_size;
+	struct xe_spin_opts spin_opts;
+	struct xe_cork_opts cork_opts;
+	bool ended;
+	uint16_t class;
+	uint16_t width;
+	uint16_t num_placements;
+};
+
 igt_spin_t *xe_spin_create(int fd, const struct igt_spin_factory *opt);
 uint32_t duration_to_ctx_ticks(int fd, int gt_id, uint64_t ns);
 void xe_spin_init(struct xe_spin *spin, struct xe_spin_opts *opts);
+struct xe_cork *
+xe_cork_create(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm,
+	      uint16_t width, uint16_t num_placements, struct xe_cork_opts *opts);
+void xe_cork_destroy(int fd, struct xe_cork *ctx);
+
+#define xe_cork_create_opts(fd, hwe, vm, width, num_placements, ...) \
+	xe_cork_create(fd, hwe, vm, width, num_placements, \
+			&((struct xe_cork_opts){__VA_ARGS__}))
 
 #define xe_spin_init_opts(fd, ...) \
 	xe_spin_init(fd, &((struct xe_spin_opts){__VA_ARGS__}))
@@ -55,23 +87,7 @@ void xe_spin_sync_wait(int fd, struct igt_spin *spin);
 void xe_spin_wait_started(struct xe_spin *spin);
 void xe_spin_end(struct xe_spin *spin);
 void xe_spin_free(int fd, struct igt_spin *spin);
-
-struct xe_cork {
-	struct xe_spin *spin;
-	int fd;
-	uint32_t vm;
-	uint32_t bo;
-	uint32_t exec_queue;
-	uint32_t syncobj;
-};
-
-void xe_cork_init(int fd, struct drm_xe_engine_class_instance *hwe,
-		  struct xe_cork *cork);
-bool xe_cork_started(struct xe_cork *cork);
-void xe_cork_wait_started(struct xe_cork *cork);
-void xe_cork_end(struct xe_cork *cork);
-void xe_cork_wait_done(struct xe_cork *cork);
-void xe_cork_fini(struct xe_cork *cork);
-uint32_t xe_cork_sync_handle(struct xe_cork *cork);
+void xe_cork_sync_start(int fd, struct xe_cork *ctx);
+void xe_cork_sync_end(int fd, struct xe_cork *ctx);
 
 #endif	/* XE_SPIN_H */

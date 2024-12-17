@@ -367,133 +367,6 @@ static void basic_engine_utilization(int xe)
 	igt_require(info.num_engines);
 }
 
-struct spin_ctx {
-	uint32_t vm;
-	uint64_t addr[XE_MAX_ENGINE_INSTANCE];
-	struct drm_xe_sync sync[2];
-	struct drm_xe_exec exec;
-	uint32_t exec_queue;
-	size_t bo_size;
-	uint32_t bo;
-	struct xe_spin *spin;
-	struct xe_spin_opts spin_opts;
-	bool ended;
-	uint16_t class;
-	uint16_t width;
-	uint16_t num_placements;
-};
-
-static struct spin_ctx *
-spin_ctx_init(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm,
-	      uint16_t width, uint16_t num_placements)
-{
-	struct spin_ctx *ctx = calloc(1, sizeof(*ctx));
-
-	igt_assert(width && num_placements &&
-		   (width == 1 || num_placements == 1));
-	igt_assert_lt(width, XE_MAX_ENGINE_INSTANCE);
-
-	ctx->class = hwe->engine_class;
-	ctx->width = width;
-	ctx->num_placements = num_placements;
-	ctx->vm = vm;
-
-	for (unsigned int i = 0; i < width; i++)
-		ctx->addr[i] = 0x100000 + 0x100000 * hwe->engine_class;
-
-	ctx->exec.num_batch_buffer = width;
-	ctx->exec.num_syncs = 2;
-	ctx->exec.syncs = to_user_pointer(ctx->sync);
-
-	ctx->sync[0].type = DRM_XE_SYNC_TYPE_SYNCOBJ;
-	ctx->sync[0].flags = DRM_XE_SYNC_FLAG_SIGNAL;
-	ctx->sync[0].handle = syncobj_create(fd, 0);
-
-	ctx->sync[1].type = DRM_XE_SYNC_TYPE_SYNCOBJ;
-	ctx->sync[1].flags = DRM_XE_SYNC_FLAG_SIGNAL;
-	ctx->sync[1].handle = syncobj_create(fd, 0);
-
-	ctx->bo_size = sizeof(struct xe_spin);
-	ctx->bo_size = xe_bb_size(fd, ctx->bo_size);
-	ctx->bo = xe_bo_create(fd, ctx->vm, ctx->bo_size,
-			       vram_if_possible(fd, hwe->gt_id),
-			       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
-	ctx->spin = xe_bo_map(fd, ctx->bo, ctx->bo_size);
-
-	igt_assert_eq(__xe_exec_queue_create(fd, ctx->vm, width, num_placements,
-					     hwe, 0, &ctx->exec_queue), 0);
-
-	xe_vm_bind_async(fd, ctx->vm, 0, ctx->bo, 0, ctx->addr[0], ctx->bo_size,
-			 ctx->sync, 1);
-
-	return ctx;
-}
-
-static void
-spin_sync_start(int fd, struct spin_ctx *ctx)
-{
-	if (!ctx)
-		return;
-
-	ctx->spin_opts.addr = ctx->addr[0];
-	ctx->spin_opts.write_timestamp = true;
-	ctx->spin_opts.preempt = true;
-	xe_spin_init(ctx->spin, &ctx->spin_opts);
-
-	/* re-use sync[0] for exec */
-	ctx->sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
-
-	ctx->exec.exec_queue_id = ctx->exec_queue;
-
-	if (ctx->width > 1)
-		ctx->exec.address = to_user_pointer(ctx->addr);
-	else
-		ctx->exec.address = ctx->addr[0];
-
-	xe_exec(fd, &ctx->exec);
-
-	xe_spin_wait_started(ctx->spin);
-	igt_assert(!syncobj_wait(fd, &ctx->sync[1].handle, 1, 1, 0, NULL));
-
-	igt_debug("%s: spinner started\n", engine_map[ctx->class]);
-}
-
-static void
-spin_sync_end(int fd, struct spin_ctx *ctx)
-{
-	if (!ctx || ctx->ended)
-		return;
-
-	xe_spin_end(ctx->spin);
-
-	igt_assert(syncobj_wait(fd, &ctx->sync[1].handle, 1, INT64_MAX, 0, NULL));
-	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
-
-	ctx->sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-	xe_vm_unbind_async(fd, ctx->vm, 0, 0, ctx->addr[0], ctx->bo_size, ctx->sync, 1);
-	igt_assert(syncobj_wait(fd, &ctx->sync[0].handle, 1, INT64_MAX, 0, NULL));
-
-	ctx->ended = true;
-	igt_debug("%s: spinner ended (timestamp=%u)\n", engine_map[ctx->class],
-		  ctx->spin->timestamp);
-}
-
-static void
-spin_ctx_destroy(int fd, struct spin_ctx *ctx)
-{
-	if (!ctx)
-		return;
-
-	syncobj_destroy(fd, ctx->sync[0].handle);
-	syncobj_destroy(fd, ctx->sync[1].handle);
-	xe_exec_queue_destroy(fd, ctx->exec_queue);
-
-	munmap(ctx->spin, ctx->bo_size);
-	gem_close(fd, ctx->bo);
-
-	free(ctx);
-}
-
 static void
 check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 	      int class, int width, enum expected_load expected_load)
@@ -535,7 +408,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 {
 	struct pceu_cycles pceu1[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct spin_ctx *ctx = NULL;
+	struct xe_cork *ctx = NULL;
 	enum expected_load expected_load;
 	uint32_t vm;
 	int new_fd;
@@ -545,8 +418,8 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	vm = xe_vm_create(fd, 0, 0);
 	if (flags & TEST_BUSY) {
-		ctx = spin_ctx_init(fd, hwe, vm, 1, 1);
-		spin_sync_start(fd, ctx);
+		ctx = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+		xe_cork_sync_start(fd, ctx);
 	}
 
 	read_engine_cycles(fd, pceu1[0]);
@@ -555,7 +428,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	usleep(batch_duration_usec);
 	if (flags & TEST_TRAILING_IDLE)
-		spin_sync_end(fd, ctx);
+		xe_cork_sync_end(fd, ctx);
 
 	read_engine_cycles(fd, pceu2[0]);
 	if (flags & TEST_ISOLATION)
@@ -574,8 +447,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 		close(new_fd);
 	}
 
-	spin_sync_end(fd, ctx);
-	spin_ctx_destroy(fd, ctx);
+	xe_cork_destroy(fd, ctx);
 	xe_vm_destroy(fd, vm);
 }
 
@@ -584,19 +456,19 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct spin_ctx *ctx = NULL;
+	struct xe_cork *ctx = NULL;
 	uint32_t vm;
 
 	vm = xe_vm_create(fd, 0, 0);
-	ctx = spin_ctx_init(fd, hwe, vm, 1, 1);
-	spin_sync_start(fd, ctx);
+	ctx = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+	xe_cork_sync_start(fd, ctx);
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
 
 	/* destroy queue before sampling again */
-	spin_sync_end(fd, ctx);
-	spin_ctx_destroy(fd, ctx);
+	xe_cork_sync_end(fd, ctx);
+	xe_cork_destroy(fd, ctx);
 
 	read_engine_cycles(fd, pceu2);
 
@@ -610,18 +482,17 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct spin_ctx *ctx = NULL;
+	struct xe_cork *ctx = NULL;
 	uint32_t vm;
 	int class;
 
 	vm = xe_vm_create(fd, 0, 0);
-
-	ctx = spin_ctx_init(fd, hwe, vm, 1, 1);
-	spin_sync_start(fd, ctx);
+	ctx = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+	xe_cork_sync_start(fd, ctx);
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	spin_sync_end(fd, ctx);
+	xe_cork_sync_end(fd, ctx);
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
@@ -631,8 +502,7 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 		check_results(pceu1, pceu2, class, 1, expected_load);
 	}
 
-	spin_sync_end(fd, ctx);
-	spin_ctx_destroy(fd, ctx);
+	xe_cork_destroy(fd, ctx);
 	xe_vm_destroy(fd, vm);
 }
 
@@ -641,7 +511,7 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct spin_ctx *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
+	struct xe_cork *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
 	struct drm_xe_engine_class_instance *_hwe;
 	uint32_t vm;
 	int class;
@@ -654,15 +524,14 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 
 		if (_class == hwe->engine_class || ctx[_class])
 			continue;
-
-		ctx[_class] = spin_ctx_init(fd, _hwe, vm, 1, 1);
-		spin_sync_start(fd, ctx[_class]);
+		ctx[_class] = xe_cork_create_opts(fd, _hwe, vm, 1, 1);
+		xe_cork_sync_start(fd, ctx[_class]);
 	}
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
 	xe_for_each_engine_class(class)
-		spin_sync_end(fd, ctx[class]);
+		xe_cork_sync_end(fd, ctx[class]);
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
@@ -673,8 +542,7 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 			continue;
 
 		check_results(pceu1, pceu2, class, 1, expected_load);
-		spin_sync_end(fd, ctx[class]);
-		spin_ctx_destroy(fd, ctx[class]);
+		xe_cork_destroy(fd, ctx[class]);
 	}
 
 	xe_vm_destroy(fd, vm);
@@ -685,7 +553,7 @@ utilization_all_full_load(int fd)
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct spin_ctx *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
+	struct xe_cork *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
 	struct drm_xe_engine_class_instance *hwe;
 	uint32_t vm;
 	int class;
@@ -697,15 +565,14 @@ utilization_all_full_load(int fd)
 		class = hwe->engine_class;
 		if (ctx[class])
 			continue;
-
-		ctx[class] = spin_ctx_init(fd, hwe, vm, 1, 1);
-		spin_sync_start(fd, ctx[class]);
+		ctx[class] = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+		xe_cork_sync_start(fd, ctx[class]);
 	}
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
 	xe_for_each_engine_class(class)
-		spin_sync_end(fd, ctx[class]);
+		xe_cork_sync_end(fd, ctx[class]);
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
@@ -713,8 +580,7 @@ utilization_all_full_load(int fd)
 			continue;
 
 		check_results(pceu1, pceu2, class, 1, EXPECTED_LOAD_FULL);
-		spin_sync_end(fd, ctx[class]);
-		spin_ctx_destroy(fd, ctx[class]);
+		xe_cork_destroy(fd, ctx[class]);
 	}
 
 	xe_vm_destroy(fd, vm);
@@ -741,7 +607,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 	struct pceu_cycles pceu[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu_spill[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	struct spin_ctx *ctx = NULL;
+	struct xe_cork *ctx = NULL;
 	enum expected_load expected_load;
 	int fd_spill, num_placements;
 	uint32_t vm;
@@ -767,8 +633,8 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 
 	vm = xe_vm_create(fd, 0, 0);
 	if (flags & TEST_BUSY) {
-		ctx = spin_ctx_init(fd, eci, vm, width, num_placements);
-		spin_sync_start(fd, ctx);
+		ctx = xe_cork_create_opts(fd, eci, vm, width, num_placements);
+		xe_cork_sync_start(fd, ctx);
 	}
 
 	read_engine_cycles(fd, pceu[0]);
@@ -777,7 +643,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 
 	usleep(batch_duration_usec);
 	if (flags & TEST_TRAILING_IDLE)
-		spin_sync_end(fd, ctx);
+		xe_cork_sync_end(fd, ctx);
 
 	read_engine_cycles(fd, pceu[1]);
 	if (flags & TEST_ISOLATION)
@@ -797,8 +663,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 		close(fd_spill);
 	}
 
-	spin_sync_end(fd, ctx);
-	spin_ctx_destroy(fd, ctx);
+	xe_cork_destroy(fd, ctx);
 
 	xe_vm_destroy(fd, vm);
 }
