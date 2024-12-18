@@ -1517,11 +1517,21 @@ void igt_kmsg(const char *format, ...);
 #define le32_to_cpu(x)  (x)
 #endif
 
-#define MSEC_PER_SEC (1000u)
+#ifndef __WORDSIZE
+#define __WORDSIZE (__SIZEOF_LONG__ * 8)
+#endif
+
+#if __WORDSIZE == 64
+#define MSEC_PER_SEC (1000ul)
+#define USEC_PER_MSEC (1000ul)
+#else
+#define MSEC_PER_SEC (1000ull)
+#define USEC_PER_MSEC (1000ull)
+#endif
+
 #define USEC_PER_SEC (1000u * MSEC_PER_SEC)
 #define USEC_PER_DECISEC (100u * MSEC_PER_SEC)
 #define NSEC_PER_SEC (1000u * USEC_PER_SEC)
-#define USEC_PER_MSEC (1000u)
 #define NSEC_PER_MSEC (1000u * USEC_PER_MSEC)
 
 #define for_if(expr__) if (!(expr__)) {} else
