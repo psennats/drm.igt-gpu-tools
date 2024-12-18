@@ -447,7 +447,9 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 		close(new_fd);
 	}
 
-	xe_cork_destroy(fd, ctx);
+	if (flags & TEST_BUSY)
+		xe_cork_destroy(fd, ctx);
+
 	xe_vm_destroy(fd, vm);
 }
 
@@ -663,7 +665,8 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 		close(fd_spill);
 	}
 
-	xe_cork_destroy(fd, ctx);
+	if (flags & TEST_BUSY)
+		xe_cork_destroy(fd, ctx);
 
 	xe_vm_destroy(fd, vm);
 }
