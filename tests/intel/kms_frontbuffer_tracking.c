@@ -1031,7 +1031,7 @@ struct test_mode {
 		TILING_Y,
 		TILING_4,
 		TILING_COUNT,
-		TILING_DEFAULT = TILING_X,
+		TILING_AUTOSELECT,
 	} tiling;
 
 	enum igt_draw_method method;
@@ -1154,7 +1154,7 @@ struct {
 	.only_pipes = PIPE_COUNT,
 	.shared_fb_x_offset = 248,
 	.shared_fb_y_offset = 500,
-	.tiling = TILING_DEFAULT,
+	.tiling = TILING_AUTOSELECT,
 };
 
 struct modeset_params {
@@ -2181,6 +2181,7 @@ static void setup_modeset(void)
 	offscreen_fb.fb = NULL;
 	offscreen_fb.w = 1024;
 	offscreen_fb.h = 1024;
+
 	create_fbs(FORMAT_DEFAULT, opt.tiling);
 }
 
@@ -2302,7 +2303,6 @@ static void setup_drrs(void)
 
 static void setup_environment(void)
 {
-	setup_drm();
 	setup_modeset();
 
 	setup_fbc();
@@ -3146,6 +3146,7 @@ static bool tiling_is_valid(int feature_flags, enum tiling_type tiling)
 	case TILING_LINEAR:
 		return intel_gen(drm.devid) >= 9;
 	case TILING_X:
+		return (intel_get_device_info(drm.devid)->display_ver > 29) ? false : true;
 	case TILING_Y:
 		return true;
 	case TILING_4:
@@ -4226,9 +4227,18 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 	igt_output_t *output;
 
 	igt_fixture {
-		setup_environment();
+		setup_drm();
 		drm.devid = intel_get_drm_devid(drm.fd);
 		drm.display_ver = intel_display_ver(drm.devid);
+
+		/* TILING_X is not supported from Xe3 onwards. If the tiling
+		 * is not set explicitly using the commandline parameter,
+		 * handle the default tiling based on the platform.
+		 */
+		if (opt.tiling == TILING_AUTOSELECT)
+			opt.tiling = drm.display_ver >= 30 ? TILING_4 : TILING_X;
+
+		setup_environment();
 	}
 
 	for (t.feature = 0; t.feature < FEATURE_COUNT; t.feature++) {
@@ -4569,6 +4579,7 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 	t.flip = FLIP_PAGEFLIP;
 	t.method = IGT_DRAW_BLT;
 	t.tiling = opt.tiling;
+
 	igt_subtest("basic") {
 		if (!is_xe_device(drm.fd))
 			igt_require_gem(drm.fd);
