@@ -256,8 +256,10 @@ static void fill_fb_subtest(void)
 	get_fill_crc(DRM_FORMAT_MOD_LINEAR, &crc);
 	igt_assert_crc_equal(&crc, &base_crc);
 
-	get_fill_crc(I915_FORMAT_MOD_X_TILED, &crc);
-	igt_assert_crc_equal(&crc, &base_crc);
+	if (igt_display_has_format_mod(&display, DRM_FORMAT_XRGB8888, I915_FORMAT_MOD_X_TILED)) {
+		get_fill_crc(I915_FORMAT_MOD_X_TILED, &crc);
+		igt_assert_crc_equal(&crc, &base_crc);
+	}
 
 	if (intel_display_ver(intel_get_drm_devid(drm_fd)) >= 9) {
 		get_fill_crc(has_4tile ?
