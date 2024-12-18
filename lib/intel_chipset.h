@@ -92,6 +92,8 @@ struct intel_device_info {
 	bool is_pontevecchio : 1;
 	bool is_lunarlake : 1;
 	bool is_battlemage : 1;
+	bool is_pantherlake : 1;
+
 	const struct intel_cmds_info *cmds_info;
 	const char *codename;
 };

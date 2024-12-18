@@ -526,6 +526,17 @@ static const struct intel_device_info intel_battlemage_info = {
 	.cmds_info = &xe2_cmds_info,
 };
 
+static const struct intel_device_info intel_pantherlake_info = {
+	.graphics_ver = 30,
+	.graphics_rel = 0,
+	.display_ver = 30,
+	.has_4tile = true,
+	.has_flatccs = true,
+	.is_pantherlake = true,
+	.codename = "pantherlake",
+	.cmds_info = &xe2_cmds_info,
+};
+
 #define INTEL_PCI_ID_INIT(_id, _info) { \
 	.vendor_id = 0x8086, .device_id = (_id), \
 	.subvendor_id = PCI_MATCH_ANY, .subdevice_id = PCI_MATCH_ANY, \
@@ -641,6 +652,8 @@ static const struct pci_id_match intel_device_match[] = {
 	INTEL_LNL_IDS(INTEL_PCI_ID_INIT, &intel_lunarlake_info),
 
 	INTEL_BMG_IDS(INTEL_PCI_ID_INIT, &intel_battlemage_info),
+
+	INTEL_PTL_IDS(INTEL_PCI_ID_INIT, &intel_pantherlake_info),
 
 	INTEL_PCI_ID_INIT(PCI_MATCH_ANY, &intel_generic_info),
 };
