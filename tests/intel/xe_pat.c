@@ -110,7 +110,7 @@ static void pat_index_all(int fd)
 
 	for (pat_index = 0; pat_index <= intel_get_max_pat_index(fd);
 	     pat_index++) {
-		if (intel_get_device_info(dev_id)->graphics_ver == 20 &&
+		if (intel_get_device_info(dev_id)->graphics_ver >= 20 &&
 		    pat_index >= 16 && pat_index <= 19) { /* hw reserved */
 			igt_assert_eq(__xe_vm_bind(fd, vm, 0, bo, 0, 0x40000,
 						   size, DRM_XE_VM_BIND_OP_MAP, 0, NULL, 0, 0,
@@ -854,7 +854,7 @@ static uint8_t get_pat_idx_wt(int fd, bool *compressed)
 	uint16_t dev_id = intel_get_drm_devid(fd);
 
 	if (compressed)
-		*compressed = intel_get_device_info(dev_id)->graphics_ver == 20;
+		*compressed = intel_get_device_info(dev_id)->graphics_ver >= 20;
 
 	return intel_get_pat_idx_wt(fd);
 }
