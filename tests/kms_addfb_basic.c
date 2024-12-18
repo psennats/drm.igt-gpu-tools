@@ -217,6 +217,12 @@ static int legacy_addfb(int fd, struct drm_mode_fb_cmd *arg)
 	return err;
 }
 
+static int addfb_expected_ret(igt_display_t *disp, struct drm_mode_fb_cmd2 *f)
+{
+	return igt_display_has_format_mod(disp, f->pixel_format,
+					  f->modifier[0]) ? 0 : -1;
+}
+
 static void invalid_tests(int fd)
 {
 	struct drm_mode_fb_cmd2 f = {};
@@ -735,8 +741,10 @@ static void addfb25_tests(int fd)
 		igt_describe("Check if addfb2 call works for x-tiling");
 		igt_subtest("addfb25-x-tiled-legacy") {
 			f.modifier[0] = I915_FORMAT_MOD_X_TILED;
-			do_ioctl(fd, DRM_IOCTL_MODE_ADDFB2, &f);
-			do_ioctl(fd, DRM_IOCTL_MODE_RMFB, &f.fb_id);
+			igt_assert_eq(drmIoctl(fd, DRM_IOCTL_MODE_ADDFB2, &f),
+				      addfb_expected_ret(&display, &f));
+			if (!addfb_expected_ret(&display, &f))
+				do_ioctl(fd, DRM_IOCTL_MODE_RMFB, &f.fb_id);
 			f.fb_id = 0;
 		}
 
@@ -754,12 +762,6 @@ static void addfb25_tests(int fd)
 
 	igt_fixture
 		gem_close(fd, gem_bo);
-}
-
-static int addfb_expected_ret(igt_display_t *disp, struct drm_mode_fb_cmd2 *f)
-{
-	return igt_display_has_format_mod(disp, f->pixel_format,
-					  f->modifier[0]) ? 0 : -1;
 }
 
 static void addfb25_ytile(int fd)
@@ -1012,8 +1014,6 @@ igt_main
 
 	master_tests(fd);
 
-	addfb25_tests(fd);
-
 	tiling_tests(fd);
 
 	igt_subtest_group {
@@ -1024,6 +1024,8 @@ igt_main
 
 		igt_fixture
 			igt_require_intel(fd);
+
+		addfb25_tests(fd);
 
 		addfb25_ytile(fd);
 
