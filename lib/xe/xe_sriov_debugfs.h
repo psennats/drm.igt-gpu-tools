@@ -39,4 +39,9 @@ int __xe_sriov_pf_debugfs_set_boolean(int pf, unsigned int vf_num,
 				      unsigned int gt_num, const char *attr,
 				      bool value);
 
+int __xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
+					 unsigned int gt_num, uint64_t *value);
+uint64_t xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
+					    unsigned int gt_num);
+
 #endif /* __XE_SRIOV_DEBUGFS_H__ */

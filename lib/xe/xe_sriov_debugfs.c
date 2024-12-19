@@ -471,3 +471,81 @@ DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(bool *, get_boolean, __igt_sysfs_get_boolean)
  * Return: 0 on success, negative error code on failure.
  */
 DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(bool, set_boolean, __igt_sysfs_set_boolean)
+
+/**
+ * __xe_sriov_vf_debugfs_get_selfconfig - Read VF's configuration data.
+ * @vf: VF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @gt_num: GT number
+ * @value: Pointer to store the read value
+ *
+ * Reads the specified shared resource @res from selfconfig of given VF device
+ * @vf on GT @gt_num.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int __xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
+					 unsigned int gt_num, uint64_t *value)
+{
+	FILE *file;
+	size_t n = 0;
+	char *line = NULL;
+	int fd, ret = 0;
+
+	fd = igt_debugfs_gt_open(vf, gt_num, "vf/self_config", O_RDONLY);
+	if (fd < 0)
+		return fd;
+	file = fdopen(fd, "r");
+	if (!file) {
+		close(fd);
+		return -errno;
+	}
+
+	while (getline(&line, &n, file) >= 0) {
+		switch (res) {
+		case XE_SRIOV_SHARED_RES_CONTEXTS:
+			ret = sscanf(line, "GuC contexts: %lu", value);
+			break;
+		case XE_SRIOV_SHARED_RES_DOORBELLS:
+			ret = sscanf(line, "GuC doorbells: %lu", value);
+			break;
+		case XE_SRIOV_SHARED_RES_GGTT:
+			ret = sscanf(line, "GGTT size: %lu", value);
+			break;
+		case XE_SRIOV_SHARED_RES_LMEM:
+			ret = sscanf(line, "LMEM size: %lu", value);
+			break;
+		}
+
+		if (ret > 0)
+			break;
+	}
+
+	free(line);
+	fclose(file);
+
+	return ret ? 0 : -1;
+}
+
+/**
+ * xe_sriov_vf_debugfs_get_selfconfig - Read VF's configuration data.
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @gt_num: GT number
+ *
+ * A throwing version of __xe_sriov_vf_debugfs_get_selfconfig().
+ * Instead of returning an error code, it returns the quota value and asserts
+ * in case of an error.
+ *
+ * Return: The quota for the given shared resource.
+ *         Asserts in case of failure.
+ */
+uint64_t xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
+					    unsigned int gt_num)
+{
+	uint64_t value;
+
+	igt_fail_on(__xe_sriov_vf_debugfs_get_selfconfig(vf, res, gt_num, &value));
+
+	return value;
+}
