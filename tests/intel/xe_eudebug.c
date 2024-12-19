@@ -1556,6 +1556,7 @@ static void debugger_test_vma(struct xe_eudebug_debugger *d,
 	struct drm_xe_eudebug_vm_open vo = { 0, };
 	uint64_t *v1, *v2;
 	uint64_t items = va_length / sizeof(uint64_t);
+	uint64_t offset;
 	int fd;
 	int r, i;
 
@@ -1576,11 +1577,21 @@ static void debugger_test_vma(struct xe_eudebug_debugger *d,
 	for (i = 0; i < items; i++)
 		igt_assert_eq(v1[i], va_start + i);
 
+	/* random unaligned offset within the vm */
+	offset = 1 + random() % (va_length / 2);
+	r = pread(fd, (char *)v1 + offset, va_length - offset, va_start + offset);
+	igt_assert_eq(r, va_length - offset);
+	for (i = 0; i < items; i++)
+		igt_assert_eq(v1[i], va_start + i);
+
 	for (i = 0; i < items; i++)
 		v1[i] = va_start + i + 1;
 
-	r = pwrite(fd, v1, va_length, va_start);
-	igt_assert_eq(r, va_length);
+	r = pwrite(fd, v1, offset, va_start);
+	igt_assert_eq(r, offset);
+
+	r = pwrite(fd, (char *)v1 + offset, va_length - offset, va_start + offset);
+	igt_assert_eq(r, va_length - offset);
 
 	lseek(fd, va_start, SEEK_SET);
 	r = read(fd, v2, va_length);
