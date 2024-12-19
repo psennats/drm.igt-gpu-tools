@@ -620,6 +620,87 @@ static void throughput_ratio(int pf_fd, int num_vfs, const struct subm_opts *opt
 	igt_sriov_disable_vfs(pf_fd);
 }
 
+/**
+ * SUBTEST: nonpreempt-engine-resets
+ * Description:
+ *   Check all VFs running a non-preemptible workload with a duration
+ *   exceeding the sum of its execution quantum and preemption timeout,
+ *   will experience engine reset due to preemption timeout.
+ */
+static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
+				     const struct subm_opts *opts)
+{
+	struct subm_set set_ = {}, *set = &set_;
+	struct vf_sched_params vf_sched_params = prepare_vf_sched_params(num_vfs, 1,
+									 JOB_TIMEOUT_MS, opts);
+	uint64_t duration_ms = 2 * vf_sched_params.exec_quantum_ms +
+			       vf_sched_params.preempt_timeout_us / USEC_PER_MSEC;
+	int preemptible_end = 1;
+	uint8_t vf_ids[num_vfs + 1 /*PF*/];
+
+	igt_info("eq=%ums pt=%uus duration=%lums num_vfs=%d\n",
+		 vf_sched_params.exec_quantum_ms,
+		 vf_sched_params.preempt_timeout_us, duration_ms, num_vfs);
+
+	init_vf_ids(vf_ids, ARRAY_SIZE(vf_ids),
+		    &(struct init_vf_ids_opts){ .shuffle = true,
+						.shuffle_pf = true });
+	xe_sriov_require_default_scheduling_attributes(pf_fd);
+	/* enable VFs */
+	igt_sriov_disable_driver_autoprobe(pf_fd);
+	igt_sriov_enable_vfs(pf_fd, num_vfs);
+	/* set scheduling params (PF and VFs) */
+	set_vfs_scheduling_params(pf_fd, num_vfs, &vf_sched_params);
+	/* probe VFs */
+	igt_sriov_enable_driver_autoprobe(pf_fd);
+	for (int vf = 1; vf <= num_vfs; ++vf)
+		igt_sriov_bind_vf_drm_driver(pf_fd, vf);
+
+	/* init subm_set */
+	subm_set_alloc_data(set, num_vfs + 1 /*PF*/);
+	subm_set_init_sync_method(set, opts->sync_method);
+
+	for (int n = 0; n < set->ndata; ++n) {
+		int vf_fd =
+			vf_ids[n] ?
+				igt_sriov_open_vf_drm_device(pf_fd, vf_ids[n]) :
+				drm_reopen_driver(pf_fd);
+
+		igt_assert_fd(vf_fd);
+		set->data[n].opts = opts;
+		subm_init(&set->data[n].subm, vf_fd, vf_ids[n], 0,
+			  xe_engine(vf_fd, 0)->instance);
+		subm_workload_init(&set->data[n].subm,
+				   &(struct subm_work_desc){
+					.duration_ms = duration_ms,
+					.preempt = (n < preemptible_end),
+					.repeats = MIN_NUM_REPEATS });
+		igt_stats_init_with_size(&set->data[n].stats.samples,
+					 set->data[n].subm.work.repeats);
+		if (set->sync_method == SYNC_BARRIER)
+			set->data[n].barrier = &set->barrier;
+	}
+
+	/* dispatch spinners, wait for results */
+	subm_set_dispatch_and_wait_threads(set);
+
+	/* verify results */
+	for (int n = 0; n < set->ndata; ++n) {
+		if (n < preemptible_end) {
+			igt_assert_eq(0, set->data[n].stats.num_early_finish);
+			igt_assert_eq(set->data[n].subm.work.repeats,
+				      set->data[n].stats.samples.n_values);
+		} else {
+			igt_assert_eq(1, set->data[n].stats.num_early_finish);
+		}
+	}
+
+	/* cleanup */
+	subm_set_fini(set);
+	set_vfs_scheduling_params(pf_fd, num_vfs, &(struct vf_sched_params){});
+	igt_sriov_disable_vfs(pf_fd);
+}
+
 static struct subm_opts subm_opts = {
 	.sync_method = SYNC_BARRIER,
 	.outlier_treshold = 0.1,
@@ -695,6 +776,19 @@ igt_main_args("", long_opts, help_str, subm_opts_handler, NULL)
 		for_random_sriov_vf(pf_fd, vf)
 			igt_dynamic("numvfs-random")
 				throughput_ratio(pf_fd, vf, &subm_opts);
+	}
+
+	igt_describe("Check VFs experience engine reset due to preemption timeout");
+	igt_subtest_with_dynamic("nonpreempt-engine-resets") {
+		if (extended_scope)
+			for_each_sriov_num_vfs(pf_fd, vf)
+				igt_dynamic_f("numvfs-%d", vf)
+					nonpreempt_engine_resets(pf_fd, vf,
+								 &subm_opts);
+
+		for_random_sriov_vf(pf_fd, vf)
+			igt_dynamic("numvfs-random")
+				nonpreempt_engine_resets(pf_fd, vf, &subm_opts);
 	}
 
 	igt_fixture {
