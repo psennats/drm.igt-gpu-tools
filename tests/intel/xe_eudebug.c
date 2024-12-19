@@ -1773,7 +1773,13 @@ static void vm_trigger_access_parameters(struct xe_eudebug_debugger *d,
 /**
  * SUBTEST: basic-vm-access-parameters
  * Description:
- *      Check negative scenarios of VM_OPEN ioctl and pread/pwrite usage.
+ *      Check negative scenarios of VM_OPEN ioctl and pread/pwrite usage
+ *      with bo backing storage.
+ *
+ * SUBTEST: basic-vm-access-parameters-userptr
+ * Description:
+ *      Check negative scenarios of VM_OPEN ioctl and pread/pwrite usage
+ *      with userptr backing storage.
  */
 static void test_vm_access_parameters(int fd, unsigned int flags, int num_clients)
 {
@@ -2829,6 +2835,9 @@ igt_main
 
 	igt_subtest("basic-vm-access-parameters")
 		test_vm_access_parameters(fd, 0, 1);
+
+	igt_subtest("basic-vm-access-parameters-userptr")
+		test_vm_access_parameters(fd, VM_BIND_OP_MAP_USERPTR, 1);
 
 	igt_subtest("multiple-sessions")
 		test_basic_sessions(fd, CREATE_VMS | CREATE_EXEC_QUEUES, 4, true);
