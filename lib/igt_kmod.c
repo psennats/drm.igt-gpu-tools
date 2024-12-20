@@ -612,15 +612,8 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 	const char *aux[] = {
 		/* gen5: ips uses symbol_get() so only a soft module dependency */
 		"intel_ips",
-		/* mei_gsc uses an i915 aux dev and the other mei mods depend on it */
-		"mei_pxp",
-		"mei_hdcp",
-		"mei_gsc",
 		NULL,
 	};
-
-	/* unbind vt */
-	bind_fbcon(false);
 
 	ret = igt_audio_driver_unload(who);
 	if (ret)
@@ -640,6 +633,8 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 	}
 
 	if (igt_kmod_is_loaded(driver)) {
+		igt_kmod_unbind(driver);
+
 		ret = igt_kmod_unload(driver);
 		if (ret) {
 			if (who)
