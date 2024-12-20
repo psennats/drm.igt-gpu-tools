@@ -723,7 +723,7 @@ igt_intel_driver_unload(const char *driver)
 	igt_kmod_unload("drm_kms_helper");
 	igt_kmod_unload("drm");
 
-	if (igt_kmod_is_loaded("driver")) {
+	if (igt_kmod_is_loaded(driver)) {
 		igt_warn("%s.ko still loaded!\n", driver);
 		return -EBUSY;
 	}
