@@ -686,10 +686,7 @@ int igt_kmod_unbind(const char *mod_name)
 		igt_assert(ret);
 
 		close(devfd);
-		errno = 0;
 	}
-
-	igt_assert_eq(errno, 0);
 
 	return 0;
 }
