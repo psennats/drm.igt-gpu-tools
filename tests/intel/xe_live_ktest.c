@@ -16,6 +16,11 @@
  *	being handled properly.
  * Functionality: bo
  *
+ * SUBTEST: xe_bo_shrink
+ * Description:
+ *	Kernel dynamic selftests to check BO swap path and shrinking path.
+ * Functionality: bo
+ *
  * SUBTEST: xe_dma_buf
  * Description: Kernel dynamic selftests for dmabuf functionality.
  * Functionality: dmabuf test
@@ -39,6 +44,7 @@
 
 static const char *live_tests[] = {
 	"xe_bo",
+	"xe_bo_shrink",
 	"xe_dma_buf",
 	"xe_migrate",
 	"xe_mocs",
