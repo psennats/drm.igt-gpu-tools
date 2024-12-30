@@ -24,7 +24,7 @@
  */
 
 #include "amd_memory.h"
-
+#include "amd_PM4.h"
 /**
  *
  * @param device_handle
@@ -328,20 +328,19 @@ void amdgpu_command_submission_multi_fence_wait_all(amdgpu_device_handle device,
 
 	memset(ib_info, 0, 2 * sizeof(struct amdgpu_cs_ib_info));
 
-	/* IT_SET_CE_DE_COUNTERS */
+	/* IT_SET_CE_DE_COUNTERS valid for gfx 6-10 */
 	ptr = ib_result_ce_cpu;
-	ptr[0] = 0xc0008900;
+	ptr[0] = PACKET3(PACKET3_SET_CE_DE_COUNTERS, 0);
 	ptr[1] = 0;
-	ptr[2] = 0xc0008400;
+	ptr[2] = PACKET3(PACKET3_INCREMENT_CE_COUNTER, 0);
 	ptr[3] = 1;
 	ib_info[0].ib_mc_address = ib_result_ce_mc_address;
 	ib_info[0].size = 4;
 	ib_info[0].flags = AMDGPU_IB_FLAG_CE;
 
-	/* IT_WAIT_ON_CE_COUNTER */
 	ptr = ib_result_cpu;
-	ptr[0] = 0xc0008600;
-	ptr[1] = 0x00000001;
+	ptr[0] = PACKET3(PACKET3_WAIT_ON_CE_COUNTER, 0);
+	ptr[1] = 1;//Conditional Surface Sync for wrapping CE buffers.
 	ib_info[1].ib_mc_address = ib_result_mc_address;
 	ib_info[1].size = 2;
 
