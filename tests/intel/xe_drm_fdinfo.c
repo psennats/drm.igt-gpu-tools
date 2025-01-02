@@ -532,8 +532,11 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	xe_for_each_engine_class(class)
-		xe_cork_sync_end(fd, ctx[class]);
+	xe_for_each_engine_class(class) {
+		if (ctx[class])
+			xe_cork_sync_end(fd, ctx[class]);
+	}
+
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
@@ -573,8 +576,11 @@ utilization_all_full_load(int fd)
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	xe_for_each_engine_class(class)
-		xe_cork_sync_end(fd, ctx[class]);
+	xe_for_each_engine_class(class) {
+		if (ctx[class])
+			xe_cork_sync_end(fd, ctx[class]);
+	}
+
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
