@@ -810,10 +810,9 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 		igt_info("amdgpu: unknown (family_id, chip_external_rev): (%u, %u)\n",
 			 amdinfo->family_id, amdinfo->chip_external_rev);
 		return -1;
-	} else {
-		igt_info("amdgpu: %s (family_id, chip_external_rev): (%u, %u)\n",
-				info->name, amdinfo->family_id, amdinfo->chip_external_rev);
 	}
+	igt_info("amdgpu: %s (family_id, chip_external_rev): (%u, %u)\n",
+				info->name, amdinfo->family_id, amdinfo->chip_external_rev);
 
 	if (info->family >= CHIP_GFX1100) {
 		info->chip_class = GFX11;
@@ -1007,43 +1006,103 @@ asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask,
 bool
 is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type)
 {
-        char cmd[256];
-        FILE *fp, *fp2;
-        char buffer[100];
-        bool enable = false;
-        char reset_mask[100];
+	char cmd[256];
+	FILE *fp, *fp2;
+	char buffer[100];
+	bool enable = false;
+	char reset_mask[100];
 
-        if(ip_type == AMD_IP_GFX)
-                snprintf(reset_mask, sizeof(reset_mask) - 1, "gfx_reset_mask");
-        else if (ip_type == AMD_IP_COMPUTE)
-                snprintf(reset_mask, sizeof(reset_mask) - 1, "compute_reset_mask");
-        else
-                snprintf(reset_mask, sizeof(reset_mask) - 1, "sdma_reset_mask");
+	if (ip_type == AMD_IP_GFX)
+		snprintf(reset_mask, sizeof(reset_mask) - 1, "gfx_reset_mask");
+	else if (ip_type == AMD_IP_COMPUTE)
+		snprintf(reset_mask, sizeof(reset_mask) - 1, "compute_reset_mask");
+	else
+		snprintf(reset_mask, sizeof(reset_mask) - 1, "sdma_reset_mask");
 
-        snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/0/name |grep -oP '(?<=dev=)[0-9:.]+'");
-        fp = popen(cmd, "r");
-        if (fp == NULL)
-                return false;
+	snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/0/name |grep -oP '(?<=dev=)[0-9:.]+'");
+	fp = popen(cmd, "r");
+	if (fp == NULL)
+		return false;
 
-        if (fgets(buffer, 13, fp) != NULL) {
-                snprintf(cmd,sizeof(cmd) - 1,"sudo cat /sys/bus/pci/devices/%s/%s | grep -oP '%s'",
-                        buffer,reset_mask,
-			reset_type & AMDGPU_RESET_TYPE_FULL ? "full":
-			reset_type & AMDGPU_RESET_TYPE_SOFT_RESET ? "soft":
-			reset_type & AMDGPU_RESET_TYPE_PER_QUEUE ? "queue": "pipe");
+	if (fgets(buffer, 13, fp) != NULL) {
+		snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/bus/pci/devices/%s/%s | grep -oP '%s'",
+			buffer, reset_mask,
+			reset_type & AMDGPU_RESET_TYPE_FULL ? "full" :
+			reset_type & AMDGPU_RESET_TYPE_SOFT_RESET ? "soft" :
+			reset_type & AMDGPU_RESET_TYPE_PER_QUEUE ? "queue" : "pipe");
 
-                fp2 = popen(cmd, "r");
-                if (fp2 == NULL) {
-                        pclose(fp);
-                        return false;
-                }
+		fp2 = popen(cmd, "r");
+		if (fp2 == NULL) {
+			pclose(fp);
+			return false;
+		}
 
-                if (fgets(buffer, 13, fp2) != NULL) {
-                        enable = true;
-                }
-                pclose(fp2);
-        }
-        pclose(fp);
+		if (fgets(buffer, 13, fp2) != NULL)
+			enable = true;
+		pclose(fp2);
+	}
+	pclose(fp);
 
-        return enable;
+	return enable;
+}
+
+/**
+ * get_pci_addr_from_fd - Extracts the PCI device address from a file descriptor.
+ * @fd: The file descriptor to extract the address from.
+ * @pci: Pointer to a pci_addr struct to store the extracted address.
+ *
+ * Returns 0 on success, or a negative error code on failure.
+ */
+int get_pci_addr_from_fd(int fd, struct pci_addr *pci)
+{
+	char path[80];
+	struct stat st;
+	char link[20], pci_path[256];
+	char *buf;
+	int len, sysfs;
+	int ret;
+
+	// Check if the file descriptor is a character device and can be accessed
+	if (fstat(fd, &st) < 0 || !S_ISCHR(st.st_mode))
+		return -1;
+
+	snprintf(path, sizeof(path), "/sys/dev/char/%d:%d",
+			major(st.st_rdev), minor(st.st_rdev));
+
+	// Check if the sysfs path exists
+	if (access(path, F_OK) < 0)
+		return -1;
+
+	// Open the sysfs directory
+	sysfs = open(path, O_RDONLY);
+	if (sysfs < 0)
+		return -1;
+
+	// Read the "device" link from the sysfs directory
+	snprintf(link, sizeof(link), "device");
+	len = readlinkat(sysfs, link, pci_path, sizeof(pci_path) - 1);
+	if (len == -1) {
+		close(sysfs);
+		return -ENOENT;
+	}
+	close(sysfs);
+ // Null-terminate the extracted path
+	pci_path[len] = '\0';
+
+	// Find the last occurrence of '/' in the extracted path
+	buf = strrchr(pci_path, '/');
+	if (!buf)
+		return -ENOENT;
+
+	// Extract the PCI device address from the path using sscanf
+	ret = sscanf(buf, "/%4x:%2x:%2x.%2x", &pci->domain, &pci->bus,
+			&pci->device, &pci->function);
+
+	if (ret != 4) {
+		igt_info("error %s Unable to extract PCI device address from '%s\n",
+				__FUNCTION__, buf);
+		return -ENOENT;
+	}
+
+	return 0;
 }

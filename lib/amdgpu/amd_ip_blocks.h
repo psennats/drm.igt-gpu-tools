@@ -8,6 +8,13 @@
 #define AMD_IP_BLOCKS_H
 
 #include <amdgpu_drm.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/sysmacros.h>
 
 #include "amd_registers.h"
 #include "amd_family.h"
@@ -183,6 +190,13 @@ struct chip_info {
 	amdgpu_device_handle dev;
 };
 
+struct pci_addr {
+    unsigned int domain;
+    unsigned int bus;
+    unsigned int device;
+    unsigned int function;
+};
+
 extern  struct amdgpu_ip_blocks_device amdgpu_ips;
 extern const struct chip_info  *g_pChip;
 int
@@ -220,4 +234,7 @@ asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask, bool arr[
 
 bool
 is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type);
+
+int
+get_pci_addr_from_fd(int fd, struct pci_addr *pci);
 #endif
