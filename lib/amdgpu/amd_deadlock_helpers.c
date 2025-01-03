@@ -65,7 +65,7 @@ amdgpu_wait_memory(amdgpu_device_handle device_handle, unsigned int ip_type, uin
 	int job_count = 0;
 	struct amdgpu_cmd_base *base_cmd = get_cmd_base();
 
-	if( priority == AMDGPU_CTX_PRIORITY_HIGH)
+	if (priority == AMDGPU_CTX_PRIORITY_HIGH)
 		r = amdgpu_cs_ctx_create2(device_handle, AMDGPU_CTX_PRIORITY_HIGH, &context_handle);
 	else
 		r = amdgpu_cs_ctx_create(device_handle, &context_handle);
@@ -173,7 +173,7 @@ amdgpu_wait_memory(amdgpu_device_handle device_handle, unsigned int ip_type, uin
 	free_cmd_base(base_cmd);
 }
 
-void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int ip_type)
+void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int ip_type, struct pci_addr *pci)
 {
 	int r;
 	FILE *fp;
@@ -190,18 +190,21 @@ void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int 
 		igt_info("SKIP ... as there's no ring for ip %d\n", ip_type);
 
 	if (ip_type == AMD_IP_GFX)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_gfx_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_COMPUTE)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_compute_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_compute_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_DMA)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
 	r = access(sysfs, R_OK);
 	if (!r) {
 		fp = popen(cmd, "r");
 		if (fp == NULL)
-			igt_skip("read the sysfs failed: %s \n",sysfs);
+			igt_skip("read the sysfs failed: %s\n", sysfs);
 
 		if (fgets(buffer, 128, fp) != NULL)
 			sched_mask = strtol(buffer, NULL, 16);
@@ -247,7 +250,7 @@ void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int 
 
 	/* recover the sched mask */
 	if (sched_mask > 1) {
-		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s",sched_mask, sysfs);
+		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s", sched_mask, sysfs);
 		r = system(cmd);
 		igt_assert_eq(r, 0);
 	}
@@ -269,7 +272,7 @@ bad_access_helper(amdgpu_device_handle device_handle, unsigned int cmd_error,
 	ring_context = calloc(1, sizeof(*ring_context));
 	igt_assert(ring_context);
 
-	if( priority == AMDGPU_CTX_PRIORITY_HIGH)
+	if (priority == AMDGPU_CTX_PRIORITY_HIGH)
 		r = amdgpu_cs_ctx_create2(device_handle, AMDGPU_CTX_PRIORITY_HIGH, &ring_context->context_handle);
 	else
 		r = amdgpu_cs_ctx_create(device_handle, &ring_context->context_handle);
@@ -401,7 +404,7 @@ amdgpu_hang_sdma_helper(amdgpu_device_handle device_handle, uint8_t hang_type)
 	free_cmd_base(base_cmd);
 }
 
-void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd_error, unsigned int ip_type)
+void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd_error, unsigned int ip_type, struct pci_addr *pci)
 {
 	int r;
 	FILE *fp;
@@ -418,18 +421,21 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 		igt_info("SKIP ... as there's no ring for ip %d\n", ip_type);
 
 	if (ip_type == AMD_IP_GFX)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_gfx_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_COMPUTE)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_compute_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_compute_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_DMA)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
 	r = access(sysfs, R_OK);
 	if (!r) {
 		fp = popen(cmd, "r");
 		if (fp == NULL)
-			igt_skip("read the sysfs failed: %s \n",sysfs);
+			igt_skip("read the sysfs failed: %s\n", sysfs);
 
 		if (fgets(buffer, 128, fp) != NULL)
 			sched_mask = strtol(buffer, NULL, 16);
@@ -475,14 +481,14 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 
 	/* recover the sched mask */
 	if (sched_mask > 1) {
-		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s",sched_mask, sysfs);
+		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s", sched_mask, sysfs);
 		r = system(cmd);
 		igt_assert_eq(r, 0);
 	}
 
 }
 
-void amdgpu_hang_sdma_ring_helper(amdgpu_device_handle device_handle, uint8_t hang_type)
+void amdgpu_hang_sdma_ring_helper(amdgpu_device_handle device_handle, uint8_t hang_type, struct pci_addr *pci)
 {
 	int r;
 	FILE *fp;
@@ -498,13 +504,14 @@ void amdgpu_hang_sdma_ring_helper(amdgpu_device_handle device_handle, uint8_t ha
 	if (!info.available_rings)
 		igt_info("SKIP ... as there's no ring for the sdma\n");
 
-	snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+	snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
+			pci->domain, pci->bus, pci->device, pci->function);
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
 	r = access(sysfs, R_OK);
 	if (!r) {
 		fp = popen(cmd, "r");
 		if (fp == NULL)
-			igt_skip("read the sysfs failed: %s \n",sysfs);
+			igt_skip("read the sysfs failed: %s\n", sysfs);
 
 		if (fgets(buffer, 128, fp) != NULL)
 			sched_mask = strtol(buffer, NULL, 16);
@@ -530,7 +537,7 @@ void amdgpu_hang_sdma_ring_helper(amdgpu_device_handle device_handle, uint8_t ha
 
 	/* recover the sched mask */
 	if (sched_mask > 1) {
-		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s",sched_mask, sysfs);
+		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s", sched_mask, sysfs);
 		r = system(cmd);
 		igt_assert_eq(r, 0);
 	}
