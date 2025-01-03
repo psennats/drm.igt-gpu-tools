@@ -6418,14 +6418,13 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 {
 	bool found = false;
 
-	igt_sort_connector_modes(connector, sort_drm_modes_by_res_dsc);
-	found = igt_bigjoiner_possible(drm_fd, &connector->modes[0], max_dotclock);
-	if (!found) {
-		igt_sort_connector_modes(connector, sort_drm_modes_by_clk_dsc);
-		found = igt_bigjoiner_possible(drm_fd, &connector->modes[0], max_dotclock);
+	for (int i=0; i< connector->count_modes; i++) {
+		if (igt_bigjoiner_possible(drm_fd, &connector->modes[i], max_dotclock)) {
+			*mode = connector->modes[i];
+			found = true;
+			break;
+		}
 	}
-	if (found)
-		*mode = connector->modes[0];
 	return found;
 }
 
@@ -6462,14 +6461,14 @@ bool ultrajoiner_mode_found(int drm_fd, drmModeConnector *connector,
 {
 	bool found = false;
 
-	igt_sort_connector_modes(connector, sort_drm_modes_by_res_dsc);
-	found = igt_ultrajoiner_possible(&connector->modes[0], max_dotclock);
-	if (!found) {
-		igt_sort_connector_modes(connector, sort_drm_modes_by_clk_dsc);
-		found = igt_ultrajoiner_possible(&connector->modes[0], max_dotclock);
+	for (int i = 0; i < connector->count_modes; i++) {
+		if (igt_ultrajoiner_possible(&connector->modes[i], max_dotclock)) {
+			*mode = connector->modes[i];
+			found = true;
+			break;
+		}
 	}
-	if (found)
-		*mode = connector->modes[0];
+
 	return found;
 }
 
