@@ -139,6 +139,9 @@ if libprocps.found()
   config.set('HAVE_LIBPROCPS', 1)
 elif libproc2.found()
   config.set('HAVE_LIBPROC2', 1)
+  if libproc2.version().version_compare('>= 4.0.5')
+    config.set('HAVE_LIBPROC2_POST_4_0_5_API', 1)
+  endif
 else
   error('Either libprocps or libproc2 is required')
 endif

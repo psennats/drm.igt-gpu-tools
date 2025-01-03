@@ -1358,10 +1358,17 @@ static bool get_process_ids(struct igt_process *prcs)
 	prcs->comm = NULL;
 	prcs->stack = procps_pids_get(prcs->info, PIDS_FETCH_TASKS_ONLY);
 	if (prcs->stack) {
+#if defined(HAVE_LIBPROC2_POST_4_0_5_API)
+		prcs->tid = PIDS_VAL(EU_PID, s_int, prcs->stack);
+		prcs->euid = PIDS_VAL(EU_EUID, s_int, prcs->stack);
+		prcs->egid = PIDS_VAL(EU_EGID, s_int, prcs->stack);
+		prcs->comm = PIDS_VAL(EU_CMD, str, prcs->stack);
+#else
 		prcs->tid = PIDS_VAL(EU_PID, s_int, prcs->stack, prcs->info);
 		prcs->euid = PIDS_VAL(EU_EUID, s_int, prcs->stack, prcs->info);
 		prcs->egid = PIDS_VAL(EU_EGID, s_int, prcs->stack, prcs->info);
 		prcs->comm = PIDS_VAL(EU_CMD, str, prcs->stack, prcs->info);
+#endif
 	}
 #endif
 	return prcs->tid != 0;
