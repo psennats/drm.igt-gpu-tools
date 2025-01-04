@@ -117,8 +117,11 @@ static void test_scaling_mode(data_t *data, uint32_t flags)
 	for_each_pipe_with_valid_output(display, pipe, output) {
 		igt_display_reset(display);
 
-		if (!has_scaling_mode(output))
+		if (!has_scaling_mode(output)) {
+			igt_info("%s: Doesn't support IGT_CONNECTOR_SCALING_MODE\n",
+				 igt_output_name(output));
 			continue;
+		}
 
 		igt_output_set_pipe(output, pipe);
 		if (!intel_pipe_output_combo_valid(display))
