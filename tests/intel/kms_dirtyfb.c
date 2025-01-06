@@ -102,21 +102,40 @@ static bool check_support(data_t *data)
 	case FEATURE_NONE:
 		return true;
 	case FEATURE_FBC:
-		if (!intel_fbc_supported_on_chipset(data->drm_fd, data->pipe))
+		if (!intel_fbc_supported_on_chipset(data->drm_fd, data->pipe)) {
+			igt_info("FBC is not supported on this chipset\n");
 			return false;
+		}
 
-		return intel_fbc_plane_size_supported(data->drm_fd,
-						      data->mode->hdisplay,
-						      data->mode->vdisplay);
+		if (!intel_fbc_plane_size_supported(data->drm_fd,
+						    data->mode->hdisplay,
+						    data->mode->vdisplay)) {
+			igt_info("Plane size not supported as per FBC size restrictions\n");
+			return false;
+		}
+		return true;
+
 	case FEATURE_PSR:
 		if (data->output->config.connector->connector_type !=
-		    DRM_MODE_CONNECTOR_eDP)
+		    DRM_MODE_CONNECTOR_eDP) {
+			igt_info("Output is not an eDP\n");
 			return false;
-		return psr_sink_support(data->drm_fd, data->debugfs_fd,
-					PSR_MODE_1, NULL);
+		}
+		if (!psr_sink_support(data->drm_fd, data->debugfs_fd,
+				      PSR_MODE_1, NULL)) {
+			igt_info("Output doesn't support PSR\n");
+			return false;
+		}
+		return true;
+
 	case FEATURE_DRRS:
-		return intel_is_drrs_supported(data->drm_fd, data->pipe) &&
-			intel_output_has_drrs(data->drm_fd, data->output);
+		if (!(intel_is_drrs_supported(data->drm_fd, data->pipe) &&
+		      intel_output_has_drrs(data->drm_fd, data->output))) {
+			igt_info("Output doesn't support DRRS\n");
+			return false;
+		}
+		return true;
+
 	case FEATURE_DEFAULT:
 		return true;
 	default:
