@@ -945,21 +945,21 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 
 	sync[0].handle = syncobj_create(fd, 0);
 	if (flags & BIND_ARRAY_ENOBUFS_FLAG) {
-		struct xe_cork *ctx = NULL;
+		struct xe_cork *cork;
 		uint32_t vm_cork;
 
 		vm_cork = xe_vm_create(fd, 0, 0);
-		ctx = xe_cork_create_opts(fd, eci, vm_cork, 1, 1);
-		xe_cork_sync_start(fd, ctx);
+		cork = xe_cork_create_opts(fd, eci, vm_cork, 1, 1);
+		xe_cork_sync_start(fd, cork);
 
-		sync[1].handle = ctx->sync[1].handle;
+		sync[1].handle = cork->sync[1].handle;
 		sync[1].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 
 		xe_vm_bind_array_err(fd, vm, bind_exec_queue, bind_ops,
 				     n_execs, sync, 2, ENOBUFS);
 		/* destroy queue before sampling again */
-		xe_cork_sync_end(fd, ctx);
-		xe_cork_destroy(fd, ctx);
+		xe_cork_sync_end(fd, cork);
+		xe_cork_destroy(fd, cork);
 		xe_vm_destroy(fd, vm_cork);
 
 		n_execs = n_execs / 4;

@@ -409,7 +409,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 {
 	struct pceu_cycles pceu1[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct xe_cork *ctx = NULL;
+	struct xe_cork *cork = NULL;
 	enum expected_load expected_load;
 	uint32_t vm;
 	int new_fd;
@@ -419,8 +419,8 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	vm = xe_vm_create(fd, 0, 0);
 	if (flags & TEST_BUSY) {
-		ctx = xe_cork_create_opts(fd, hwe, vm, 1, 1);
-		xe_cork_sync_start(fd, ctx);
+		cork = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+		xe_cork_sync_start(fd, cork);
 	}
 
 	read_engine_cycles(fd, pceu1[0]);
@@ -429,7 +429,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	usleep(batch_duration_usec);
 	if (flags & TEST_TRAILING_IDLE)
-		xe_cork_sync_end(fd, ctx);
+		xe_cork_sync_end(fd, cork);
 
 	read_engine_cycles(fd, pceu2[0]);
 	if (flags & TEST_ISOLATION)
@@ -448,8 +448,8 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 		close(new_fd);
 	}
 
-	if (flags & TEST_BUSY)
-		xe_cork_destroy(fd, ctx);
+	if (cork)
+		xe_cork_destroy(fd, cork);
 
 	xe_vm_destroy(fd, vm);
 }
@@ -459,19 +459,19 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct xe_cork *ctx = NULL;
+	struct xe_cork *cork;
 	uint32_t vm;
 
 	vm = xe_vm_create(fd, 0, 0);
-	ctx = xe_cork_create_opts(fd, hwe, vm, 1, 1);
-	xe_cork_sync_start(fd, ctx);
+	cork = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+	xe_cork_sync_start(fd, cork);
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
 
 	/* destroy queue before sampling again */
-	xe_cork_sync_end(fd, ctx);
-	xe_cork_destroy(fd, ctx);
+	xe_cork_sync_end(fd, cork);
+	xe_cork_destroy(fd, cork);
 
 	read_engine_cycles(fd, pceu2);
 
@@ -485,17 +485,17 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct xe_cork *ctx = NULL;
+	struct xe_cork *cork;
 	uint32_t vm;
 	int class;
 
 	vm = xe_vm_create(fd, 0, 0);
-	ctx = xe_cork_create_opts(fd, hwe, vm, 1, 1);
-	xe_cork_sync_start(fd, ctx);
+	cork = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+	xe_cork_sync_start(fd, cork);
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	xe_cork_sync_end(fd, ctx);
+	xe_cork_sync_end(fd, cork);
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
@@ -505,7 +505,7 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 		check_results(pceu1, pceu2, class, 1, expected_load);
 	}
 
-	xe_cork_destroy(fd, ctx);
+	xe_cork_destroy(fd, cork);
 	xe_vm_destroy(fd, vm);
 }
 
@@ -514,7 +514,7 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct xe_cork *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
+	struct xe_cork *cork[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
 	struct drm_xe_engine_class_instance *_hwe;
 	uint32_t vm;
 	int class;
@@ -525,17 +525,17 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 	xe_for_each_engine(fd, _hwe) {
 		int _class = _hwe->engine_class;
 
-		if (_class == hwe->engine_class || ctx[_class])
+		if (_class == hwe->engine_class || cork[_class])
 			continue;
-		ctx[_class] = xe_cork_create_opts(fd, _hwe, vm, 1, 1);
-		xe_cork_sync_start(fd, ctx[_class]);
+		cork[_class] = xe_cork_create_opts(fd, _hwe, vm, 1, 1);
+		xe_cork_sync_start(fd, cork[_class]);
 	}
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
 	xe_for_each_engine_class(class) {
-		if (ctx[class])
-			xe_cork_sync_end(fd, ctx[class]);
+		if (cork[class])
+			xe_cork_sync_end(fd, cork[class]);
 	}
 
 	read_engine_cycles(fd, pceu2);
@@ -544,11 +544,11 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 		enum expected_load expected_load = hwe->engine_class == class ?
 			EXPECTED_LOAD_IDLE : EXPECTED_LOAD_FULL;
 
-		if (!ctx[class])
+		if (!cork[class])
 			continue;
 
 		check_results(pceu1, pceu2, class, 1, expected_load);
-		xe_cork_destroy(fd, ctx[class]);
+		xe_cork_destroy(fd, cork[class]);
 	}
 
 	xe_vm_destroy(fd, vm);
@@ -559,7 +559,7 @@ utilization_all_full_load(int fd)
 {
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
-	struct xe_cork *ctx[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
+	struct xe_cork *cork[DRM_XE_ENGINE_CLASS_COMPUTE + 1] = {};
 	struct drm_xe_engine_class_instance *hwe;
 	uint32_t vm;
 	int class;
@@ -569,27 +569,27 @@ utilization_all_full_load(int fd)
 	/* spin on one hwe per class */
 	xe_for_each_engine(fd, hwe) {
 		class = hwe->engine_class;
-		if (ctx[class])
+		if (cork[class])
 			continue;
-		ctx[class] = xe_cork_create_opts(fd, hwe, vm, 1, 1);
-		xe_cork_sync_start(fd, ctx[class]);
+		cork[class] = xe_cork_create_opts(fd, hwe, vm, 1, 1);
+		xe_cork_sync_start(fd, cork[class]);
 	}
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
 	xe_for_each_engine_class(class) {
-		if (ctx[class])
-			xe_cork_sync_end(fd, ctx[class]);
+		if (cork[class])
+			xe_cork_sync_end(fd, cork[class]);
 	}
 
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
-		if (!ctx[class])
+		if (!cork[class])
 			continue;
 
 		check_results(pceu1, pceu2, class, 1, EXPECTED_LOAD_FULL);
-		xe_cork_destroy(fd, ctx[class]);
+		xe_cork_destroy(fd, cork[class]);
 	}
 
 	xe_vm_destroy(fd, vm);
@@ -616,7 +616,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 	struct pceu_cycles pceu[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu_spill[2][DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct drm_xe_engine_class_instance eci[XE_MAX_ENGINE_INSTANCE];
-	struct xe_cork *ctx = NULL;
+	struct xe_cork *cork = NULL;
 	enum expected_load expected_load;
 	int fd_spill, num_placements;
 	uint32_t vm;
@@ -642,8 +642,8 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 
 	vm = xe_vm_create(fd, 0, 0);
 	if (flags & TEST_BUSY) {
-		ctx = xe_cork_create_opts(fd, eci, vm, width, num_placements);
-		xe_cork_sync_start(fd, ctx);
+		cork = xe_cork_create_opts(fd, eci, vm, width, num_placements);
+		xe_cork_sync_start(fd, cork);
 	}
 
 	read_engine_cycles(fd, pceu[0]);
@@ -652,7 +652,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 
 	usleep(batch_duration_usec);
 	if (flags & TEST_TRAILING_IDLE)
-		xe_cork_sync_end(fd, ctx);
+		xe_cork_sync_end(fd, cork);
 
 	read_engine_cycles(fd, pceu[1]);
 	if (flags & TEST_ISOLATION)
@@ -672,8 +672,8 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 		close(fd_spill);
 	}
 
-	if (flags & TEST_BUSY)
-		xe_cork_destroy(fd, ctx);
+	if (cork)
+		xe_cork_destroy(fd, cork);
 
 	xe_vm_destroy(fd, vm);
 }

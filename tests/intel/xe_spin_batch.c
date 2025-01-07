@@ -384,25 +384,25 @@ static void exec_store(int fd, struct drm_xe_engine_class_instance *eci,
 
 static void run_spinner(int fd, struct drm_xe_engine_class_instance *eci)
 {
-	struct xe_cork *ctx = NULL;
+	struct xe_cork *cork;
 	uint32_t vm;
 	uint32_t ts_1, ts_2;
 	uint64_t ahnd;
 
 	vm = xe_vm_create(fd, 0, 0);
 	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);
-	ctx = xe_cork_create_opts(fd, eci, vm, 1, 1, .ahnd = ahnd);
-	xe_cork_sync_start(fd, ctx);
+	cork = xe_cork_create_opts(fd, eci, vm, 1, 1, .ahnd = ahnd);
+	xe_cork_sync_start(fd, cork);
 
 	/* Collect and check timestamps before stopping the spinner */
 	usleep(50000);
-	ts_1 = READ_ONCE(ctx->spin->timestamp);
+	ts_1 = READ_ONCE(cork->spin->timestamp);
 	usleep(50000);
-	ts_2 = READ_ONCE(ctx->spin->timestamp);
+	ts_2 = READ_ONCE(cork->spin->timestamp);
 	igt_assert_neq_u32(ts_1, ts_2);
 
-	xe_cork_sync_end(fd, ctx);
-	xe_cork_destroy(fd, ctx);
+	xe_cork_sync_end(fd, cork);
+	xe_cork_destroy(fd, cork);
 
 	xe_vm_destroy(fd, vm);
 	put_ahnd(ahnd);
