@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
  * Copyright © 2023 Intel Corporation
- *
- * Authors:
- *    Janga Rahul Kumar <janga.rahul.kumar@intel.com>
  */
 
 #include <fcntl.h>
