@@ -64,6 +64,117 @@ test_mmap(int fd, uint32_t placement, uint32_t flags)
 	gem_close(fd, bo);
 }
 
+#define PAGE_SIZE 4096
+
+/**
+ * SUBTEST: pci-membarrier
+ * Description: create pci memory barrier with write on defined mmap offset.
+ * Test category: functionality test
+ *
+ */
+static void test_pci_membarrier(int xe)
+{
+	uint64_t flags = MAP_SHARED;
+	unsigned int prot = PROT_WRITE;
+	uint32_t *ptr;
+	uint64_t size = PAGE_SIZE;
+	struct timespec tv;
+	struct drm_xe_gem_mmap_offset mmo = {
+		.handle = 0,
+		.flags = DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER,
+	};
+
+	do_ioctl(xe, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo);
+	ptr = mmap(NULL, size, prot, flags, xe, mmo.offset);
+	igt_assert(ptr != MAP_FAILED);
+
+	/* Check whole page for any errors, also check as
+	 * we should not read written values back
+	 */
+	for (int i = 0; i < size / sizeof(*ptr); i++) {
+		/* It is expected unconfigured doorbell space
+		 * will return read value 0xdeadbeef
+		 */
+		igt_assert_eq_u32(READ_ONCE(ptr[i]), 0xdeadbeef);
+
+		igt_gettime(&tv);
+		ptr[i] = i;
+		if (READ_ONCE(ptr[i]) == i) {
+			while (READ_ONCE(ptr[i]) == i)
+				;
+			igt_info("fd:%d value retained for %"PRId64"ns pos:%d\n",
+					xe, igt_nsec_elapsed(&tv), i);
+		}
+		igt_assert_neq(READ_ONCE(ptr[i]), i);
+	}
+
+	munmap(ptr, size);
+}
+
+/**
+ * SUBTEST: pci-membarrier-parallel
+ * Description: create parallel pci memory barrier with write on defined mmap offset.
+ * Test category: functionality test
+ *
+ */
+static void test_pci_membarrier_parallel(int xe, int child, unsigned int i)
+{
+	uint64_t flags = MAP_SHARED;
+	unsigned int prot = PROT_WRITE;
+	uint32_t *ptr;
+	uint64_t size = PAGE_SIZE;
+	struct drm_xe_gem_mmap_offset mmo = {
+		.handle = 0,
+		.flags = DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER,
+	};
+	int value;
+
+	do_ioctl(xe, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo);
+	ptr = mmap(NULL, size, prot, flags, xe, mmo.offset);
+	igt_assert(ptr != MAP_FAILED);
+
+	/* It is expected unconfigured doorbell space
+	 * will return read value 0xdeadbeef
+	 */
+	igt_assert_eq_u32(READ_ONCE(ptr[i]), 0xdeadbeef);
+
+	igt_until_timeout(5) {
+		/* Check clients should not be able to see each other */
+		if (child != -1) {
+			value = i + 1;
+			igt_assert_neq(READ_ONCE(ptr[i]), i);
+		} else {
+			value = i;
+			igt_assert_neq(READ_ONCE(ptr[i]), i + 1);
+		}
+
+		WRITE_ONCE(ptr[i], value);
+	}
+	igt_assert_eq_u32(READ_ONCE(ptr[i]), 0xdeadbeef);
+
+	munmap(ptr, size);
+}
+
+/**
+ * SUBTEST: pci-membarrier-bad-pagesize
+ * Description: Test mmap offset with bad pagesize for pci membarrier.
+ * Test category: negative test
+ *
+ */
+static void test_bad_pagesize_for_pcimem(int fd)
+{
+	uint32_t *map;
+	uint64_t page_size = PAGE_SIZE * 2;
+	struct drm_xe_gem_mmap_offset mmo = {
+		.handle = 0,
+		.flags = DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER,
+	};
+
+	do_ioctl(fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo);
+	map = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, fd, mmo.offset);
+	igt_assert(map == MAP_FAILED);
+}
+
 /**
  * SUBTEST: bad-flags
  * Description: Test mmap offset with bad flags.
@@ -124,6 +235,25 @@ static void test_bad_object(int fd)
 
 	mmo.handle = 0xdeadbeef;
 	do_ioctl_err(fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo, ENOENT);
+}
+
+/**
+ * SUBTEST: pci-membarrier-bad-object
+ * Description: Test mmap offset with bad object for pci mem barrier.
+ * Test category: negative test
+ *
+ */
+static void test_bad_object_for_pcimem(int fd)
+{
+	uint64_t size = xe_get_default_alignment(fd);
+	struct drm_xe_gem_mmap_offset mmo = {
+		.handle = xe_bo_create(fd, 0, size,
+				       vram_if_possible(fd, 0),
+				       DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM),
+		.flags = DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo, EINVAL);
 }
 
 static jmp_buf jmp;
@@ -260,6 +390,16 @@ static void test_cpu_caching(int fd)
 	assert_caching(fd, system_memory(fd), 0, DRM_XE_GEM_CPU_CACHING_WC + 1, true);
 }
 
+static bool is_pci_membarrier_supported(int fd)
+{
+	struct drm_xe_gem_mmap_offset mmo = {
+		.handle = 0,
+		.flags = DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER,
+	};
+
+	return (igt_ioctl(fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo) == 0);
+}
+
 igt_main
 {
 	int fd;
@@ -278,6 +418,33 @@ igt_main
 		test_mmap(fd, vram_memory(fd, 0) | system_memory(fd),
 			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
+	igt_subtest("pci-membarrier") {
+		igt_require(is_pci_membarrier_supported(fd));
+		test_pci_membarrier(fd);
+	}
+
+	igt_subtest("pci-membarrier-parallel") {
+		int xe;
+		unsigned int i;
+		uint32_t *ptr;
+
+		igt_require(is_pci_membarrier_supported(fd));
+		xe = drm_open_driver(DRIVER_XE);
+		srand(time(0));
+		i = rand() % (PAGE_SIZE / sizeof(*ptr));
+		igt_fork(child, 1)
+			test_pci_membarrier_parallel(xe, child, i);
+		test_pci_membarrier_parallel(fd, -1, i);
+		igt_waitchildren();
+
+		close(xe);
+	}
+
+	igt_subtest("pci-membarrier-bad-pagesize") {
+		igt_require(is_pci_membarrier_supported(fd));
+		test_bad_pagesize_for_pcimem(fd);
+	}
+
 	igt_subtest("bad-flags")
 		test_bad_flags(fd);
 
@@ -286,6 +453,11 @@ igt_main
 
 	igt_subtest("bad-object")
 		test_bad_object(fd);
+
+	igt_subtest("pci-membarrier-bad-object") {
+		igt_require(is_pci_membarrier_supported(fd));
+		test_bad_object_for_pcimem(fd);
+	}
 
 	igt_subtest("small-bar") {
 		igt_require(xe_visible_vram_size(fd, 0));
