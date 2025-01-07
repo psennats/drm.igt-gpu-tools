@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <math.h>
+
 #include "igt.h"
 #include "igt_core.h"
 #include "igt_device.h"
@@ -370,36 +372,43 @@ static void basic_engine_utilization(int xe)
 
 static void
 check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
-	      int class, int width, enum expected_load expected_load)
+	      int class, int width, uint32_t spin_stamp,
+	      enum expected_load expected_load)
 {
 	double percent;
-	u64 den, num;
+	uint64_t den, num;
 
 	igt_debug("%s: sample 1: cycles %"PRIu64", total_cycles %"PRIu64"\n",
 		  engine_map[class], s1[class].cycles, s1[class].total_cycles);
 	igt_debug("%s: sample 2: cycles %"PRIu64", total_cycles %"PRIu64"\n",
 		  engine_map[class], s2[class].cycles, s2[class].total_cycles);
+	igt_debug("spin_stamp: %u width: %d\n", spin_stamp, width);
 
 	num = s2[class].cycles - s1[class].cycles;
 	den = s2[class].total_cycles - s1[class].total_cycles;
+
 	percent = (num * 100.0) / (den + 1);
 
-	/* for parallel submission scale the busyness with width */
+	/* For parallel submission scale the busyness with width */
 	percent /= width;
 
-	igt_debug("%s: percent: %f\n", engine_map[class], percent);
+	igt_debug("%s: percent: %.2f%%\n", engine_map[class], percent);
 
 	switch (expected_load) {
 	case EXPECTED_LOAD_IDLE:
 		igt_assert_eq(num, 0);
 		break;
 	case EXPECTED_LOAD_FULL:
+		/* For parallel submission scale the busyness with width */
+		spin_stamp *= width;
+
 		/*
-		 * We are still relying on CPU sleep time and there could be
-		 * some imprecision when calculating the load. Use a 5% margin.
+		 * Percentage error between value saved by gpu in xe_spin and what
+		 * is reported via fdinfo
 		 */
-		igt_assert_lt_double(95.0, percent);
-		igt_assert_lt_double(percent, 105.0);
+		percent = fabs((int64_t)(num - spin_stamp) * 100.0) / (spin_stamp + 1);
+		igt_debug("%s: error: %.2f%%\n", engine_map[class], percent);
+		igt_assert_lt_double(percent, 5.0);
 		break;
 	}
 }
@@ -437,14 +446,17 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	expected_load = flags & TEST_BUSY ?
 	       EXPECTED_LOAD_FULL : EXPECTED_LOAD_IDLE;
-	check_results(pceu1[0], pceu2[0], hwe->engine_class, 1, expected_load);
+
+	check_results(pceu1[0], pceu2[0], hwe->engine_class, 1,
+		      cork ? cork->spin->timestamp : 0, expected_load);
 
 	if (flags & TEST_ISOLATION) {
 		/*
 		 * Load from one client shouldn't spill on another,
 		 * so check for idle
 		 */
-		check_results(pceu1[1], pceu2[1], hwe->engine_class, 1, EXPECTED_LOAD_IDLE);
+		check_results(pceu1[1], pceu2[1], hwe->engine_class, 1, 0,
+			      EXPECTED_LOAD_IDLE);
 		close(new_fd);
 	}
 
@@ -460,6 +472,7 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 	struct pceu_cycles pceu1[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct pceu_cycles pceu2[DRM_XE_ENGINE_CLASS_COMPUTE + 1];
 	struct xe_cork *cork;
+	uint32_t timestamp;
 	uint32_t vm;
 
 	vm = xe_vm_create(fd, 0, 0);
@@ -471,13 +484,15 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 
 	/* destroy queue before sampling again */
 	xe_cork_sync_end(fd, cork);
+	timestamp = cork->spin->timestamp;
 	xe_cork_destroy(fd, cork);
 
 	read_engine_cycles(fd, pceu2);
 
 	xe_vm_destroy(fd, vm);
 
-	check_results(pceu1, pceu2, hwe->engine_class, 1, EXPECTED_LOAD_FULL);
+	check_results(pceu1, pceu2, hwe->engine_class, 1, timestamp,
+		      EXPECTED_LOAD_FULL);
 }
 
 static void
@@ -502,7 +517,8 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 		enum expected_load expected_load = hwe->engine_class != class ?
 			EXPECTED_LOAD_IDLE : EXPECTED_LOAD_FULL;
 
-		check_results(pceu1, pceu2, class, 1, expected_load);
+		check_results(pceu1, pceu2, class, 1, cork->spin->timestamp,
+			      expected_load);
 	}
 
 	xe_cork_destroy(fd, cork);
@@ -547,7 +563,8 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 		if (!cork[class])
 			continue;
 
-		check_results(pceu1, pceu2, class, 1, expected_load);
+		check_results(pceu1, pceu2, class, 1, cork[class]->spin->timestamp,
+			      expected_load);
 		xe_cork_destroy(fd, cork[class]);
 	}
 
@@ -588,7 +605,9 @@ utilization_all_full_load(int fd)
 		if (!cork[class])
 			continue;
 
-		check_results(pceu1, pceu2, class, 1, EXPECTED_LOAD_FULL);
+		check_results(pceu1, pceu2, class, 1,
+			      cork[class]->spin->timestamp,
+			      EXPECTED_LOAD_FULL);
 		xe_cork_destroy(fd, cork[class]);
 	}
 
@@ -660,14 +679,16 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 
 	expected_load = flags & TEST_BUSY ?
 	       EXPECTED_LOAD_FULL : EXPECTED_LOAD_IDLE;
-	check_results(pceu[0], pceu[1], class, width, expected_load);
+
+	check_results(pceu[0], pceu[1], class, width,
+		      cork ? cork->spin->timestamp : 0, expected_load);
 
 	if (flags & TEST_ISOLATION) {
 		/*
 		 * Load from one client shouldn't spill on another,
 		 * so check for idle
 		 */
-		check_results(pceu_spill[0], pceu_spill[1], class, width,
+		check_results(pceu_spill[0], pceu_spill[1], class, width, 0,
 			      EXPECTED_LOAD_IDLE);
 		close(fd_spill);
 	}
