@@ -423,6 +423,8 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 	uint32_t vm;
 	int new_fd;
 
+	igt_debug("Target class: %s\n", engine_map[hwe->engine_class]);
+
 	if (flags & TEST_ISOLATION)
 		new_fd = drm_reopen_driver(fd);
 
@@ -475,6 +477,8 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 	uint32_t timestamp;
 	uint32_t vm;
 
+	igt_debug("Target class: %s\n", engine_map[hwe->engine_class]);
+
 	vm = xe_vm_create(fd, 0, 0);
 	cork = xe_cork_create_opts(fd, hwe, vm, 1, 1);
 	xe_cork_sync_start(fd, cork);
@@ -503,6 +507,8 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 	struct xe_cork *cork;
 	uint32_t vm;
 	int class;
+
+	igt_debug("Target class: %s\n", engine_map[hwe->engine_class]);
 
 	vm = xe_vm_create(fd, 0, 0);
 	cork = xe_cork_create_opts(fd, hwe, vm, 1, 1);
@@ -535,6 +541,8 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 	uint32_t vm;
 	int class;
 
+	igt_debug("Target class: %s\n", engine_map[hwe->engine_class]);
+
 	vm = xe_vm_create(fd, 0, 0);
 
 	/* spin on one hwe per class except the target class hwes */
@@ -543,6 +551,7 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 
 		if (_class == hwe->engine_class || cork[_class])
 			continue;
+
 		cork[_class] = xe_cork_create_opts(fd, _hwe, vm, 1, 1);
 		xe_cork_sync_start(fd, cork[_class]);
 	}
@@ -560,12 +569,12 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 		enum expected_load expected_load = hwe->engine_class == class ?
 			EXPECTED_LOAD_IDLE : EXPECTED_LOAD_FULL;
 
-		if (!cork[class])
-			continue;
-
-		check_results(pceu1, pceu2, class, 1, cork[class]->spin->timestamp,
+		check_results(pceu1, pceu2, class, 1,
+			      cork[class] ? cork[class]->spin->timestamp : 0,
 			      expected_load);
-		xe_cork_destroy(fd, cork[class]);
+
+		if (cork[class])
+			xe_cork_destroy(fd, cork[class]);
 	}
 
 	xe_vm_destroy(fd, vm);
@@ -648,6 +657,8 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 	num_placements = xe_gt_fill_engines_by_class(fd, gt, class, eci);
 	if (num_placements < 2)
 		return;
+
+	igt_debug("Target class: %s\n", engine_map[class]);
 
 	if (parallel) {
 		width = num_placements;
