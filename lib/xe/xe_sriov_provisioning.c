@@ -6,6 +6,8 @@
 #include <errno.h>
 
 #include "igt_core.h"
+#include "igt_debugfs.h"
+#include "igt_sriov_device.h"
 #include "intel_chipset.h"
 #include "linux_scaffold.h"
 #include "xe/xe_mmio.h"
@@ -295,4 +297,61 @@ bool xe_sriov_is_shared_res_provisionable(int pf, enum xe_sriov_shared_res res,
 		return !xe_is_media_gt(pf, gt_num);
 
 	return true;
+}
+
+/**
+ * __xe_sriov_pf_get_provisioned_quota - Get VF's provisioned quota.
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based)
+ * @gt_num: GT number
+ * @value: Pointer to store the read value
+ *
+ * Gets VF's provisioning value for the specified shared resource @res,
+ * VF number @vf_num and GT number @gt_num.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int __xe_sriov_pf_get_provisioned_quota(int pf, enum xe_sriov_shared_res res,
+					unsigned int vf_num, unsigned int gt_num,
+					uint64_t *value)
+{
+	struct xe_sriov_provisioned_range *ranges;
+	int ret;
+
+	ret = xe_sriov_pf_debugfs_read_check_ranges(pf, res, gt_num, &ranges,
+						    igt_sriov_get_enabled_vfs(pf));
+	if (igt_debug_on_f(ret, "%s: Failed ranges check on GT%u (%d)\n",
+			   xe_sriov_debugfs_provisioned_attr_name(res), gt_num, ret))
+		return ret;
+
+	*value = ranges[vf_num - 1].end - ranges[vf_num - 1].start + 1;
+
+	free(ranges);
+
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_get_provisioned_quota - Get VF's provisioned quota.
+ * @pf: PF device file descriptor
+ * @res: Shared resource type (see enum xe_sriov_shared_res)
+ * @vf_num: VF number (1-based)
+ * @gt_num: GT number
+ *
+ * A throwing version of __xe_sriov_pf_get_provisioned_quota().
+ * Instead of returning an error code, it returns the quota value and asserts
+ * in case of an error.
+ *
+ * Return: The provisioned quota for the given shared resource.
+ *         Asserts in case of failure.
+ */
+uint64_t xe_sriov_pf_get_provisioned_quota(int pf, enum xe_sriov_shared_res res,
+					   unsigned int vf_num, unsigned int gt_num)
+{
+	uint64_t value;
+
+	igt_fail_on(__xe_sriov_pf_get_provisioned_quota(pf, res, vf_num, gt_num, &value));
+
+	return value;
 }
