@@ -176,13 +176,13 @@ int xe_gt_stats_get_count(int fd, int gt, const char *stat)
 }
 
 /**
- * xe_is_gt_in_c6:
+ * xe_gt_is_in_c6:
  * @fd: pointer to xe drm fd
  * @gt: gt number
  *
  * Check if GT is in C6 state
  */
-bool xe_is_gt_in_c6(int fd, int gt)
+bool xe_gt_is_in_c6(int fd, int gt)
 {
 	char gt_c_state[16];
 	int gt_fd;
