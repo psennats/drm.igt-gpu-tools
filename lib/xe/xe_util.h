@@ -47,11 +47,4 @@ void xe_bind_unbind_async(int fd, uint32_t vm, uint32_t bind_engine,
 			  struct igt_list_head *obj_list,
 			  uint32_t sync_in, uint32_t sync_out);
 
-bool xe_is_gt_in_c6(int fd, int gt);
-
-int xe_gt_fill_engines_by_class(int fd, int gt, int class,
-				struct drm_xe_engine_class_instance eci[static XE_MAX_ENGINE_INSTANCE]);
-int xe_gt_count_engines_by_class(int fd, int gt, int class);
-
-
 #endif /* XE_UTIL_H */

@@ -8,11 +8,12 @@
 #include "igt_device.h"
 #include "igt_drm_fdinfo.h"
 #include "lib/igt_syncobj.h"
+
 #include "xe_drm.h"
+#include "xe/xe_gt.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"
-#include "xe/xe_util.h"
 
 /**
  * TEST: xe drm fdinfo

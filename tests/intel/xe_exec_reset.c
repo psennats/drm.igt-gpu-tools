@@ -21,8 +21,8 @@
 
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
+#include "xe/xe_gt.h"
 #include "xe/xe_spin.h"
-#include "xe/xe_util.h"
 #include <string.h>
 
 #define SYNC_OBJ_SIGNALED	(0x1 << 0)
