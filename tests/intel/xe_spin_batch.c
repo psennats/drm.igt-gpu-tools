@@ -277,7 +277,7 @@ static void xe_spin_fixed_duration(int fd, int gt, int class, int flags)
 	xe_vm_bind_sync(fd, vm, bo, 0, spin_addr, bo_size);
 	xe_spin_init_opts(spin, .addr = spin_addr,
 				.preempt = true,
-				.ctx_ticks = duration_to_ctx_ticks(fd, 0, duration_ns));
+				.ctx_ticks = xe_spin_nsec_to_ticks(fd, 0, duration_ns));
 	exec.address = spin_addr;
 	exec.exec_queue_id = exec_queue;
 

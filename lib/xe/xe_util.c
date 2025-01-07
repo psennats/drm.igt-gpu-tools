@@ -4,9 +4,11 @@
  */
 
 #include "igt.h"
+#include "igt_core.h"
 #include "igt_syncobj.h"
 #include "igt_sysfs.h"
 #include "intel_pat.h"
+
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_util.h"
@@ -234,4 +236,42 @@ void xe_bind_unbind_async(int xe, uint32_t vm, uint32_t bind_engine,
 	}
 
 	free(bind_ops);
+}
+
+static uint32_t reference_clock(int fd, int gt_id)
+{
+	struct xe_device *dev = xe_device_get(fd);
+	uint32_t refclock;
+
+	igt_assert(dev && dev->gt_list && dev->gt_list->num_gt);
+	igt_assert(gt_id >= 0 && gt_id <= dev->gt_list->num_gt);
+
+	refclock = dev->gt_list->gt_list[gt_id].reference_clock;
+
+	igt_assert_lt(0, refclock);
+
+	return refclock;
+}
+
+static uint64_t div64_u64_round_up(const uint64_t x, const uint64_t y)
+{
+	igt_assert(y > 0);
+	igt_assert_lte_u64(x, UINT64_MAX - (y - 1));
+
+	return (x + y - 1) / y;
+}
+
+/**
+ * xe_nsec_to_ticks: convert time in nanoseconds to timestamp ticks
+ * @fd: opened device
+ * @gt_id: tile id
+ * @nsec: time in nanoseconds
+ *
+ * Return: Time converted to context timestamp ticks.
+ */
+uint32_t xe_nsec_to_ticks(int fd, int gt_id, uint64_t nsec)
+{
+	uint32_t refclock = reference_clock(fd, gt_id);
+
+	return div64_u64_round_up(nsec * refclock, NSEC_PER_SEC);
 }

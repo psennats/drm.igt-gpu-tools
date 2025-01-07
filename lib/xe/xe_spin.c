@@ -13,43 +13,12 @@
 #include "igt_core.h"
 #include "igt_syncobj.h"
 #include "intel_reg.h"
+
 #include "xe_ioctl.h"
 #include "xe_spin.h"
+#include "xe_util.h"
 
-static uint32_t read_timestamp_frequency(int fd, int gt_id)
-{
-	struct xe_device *dev = xe_device_get(fd);
-
-	igt_assert(dev && dev->gt_list && dev->gt_list->num_gt);
-	igt_assert(gt_id >= 0 && gt_id <= dev->gt_list->num_gt);
-
-	return dev->gt_list->gt_list[gt_id].reference_clock;
-}
-
-static uint64_t div64_u64_round_up(const uint64_t x, const uint64_t y)
-{
-	igt_assert(y > 0);
-	igt_assert_lte_u64(x, UINT64_MAX - (y - 1));
-
-	return (x + y - 1) / y;
-}
-
-/**
- * duration_to_ctx_ticks:
- * @fd: opened device
- * @gt_id: tile id
- * @duration_ns: duration in nanoseconds to be converted to context timestamp ticks
- * @return: duration converted to context timestamp ticks.
- */
-uint32_t duration_to_ctx_ticks(int fd, int gt_id, uint64_t duration_ns)
-{
-	uint32_t f = read_timestamp_frequency(fd, gt_id);
-	uint64_t ctx_ticks = div64_u64_round_up(duration_ns * f, NSEC_PER_SEC);
-
-	igt_assert_lt_u64(ctx_ticks, XE_SPIN_MAX_CTX_TICKS);
-
-	return ctx_ticks;
-}
+#define XE_SPIN_MAX_CTX_TICKS (UINT32_MAX - 1000)
 
 #define MI_SRM_CS_MMIO				(1 << 19)
 #define MI_LRI_CS_MMIO				(1 << 19)
@@ -59,6 +28,16 @@ uint32_t duration_to_ctx_ticks(int fd, int gt_id, uint64_t duration_ns)
 #define CS_GPR(x) (0x600 + 8 * (x))
 
 enum { START_TS, NOW_TS };
+
+
+uint32_t xe_spin_nsec_to_ticks(int fd, int gt_id, uint64_t nsec)
+{
+	uint32_t ticks = xe_nsec_to_ticks(fd, gt_id, nsec);
+
+	igt_assert_lt_u64(ticks, XE_SPIN_MAX_CTX_TICKS);
+
+	return ticks;
+}
 
 /**
  * xe_spin_init:

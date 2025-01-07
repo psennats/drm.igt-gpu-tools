@@ -15,8 +15,6 @@
 #include "xe_query.h"
 #include "lib/igt_dummyload.h"
 
-#define XE_SPIN_MAX_CTX_TICKS (UINT32_MAX - 1000)
-
 /** struct xe_spin_opts
  *
  * @addr: offset of spinner within vm
@@ -68,7 +66,6 @@ struct xe_cork {
 };
 
 igt_spin_t *xe_spin_create(int fd, const struct igt_spin_factory *opt);
-uint32_t duration_to_ctx_ticks(int fd, int gt_id, uint64_t ns);
 void xe_spin_init(struct xe_spin *spin, struct xe_spin_opts *opts);
 struct xe_cork *
 xe_cork_create(int fd, struct drm_xe_engine_class_instance *hwe, uint32_t vm,
@@ -81,6 +78,8 @@ void xe_cork_destroy(int fd, struct xe_cork *ctx);
 
 #define xe_spin_init_opts(fd, ...) \
 	xe_spin_init(fd, &((struct xe_spin_opts){__VA_ARGS__}))
+
+uint32_t xe_spin_nsec_to_ticks(int fd, int gt_id, uint64_t nsec);
 
 bool xe_spin_started(struct xe_spin *spin);
 void xe_spin_sync_wait(int fd, struct igt_spin *spin);

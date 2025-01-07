@@ -47,4 +47,6 @@ void xe_bind_unbind_async(int fd, uint32_t vm, uint32_t bind_engine,
 			  struct igt_list_head *obj_list,
 			  uint32_t sync_in, uint32_t sync_out);
 
+uint32_t xe_nsec_to_ticks(int fd, int gt_id, uint64_t ns);
+
 #endif /* XE_UTIL_H */

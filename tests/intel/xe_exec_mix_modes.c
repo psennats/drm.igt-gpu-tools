@@ -22,6 +22,7 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"
+#include "xe/xe_util.h"
 #include <string.h>
 
 #define FLAG_EXEC_MODE_LR	(0x1 << 0)
@@ -132,7 +133,7 @@ run_job(int fd, struct drm_xe_engine_class_instance *hwe,
 
 	if (job_type == SPINNER_INTERRUPTED) {
 		spin_opts.addr = addr + (char *)&data[SPIN_DATA].spin - (char *)data;
-		spin_opts.ctx_ticks = duration_to_ctx_ticks(fd, 0, duration_ns);
+		spin_opts.ctx_ticks = xe_spin_nsec_to_ticks(fd, 0, duration_ns);
 		xe_spin_init(&data[SPIN_DATA].spin, &spin_opts);
 		if (engine_execution_mode == EXEC_MODE_LR)
 			sync[0].addr = addr + (char *)&data[SPIN_DATA].exec_sync - (char *)data;
