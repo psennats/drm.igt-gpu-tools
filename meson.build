@@ -197,7 +197,7 @@ else
 	chamelium = disabler()
 endif
 
-libghe = dependency('libghe', required : false)
+libghe = dependency('libghe', version : '>=0.2.0', required : false)
 if libghe.found()
       config.set('HAVE_LIBGHE', 1)
 endif
