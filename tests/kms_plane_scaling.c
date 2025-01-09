@@ -1577,6 +1577,12 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 								       kmstest_pipe_name(pipe), igt_output_name(output))
 								intel_max_source_size_test(&data, pipe, output, mode,
 											   intel_paramtests[index].planesize);
+						} else {
+							igt_info("Unable to find the lowest " \
+								 "refresh rate mode on output " \
+								 "%s pipe %s\n",
+								 igt_output_name(output),
+								 kmstest_pipe_name(pipe));
 						}
 						continue;
 					}
