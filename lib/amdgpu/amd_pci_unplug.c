@@ -238,6 +238,8 @@ amdgpu_nop_cs(void *handle)
 	ibs_request.ibs = &ib_info;
 	ibs_request.resources = bo_list;
 
+	sem_post(&unplug->semaphore);
+
 	while (unplug->do_cs)
 		amdgpu_cs_submit(context, 0, &ibs_request, 1);
 
@@ -263,11 +265,12 @@ amdgpu_create_cs_thread(struct amd_pci_unplug *unplug)
 
 	unplug->do_cs = true;
 
-	r = pthread_create(thread, NULL, &amdgpu_nop_cs, unplug);
+	r = sem_init(&unplug->semaphore, 0, 0);
 	igt_assert_eq(r, 0);
 
-	/* Give thread enough time to start*/
-	usleep(1000000);
+	r = pthread_create(thread, NULL, &amdgpu_nop_cs, unplug);
+	igt_assert_eq(r, 0);
+	sem_wait(&unplug->semaphore);
 	return thread;
 }
 
@@ -277,6 +280,7 @@ amdgpu_wait_cs_thread(struct amd_pci_unplug *unplug, pthread_t *thread)
 	unplug->do_cs = false;
 
 	pthread_join(*thread, NULL);
+	sem_destroy(&unplug->semaphore);
 	free(thread);
 }
 

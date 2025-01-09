@@ -24,6 +24,8 @@
 #ifndef AMD_PCI_UNPLUG_H
 #define AMD_PCI_UNPLUG_H
 
+#include <semaphore.h>
+
 #include <amdgpu.h>
 #include <amdgpu_drm.h>
 #include "amd_ip_blocks.h"
@@ -42,6 +44,7 @@ struct amd_pci_unplug {
 	amdgpu_device_handle device_handle;
 	amdgpu_device_handle device_handle2;
 	volatile bool do_cs;
+	sem_t		semaphore;
 };
 
 void
