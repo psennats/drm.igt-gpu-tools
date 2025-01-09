@@ -2248,18 +2248,9 @@ static void bind_flag_invalid(int fd)
 }
 
 /**
- * TEST: Negative test for vm create/destroy ioctl
- * Category: Core
- * Mega feature: General Core features
- * Sub-category: Synchronization
- * Functionality: vm create
- * Test category: negative test
- */
-
-/**
  * SUBTEST: invalid-flag-%s
  * Description:  function %arg[1] used in vm create IOCTL to make it fail
- * Functionality: fault
+ * Functionality: ioctl_input_validation
  *
  * arg[1]:
  * @xe_vm_create_fault:  xe_vm_create_fault
@@ -2279,9 +2270,11 @@ static void invalid_flag(int fd, __u32 flags)
 /**
  * SUBTEST: invalid-extensions
  * Description: Check query with invalid extensions returns expected error code
+ * Functionality: ioctl_input_validation
  *
  * SUBTEST: vm-create-invalid-reserved
  * Description: Send query with invalid reserved value for vm_create ioctl
+ * Functionality: ioctl_input_validation
  */
 
 static void invalid_extensions(int fd)
@@ -2309,12 +2302,15 @@ static void vm_create_invalid_reserved(int fd)
 /**
  * SUBTEST: vm-destroy-invalid-reserved
  * Description: Send query with invalid reserved value for vm_destroy ioctl
+ * Functionality: ioctl_input_validation
  *
  * SUBTEST: invalid-pad
  * Description: Check query with invalid pad returns expected error code
+ * Functionality: ioctl_input_validation
  *
  * SUBTEST: invalid-vm-id
  * Description: Check query with invalid vm_id returns expected error code
+ * Functionality: ioctl_input_validation
  */
 
 static void vm_destroy_invalid_reserved(int fd)
