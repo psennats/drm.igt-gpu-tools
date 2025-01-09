@@ -419,12 +419,12 @@ static void test_suspend_resume_edid_change(chamelium_data_t *data,
 	chamelium_reset_state(&data->display, data->chamelium, port,
 			      data->ports, data->port_count);
 
-	/* Catch the event and flush all remaining ones. */
-	igt_assert(igt_hotplug_detected(mon, CHAMELIUM_HOTPLUG_TIMEOUT));
 	igt_flush_uevents(mon);
 
 	/* First plug in the port */
 	chamelium_set_edid(data, port, edid);
+	igt_assert(chamelium_reprobe_connector(&data->display, data->chamelium,
+		   port) == DRM_MODE_DISCONNECTED);
 	chamelium_plug(data->chamelium, port);
 	igt_assert(igt_hotplug_detected(mon, CHAMELIUM_HOTPLUG_TIMEOUT));
 
