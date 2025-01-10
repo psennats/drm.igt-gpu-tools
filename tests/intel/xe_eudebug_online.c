@@ -2235,6 +2235,11 @@ static int find_suitable_engines(struct drm_xe_engine_class_instance **hwes,
 	return engine_count;
 }
 
+static uint64_t timespecs_diff_us(struct timespec *ts1, struct timespec *ts2)
+{
+	return (uint64_t)(fabs(igt_time_elapsed(ts1, ts2)) * USEC_PER_SEC);
+}
+
 /**
  * SUBTEST: breakpoint-many-sessions-single-tile
  * Description:
@@ -2255,7 +2260,7 @@ static void test_many_sessions_on_tiles(int fd, bool multi_tile)
 	struct online_debug_data **data;
 	struct drm_xe_engine_class_instance **hwe;
 	struct drm_xe_eudebug_event_eu_attention *eus;
-	uint64_t current_t, next_t, diff;
+	uint64_t diff;
 	int attempt_mask = 0, final_mask, should_break;
 	int i;
 
@@ -2318,10 +2323,8 @@ static void test_many_sessions_on_tiles(int fd, bool multi_tile)
 	igt_assert_eq(attempt_mask, final_mask);
 
 	for (i = 0; i < n - 1; i++) {
-		/* Convert timestamps to microseconds */
-		current_t = data[i]->exception_arrived.tv_nsec * 1000;
-		next_t = data[i + 1]->exception_arrived.tv_nsec * 1000;
-		diff = current_t < next_t ? next_t - current_t : current_t - next_t;
+		diff = timespecs_diff_us(&data[i]->exception_arrived,
+					 &data[i + 1]->exception_arrived);
 
 		if (multi_tile)
 			igt_assert_f(diff < WORKLOAD_DELAY_US,
