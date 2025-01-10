@@ -1,28 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
-/**********************************************************
- * Copyright 2021-2022 VMware, Inc.
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- **********************************************************/
+/*
+ * Copyright (c) 2021-2025 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
+ */
 
 #include "igt_vmwgfx.h"
 
@@ -271,12 +251,10 @@ static void execbuf_stress_test(int fd)
 igt_main_args("st:", long_options, NULL, parse_options, NULL)
 {
 	int fd;
-	int32 cid;
 
 	igt_fixture
 	{
 		fd = drm_open_driver_render(DRIVER_VMWGFX);
-		cid = vmw_ioctl_context_create(fd);
 	}
 
 	igt_describe("Test creation/mapping of a basic mob.");
@@ -294,7 +272,11 @@ igt_main_args("st:", long_options, NULL, parse_options, NULL)
 	igt_describe("Test basic fencing on command buffers.");
 	igt_subtest("execution-buffer-submit-sync")
 	{
+		int32 cid;
+
+		cid = vmw_ioctl_context_create(fd);
 		check_execbuf_submit_fence(fd, cid);
+		vmw_ioctl_context_destroy(fd, cid);
 	}
 
 	if (options.stress_test) {
@@ -307,7 +289,6 @@ igt_main_args("st:", long_options, NULL, parse_options, NULL)
 
 	igt_fixture
 	{
-		vmw_ioctl_context_destroy(fd, cid);
 		drm_close_driver(fd);
 	}
 }

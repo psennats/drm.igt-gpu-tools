@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (c) 2021-2024 Broadcom. All Rights Reserved. The term
+ * Copyright (c) 2021-2025 Broadcom. All Rights Reserved. The term
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  */
 
@@ -173,6 +173,11 @@ uint64 vmw_ioctl_get_param(int fd, uint32 param)
 	if (ret)
 		fprintf(stderr, "IOCTL failed %d: %s\n", ret, strerror(-ret));
 	return arg.value;
+}
+
+static inline uint64 vmw_supports_3d(int fd)
+{
+	return vmw_ioctl_get_param(fd, DRM_VMW_PARAM_3D);
 }
 
 void vmw_ioctl_get_3d_cap(int fd, uint64 buffer, uint32 max_size)
@@ -444,6 +449,9 @@ struct vmw_surface *vmw_ioctl_create_surface_full(
 	struct vmw_surface *surface;
 	int32 ret;
 	union drm_vmw_gb_surface_create_ext_arg arg = { 0 };
+
+	/* Surface creation will fail if 3d is not supported. */
+	igt_require(vmw_supports_3d(fd));
 
 	surface = calloc(1, sizeof(struct vmw_surface));
 	if (!surface)
@@ -721,6 +729,8 @@ int32 vmw_ioctl_context_create(int drm_fd)
 	int ret;
 	union drm_vmw_extended_context_arg arg = { 0 };
 
+	/* Context creation will fail if 3d is not supported. */
+	igt_require(vmw_supports_3d(drm_fd));
 	arg.req = drm_vmw_context_dx;
 
 	do {
