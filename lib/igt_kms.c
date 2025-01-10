@@ -6396,7 +6396,8 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 	bool found = false;
 
 	for (int i=0; i< connector->count_modes; i++) {
-		if (igt_bigjoiner_possible(drm_fd, &connector->modes[i], max_dotclock)) {
+		if (igt_bigjoiner_possible(drm_fd, &connector->modes[i], max_dotclock) &&
+		    !igt_ultrajoiner_possible(&connector->modes[i], max_dotclock)) {
 			*mode = connector->modes[i];
 			found = true;
 			break;
