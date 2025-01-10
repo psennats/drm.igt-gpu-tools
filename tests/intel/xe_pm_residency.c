@@ -289,10 +289,14 @@ static void measure_power(struct igt_power *gpu, double *power)
 static void toggle_gt_c6(int fd, int n)
 {
 	double gt_c0_power, gt_c6_power;
-	int gt;
+	int gt, ret;
 	struct igt_power gpu;
 
-	igt_power_open(fd, &gpu, "gpu");
+	/*
+	 * igt_power_get_mW will always return 0 if igt_power_open fails,
+	 * so skip the power check in this case.
+	 */
+	ret = igt_power_open(fd, &gpu, "gpu");
 
 	do {
 		fw_handle = igt_debugfs_open(fd, "forcewake_all", O_RDONLY);
@@ -319,7 +323,7 @@ static void toggle_gt_c6(int fd, int n)
 	igt_info("GPU consumed %fmW in GT C6 and %fmW in GT C0\n", gt_c6_power, gt_c0_power);
 
 	/* FIXME: Remove dgfx check after hwmon is added */
-	if (!xe_has_vram(fd))
+	if (!(xe_has_vram(fd) || ret))
 		igt_assert_f(gt_c6_power < gt_c0_power,
 			     "Power consumed in GT C6 should be lower than GT C0\n");
 }
