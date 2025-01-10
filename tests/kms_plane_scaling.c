@@ -1271,15 +1271,26 @@ static drmModeModeInfo *find_mode(data_t *data, igt_output_t *output, const stru
  *		max_dst_h = 8192
  */
 static void intel_max_source_size_test(data_t *d, enum pipe pipe, igt_output_t *output,
-				       drmModeModeInfo *mode, const uint32_t planesize[])
+				       const struct invalid_paramtests *param)
 {
 	igt_fb_t fb;
 	igt_plane_t *plane;
 	int rval;
+	drmModeModeInfo *mode = NULL;
 
 	cleanup_crtc(d);
 
 	igt_output_set_pipe(output, pipe);
+
+	/*
+	 * Need to get the mode again, because it may have changed
+	 * after setting the pipe.
+	 */
+	mode = find_mode(d, output, param);
+	igt_assert(mode);
+	if (!mode)
+		return;
+
 	igt_output_override_mode(output, mode);
 	plane = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
 
@@ -1290,7 +1301,7 @@ static void intel_max_source_size_test(data_t *d, enum pipe pipe, igt_output_t *
 
 	igt_plane_set_position(plane, 0, 0);
 	igt_plane_set_fb(plane, &fb);
-	igt_plane_set_size(plane, planesize[0], planesize[1]);
+	igt_plane_set_size(plane, param->planesize[0], param->planesize[1]);
 
 	rval = igt_display_try_commit2(&d->display, COMMIT_ATOMIC);
 
@@ -1563,27 +1574,23 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 				igt_require_intel(data.drm_fd);
 				for_each_pipe(&data.display, pipe) {
 					for_each_valid_output_on_pipe(&data.display, pipe, output) {
-						drmModeModeInfo *mode = NULL;
-
 						if (get_num_scalers(&data.display, pipe) < 1)
 							continue;
 						/*
 						 * Need to find mode with lowest vrefresh else
 						 * we can exceed cdclk limits.
 						 */
-						mode = find_mode(&data, output, &intel_paramtests[index]);
-						if (mode) {
+						if (find_mode(&data, output, &intel_paramtests[index]))
 							igt_dynamic_f("pipe-%s-%s",
-								       kmstest_pipe_name(pipe), igt_output_name(output))
-								intel_max_source_size_test(&data, pipe, output, mode,
-											   intel_paramtests[index].planesize);
-						} else {
+								      kmstest_pipe_name(pipe), igt_output_name(output))
+								intel_max_source_size_test(&data, pipe, output,
+											   &intel_paramtests[index]);
+						else
 							igt_info("Unable to find the lowest " \
 								 "refresh rate mode on output " \
 								 "%s pipe %s\n",
 								 igt_output_name(output),
 								 kmstest_pipe_name(pipe));
-						}
 						continue;
 					}
 					break;
