@@ -71,6 +71,9 @@
  * SUBTEST: invalid-modeset-force-ultra-joiner
  * Description: Verify if the modeset on the other pipes are rejected when
  *              the pipe A is active with force ultra joiner modeset.
+ *
+ * SUBTEST: switch-modeset-ultra-joiner-big-joiner
+ * Description: Verify switching between ultra joiner and big joiner modeset.
  */
 IGT_TEST_DESCRIPTION("Test joiner / force joiner");
 
@@ -159,6 +162,85 @@ static enum pipe setup_pipe(data_t *data, igt_output_t *output, enum pipe pipe, 
 	igt_output_set_pipe(output, pipe);
 
 	return master_pipe;
+}
+
+static void set_joiner_mode(data_t *data, igt_output_t *output, drmModeModeInfo *mode)
+{
+	igt_plane_t *primary;
+	igt_fb_t fb;
+
+	igt_info("Committing joiner mode for output %s with mode %dx%d@%d\n",
+		  output->name, mode->hdisplay, mode->vdisplay, mode->vrefresh);
+
+	igt_output_set_pipe(output, PIPE_A);
+	igt_output_override_mode(output, mode);
+	primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
+	igt_create_pattern_fb(data->drm_fd, mode->hdisplay, mode->vdisplay, DRM_FORMAT_XRGB8888,
+			      DRM_FORMAT_MOD_LINEAR, &fb);
+	igt_plane_set_fb(primary, &fb);
+	igt_display_commit2(&data->display, COMMIT_ATOMIC);
+
+	igt_display_reset(&data->display);
+	igt_reset_connectors();
+	igt_plane_set_fb(primary, NULL);
+	igt_remove_fb(data->drm_fd, &fb);
+}
+
+static void switch_modeset_ultra_joiner_big_joiner(data_t *data, igt_output_t *output)
+{
+	drmModeModeInfo bj_mode;
+	drmModeModeInfo uj_mode;
+	int status;
+	bool ultrajoiner_found;
+	enum pipe pipe;
+	bool force_joiner_supported;
+
+	drmModeConnector *connector = output->config.connector;
+
+	ultrajoiner_found = ultrajoiner_mode_found(data->drm_fd, connector, max_dotclock, &uj_mode);
+	force_joiner_supported = igt_has_force_joiner_debugfs(data->drm_fd, output->name) &&
+				 is_dsc_supported_by_sink(data->drm_fd, output);
+
+	if (ultrajoiner_found) {
+		igt_output_override_mode(output, &uj_mode);
+	} else if (force_joiner_supported) {
+		status = kmstest_force_connector_joiner(data->drm_fd, output->config.connector,
+							JOINED_PIPES_ULTRA_JOINER);
+		igt_assert_f(status, "Failed to toggle force joiner\n");
+		uj_mode = *igt_output_get_mode(output);
+	} else {
+		igt_info("No ultra joiner mode found on output %s\n", output->name);
+		return;
+	}
+
+	igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), output->name) {
+		set_joiner_mode(data, output, &uj_mode);
+		/* Switch to big joiner mode */
+		if (bigjoiner_mode_found(data->drm_fd, output->config.connector,
+					 max_dotclock, &bj_mode)) {
+			igt_output_override_mode(output, &bj_mode);
+		} else {
+			status = kmstest_force_connector_joiner(data->drm_fd,
+								output->config.connector,
+								JOINED_PIPES_BIG_JOINER);
+			igt_assert_f(status, "Failed to toggle force joiner\n");
+			bj_mode = *igt_output_get_mode(output);
+		}
+
+		set_joiner_mode(data, output, &bj_mode);
+
+		/* Switch back to ultra joiner*/
+		if (ultrajoiner_found) {
+			igt_output_override_mode(output, &uj_mode);
+		} else {
+			status = kmstest_force_connector_joiner(data->drm_fd,
+								output->config.connector,
+								JOINED_PIPES_ULTRA_JOINER);
+			igt_assert_f(status, "Failed to toggle force joiner\n");
+		}
+
+		set_joiner_mode(data, output, &uj_mode);
+	}
 }
 
 static void test_single_joiner(data_t *data, int output_count, bool force_joiner)
@@ -590,6 +672,21 @@ igt_main
 			enable_force_joiner_on_all_non_ultra_joiner_outputs(&data);
 			test_ultra_joiner(&data, false, false, true);
 			igt_reset_connectors();
+		}
+	}
+
+	igt_describe("Verify modeset switch between ultra joiner and big joiner");
+	igt_subtest_with_dynamic("switch-modeset-ultra-joiner-big-joiner") {
+		igt_require_f(ultra_joiner_supported,
+			      "Ultra joiner not supported on this platform\n");
+		igt_require_f(data.ultra_joiner_output_count > 0 ||
+			      data.non_ultra_joiner_output_count > 0,
+				  "No ultra joiner or force ultra joiner output found\n");
+		igt_require_f(data.n_pipes > 3,
+			      "Minimum 4 pipes required\n");
+
+		for_each_connected_output(&data.display, output) {
+			switch_modeset_ultra_joiner_big_joiner(&data, output);
 		}
 	}
 
