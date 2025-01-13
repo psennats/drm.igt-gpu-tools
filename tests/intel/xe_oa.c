@@ -4378,7 +4378,7 @@ static void check_reports(void *oa_vaddr, uint32_t oa_size,
 	uint32_t timer_reports = 0;
 
 	for (reports = (uint32_t *)oa_vaddr;
-	     timer_reports < 20 && reports[0] && oa_timestamp(reports, fmt);
+	     timer_reports < 10 && reports[0] && oa_timestamp(reports, fmt);
 	     reports += report_words) {
 		if (!oa_report_is_periodic(reports))
 			continue;
