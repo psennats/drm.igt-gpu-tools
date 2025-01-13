@@ -4367,6 +4367,26 @@ static void map_oa_buffer_forked_access(const struct drm_xe_engine_class_instanc
 	munmap(vaddr, size);
 }
 
+static void mmap_wait_for_periodic_reports(void *oa_vaddr, uint32_t n,
+					   const struct drm_xe_engine_class_instance *hwe)
+{
+	uint32_t period_us = oa_exponent_to_ns(oa_exp_1_millisec) / 1000;
+	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	uint64_t fmt = test_set->perf_oa_format;
+	uint32_t num_periodic_reports = 0;
+	uint32_t *reports;
+
+	while (num_periodic_reports < n) {
+		usleep(4 * n * period_us);
+		num_periodic_reports = 0;
+		for (reports = (uint32_t *)oa_vaddr;
+		     reports[0] && oa_timestamp(reports, fmt) && oa_report_is_periodic(reports);
+		     reports += get_oa_format(fmt).size) {
+			num_periodic_reports++;
+		}
+	}
+}
+
 static void check_reports(void *oa_vaddr, uint32_t oa_size,
 			  const struct drm_xe_engine_class_instance *hwe)
 {
@@ -4396,12 +4416,10 @@ static void check_reports_from_mapped_buffer(const struct drm_xe_engine_class_in
 {
 	void *vaddr;
 	uint32_t size;
-	uint32_t period_us = oa_exponent_to_ns(oa_exp_1_millisec) / 1000;
 
 	vaddr = map_oa_buffer(&size);
 
-	/* wait for approx 100 reports */
-	usleep(100 * period_us);
+	mmap_wait_for_periodic_reports(vaddr, 10, hwe);
 	check_reports(vaddr, size, hwe);
 
 	munmap(vaddr, size);
@@ -4426,12 +4444,11 @@ static void closed_fd_and_unmapped_access(const struct drm_xe_engine_class_insta
 	};
 	void *vaddr;
 	uint32_t size;
-	uint32_t period_us = oa_exponent_to_ns(oa_exp_1_millisec) / 1000;
 
 	stream_fd = __perf_open(drm_fd, &param, false);
 	vaddr = map_oa_buffer(&size);
 
-	usleep(100 * period_us);
+	mmap_wait_for_periodic_reports(vaddr, 10, hwe);
 	check_reports(vaddr, size, hwe);
 
 	munmap(vaddr, size);
