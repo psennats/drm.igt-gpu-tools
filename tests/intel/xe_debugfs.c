@@ -180,77 +180,19 @@ test_gt(int fd, int gt_id)
 //		"guc_ct_selftest"
 	};
 
-	sprintf(name, "gt%d/hw_engines", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
+	for (int i = 0; i < ARRAY_SIZE(expected_files); i++) {
+		sprintf(name, "gt%d/%s", gt_id, expected_files[i]);
+		igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+		if (igt_debugfs_is_dir(fd, expected_files[i], gt_id))
+			continue;
+		igt_debugfs_dump(fd, name);
+	}
 
-	sprintf(name, "gt%d/sa_info", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/steering", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/topology", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/pat", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/mocs", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/ggtt", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/register-save-restore", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/workarounds", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/default_lrc_rcs", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/default_lrc_ccs", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/default_lrc_bcs", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/default_lrc_vecs", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/default_lrc_vcs", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/hwconfig", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/uc/guc_info", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/uc/huc_info", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
-
-	sprintf(name, "gt%d/uc/guc_log", gt_id);
-	igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-	igt_debugfs_dump(fd, name);
+	for (int i = 0; i < ARRAY_SIZE(expected_files_uc); i++) {
+		sprintf(name, "gt%d/uc/%s", gt_id, expected_files_uc[i]);
+		igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
+		igt_debugfs_dump(fd, name);
+	}
 
 	sprintf(name, "/gt%d", gt_id);
 	validate_entries(fd, name, expected_files, ARRAY_SIZE(expected_files));

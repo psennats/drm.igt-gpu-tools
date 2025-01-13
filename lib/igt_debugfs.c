@@ -377,6 +377,33 @@ igt_debugfs_gt_open(int device, unsigned int gt, const char *filename, int mode)
 }
 
 /**
+ * igt_debugfs_is_dir:
+ * @drm_fd: fd of the device
+ * @name: name of the debugfs node to check
+ * @gt: gt instance number
+ *
+ * This helps to find the debugfs file is  a directory or not
+ *
+ * Returns:
+ * true if the debugfs is a directory
+ */
+bool igt_debugfs_is_dir(int drm_fd, const char *name, int gt_id)
+{
+	char path[128];
+	struct stat st;
+
+	if (fstat(drm_fd, &st) != 0)
+		return false;
+
+	snprintf(path, sizeof(path), "/sys/kernel/debug/dri/%d/gt%d/%s",
+		 minor(st.st_rdev), gt_id, name);
+	if (!stat(path, &st) && S_ISDIR(st.st_mode))
+		return true;
+
+	return false;
+}
+
+/**
  * igt_debugfs_simple_read:
  * @dir: fd of the debugfs directory
  * @filename: file name
