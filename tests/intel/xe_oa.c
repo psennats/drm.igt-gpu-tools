@@ -791,7 +791,7 @@ emit_report_perf_count(struct intel_bb *ibb,
 }
 
 static bool
-oa_report_is_periodic(uint32_t oa_exponent, const uint32_t *report)
+oa_report_is_periodic(const uint32_t *report)
 {
 	if (report_reason(report) & OAREPORT_REASON_TIMER)
 		return true;
@@ -1342,7 +1342,7 @@ read_2_oa_reports(int format_id,
 			igt_assert_neq_u64(oa_timestamp(report, format_id), 0);
 
 			if (timer_only) {
-				if (!oa_report_is_periodic(exponent, report)) {
+				if (!oa_report_is_periodic(report)) {
 					igt_debug("skipping non timer report\n");
 					continue;
 				}
@@ -1752,7 +1752,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 				if (oa_status & DRM_XE_OASTATUS_REPORT_LOST)
 					igt_debug("report loss\n");
 
-				if (!oa_report_is_periodic(exponent, report))
+				if (!oa_report_is_periodic(report))
 					continue;
 
 				memcpy(timer_reports, report, format_size);
@@ -1969,7 +1969,7 @@ static void test_blocking(uint64_t requested_oa_period,
 		for (int offset = 0; offset < ret; offset += format_size) {
 			uint32_t *report = (void *)(buf + offset);
 
-			if (oa_report_is_periodic(oa_exponent, report))
+			if (oa_report_is_periodic(report))
 				timer_report_read = true;
 			else
 				non_timer_report_read = true;
@@ -2142,7 +2142,7 @@ static void test_polling(uint64_t requested_oa_period,
 		for (int offset = 0; offset < ret; offset += format_size) {
 			uint32_t *report = (void *)(buf + offset);
 
-			if (oa_report_is_periodic(oa_exponent, report))
+			if (oa_report_is_periodic(report))
 				timer_report_read = true;
 			else
 				non_timer_report_read = true;
@@ -2463,7 +2463,7 @@ again_1:
 					  " ts_delta_last_periodic=%"PRIu64" is_timer=%i ctx_id=%8x nb_periodic=%u\n",
 					  oa_timestamp(report, fmt),
 					  n_periodic_reports > 0 ?  oa_timestamp_delta(report, last_periodic_report, fmt) : 0,
-					  oa_report_is_periodic(oa_exponent, report),
+					  oa_report_is_periodic(report),
 					  oa_report_get_ctx_id(report),
 					  n_periodic_reports);
 
@@ -2471,7 +2471,7 @@ again_1:
 					first_timestamp = oa_timestamp(report, fmt);
 				last_timestamp = oa_timestamp(report, fmt);
 
-				if (oa_report_is_periodic(oa_exponent, report)) {
+				if (oa_report_is_periodic(report)) {
 					memcpy(last_periodic_report, report, report_size);
 					n_periodic_reports++;
 				}
@@ -2677,12 +2677,12 @@ test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 					  " ts_delta_last_periodic=%s%"PRIu64""
 					  " is_timer=%i ctx_id=0x%8x\n",
 					  oa_timestamp(report, fmt),
-					  oa_report_is_periodic(oa_exponent, report) ? " " : "*",
+					  oa_report_is_periodic(report) ? " " : "*",
 					  n_periodic_reports > 0 ?  oa_timestamp_delta(report, last_periodic_report, fmt) : 0,
-					  oa_report_is_periodic(oa_exponent, report),
+					  oa_report_is_periodic(report),
 					  oa_report_get_ctx_id(report));
 
-				if (oa_report_is_periodic(oa_exponent, report)) {
+				if (oa_report_is_periodic(report)) {
 					memcpy(last_periodic_report, report, report_size);
 
 					/* We want to measure only the periodic reports,
@@ -4380,7 +4380,7 @@ static void check_reports(void *oa_vaddr, uint32_t oa_size,
 	for (reports = (uint32_t *)oa_vaddr;
 	     timer_reports < 20 && reports[0] && oa_timestamp(reports, fmt);
 	     reports += report_words) {
-		if (!oa_report_is_periodic(oa_exp_1_millisec, reports))
+		if (!oa_report_is_periodic(reports))
 			continue;
 
 		timer_reports++;
