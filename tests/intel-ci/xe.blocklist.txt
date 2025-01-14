@@ -93,7 +93,7 @@ igt@sriov_basic@bind-unbind-vf$
 # Exclude xe_evict tests that are not expected to succeed
 # due to missing TTM exhaustive eviction
 ##################################################################
-igt@xe_evict@*-multi-vm-cm*
-igt@xe_evict@*-threads-*
-# igt@xe_evict@*-cm* # Rebind and VM_BIND may race.
+igt@xe_evict@.*-multi-vm-cm.*
+igt@xe_evict@.*-threads-.*
+# igt@xe_evict@.*-cm.* # Rebind and VM_BIND may race.
 ##################################################################
