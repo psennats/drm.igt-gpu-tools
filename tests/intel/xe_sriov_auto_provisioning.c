@@ -216,7 +216,30 @@ static void exclusive_ranges(int pf_fd, unsigned int num_vfs)
 	igt_fail_on_f(fails, "exclusive ranges check failed\n");
 }
 
-igt_main
+static bool extended_scope;
+
+static int opts_handler(int opt, int opt_index, void *data)
+{
+	switch (opt) {
+	case 'e':
+		extended_scope = true;
+		break;
+	default:
+		return IGT_OPT_HANDLER_ERROR;
+	}
+
+	return IGT_OPT_HANDLER_SUCCESS;
+}
+
+static const struct option long_opts[] = {
+	{ .name = "extended", .has_arg = false, .val = 'e', },
+	{}
+};
+
+static const char help_str[] =
+	"  --extended\tRun the extended test scope\n";
+
+igt_main_args("", long_opts, help_str, opts_handler, NULL)
 {
 	enum xe_sriov_shared_res res;
 	unsigned int gt;
@@ -245,6 +268,11 @@ igt_main
 
 	igt_describe("Verify that auto-provisioned resources are allocated by PF driver in fairly manner");
 	igt_subtest_with_dynamic("fair-allocation") {
+		if (extended_scope)
+			for_each_sriov_num_vfs(pf_fd, num_vfs)
+				igt_dynamic_f("numvfs-%d", num_vfs)
+					fair_allocation(pf_fd, num_vfs);
+
 		for_random_sriov_num_vfs(pf_fd, num_vfs) {
 			igt_dynamic_f("numvfs-random") {
 				igt_debug("numvfs=%u\n", num_vfs);
@@ -255,6 +283,11 @@ igt_main
 
 	igt_describe("Verify that auto-provisioned resources are released once VFs are disabled");
 	igt_subtest_with_dynamic("resources-released-on-vfs-disabling") {
+		if (extended_scope)
+			for_each_sriov_num_vfs(pf_fd, num_vfs)
+				igt_dynamic_f("numvfs-%d", num_vfs)
+					resources_released_on_vfs_disabling(pf_fd, num_vfs);
+
 		for_random_sriov_num_vfs(pf_fd, num_vfs) {
 			igt_dynamic_f("numvfs-random") {
 				igt_debug("numvfs=%u\n", num_vfs);
@@ -268,6 +301,11 @@ igt_main
 		unsigned int total_vfs = igt_sriov_get_total_vfs(pf_fd);
 
 		igt_skip_on(total_vfs < 2);
+
+		if (extended_scope)
+			for_each_sriov_num_vfs(pf_fd, num_vfs)
+				igt_dynamic_f("numvfs-%d", num_vfs)
+					exclusive_ranges(pf_fd, num_vfs);
 
 		for_random_sriov_vf_in_range(pf_fd, 2, total_vfs, num_vfs) {
 			igt_dynamic_f("numvfs-random") {
