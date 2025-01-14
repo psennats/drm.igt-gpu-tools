@@ -16,6 +16,10 @@ int xe_sriov_pf_debugfs_read_provisioned_ranges(int pf_fd, enum xe_sriov_shared_
 						unsigned int gt_id,
 						struct xe_sriov_provisioned_range **ranges,
 						unsigned int *nr_ranges);
+int xe_sriov_pf_debugfs_read_check_ranges(int pf_fd, enum xe_sriov_shared_res res,
+					  unsigned int gt_id,
+					  struct xe_sriov_provisioned_range **ranges,
+					  unsigned int expected_num_vfs);
 int __xe_sriov_pf_debugfs_get_u32(int pf, unsigned int vf_num,
 				  unsigned int gt_num, const char *attr,
 				  uint32_t *value);

@@ -206,6 +206,122 @@ cleanup:
 	return ret;
 }
 
+static int compare_ranges_by_vf_id(const void *a, const void *b)
+{
+	const struct xe_sriov_provisioned_range *range_a = a;
+	const struct xe_sriov_provisioned_range *range_b = b;
+
+	return (range_a->vf_id - range_b->vf_id);
+}
+
+#define MAX_DEBUG_ENTRIES 70U
+
+static int validate_vf_ids(enum xe_sriov_shared_res res,
+			   struct xe_sriov_provisioned_range *ranges,
+			   unsigned int nr_ranges, unsigned int expected_num_vfs)
+{
+	unsigned int current_vf_id = 0;
+
+	/* If no VFs are expected, ensure no ranges are provided */
+	if (expected_num_vfs == 0) {
+		if (nr_ranges > 0) {
+			unsigned int limit = min(nr_ranges, MAX_DEBUG_ENTRIES);
+
+			igt_debug("%s: Unexpected %u ranges when expected num_vfs == 0\n",
+				  xe_sriov_debugfs_provisioned_attr_name(res),
+				  nr_ranges);
+			for (unsigned int i = 0; i < limit; i++) {
+				igt_debug((res == XE_SRIOV_SHARED_RES_GGTT) ?
+						  "%s:VF%u: %lx-%lx\n" :
+						  "%s:VF%u: %lu-%lu\n",
+					  xe_sriov_shared_res_to_string(res),
+					  ranges[i].vf_id, ranges[i].start, ranges[i].end);
+			}
+			igt_debug_on_f(nr_ranges > MAX_DEBUG_ENTRIES,
+				       "%s: Output truncated to first %u ranges out of %u\n",
+				       xe_sriov_debugfs_provisioned_attr_name(res),
+				       MAX_DEBUG_ENTRIES, nr_ranges);
+
+			return -ERANGE;
+		}
+		return 0; /* Valid case: no VFs, no ranges */
+	}
+
+	if (igt_debug_on_f(nr_ranges == 0,
+			   "%s: No VF ranges\n",
+			   xe_sriov_debugfs_provisioned_attr_name(res)))
+		return -ENOENT;
+
+	igt_assert(ranges);
+	qsort(ranges, nr_ranges, sizeof(ranges[0]), compare_ranges_by_vf_id);
+
+	for (unsigned int i = 0; i < nr_ranges; i++) {
+		unsigned int vf_id = ranges[i].vf_id;
+
+		if (igt_debug_on_f(vf_id == current_vf_id,
+				   "%s: Duplicate VF%u entry found\n",
+				   xe_sriov_debugfs_provisioned_attr_name(res), vf_id))
+			return -EEXIST;
+
+		if (igt_debug_on_f(vf_id < 1 || vf_id > expected_num_vfs,
+				   "%s: Out of range VF%u\n",
+				   xe_sriov_debugfs_provisioned_attr_name(res), vf_id))
+			return -ERANGE;
+
+		if (igt_debug_on_f(vf_id > current_vf_id + 1,
+				   "%s: Missing VF%u\n",
+				   xe_sriov_debugfs_provisioned_attr_name(res),
+				   current_vf_id + 1))
+			return -ESRCH;
+
+		current_vf_id = vf_id;
+	}
+
+	if (igt_debug_on_f(current_vf_id != expected_num_vfs,
+			   "%s: Missing VF%u\n",
+			   xe_sriov_debugfs_provisioned_attr_name(res), expected_num_vfs))
+		return -ESRCH;
+
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_debugfs_read_check_ranges:
+ * @pf_fd: PF device file descriptor
+ * @res: resource
+ * @gt_id: GT number
+ * @ranges: pointer to array of provisioned ranges
+ * @expected_num_vfs: expected number of provisioned VFs
+ *
+ * Reads and validates provisioned ranges of shared resources.
+ * If successfully validated, returns num_vfs allocated ranges
+ * sorted by VF id.
+ * The caller should free the allocated space.
+ *
+ * Return: 0 if successful in reading valid ranges, otherwise negative error code.
+ */
+int xe_sriov_pf_debugfs_read_check_ranges(int pf_fd, enum xe_sriov_shared_res res,
+					  unsigned int gt_id,
+					  struct xe_sriov_provisioned_range **ranges,
+					  unsigned int expected_num_vfs)
+{
+	unsigned int nr_ranges;
+	int ret;
+
+	ret = xe_sriov_pf_debugfs_read_provisioned_ranges(pf_fd, res, gt_id,
+							  ranges, &nr_ranges);
+	if (ret)
+		return ret;
+
+	ret = validate_vf_ids(res, *ranges, nr_ranges, expected_num_vfs);
+	if (ret) {
+		free(*ranges);
+		*ranges = NULL;
+	}
+
+	return ret;
+}
+
 static int xe_sriov_pf_debugfs_path_open(int pf, unsigned int vf_num,
 					 unsigned int gt_num)
 {
