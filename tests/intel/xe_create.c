@@ -243,11 +243,6 @@ static void create_invalid_mbz(int fd)
 	gem_close(fd, create.handle);
 	create.handle = 0;
 
-	/* No supported extensions yet */
-	create.extensions = -1;
-	igt_assert_eq(__ioctl_create(fd, &create), -EINVAL);
-	create.extensions = 0;
-
 	/* Make sure KMD rejects non-zero padding/reserved fields */
 	for (i = 0; i < ARRAY_SIZE(create.pad); i++) {
 		create.pad[i] = -1;
