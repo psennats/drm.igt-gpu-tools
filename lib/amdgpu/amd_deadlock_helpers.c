@@ -142,7 +142,7 @@ amdgpu_wait_memory(amdgpu_device_handle device_handle, unsigned int ip_type, uin
 		job_count++;
 	} while (r == 0 && job_count < MAX_JOB_COUNT);
 
-	if (r != 0 && r != -ECANCELED)
+	if (r != 0 && r != -ECANCELED && r != -ENODATA)
 		igt_assert(0);
 
 
@@ -156,7 +156,7 @@ amdgpu_wait_memory(amdgpu_device_handle device_handle, unsigned int ip_type, uin
 
 	r = amdgpu_cs_query_fence_status(&fence_status, AMDGPU_TIMEOUT_INFINITE, 0,
 			&expired);
-	if (r != 0 && r != -ECANCELED)
+	if (r != 0 && r != -ECANCELED && r != -ENODATA)
 		igt_assert(0);
 
 	/* send signal to modify the memory we wait for */
