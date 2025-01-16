@@ -33,6 +33,18 @@
  * SUBTEST: exclusive-ranges
  * Description:
  *   Verify that ranges of auto-provisioned resources are exclusive
+ *
+ * SUBTEST: selfconfig-basic
+ * Description:
+ *   Check if VF configuration data is the same as provisioned
+ *
+ * SUBTEST: selfconfig-reprovision-increase-numvfs
+ * Description:
+ *   Check if VF configuration data is updated properly after increasing number of VFs
+ *
+ * SUBTEST: selfconfig-reprovision-reduce-numvfs
+ * Description:
+ *   Check if VF configuration data is updated properly after decreasing number of VFs
  */
 
 IGT_TEST_DESCRIPTION("Xe tests for SR-IOV auto-provisioning");
@@ -216,6 +228,70 @@ static void exclusive_ranges(int pf_fd, unsigned int num_vfs)
 	igt_fail_on_f(fails, "exclusive ranges check failed\n");
 }
 
+#define REPROVISION_INCREASE_NUMVFS	(0x1 << 0)
+#define REPROVISION_REDUCE_NUMVFS	(0x1 << 1)
+
+static void check_selfconfig(int pf_fd, unsigned int vf_num, unsigned int flags)
+{
+	unsigned int gt_num, total_vfs = igt_sriov_get_total_vfs(pf_fd);
+	uint64_t provisioned, queried;
+	enum xe_sriov_shared_res res;
+	int vf_fd, fails = 0;
+
+	igt_sriov_disable_driver_autoprobe(pf_fd);
+	igt_sriov_enable_vfs(pf_fd, (flags & REPROVISION_REDUCE_NUMVFS) ? total_vfs : vf_num);
+	igt_sriov_enable_driver_autoprobe(pf_fd);
+
+	igt_sriov_bind_vf_drm_driver(pf_fd, vf_num);
+	vf_fd = igt_sriov_open_vf_drm_device(pf_fd, vf_num);
+	igt_assert_fd(vf_fd);
+
+	xe_for_each_gt(pf_fd, gt_num) {
+		xe_sriov_for_each_provisionable_shared_res(res, pf_fd, gt_num) {
+			provisioned = xe_sriov_pf_get_provisioned_quota(pf_fd, res, vf_num,
+									gt_num);
+			queried = xe_sriov_vf_debugfs_get_selfconfig(vf_fd, res, gt_num);
+
+			if (igt_debug_on_f(provisioned != queried,
+					   "%s selfconfig check failed on gt%u\n",
+					   xe_sriov_shared_res_to_string(res), gt_num))
+				fails++;
+		}
+	}
+
+	close(vf_fd);
+	igt_sriov_disable_vfs(pf_fd);
+
+	if (flags && !fails) {
+		igt_sriov_disable_driver_autoprobe(pf_fd);
+		igt_sriov_enable_vfs(pf_fd, (flags & REPROVISION_INCREASE_NUMVFS) ? total_vfs :
+										    vf_num);
+		igt_sriov_enable_driver_autoprobe(pf_fd);
+
+		igt_sriov_bind_vf_drm_driver(pf_fd, vf_num);
+		vf_fd = igt_sriov_open_vf_drm_device(pf_fd, vf_num);
+		igt_assert_fd(vf_fd);
+
+		xe_for_each_gt(pf_fd, gt_num) {
+			xe_sriov_for_each_provisionable_shared_res(res, pf_fd, gt_num) {
+				provisioned = xe_sriov_pf_get_provisioned_quota(pf_fd, res, vf_num,
+										gt_num);
+				queried = xe_sriov_vf_debugfs_get_selfconfig(vf_fd, res, gt_num);
+
+				if (igt_debug_on_f(provisioned != queried,
+						   "%s selfconfig check after reprovisioning failed on gt%u\n",
+						   xe_sriov_shared_res_to_string(res), gt_num))
+					fails++;
+			}
+		}
+
+		close(vf_fd);
+		igt_sriov_disable_vfs(pf_fd);
+	}
+
+	igt_fail_on_f(fails, "selfconfig check failed\n");
+}
+
 static bool extended_scope;
 
 static int opts_handler(int opt, int opt_index, void *data)
@@ -242,9 +318,17 @@ static const char help_str[] =
 igt_main_args("", long_opts, help_str, opts_handler, NULL)
 {
 	enum xe_sriov_shared_res res;
-	unsigned int gt;
+	unsigned int gt, total_vfs;
 	bool autoprobe;
 	int pf_fd;
+	static struct subtest_variants {
+		const char *name;
+		unsigned int flags;
+	} reprovisioning_variant[] = {
+		{ "increase", REPROVISION_INCREASE_NUMVFS },
+		{ "reduce", REPROVISION_REDUCE_NUMVFS },
+		{ NULL },
+	};
 
 	igt_fixture {
 		struct xe_sriov_provisioned_range *ranges;
@@ -264,6 +348,7 @@ igt_main_args("", long_opts, help_str, opts_handler, NULL)
 			}
 		}
 		autoprobe = igt_sriov_is_driver_autoprobe_enabled(pf_fd);
+		total_vfs = igt_sriov_get_total_vfs(pf_fd);
 	}
 
 	igt_describe("Verify that auto-provisioned resources are allocated by PF driver in fairly manner");
@@ -298,7 +383,6 @@ igt_main_args("", long_opts, help_str, opts_handler, NULL)
 
 	igt_describe("Verify that ranges of auto-provisioned resources are exclusive");
 	igt_subtest_with_dynamic_f("exclusive-ranges") {
-		unsigned int total_vfs = igt_sriov_get_total_vfs(pf_fd);
 
 		igt_skip_on(total_vfs < 2);
 
@@ -311,6 +395,41 @@ igt_main_args("", long_opts, help_str, opts_handler, NULL)
 			igt_dynamic_f("numvfs-random") {
 				igt_debug("numvfs=%u\n", num_vfs);
 				exclusive_ranges(pf_fd, num_vfs);
+			}
+		}
+	}
+
+	igt_describe("Check if VF configuration data is the same as provisioned");
+	igt_subtest_with_dynamic("selfconfig-basic") {
+		if (extended_scope)
+			for_each_sriov_vf(pf_fd, vf)
+				igt_dynamic_f("vf-%u", vf)
+					check_selfconfig(pf_fd, vf, 0);
+
+		for_random_sriov_vf(pf_fd, vf) {
+			igt_dynamic_f("vf-random") {
+				igt_debug("vf=%u\n", vf);
+				check_selfconfig(pf_fd, vf, 0);
+			}
+		}
+	}
+
+	for (const struct subtest_variants *s = reprovisioning_variant; s->name; s++) {
+		igt_describe("Check if VF configuration data is the same as reprovisioned");
+		igt_subtest_with_dynamic_f("selfconfig-reprovision-%s-numvfs", s->name) {
+
+			igt_require(total_vfs > 1);
+
+			if (extended_scope)
+				for_each_sriov_vf_in_range(pf_fd, 1, total_vfs - 1, vf)
+					igt_dynamic_f("vf-%u", vf)
+						check_selfconfig(pf_fd, vf, s->flags);
+
+			for_random_sriov_vf_in_range(pf_fd, 1, total_vfs - 1, vf) {
+				igt_dynamic_f("vf-random") {
+					igt_debug("vf=%u\n", vf);
+					check_selfconfig(pf_fd, vf, s->flags);
+				}
 			}
 		}
 	}
