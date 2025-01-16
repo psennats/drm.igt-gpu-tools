@@ -41,6 +41,13 @@
  * Run type: FULL
  * Description:
  *   Executes FLR on all VFs simultaneously to validate correct behavior during parallel resets.
+ *
+ * SUBTEST: flr-twice
+ * Run type: FULL
+ * Description:
+ *   Initiates FLR twice in parallel on the same VF to validate behavior
+ *   when multiple resets occur within a short time frame, as seen in some
+ *   real-world scenarios (e.g., when starting a QEMU VM with a passed VF).
  */
 
 IGT_TEST_DESCRIPTION("Xe tests for SR-IOV VF FLR (Functional Level Reset)");
@@ -447,6 +454,14 @@ static int execute_parallel_flr(int pf_fd, int num_vfs, struct subcheck *checks,
 {
 	return execute_parallel_flr_(pf_fd, num_vfs, checks, num_checks,
 				     wait_flr_ms, 1);
+}
+
+static int execute_parallel_flr_twice(int pf_fd, int num_vfs,
+				      struct subcheck *checks, int num_checks,
+				      const int wait_flr_ms)
+{
+	return execute_parallel_flr_(pf_fd, num_vfs, checks, num_checks,
+				     wait_flr_ms, 2);
 }
 
 #define GEN12_VF_CAP_REG			0x1901f8
@@ -1071,6 +1086,11 @@ igt_main
 		igt_require(total_vfs > 1);
 
 		clear_tests(pf_fd, total_vfs, execute_parallel_flr);
+	}
+
+	igt_describe("Initiate FLR twice in parallel on same VF.");
+	igt_subtest("flr-twice") {
+		clear_tests(pf_fd, 1, execute_parallel_flr_twice);
 	}
 
 	igt_fixture {
