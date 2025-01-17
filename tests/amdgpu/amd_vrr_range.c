@@ -29,19 +29,22 @@ IGT_TEST_DESCRIPTION("Test EDID parsing and debugfs reporting on Freesync displa
 
 /* Maximumm pipes on any AMD ASIC. */
 #define MAX_PIPES 6
+#define EDID_SIZE 256
+#define EDID_PATH "/sys/class/drm/card0-%s/edid"
 
 /* Common test data. */
+struct vrr_range {
+	unsigned int min;
+	unsigned int max;
+};
+
 typedef struct data {
 	igt_display_t display;
 	igt_plane_t *primary;
 	igt_output_t *output[MAX_PIPES];
 	int fd;
+	struct vrr_range expected_range;
 } data_t;
-
-typedef struct range {
-	unsigned int min;
-	unsigned int max;
-} range_t;
 
 /* Test flags. */
 enum {
@@ -53,7 +56,7 @@ struct {
 	const char *name;
 	uint32_t connector_type;
 	const unsigned char edid[256];
-	const range_t range;
+	const struct vrr_range range;
 } edid_database[] = {
 	{
 		/* EDID Version 1.4. Timing requires 2 DP lanes. */
@@ -212,12 +215,12 @@ static int find_test_edid_index(uint32_t connector_type)
 }
 
 /* Returns the min and max vrr range from the connector debugfs. */
-static range_t get_freesync_range(data_t *data, igt_output_t *output)
+static struct vrr_range get_freesync_range(data_t *data, igt_output_t *output)
 {
 	char buf[256];
 	char *start_loc;
 	int fd, res;
-	range_t range;
+	struct vrr_range range;
 
 	fd = igt_debugfs_connector_dir(data->fd, output->name, O_RDONLY);
 	igt_assert(fd >= 0);
@@ -249,13 +252,84 @@ static void trigger_edid_parse(data_t *data, igt_output_t *output, uint32_t test
 	usleep(1500000);
 }
 
+/* Returns true if an output supports VRR. */
+static bool has_vrr(igt_output_t *output)
+{
+	return igt_output_has_prop(output, IGT_CONNECTOR_VRR_CAPABLE) &&
+	       igt_output_get_prop(output, IGT_CONNECTOR_VRR_CAPABLE);
+}
+
+static void parse_vrr_gange_from_edid(data_t *data, uint8_t *edid, int index)
+{
+	bool max_rate_offset = false;
+	bool min_rate_offset = false;
+
+	/* Check Bytes 4 Vertical rate offsets
+	 * Vertical rate offsets:
+	 * 00 = none;
+	 * 10 = +255 Hz for max. rate;
+	 * 11 = +255 Hz for max. and min. rates.
+	 */
+	if ((edid[index + 4] & 0b10) == 0b10)
+		max_rate_offset = true;
+	else if ((edid[index + 4] & 0b11) == 0b11) {
+		max_rate_offset = true;
+		min_rate_offset = true;
+	}
+
+	/* Bytes 5 Min vertical field rate (1–255 Hz; 256–510 Hz, if offset).*/
+	data->expected_range.min =
+		min_rate_offset ? edid[index + 5] + 255 : edid[index + 5];
+	/* Bytes 6 Max vertical field rate (1–255 Hz; 256–510 Hz, if offset).*/
+	data->expected_range.max =
+		max_rate_offset ? edid[index + 6] + 255 : edid[index + 6];
+}
+
+static bool find_vrr_range_from_edid(data_t *data, igt_output_t *output)
+{
+	char edid_path[PATH_MAX] = "\0";
+	uint8_t sink_edid[EDID_SIZE] = "\0";
+	const uint8_t range_limits_head[4] = {0x00, 0x00, 0x00, 0xFD};
+	const unsigned int range_head_size = sizeof(range_limits_head);
+	int fd, i, read_size, index = 0;
+
+	/* Get EDID */
+	igt_assert(snprintf(edid_path, PATH_MAX, EDID_PATH,
+			   output->name) < PATH_MAX);
+
+	fd = open(edid_path, O_RDONLY);
+	if (fd == -1)
+		return false;
+
+	read_size = read(fd, sink_edid, EDID_SIZE);
+	close(fd);
+	if (read_size < 0)
+		return false;
+
+	/* Find Display Range Limits Descriptor block */
+	while (index < EDID_SIZE - range_head_size) {
+		for (i = 0; i < range_head_size; i++) {
+			if (sink_edid[index+i] != range_limits_head[i])
+				break;
+			else if (i == range_head_size-1) {
+				/* Found Display Range Limits Descriptor block */
+				parse_vrr_gange_from_edid(data, sink_edid, index);
+				return true;
+			}
+		}
+		index++;
+	}
+
+	return false;
+}
+
 /* Check if EDID parsing is correctly reporting Freesync capability
  * by overriding EDID with ones from golden sample.
  */
 static void test_freesync_parsing_base(data_t *data, uint32_t test_flags)
 {
 	const struct edid *edid;
-	range_t range, expected_range;
+	struct vrr_range range, expected_range;
 	igt_output_t *output;
 	int j, test_conn_cnt = 0;
 	igt_display_t *display = &data->display;
@@ -273,25 +347,38 @@ static void test_freesync_parsing_base(data_t *data, uint32_t test_flags)
 		edid = (const struct edid *)edid_database[j].edid;
 		expected_range = edid_database[j].range;
 
-		/* eDP allow read edid for each display detection */
-		if (output->config.connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-			igt_amd_allow_edp_hotplug_detect(data->fd, output->name, true);
+		if (has_vrr(output)) {
+			/* A VRR sink, just parsing range from EDID directly */
 
-		/* force to use hard coded VRR EDID */
-		kmstest_force_edid(data->fd, output->config.connector, edid);
+			trigger_edid_parse(data, output, test_flags);
 
-		trigger_edid_parse(data, output, test_flags);
+			igt_assert_f(find_vrr_range_from_edid(data, output),
+				"Cannot parsing VRR range from EDID\n");
 
-		range = get_freesync_range(data, output);
+			expected_range.min = data->expected_range.min;
+			expected_range.max = data->expected_range.max;
+			range = get_freesync_range(data, output);
+		} else {
+			/* A non-VRR sink. Override a golden EDID */
+			/* eDP allow read edid for each display detection */
+			if (output->config.connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+				igt_amd_allow_edp_hotplug_detect(data->fd, output->name, true);
 
-		/* undo EDID override. re-parse EDID of display */
-		kmstest_force_edid(data->fd, output->config.connector, NULL);
+			/* force to use hard coded VRR EDID */
+			kmstest_force_edid(data->fd, output->config.connector, edid);
 
-		igt_amd_trigger_hotplug(data->fd, output->name);
+			trigger_edid_parse(data, output, test_flags);
 
-		/* eDP dis-allow read edid for each display detection */
-		if (output->config.connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-			igt_amd_allow_edp_hotplug_detect(data->fd, output->name, false);
+			range = get_freesync_range(data, output);
+
+			/* undo EDID override. re-parse EDID of display */
+			kmstest_force_edid(data->fd, output->config.connector, NULL);
+			igt_amd_trigger_hotplug(data->fd, output->name);
+
+			/* eDP dis-allow read edid for each display detection */
+			if (output->config.connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+				igt_amd_allow_edp_hotplug_detect(data->fd, output->name, false);
+		}
 
 		test_conn_cnt++;
 
@@ -317,20 +404,13 @@ static inline void test_freesync_parsing_suspend(data_t *data)
 	test_freesync_parsing_base(data, TEST_SUSPEND);
 }
 
-/* Returns true if an output supports VRR. */
-static bool has_vrr(igt_output_t *output)
-{
-	return igt_output_has_prop(output, IGT_CONNECTOR_VRR_CAPABLE) &&
-	       igt_output_get_prop(output, IGT_CONNECTOR_VRR_CAPABLE);
-}
-
 /* More relaxed checking on Freesync capability.
  * Only checks if frame rate range is within legal range.
  * Display under test MUST be VRR capable.
  */
 static void test_freesync_range_base(data_t *data, uint32_t test_flags)
 {
-	range_t range;
+	struct vrr_range range;
 	igt_output_t *output;
 	int test_conn_cnt = 0;
 	igt_display_t *display = &data->display;
