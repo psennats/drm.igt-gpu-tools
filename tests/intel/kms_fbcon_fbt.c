@@ -73,7 +73,7 @@ IGT_TEST_DESCRIPTION("Test the relationship between fbcon and the frontbuffer "
 #define MAX_CONNECTORS 32
 
 struct drm_info {
-	int fd, debugfs_fd, crtc_id;
+	int fd, debugfs_fd, crtc_id, devid;
 	struct igt_fb fb;
 	drmModeResPtr res;
 	drmModeConnectorPtr connectors[MAX_CONNECTORS];
@@ -418,6 +418,8 @@ static void setup_environment(struct drm_info *drm)
 	igt_require(drm->fd >= 0);
 	drm->debugfs_fd = igt_debugfs_dir(drm->fd);
 	igt_require(drm->debugfs_fd >= 0);
+	drm->devid = intel_get_drm_devid(drm->fd);
+	igt_require(drm->devid >= 0);
 
 	drm->res = drmModeGetResources(drm->fd);
 	igt_require(drm->res);
@@ -457,16 +459,25 @@ igt_main
 
 	igt_describe("Test the relationship between fbcon and the frontbuffer "
 		     "tracking infrastructure with fbc enabled.");
-	igt_subtest("fbc")
+	igt_subtest("fbc") {
+		/* FBC disabled: Wa_16023588340 */
+		igt_require_f(!IS_BATTLEMAGE(drm.devid), "FBC isn't supported on BMG\n");
 		subtest(&drm, &fbc, false);
+	}
+
 	igt_describe("Test the relationship between fbcon and the frontbuffer "
 		     "tracking infrastructure with psr enabled.");
 	igt_subtest("psr")
 		subtest(&drm, &psr, false);
+
 	igt_describe("Suspend test to validate  the relationship between fbcon and the frontbuffer "
 		     "tracking infrastructure with fbc enabled.");
-	igt_subtest("fbc-suspend")
+	igt_subtest("fbc-suspend") {
+		/* FBC disabled: Wa_16023588340 */
+		igt_require_f(!IS_BATTLEMAGE(drm.devid), "FBC isn't supported on BMG\n");
 		subtest(&drm, &fbc, true);
+	}
+
 	igt_describe("Suspend test to validate the relationship between fbcon and the frontbuffer "
 		     "tracking infrastructure with psr enabled.");
 	igt_subtest("psr-suspend")
