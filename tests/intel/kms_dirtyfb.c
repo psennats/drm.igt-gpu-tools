@@ -54,7 +54,7 @@ IGT_TEST_DESCRIPTION("Test the DIRTYFB ioctl is working properly with "
 #endif
 
 typedef struct {
-	int drm_fd;
+	int drm_fd, devid;
 	int debugfs_fd;
 	igt_display_t display;
 	drmModeModeInfo *mode;
@@ -364,6 +364,7 @@ igt_main
 		igt_display_require(&data.display, data.drm_fd);
 		igt_display_require_output(&data.display);
 		igt_require(data.display.is_atomic);
+		data.devid = intel_get_drm_devid(data.drm_fd);
 
 		data.bops = buf_ops_create(data.drm_fd);
 		data.rendercopy = igt_get_render_copyfunc(intel_get_drm_devid(data.drm_fd));
@@ -380,6 +381,10 @@ igt_main
 							      data.pipe,
 							      data.output) {
 					data.mode = igt_output_get_mode(data.output);
+
+					/* FBC disabled: Wa_16023588340 */
+					igt_skip_on_f((IS_BATTLEMAGE(data.devid) && data.feature == FEATURE_FBC),
+						       "FBC isn't supported on BMG\n");
 
 					if (!check_support(&data))
 						continue;
