@@ -203,6 +203,10 @@ simple_hang(int fd, struct drm_xe_sync *sync)
  * SUBTEST: wedged-mode-toggle
  * Description: Test wedged.mode=1 after testing wedged.mode=2
  */
+/**
+ * SUBTEST: basic-wedged-read
+ * Description: Read wedged_mode debugfs
+ */
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe;
@@ -277,6 +281,15 @@ igt_main
 		ignore_wedged_in_dmesg();
 		simple_hang(fd, NULL);
 		igt_assert_eq(simple_ioctl(fd), 0);
+	}
+
+	igt_subtest_f("basic-wedged-read") {
+		char str[150] = {0};
+
+		igt_require(igt_debugfs_exists(fd, "wedged_mode", O_RDONLY));
+
+		igt_debugfs_read(fd, "wedged_mode", str);
+		igt_assert_f(str[0] != '\0', "Failed to read wedged_mode from debugfs!\n");
 	}
 
 	igt_fixture {
