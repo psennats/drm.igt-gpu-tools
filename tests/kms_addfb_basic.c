@@ -1022,10 +1022,10 @@ igt_main
 
 		size_tests(fd);
 
+		addfb25_tests(fd);
+
 		igt_fixture
 			igt_require_intel(fd);
-
-		addfb25_tests(fd);
 
 		addfb25_ytile(fd);
 
