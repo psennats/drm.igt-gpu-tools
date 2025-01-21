@@ -12,6 +12,7 @@ foreach prog : tools_progs_noisnt
 endforeach
 
 tools_progs = [
+	'igt_power',
 	'igt_stats',
 	'intel_audio_dump',
 	'intel_backlight',
@@ -44,7 +45,6 @@ tools_progs = [
 	'dpcd_reg',
 	'lsfacts',
 	'lsgpu',
-	'power',
 ]
 tool_deps = igt_deps
 tool_deps += zlib
