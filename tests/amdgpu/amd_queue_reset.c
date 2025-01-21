@@ -1126,6 +1126,7 @@ igt_main
 	unsigned int ring_id_job_good;
 	unsigned int ring_id_job_bad;
 	int expect_error;
+	struct pci_addr pci ;
 
 	enum amd_ip_block_type ip_tests[3] = {AMD_IP_COMPUTE/*keep first*/, AMD_IP_GFX, AMD_IP_DMA};
 	enum amd_ip_block_type ip_background = AMD_IP_COMPUTE;
@@ -1202,6 +1203,9 @@ igt_main
 			igt_require(fd_shm != -1);
 			launch_background_process(argc, argv, path, &pid_background, fd_shm);
 			process = PROCESS_TEST;
+			igt_skip_on(get_pci_addr_from_fd(fd, &pci));
+			igt_info("PCI Address: domain %04x, bus %02x, device %02x, function %02x\n",
+							pci.domain, pci.bus, pci.device, pci.function);
 		} else {
 			process = PROCESS_BACKGROUND;
 		}
@@ -1236,7 +1240,7 @@ igt_main
 				reset = (ip_tests[i] != AMD_IP_DMA) && (it->test == CMD_STREAM_EXEC_INVALID_PACKET_LENGTH) ?
 					AMDGPU_RESET_TYPE_PER_QUEUE : AMDGPU_RESET_TYPE_PER_PIPE;
 
-				if (arr_cap[ip_tests[i]] && is_reset_enable(ip_tests[i], reset) &&
+				if (arr_cap[ip_tests[i]] && is_reset_enable(ip_tests[i], reset, &pci) &&
 						get_next_rings(&ring_id_good, &ring_id_bad, info[0].available_rings,
 						info[i].available_rings, ip_background != ip_tests[i], &ring_id_job_good, &ring_id_job_bad)) {
 					igt_dynamic_f("amdgpu-%s-ring-good-%d-bad-%d-%s", it->name, ring_id_job_good, ring_id_job_bad,

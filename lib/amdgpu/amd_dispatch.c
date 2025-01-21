@@ -549,7 +549,7 @@ amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
 
 void
 amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
-				 uint32_t ip_type)
+				 uint32_t ip_type, const struct pci_addr *pci)
 {
 	int r;
 	FILE *fp;
@@ -572,11 +572,14 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 	}
 
 	if (ip_type == AMD_IP_GFX)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_gfx_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_COMPUTE)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_compute_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_compute_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_DMA)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
 	r = access(sysfs, R_OK);
@@ -618,12 +621,14 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 		if (sched_mask > 1) {
 			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
 						0x1 << ring_id, sysfs);
+			igt_info("Disable other rings, keep only ring: %d enabled, cmd: %s\n", ring_id, cmd);
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}
 
 		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type,
-					    ring_id, prio, version, BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
+					    ring_id, prio, version,
+						BACKEND_SE_GC_SHADER_EXEC_SUCCESS, NULL);
 		amdgpu_memcpy_dispatch_hang_slow_test(device_handle, ip_type,
 						      prio, version, AMDGPU_CTX_UNKNOWN_RESET);
 
@@ -639,7 +644,8 @@ amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle,
 	}
 }
 
-void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type, enum cmd_error_type hang)
+void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_type,
+		enum cmd_error_type hang, const struct pci_addr *pci)
 {
 	int r;
 	FILE *fp;
@@ -664,11 +670,14 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 		version = 9;
 
 	if (ip_type == AMD_IP_GFX)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_gfx_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_COMPUTE)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_compute_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_compute_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 	else if (ip_type == AMD_IP_DMA)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/0/amdgpu_sdma_sched_mask");
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
 	r = access(sysfs, R_OK);
@@ -710,7 +719,7 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 		if (sched_mask > 1) {
 			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
 						0x1 << ring_id, sysfs);
-			igt_info("cmd: %s\n", cmd);
+			igt_info("Disable other rings, keep only ring: %d enabled, cmd: %s\n", ring_id, cmd);
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}

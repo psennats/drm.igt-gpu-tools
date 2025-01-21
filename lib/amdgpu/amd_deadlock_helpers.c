@@ -241,6 +241,7 @@ void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int 
 		if (sched_mask > 1) {
 			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
 						0x1 << ring_id, sysfs);
+			igt_info("Disable other rings, keep only ring: %d enabled, cmd: %s\n", ring_id, cmd);
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}
@@ -472,6 +473,7 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 		if (sched_mask > 1) {
 			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
 						0x1 << ring_id, sysfs);
+			igt_info("Disable other rings, keep only ring: %d enabled, cmd: %s\n", ring_id, cmd);
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}

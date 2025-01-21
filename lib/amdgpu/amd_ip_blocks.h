@@ -233,7 +233,7 @@ void
 asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask, bool arr[AMD_IP_MAX]);
 
 bool
-is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type);
+is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struct pci_addr *pci);
 
 int
 get_pci_addr_from_fd(int fd, struct pci_addr *pci);

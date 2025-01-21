@@ -14,31 +14,36 @@
 #include "lib/amdgpu/amd_dispatch.h"
 
 static void
-amdgpu_dispatch_hang_slow_gfx(amdgpu_device_handle device_handle)
+amdgpu_dispatch_hang_slow_gfx(amdgpu_device_handle device_handle,
+		const struct pci_addr *pci)
 {
-	amdgpu_dispatch_hang_slow_helper(device_handle, AMDGPU_HW_IP_GFX);
+	amdgpu_dispatch_hang_slow_helper(device_handle, AMDGPU_HW_IP_GFX, pci);
 }
 
 static void
-amdgpu_dispatch_hang_slow_compute(amdgpu_device_handle device_handle)
+amdgpu_dispatch_hang_slow_compute(amdgpu_device_handle device_handle,
+		const struct pci_addr *pci)
 {
-	amdgpu_dispatch_hang_slow_helper(device_handle, AMDGPU_HW_IP_COMPUTE);
+	amdgpu_dispatch_hang_slow_helper(device_handle, AMDGPU_HW_IP_COMPUTE, pci);
 }
 
 static void
-amdgpu_dispatch_hang_gfx(amdgpu_device_handle device_handle, enum cmd_error_type error)
+amdgpu_dispatch_hang_gfx(amdgpu_device_handle device_handle,
+		enum cmd_error_type error, const struct pci_addr *pci)
 {
-	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, error);
+	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, error, pci);
 }
 
 static void
-amdgpu_dispatch_hang_compute(amdgpu_device_handle device_handle, enum cmd_error_type error)
+amdgpu_dispatch_hang_compute(amdgpu_device_handle device_handle,
+		enum cmd_error_type error, const struct pci_addr *pci)
 {
-	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, error);
+	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, error, pci);
 }
 
 static void
-amdgpu_gpu_reset_test(amdgpu_device_handle device_handle, int drm_amdgpu)
+amdgpu_gpu_reset_test(amdgpu_device_handle device_handle, int drm_amdgpu,
+		const struct pci_addr *pci)
 {
 	amdgpu_context_handle context_handle;
 	char debugfs_path[256], tmp[10];
@@ -67,8 +72,8 @@ amdgpu_gpu_reset_test(amdgpu_device_handle device_handle, int drm_amdgpu)
 	r = amdgpu_cs_ctx_free(context_handle);
 	igt_assert_eq(r, 0);
 
-	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, 0);
-	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, 0);
+	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, 0, pci);
+	amdgpu_gfx_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, 0, pci);
 }
 
 igt_main
@@ -78,6 +83,7 @@ igt_main
 	int fd = -1;
 	int r;
 	bool arr_cap[AMD_IP_MAX] = {0};
+	struct pci_addr pci;
 
 	igt_fixture {
 		uint32_t major, minor;
@@ -90,7 +96,9 @@ igt_main
 
 		igt_info("Initialized amdgpu, driver version %d.%d\n",
 			 major, minor);
-
+		igt_skip_on(get_pci_addr_from_fd(fd, &pci));
+		igt_info("PCI Address: domain %04x, bus %02x, device %02x, function %02x\n",
+				pci.domain, pci.bus, pci.device, pci.function);
 		r = amdgpu_query_gpu_info(device, &gpu_info);
 		igt_assert_eq(r, 0);
 		r = setup_amdgpu_ip_blocks(major, minor, &gpu_info, device);
@@ -102,7 +110,7 @@ igt_main
 	igt_subtest_with_dynamic("amdgpu-dispatch-test-compute-with-IP-COMPUTE") {
 		if (arr_cap[AMD_IP_COMPUTE]) {
 			igt_dynamic_f("amdgpu-dispatch-test-compute")
-			amdgpu_dispatch_hang_slow_compute(device);
+			amdgpu_dispatch_hang_slow_compute(device, &pci);
 		}
 	}
 
@@ -110,52 +118,52 @@ igt_main
 	igt_subtest_with_dynamic("amdgpu-dispatch-test-gfx-with-IP-GFX") {
 		if (arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("amdgpu-dispatch-test-gfx")
-			 amdgpu_dispatch_hang_slow_gfx(device);
+			 amdgpu_dispatch_hang_slow_gfx(device, &pci);
 		}
 	}
 
 	igt_describe("Test GPU reset using a binary shader to hang the job on gfx ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-hang-test-gfx-with-IP-GFX") {
 		if (arr_cap[AMD_IP_GFX] &&
-			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-dispatch-hang-test-gfx")
-			amdgpu_dispatch_hang_gfx(device, BACKEND_SE_GC_SHADER_INVALID_SHADER);
+			amdgpu_dispatch_hang_gfx(device, BACKEND_SE_GC_SHADER_INVALID_SHADER, &pci);
 		}
 	}
 
 	igt_describe("Test GPU reset using a binary shader to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-hang-test-compute-with-IP-COMPUTE") {
 		if (arr_cap[AMD_IP_COMPUTE] &&
-			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-dispatch-hang-test-compute")
-			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_SHADER);
+			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_SHADER, &pci);
 		}
 	}
 
 	igt_describe("Test GPU reset using a invalid shader program address to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-invalid-program-addr-test-compute-with-IP-COMPUTE") {
 		if (arr_cap[AMD_IP_COMPUTE] &&
-			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-dispatch-invalid-program-addr-test-compute")
-			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR);
+			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_ADDR, &pci);
 		}
 	}
 
 	igt_describe("Test GPU reset using a invalid shader program setting to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-invalid-setting-test-compute-with-IP-COMPUTE") {
 		if (arr_cap[AMD_IP_COMPUTE] &&
-			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-dispatch-invalid-setting-test-compute")
-			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING);
+			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_PROGRAM_SETTING, &pci);
 		}
 	}
 
 	igt_describe("Test GPU reset using a invalid shader user data to hang the job on compute ring");
 	igt_subtest_with_dynamic("amdgpu-dispatch-invalid-user-data-test-compute-with-IP-COMPUTE") {
 		if (arr_cap[AMD_IP_COMPUTE] &&
-			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-dispatch-invalid-user-data-test-compute")
-			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_USER_DATA);
+			amdgpu_dispatch_hang_compute(device, BACKEND_SE_GC_SHADER_INVALID_USER_DATA, &pci);
 		}
 	}
 
@@ -163,7 +171,7 @@ igt_main
 	igt_subtest_with_dynamic("amdgpu-reset-test-gfx-with-IP-GFX-and-COMPUTE") {
 		if (arr_cap[AMD_IP_GFX] && arr_cap[AMD_IP_COMPUTE]) {
 			igt_dynamic_f("amdgpu-reset-gfx-compute")
-			amdgpu_gpu_reset_test(device, fd);
+			amdgpu_gpu_reset_test(device, fd, &pci);
 		}
 	}
 

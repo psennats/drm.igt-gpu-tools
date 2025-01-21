@@ -1004,7 +1004,7 @@ asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask,
  */
 
 bool
-is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type)
+is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struct pci_addr *pci)
 {
 	char cmd[256];
 	FILE *fp, *fp2;
@@ -1019,7 +1019,12 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type)
 	else
 		snprintf(reset_mask, sizeof(reset_mask) - 1, "sdma_reset_mask");
 
-	snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/0/name |grep -oP '(?<=dev=)[0-9:.]+'");
+	if( pci)
+		snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/%04x:%02x:%02x.%01x/name |grep -oP '(?<=dev=)[0-9:.]+'",
+			pci->domain, pci->bus, pci->device, pci->function);
+	else
+		snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/0/name |grep -oP '(?<=dev=)[0-9:.]+'");
+
 	fp = popen(cmd, "r");
 	if (fp == NULL)
 		return false;

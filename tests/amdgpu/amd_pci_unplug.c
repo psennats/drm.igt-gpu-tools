@@ -47,7 +47,6 @@ igt_main
 	igt_subtest("amdgpu_hotunplug_with_cs")
 		amdgpu_hotunplug_with_cs(&setup, &unplug);
 
-		/*TODO about second GPU*/
 	igt_subtest("amdgpu_hotunplug_with_exported_bo")
 		amdgpu_hotunplug_with_exported_bo(&setup, &unplug);
 

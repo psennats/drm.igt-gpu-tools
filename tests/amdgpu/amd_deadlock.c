@@ -76,7 +76,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-access-gfx-illegal-reg");
 	igt_subtest_with_dynamic("amdgpu-gfx-illegal-reg-access") {
 		if (arr_cap[AMD_IP_GFX] &&
-			is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-illegal-reg-access")
 			bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
 					AMDGPU_HW_IP_GFX, &pci);
@@ -86,7 +86,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-access-gfx-illegal-mem-addr");
 	igt_subtest_with_dynamic("amdgpu-gfx-illegal-mem-access") {
 		if (arr_cap[AMD_IP_GFX] &&
-			is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-illegal-mem-access")
 			bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
 					AMDGPU_HW_IP_GFX, &pci);
@@ -105,7 +105,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-access-compute-illegal-mem-addr");
 	igt_subtest("amdgpu-compute-illegal-mem-access") {
 		if (arr_cap[AMD_IP_COMPUTE] &&
-			 is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			 is_reset_enable(AMD_IP_COMPUTE, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 		bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
 				AMDGPU_HW_IP_COMPUTE, &pci);
 		}
@@ -122,7 +122,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-sdma-corrupted-header-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-corrupted-header-test") {
 		if (arr_cap[AMD_IP_DMA] &&
-			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-corrupted-header-test")
 			amdgpu_hang_sdma_ring_helper(device, DMA_CORRUPTED_HEADER_HANG, &pci);
 		}
@@ -131,7 +131,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-sdma-slow-linear-copy-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-slow-linear-copy") {
 		if (arr_cap[AMD_IP_DMA] &&
-			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-slow-linear-copy")
 			amdgpu_hang_sdma_ring_helper(device, DMA_SLOW_LINEARCOPY_HANG, &pci);
 		}
@@ -140,7 +140,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-sdma-badop-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-badop-test") {
 		if (arr_cap[AMD_IP_DMA] &&
-			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-badop-test")
 			bad_access_ring_helper(device, CMD_STREAM_EXEC_INVALID_OPCODE,
 					AMDGPU_HW_IP_DMA, &pci);
@@ -150,7 +150,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-sdma-bad-mem-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-mem-test") {
 		if (arr_cap[AMD_IP_DMA] &&
-			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-bad-mem-test")
 			bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_MEM_ADDRESS,
 					AMDGPU_HW_IP_DMA, &pci);
@@ -160,7 +160,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-sdma-bad-reg-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-reg-test") {
 		if (arr_cap[AMD_IP_DMA] &&
-			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-bad-reg-test")
 			bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
 					AMDGPU_HW_IP_DMA, &pci);
@@ -170,7 +170,7 @@ igt_main
 	igt_describe("Test-GPU-reset-by-sdma-bad-length-with-jobs");
 	igt_subtest_with_dynamic("amdgpu-deadlock-sdma-bad-length-test") {
 		if (arr_cap[AMD_IP_DMA] &&
-			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE)) {
+			is_reset_enable(AMD_IP_DMA, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
 			igt_dynamic_f("amdgpu-deadlock-sdma-bad-length-test")
 			bad_access_ring_helper(device, CMD_STREAM_EXEC_INVALID_PACKET_LENGTH,
 					AMDGPU_HW_IP_DMA, &pci);
