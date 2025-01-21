@@ -2504,7 +2504,7 @@ again_1:
  * Description: Test reason field is non-zero. Can also check OA buffer wraparound issues
  */
 static void
-test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe)
+test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_buffer_size)
 {
 	/* ~20 micro second period */
 	int oa_exponent = max_oa_exponent_for_period_lte(20000);
@@ -2522,6 +2522,7 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe)
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
 		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
+		DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, oa_buffer_size,
 	};
 	struct intel_xe_oa_open_prop param = {
 		.num_properties = ARRAY_SIZE(properties) / 2,
@@ -2540,6 +2541,9 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe)
 
 	load_helper_init();
 	load_helper_run(HIGH);
+
+	if (!oa_buffer_size)
+		param.num_properties = param.num_properties - 1;
 
 	stream_fd = __perf_open(drm_fd, &param, true /* prevent_pm */);
         set_fd_flags(stream_fd, O_CLOEXEC);
@@ -4779,6 +4783,11 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 		igt_dynamic_f("%s-%d", xe_engine_class_name(hwe->engine_class), \
 			      hwe->engine_instance)
 
+#define __for_one_hwe_in_oag_w_arg(hwe, str) \
+	if ((hwe = oa_unit_engine(drm_fd, 0))) \
+		igt_dynamic_f("%s-%d-%s", xe_engine_class_name(hwe->engine_class), \
+			      hwe->engine_instance, str)
+
 #define __for_one_render_engine_0(hwe) \
 	xe_for_each_engine(drm_fd, hwe) \
 		if (hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER) \
@@ -4813,6 +4822,7 @@ igt_main
 		{ NULL },
 	};
 	struct drm_xe_engine_class_instance *hwe = NULL;
+	struct drm_xe_oa_unit *oau;
 	struct xe_device *xe_dev;
 
 	igt_fixture {
@@ -4842,6 +4852,7 @@ igt_main
 
 		/* See xe_query_oa_units_new() */
 		igt_require(xe_dev->oa_units);
+		oau = nth_oa_unit(drm_fd, 0);
 
 		devid = intel_get_drm_devid(drm_fd);
 		sysfs = igt_sysfs_open(drm_fd);
@@ -4884,8 +4895,13 @@ igt_main
 			test_buffer_fill(hwe);
 
 	igt_subtest_with_dynamic("non-zero-reason") {
-		__for_one_hwe_in_oag(hwe)
-			test_non_zero_reason(hwe);
+		if (oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE) {
+			__for_one_hwe_in_oag_w_arg(hwe, "16M")
+				test_non_zero_reason(hwe, SZ_16M);
+		} else {
+			__for_one_hwe_in_oag_w_arg(hwe, "default")
+				test_non_zero_reason(hwe, 0);
+		}
 	}
 
 	igt_subtest("disabled-read-error")
@@ -5016,9 +5032,6 @@ igt_main
 
 	igt_subtest_group {
 		igt_fixture {
-			struct drm_xe_query_oa_units *qoa = xe_oa_units(drm_fd);
-			struct drm_xe_oa_unit *oau = (struct drm_xe_oa_unit *)&qoa->oa_units[0];
-
 			igt_require(oau->capabilities & DRM_XE_OA_CAPS_SYNCS);
 		}
 
