@@ -60,6 +60,122 @@ static int __create_bo(int fd, uint32_t vm, uint64_t size, uint32_t placement,
 }
 
 /**
+ * SUBTEST: invalid-flag
+ * Functionality: ioctl_input_validation
+ * Description: Check ioctl with invalid flag returns expected error code
+ *
+ * SUBTEST: exec-queue-create-invalid-reserved
+ * Functionality: ioctl_input_validation
+ * Description: Send query with invalid reserved value for exec_queue_destroy ioctl
+ *
+ * SUBTEST: invalid-len
+ * Functionality: ioctl_input_validation
+ * Description: Check query with invalid length returns expected error code
+ *
+ * SUBTEST: invalid-extensions
+ * Functionality: ioctl_input_validation
+ * Description: Check query with invalid extensions returns expected error code
+ */
+
+static void invalid_flag(int fd)
+{
+	struct drm_xe_exec_queue_create create = {
+		.flags = -1,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EINVAL);
+}
+
+static void exec_queue_create_invalid_reserved(int fd)
+{
+	struct drm_xe_exec_queue_create create = {
+		.reserved[0] = 0xffff,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EINVAL);
+
+	create.reserved[0] = 0;
+	create.reserved[1] = 0xffff;
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EINVAL);
+}
+
+static void invalid_len(int fd)
+{
+	struct drm_xe_exec_queue_create create = {
+		.width = 1,
+		.num_placements = 1,
+	};
+
+	create.width = 0;
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EINVAL);
+	create.width = 1;
+
+	create.num_placements = 0;
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EINVAL);
+	create.num_placements = 1;
+
+	create.width = 9;
+	create.num_placements = 9;
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EINVAL);
+}
+
+static void invalid_extensions(int fd)
+{
+	struct drm_xe_exec_queue_create create = {
+		.width = 1,
+		.num_placements = 1,
+		.extensions = -1,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create, EFAULT);
+}
+
+/**
+ * SUBTEST: invalid-pad
+ * Functionality: ioctl_input_validation
+ * Description: Check query with invalid pad returns expected error code
+ *
+ * SUBTEST: exec-queue-destroy-invalid-reserved
+ * Functionality: ioctl_input_validation
+ * Description: Send query with invalid reserved value for exec_queue_destroy ioctl
+ *
+ * SUBTEST: invalid-exec-queue-id
+ * Functionality: ioctl_input_validation
+ * Description: Check query with invalid exec_queue_id returns expected error code
+ */
+
+static void invalid_pad(int fd)
+{
+	struct drm_xe_exec_queue_destroy destroy = {
+		.pad = 1,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_DESTROY, &destroy, EINVAL);
+}
+
+static void exec_queue_destroy_invalid_reserved(int fd)
+{
+	struct drm_xe_exec_queue_destroy destroy = {
+		.reserved[0] = 0xffff,
+	};
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_DESTROY, &destroy, EINVAL);
+
+	destroy.reserved[0] = 0;
+	destroy.reserved[1] = 0xffff;
+	do_ioctl_err(fd, DRM_IOCTL_XE_EXEC_QUEUE_DESTROY, &destroy, EINVAL);
+}
+
+static void invalid_exec_queue_id(int xe)
+{
+	struct drm_xe_exec_queue_destroy args = {
+		.exec_queue_id = 0xffff,
+	};
+
+	do_ioctl_err(xe, DRM_IOCTL_XE_EXEC_QUEUE_DESTROY, &args, ENOENT);
+}
+
+/**
  * SUBTEST: create-invalid-size
  * Functionality: ioctl
  * Test category: negative test
@@ -391,6 +507,27 @@ igt_main_args("Q:p:", NULL, help_str, opt_handler, NULL)
 
 	igt_fixture
 		xe = drm_open_driver(DRIVER_XE);
+
+	igt_subtest("invalid-flag")
+		invalid_flag(xe);
+
+	igt_subtest("exec-queue-create-invalid-reserved")
+		exec_queue_create_invalid_reserved(xe);
+
+	igt_subtest("invalid-len")
+		invalid_len(xe);
+
+	igt_subtest("invalid-extensions")
+		invalid_extensions(xe);
+
+	igt_subtest("invalid-pad")
+		invalid_pad(xe);
+
+	igt_subtest("exec-queue-destroy-invalid-reserved")
+		exec_queue_destroy_invalid_reserved(xe);
+
+	igt_subtest("invalid-exec-queue-id")
+		invalid_exec_queue_id(xe);
 
 	igt_subtest("create-invalid-mbz")
 		create_invalid_mbz(xe);
