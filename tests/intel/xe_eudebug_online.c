@@ -1063,8 +1063,8 @@ static void run_online_client(struct xe_eudebug_client *c)
 	uint32_t *ptr;
 	int fd, vm_flags;
 
-	metadata[0] = calloc(2, sizeof(*metadata));
-	metadata[1] = calloc(2, sizeof(*metadata));
+	metadata[0] = calloc(2, sizeof(**metadata));
+	metadata[1] = calloc(2, sizeof(**metadata));
 	igt_assert(metadata[0]);
 	igt_assert(metadata[1]);
 
@@ -1086,10 +1086,10 @@ static void run_online_client(struct xe_eudebug_client *c)
 	metadata[1][0] = target_offset;
 	metadata[1][1] = buf->size;
 	metadata_id[0] = xe_eudebug_client_metadata_create(c, fd, DRM_XE_DEBUG_METADATA_ELF_BINARY,
-							   2 * sizeof(*metadata), metadata[0]);
+							   2 * sizeof(**metadata), metadata[0]);
 	metadata_id[1] = xe_eudebug_client_metadata_create(c, fd,
 							   DRM_XE_DEBUG_METADATA_PROGRAM_MODULE,
-							   2 * sizeof(*metadata), metadata[1]);
+							   2 * sizeof(**metadata), metadata[1]);
 
 	vm_flags = DRM_XE_VM_CREATE_FLAG_LR_MODE;
 	vm_flags |= c->flags & SHADER_PAGEFAULT ? DRM_XE_VM_CREATE_FLAG_FAULT_MODE : 0;
@@ -1144,10 +1144,10 @@ static void run_online_client(struct xe_eudebug_client *c)
 	xe_eudebug_client_vm_destroy(c, fd, create.vm_id);
 
 	xe_eudebug_client_metadata_destroy(c, fd, metadata_id[0], DRM_XE_DEBUG_METADATA_ELF_BINARY,
-					   2 * sizeof(*metadata));
+					   2 * sizeof(**metadata));
 	xe_eudebug_client_metadata_destroy(c, fd, metadata_id[1],
 					   DRM_XE_DEBUG_METADATA_PROGRAM_MODULE,
-					   2 * sizeof(*metadata));
+					   2 * sizeof(**metadata));
 
 	intel_buf_destroy(buf);
 
