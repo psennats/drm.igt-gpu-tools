@@ -569,7 +569,7 @@ static void get_aips_offset_table(struct online_debug_data *data, int threads)
 
 	igt_debug("AIPs offset table:\n");
 	for (int i = 0; i < threads; i++)
-		igt_debug("%lx\n", data->aips_offset_table[i]);
+		igt_debug("%" PRIx64 "\n", data->aips_offset_table[i]);
 }
 
 static int get_stepped_threads_count(struct online_debug_data *data, int threads)
@@ -2328,11 +2328,11 @@ static void test_many_sessions_on_tiles(int fd, bool multi_tile)
 
 		if (multi_tile)
 			igt_assert_f(diff < WORKLOAD_DELAY_US,
-				     "Expected to execute workloads concurrently. Actual delay: %lu ms\n",
+				     "Expected to execute workloads concurrently. Actual delay: %" PRIu64 " ms\n",
 				     diff);
 		else
 			igt_assert_f(diff >= WORKLOAD_DELAY_US,
-				     "Expected a serialization of workloads. Actual delay: %lu ms\n",
+				     "Expected a serialization of workloads. Actual delay: %" PRIu64 " ms\n",
 				     diff);
 	}
 
