@@ -324,14 +324,14 @@ static uint64_t __wait_token(int pipe[2], const uint64_t token, int timeout_ms)
 
 	ret = safe_pipe_read(pipe, &in, sizeof(in), timeout_ms);
 	igt_assert_f(ret > 0,
-		     "Pipe read timeout waiting for token '%s:(%ld)'\n",
+		     "Pipe read timeout waiting for token '%s:(%" PRId64 ")'\n",
 		     token_to_str(token), token);
 
 	igt_assert_eq(in, token);
 
 	ret = safe_pipe_read(pipe, &in, sizeof(in), timeout_ms);
 	igt_assert_f(ret > 0,
-		     "Pipe read timeout waiting for token value '%s:(%ld)'\n",
+		     "Pipe read timeout waiting for token value '%s:(%" PRId64 ")'\n",
 		     token_to_str(token), token);
 
 	return in;
@@ -828,7 +828,8 @@ xe_eudebug_event_log_find_seqno(struct xe_eudebug_event_log *l, uint64_t seqno)
 	xe_eudebug_for_each_event(e, l) {
 		if (e->seqno == seqno) {
 			if (found) {
-				igt_warn("Found multiple events with the same seqno %lu\n", seqno);
+				igt_warn("Found multiple events with the same seqno %" PRIu64 "\n",
+					 seqno);
 				xe_eudebug_event_log_print(l, false);
 				igt_assert(!found);
 			}
@@ -1238,7 +1239,7 @@ int xe_eudebug_debugger_attach(struct xe_eudebug_debugger *d,
 	d->p_client[0] = c->p_in[0];
 	d->p_client[1] = c->p_in[1];
 
-	igt_debug("debugger connected to %lu\n", d->target_pid);
+	igt_debug("debugger connected to %" PRIu64 "\n", d->target_pid);
 
 	return 0;
 }
@@ -1391,11 +1392,11 @@ void xe_eudebug_debugger_wait_stage(struct xe_eudebug_session *s, uint64_t stage
 {
 	u64 stage_in;
 
-	igt_debug("debugger xe client fd: %d pausing for stage %lu\n", s->debugger->master_fd,
+	igt_debug("debugger xe client fd: %d pausing for stage %" PRIu64 "\n", s->debugger->master_fd,
 		  stage);
 
 	stage_in = wait_from_client(s->client, DEBUGGER_STAGE);
-	igt_debug("debugger xe client fd: %d stage %lu, expected %lu, stage\n",
+	igt_debug("debugger xe client fd: %d stage %" PRIu64 ", expected %" PRIu64 ", stage\n",
 		  s->debugger->master_fd, stage_in, stage);
 
 	igt_assert_eq(stage_in, stage);
@@ -1584,14 +1585,15 @@ void xe_eudebug_client_wait_stage(struct xe_eudebug_client *c, uint64_t stage)
 	u64 stage_in;
 
 	if (c->done) {
-		igt_warn("client: %d already done before %lu\n", c->pid, stage);
+		igt_warn("client: %d already done before %" PRIu64 "\n", c->pid, stage);
 		return;
 	}
 
-	igt_debug("client: %d pausing for stage %lu\n", c->pid, stage);
+	igt_debug("client: %d pausing for stage %" PRIu64 "\n", c->pid, stage);
 
 	stage_in = client_wait_token(c, CLIENT_STAGE);
-	igt_debug("client: %d stage %lu, expected %lu, stage\n", c->pid, stage_in, stage);
+	igt_debug("client: %d stage %" PRIu64 ", expected %" PRIu64 ", stage\n", c->pid,
+		  stage_in, stage);
 
 	igt_assert_eq(stage_in, stage);
 }
@@ -1949,7 +1951,7 @@ uint32_t xe_eudebug_client_exec_queue_create(struct xe_eudebug_client *c, int fd
 	igt_assert(c);
 	igt_assert(create);
 
-	instances = (struct drm_xe_engine_class_instance *)(create->instances);
+	instances = from_user_pointer(create->instances);
 	class = instances[0].engine_class;
 
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, create), 0);
@@ -1988,6 +1990,7 @@ uint32_t xe_eudebug_client_exec_queue_create(struct xe_eudebug_client *c, int fd
 void xe_eudebug_client_exec_queue_destroy(struct xe_eudebug_client *c, int fd,
 					  struct drm_xe_exec_queue_create *create)
 {
+	struct drm_xe_engine_class_instance *instances;
 	struct drm_xe_exec_queue_destroy destroy = {};
 	struct drm_xe_ext_set_property *ext;
 	bool send = false;
@@ -1997,7 +2000,8 @@ void xe_eudebug_client_exec_queue_destroy(struct xe_eudebug_client *c, int fd,
 	igt_assert(create);
 
 	destroy.exec_queue_id = create->exec_queue_id;
-	class = ((struct drm_xe_engine_class_instance *)(create->instances))[0].engine_class;
+	instances = from_user_pointer(create->instances);
+	class = instances[0].engine_class;
 
 	for (ext = from_user_pointer(create->extensions); ext;
 	     ext = from_user_pointer(ext->base.next_extension))
