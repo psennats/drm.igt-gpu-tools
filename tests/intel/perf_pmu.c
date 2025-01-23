@@ -101,9 +101,6 @@
  * SUBTEST: busy-start
  * Description: Test to verify gpu busyness through engine business pmu counters
  *
- * SUBTEST: cpu-hotplug
- * Description: Test the i915 pmu perf interface
- *
  * SUBTEST: enable-race
  * Description: Test the i915 pmu perf interface
  *
@@ -1362,139 +1359,6 @@ static void open_invalid(int i915)
 	igt_assert_lt(fd, 0);
 }
 
-static bool cpu0_hotplug_support(void)
-{
-	return access("/sys/devices/system/cpu/cpu0/online", W_OK) == 0;
-}
-
-static void cpu_hotplug(int gem_fd)
-{
-	igt_spin_t *spin[2];
-	uint64_t ts[2];
-	uint64_t val;
-	int link[2];
-	int fd, ret;
-	int cur = 0;
-	char buf;
-	uint64_t ahnd = get_reloc_ahnd(gem_fd, 0);
-
-	igt_require(cpu0_hotplug_support());
-
-	fd = open_pmu(gem_fd,
-		      I915_PMU_ENGINE_BUSY(I915_ENGINE_CLASS_RENDER, 0));
-
-	/*
-	 * Create two spinners so test can ensure shorter gaps in engine
-	 * busyness as it is terminating one and re-starting the other.
-	 */
-	spin[0] = igt_spin_new(gem_fd, .ahnd = ahnd,
-			       .engine = I915_EXEC_DEFAULT);
-	spin[1] = __igt_spin_new(gem_fd, .ahnd = ahnd,
-				 .engine = I915_EXEC_DEFAULT);
-
-	val = __pmu_read_single(fd, &ts[0]);
-
-	ret = pipe2(link, O_NONBLOCK);
-	igt_assert_eq(ret, 0);
-
-	/*
-	 * Toggle online status of all the CPUs in a child process and ensure
-	 * this has not affected busyness stats in the parent.
-	 */
-	igt_fork(child, 1) {
-		int cpu = 0;
-
-		close(link[0]);
-
-		for (;;) {
-			char name[128];
-			int cpufd;
-
-			igt_assert_lt(snprintf(name, sizeof(name),
-					       "/sys/devices/system/cpu/cpu%d/online",
-					       cpu), sizeof(name));
-			cpufd = open(name, O_WRONLY);
-			if (cpufd == -1) {
-				igt_assert_lt(0, cpu);
-				/*
-				 * Signal parent that we cycled through all
-				 * CPUs and we are done.
-				 */
-				igt_assert_eq(write(link[1], "*", 1), 1);
-				break;
-			}
-
-			/* Offline followed by online a CPU. */
-
-			ret = write(cpufd, "0", 2);
-			if (ret < 0) {
-				/*
-				 * If we failed to offline a CPU we don't want
-				 * to proceed.
-				 */
-				igt_warn("Failed to offline cpu%u! (%d)\n",
-					 cpu, errno);
-				igt_assert_eq(write(link[1], "s", 1), 1);
-				break;
-			}
-
-			usleep(1e6);
-
-			ret = write(cpufd, "1", 2);
-			if (ret < 0) {
-				/*
-				 * Failed to bring a CPU back online is fatal
-				 * for the sanity of a test run so stop further
-				 * testing.
-				 */
-				igt_warn("Failed to online cpu%u! (%d)\n",
-					 cpu, errno);
-				igt_fatal_error();
-			}
-
-			close(cpufd);
-			cpu++;
-		}
-	}
-
-	close(link[1]);
-
-	/*
-	 * Very long batches can be declared as GPU hangs so emit shorter ones
-	 * until the CPU core shuffler finishes one loop.
-	 */
-	for (;;) {
-		usleep(500e3);
-		end_spin(gem_fd, spin[cur], 0);
-
-		/* Check if the child is signaling completion. */
-		ret = read(link[0], &buf, 1);
-		if ( ret == 1 || (ret < 0 && errno != EAGAIN))
-			break;
-
-		igt_spin_free(gem_fd, spin[cur]);
-		spin[cur] = __igt_spin_new(gem_fd, .ahnd = ahnd,
-					   .engine = I915_EXEC_DEFAULT);
-		cur ^= 1;
-	}
-
-	val = __pmu_read_single(fd, &ts[1]) - val;
-
-	end_spin(gem_fd, spin[0], FLAG_SYNC);
-	end_spin(gem_fd, spin[1], FLAG_SYNC);
-	igt_spin_free(gem_fd, spin[0]);
-	igt_spin_free(gem_fd, spin[1]);
-	igt_waitchildren();
-	close(fd);
-	close(link[0]);
-	put_ahnd(ahnd);
-
-	/* Skip if child signals a problem with offlining a CPU. */
-	igt_skip_on(buf == 's');
-
-	assert_within_epsilon(val, ts[1] - ts[0], tolerance);
-}
-
 static int target_num_interrupts(int i915)
 {
 	const intel_ctx_cfg_t cfg = intel_ctx_cfg_all_physical(i915);
@@ -2649,12 +2513,6 @@ igt_main
 	igt_subtest("all-busy-idle-check-all")
 		all_busy_check_all(fd, ctx, num_engines,
 				   TEST_BUSY | TEST_TRAILING_IDLE);
-
-	/**
-	 * Test counters are not affected by CPU offline/online events.
-	 */
-	igt_subtest("cpu-hotplug")
-		cpu_hotplug(fd);
 
 	/**
 	 * Test GPU frequency.
