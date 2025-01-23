@@ -1090,18 +1090,12 @@ void igt_devices_free(void)
  * igt_devices_scan
  * @force: enforce scanning devices
  *
- * Function scans udev in search of gpu devices. For first run it can be
- * called with @force = false. If something changes during the the test
- * or test does some module loading (new drm devices occurs during execution)
- * function must be called again with @force = true to refresh device array.
+ * Function scans udev in search of gpu devices.
  */
-void igt_devices_scan(bool force)
+void igt_devices_scan(void)
 {
-	if (force && igt_devs.devs_scanned)
-		igt_devices_free();
-
 	if (igt_devs.devs_scanned)
-		return;
+		igt_devices_free();
 
 	prepare_scan();
 	scan_drm_devices();
@@ -1983,7 +1977,7 @@ static bool __igt_device_card_match(const char *filter,
 	 * Scan devices in case the user hasn't yet,
 	 * but leave a decision on forced rescan on the user side.
 	 */
-	igt_devices_scan(false);
+	igt_devices_scan();
 
 	if (igt_device_filter_apply(filter) == false)
 		return false;

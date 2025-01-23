@@ -3178,7 +3178,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	igt_devices_scan(false);
+	igt_devices_scan();
 
 	if (list_devices_arg) {
 		struct igt_devices_print_format fmt = {

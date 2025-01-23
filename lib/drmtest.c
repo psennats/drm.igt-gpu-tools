@@ -475,7 +475,7 @@ void drm_load_module(unsigned int chipset)
 	}
 
 	pthread_mutex_unlock(&mutex);
-	igt_devices_scan(true);
+	igt_devices_scan();
 }
 
 static int __open_driver(const char *base, int offset, unsigned int chipset, int as_idx)

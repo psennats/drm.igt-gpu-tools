@@ -265,7 +265,7 @@ test_suspend_without_i915(int state)
 	int fd;
 
 	fd = __drm_open_driver(DRIVER_INTEL);
-	igt_devices_scan(false);
+	igt_devices_scan();
 
 	/*
 	 * When module is unloaded and s2idle is triggered, PCI core leaves the endpoint
@@ -317,7 +317,7 @@ igt_main
 		 * instead of reloading the i915 module.
 		 */
 		if (igt_device_filter_count())
-			igt_devices_scan(true);
+			igt_devices_scan();
 		fd = drm_open_driver(DRIVER_INTEL);
 	}
 

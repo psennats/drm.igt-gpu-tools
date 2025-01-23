@@ -399,7 +399,7 @@ static void healthcheck(struct device_fds *dev)
 		/* give the kernel a breath for re-creating device nodes in devtmpfs */
 		sleep(1);
 		/* refresh device list */
-		igt_devices_scan(true);
+		igt_devices_scan();
 		igt_debug("reopen the device\n");
 		dev->fds.dev = __drm_open_driver(DRIVER_ANY);
 	}

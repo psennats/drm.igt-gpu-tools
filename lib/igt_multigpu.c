@@ -37,7 +37,7 @@ static int print_gpus(int count, int gpu_num)
 
 	igt_info("PCI devices available in the system:\n");
 
-	igt_devices_scan(true);
+	igt_devices_scan();
 	devices = igt_device_filter_pci();
 	igt_devices_print(&fmt);
 

@@ -63,7 +63,7 @@ struct igt_device_card {
 	uint16_t pci_vendor, pci_device;
 };
 
-void igt_devices_scan(bool force);
+void igt_devices_scan(void);
 
 void igt_devices_print(const struct igt_devices_print_format *fmt);
 void igt_devices_print_vendors(void);

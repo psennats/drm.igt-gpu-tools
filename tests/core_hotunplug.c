@@ -488,7 +488,7 @@ static bool healthcheck(struct hotunplug *priv, bool recover)
 	sleep(1);
 
 	/* device name may have changed, rebuild IGT device list */
-	igt_devices_scan(true);
+	igt_devices_scan();
 
 	node_healthcheck(priv, recover ? FLAG_RECOVER : 0);
 	if (!priv->failure)

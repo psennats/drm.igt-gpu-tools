@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
 	}
 
 	env_device = getenv("IGT_DEVICE");
-	igt_devices_scan(false);
+	igt_devices_scan();
 
 	if (env_device) {
 		if (!igt_device_card_match(env_device, &card)) {
