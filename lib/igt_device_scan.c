@@ -247,7 +247,7 @@ struct igt_device {
 };
 
 /* Scanned devices */
-static struct {
+static __thread struct {
 	struct igt_list_head all;
 	struct igt_list_head filtered;
 	bool devs_scanned;
