@@ -87,6 +87,25 @@ igt_sriov_random_vf_in_range(int pf_fd, unsigned int start, unsigned int end)
 #define for_each_sriov_num_vfs for_each_sriov_vf
 
 /**
+ * for_each_sriov_vf_in_range - Iterate over VFs in a specified range
+ * @__pf_fd: PF device file descriptor
+ * @__start: Starting VF number in the range
+ * @__end: Ending VF number in the range
+ * @__vf_num: Variable to store the random VF number
+ *
+ * For loop that iterates over VFs associated with given PF @__pf_fd,
+ * within the specified range [__start, __end]. The loop runs only if
+ * the range is valid.
+ */
+#define for_each_sriov_vf_in_range(__pf_fd, __start, __end, __vf_num) \
+	for (unsigned int __vf_num = __is_valid_range((__start), (__end), \
+						      igt_sriov_get_total_vfs(__pf_fd)) ? \
+						      (__start) : 0; \
+	     __vf_num && __vf_num <= (__end); \
+	     ++__vf_num)
+#define for_each_sriov_num_vfs_in_range for_each_sriov_vf_in_range
+
+/**
  * for_random_sriov_vf_in_range - Iterate over a random VF in a specified range
  * @__pf_fd: PF device file descriptor
  * @__start: Starting VF number in the range
