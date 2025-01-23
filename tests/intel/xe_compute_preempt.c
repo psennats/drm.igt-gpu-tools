@@ -6,7 +6,7 @@
 /**
  * TEST: Check compute-related preemption functionality
  * Category: Core
- * Mega feature: Compute
+ * Mega feature: WMTP
  * Sub-category: Compute tests
  * Functionality: OpenCL kernel
  * Test category: functionality test
