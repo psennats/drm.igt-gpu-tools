@@ -1006,11 +1006,26 @@ asic_rings_readness(amdgpu_device_handle device_handle, uint32_t mask,
 bool
 is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struct pci_addr *pci)
 {
-	char cmd[256];
-	FILE *fp, *fp2;
-	char buffer[100];
+	const struct reset_arr {
+		const char *name;
+		unsigned int reset;
+	} reset_arr[] = {
+		{"full",	AMDGPU_RESET_TYPE_FULL		},
+		{"soft",	AMDGPU_RESET_TYPE_SOFT_RESET},
+		{"queue",	AMDGPU_RESET_TYPE_PER_QUEUE },
+		{"pipe",	AMDGPU_RESET_TYPE_PER_PIPE },
+		{NULL, 0}
+	};
+
 	bool enable = false;
-	char reset_mask[100];
+	char cmd[256];
+	FILE *fp;
+	char buffer[128];
+
+	char *token, *buf;
+	char reset_mask[32];
+	uint32_t mask = 0;
+	int i;
 
 	if (ip_type == AMD_IP_GFX)
 		snprintf(reset_mask, sizeof(reset_mask) - 1, "gfx_reset_mask");
@@ -1019,33 +1034,39 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struc
 	else
 		snprintf(reset_mask, sizeof(reset_mask) - 1, "sdma_reset_mask");
 
-	if( pci)
-		snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/%04x:%02x:%02x.%01x/name |grep -oP '(?<=dev=)[0-9:.]+'",
-			pci->domain, pci->bus, pci->device, pci->function);
-	else
-		snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/kernel/debug/dri/0/name |grep -oP '(?<=dev=)[0-9:.]+'");
+	snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/bus/pci/devices/%04x:%02x:%02x.%01x/%s",
+			pci->domain, pci->bus, pci->device, pci->function, reset_mask);
 
 	fp = popen(cmd, "r");
-	if (fp == NULL)
+	if (fp == NULL) {
+		igt_kmsg("***FAILURE popen %s LINE %d FILE %s\n", cmd, __LINE__, __FILE__);
 		return false;
-
-	if (fgets(buffer, 13, fp) != NULL) {
-		snprintf(cmd, sizeof(cmd) - 1, "sudo cat /sys/bus/pci/devices/%s/%s | grep -oP '%s'",
-			buffer, reset_mask,
-			reset_type & AMDGPU_RESET_TYPE_FULL ? "full" :
-			reset_type & AMDGPU_RESET_TYPE_SOFT_RESET ? "soft" :
-			reset_type & AMDGPU_RESET_TYPE_PER_QUEUE ? "queue" : "pipe");
-
-		fp2 = popen(cmd, "r");
-		if (fp2 == NULL) {
-			pclose(fp);
-			return false;
-		}
-
-		if (fgets(buffer, 13, fp2) != NULL)
-			enable = true;
-		pclose(fp2);
 	}
+
+	buf = fgets(buffer, sizeof(buffer)-1, fp);
+
+	if (buf != NULL) {
+		token = strtok(buf, " \n");
+		while (token != NULL) {
+			for (i = 0; reset_arr[i].name != NULL; i++) {
+				if (reset_type == reset_arr[i].reset &&
+					strcmp(token, reset_arr[i].name) == 0) {
+					mask |= reset_arr[i].reset;
+					break;
+				}
+			}
+			token = strtok(NULL, " \n");
+		}
+	} else {
+		igt_kmsg("***FAILURE fgets %s LINE %d FILE %s\n",
+				buffer, __LINE__, __FILE__);
+	}
+	if (mask == reset_type)
+		enable = true;
+	else
+		igt_kmsg("***FAILURE mask found 0x%x requested 0x%x operation is not supported LINE %d FILE %s\n",
+				mask, reset_type, __LINE__, __FILE__);
+
 	pclose(fp);
 
 	return enable;
@@ -1105,7 +1126,7 @@ int get_pci_addr_from_fd(int fd, struct pci_addr *pci)
 
 	if (ret != 4) {
 		igt_info("error %s Unable to extract PCI device address from '%s\n",
-				__FUNCTION__, buf);
+				__func__, buf);
 		return -ENOENT;
 	}
 
