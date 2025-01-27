@@ -2305,6 +2305,7 @@ static void test_many_sessions_on_tiles(int fd, bool multi_tile)
 				attempt_mask |= BIT(i);
 				should_break = 1;
 
+				usleep(WORKLOAD_DELAY_US);
 				eus = (struct drm_xe_eudebug_event_eu_attention *)data[i]->exception_event;
 				eu_ctl_resume(s[i]->debugger->master_fd, s[i]->debugger->fd,
 					      eus->client_handle, eus->exec_queue_handle,
@@ -2328,11 +2329,11 @@ static void test_many_sessions_on_tiles(int fd, bool multi_tile)
 
 		if (multi_tile)
 			igt_assert_f(diff < WORKLOAD_DELAY_US,
-				     "Expected to execute workloads concurrently. Actual delay: %" PRIu64 " ms\n",
+				     "Expected to execute workloads concurrently. Actual delay: %" PRIu64 " us\n",
 				     diff);
 		else
 			igt_assert_f(diff >= WORKLOAD_DELAY_US,
-				     "Expected a serialization of workloads. Actual delay: %" PRIu64 " ms\n",
+				     "Expected a serialization of workloads. Actual delay: %" PRIu64 " us\n",
 				     diff);
 	}
 
