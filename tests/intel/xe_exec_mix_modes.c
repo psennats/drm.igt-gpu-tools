@@ -169,10 +169,10 @@ run_job(int fd, struct drm_xe_engine_class_instance *hwe,
 			 * depending on the execution mode.
 			 */
 			if (engine_execution_mode == EXEC_MODE_LR)
-				igt_assert(igt_nsec_elapsed(&tv) < 0.5 * duration_ns);
+				igt_assert_lt(igt_nsec_elapsed(&tv), 0.5 * duration_ns);
 			else if (engine_execution_mode == EXEC_MODE_DMA_FENCE &&
 				 job_type == SPINNER_INTERRUPTED)
-				igt_assert(igt_nsec_elapsed(&tv) > duration_ns);
+				igt_assert_lt(duration_ns, igt_nsec_elapsed(&tv));
 		}
 	}
 
