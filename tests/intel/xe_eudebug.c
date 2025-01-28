@@ -1093,6 +1093,7 @@ static void test_basic_discovery(int fd, unsigned int flags, bool match_opposite
 #define DISCOVERY_CLOSE_CLIENT		(1 << 1)
 #define DISCOVERY_DESTROY_RESOURCES	(1 << 2)
 #define DISCOVERY_VM_BIND		(1 << 3)
+#define DISCOVERY_SIGINT		(1 << 4)
 static void run_discovery_client(struct xe_eudebug_client *c)
 {
 	int fd[RESOURCE_COUNT], i;
@@ -1165,6 +1166,7 @@ static void run_discovery_client(struct xe_eudebug_client *c)
  * arg[1]:
  *
  * @race:		resources creation
+ * @race-sigint:	resources creation with client interruption
  * @race-vmbind:	vm-bind operations
  * @empty:		resources destruction
  * @empty-clients:	client closure
@@ -1200,56 +1202,61 @@ static void *discovery_race_thread(void *data)
 
 			xe_eudebug_debugger_start_worker(s->debugger);
 
-			/*
-			 * Thread can starve for more than one second. Make
-			 * sure we get at least one event before stopping.
-			 */
-			do
-				sleep(1);
-			while (!READ_ONCE(s->debugger->event_count) &&
-			       --max_worker_waits);
+			if (!s->client->done) {
+				/*
+				 * Thread can starve for more than one second. Make
+				 * sure we get at least one event before stopping.
+				 */
+				do
+					if (s->client->flags & DISCOVERY_SIGINT)
+						usleep(100000);
+					else
+						sleep(1);
+				while (!READ_ONCE(s->debugger->event_count) &&
+				       --max_worker_waits);
 
 			igt_assert(READ_ONCE(s->debugger->event_count));
+			}
 
 			xe_eudebug_debugger_stop_worker(s->debugger, 1);
 
 			igt_debug("Resources discovered: %lu\n", s->debugger->event_count);
+			if (!s->client->done) {
+				xe_eudebug_for_each_event(e, s->debugger->log) {
+					if (e->type == DRM_XE_EUDEBUG_EVENT_OPEN) {
+						struct drm_xe_eudebug_event_client *eo = (void *)e;
 
-			xe_eudebug_for_each_event(e, s->debugger->log) {
-				if (e->type == DRM_XE_EUDEBUG_EVENT_OPEN) {
-					struct drm_xe_eudebug_event_client *eo = (void *)e;
-
-					if (i >= 0) {
-						igt_assert_eq(clients[i].vm_count,
-							      RESOURCE_COUNT);
-
-						igt_assert_eq(clients[i].exec_queue_count,
-							      RESOURCE_COUNT);
-
-						if (s->client->flags & DISCOVERY_VM_BIND)
-							igt_assert_eq(clients[i].vm_bind_op_count,
+						if (i >= 0) {
+							igt_assert_eq(clients[i].vm_count,
 								      RESOURCE_COUNT);
+
+							igt_assert_eq(clients[i].exec_queue_count,
+								      RESOURCE_COUNT);
+
+							if (s->client->flags & DISCOVERY_VM_BIND)
+								igt_assert_eq(clients[i].vm_bind_op_count,
+									      RESOURCE_COUNT);
+						}
+
+						igt_assert(++i < RESOURCE_COUNT);
+						clients[i].client_handle = eo->client_handle;
+						clients[i].vm_count = 0;
+						clients[i].exec_queue_count = 0;
+						clients[i].vm_bind_op_count = 0;
 					}
 
-					igt_assert(++i < RESOURCE_COUNT);
-					clients[i].client_handle = eo->client_handle;
-					clients[i].vm_count = 0;
-					clients[i].exec_queue_count = 0;
-					clients[i].vm_bind_op_count = 0;
-				}
+					if (e->type == DRM_XE_EUDEBUG_EVENT_VM)
+						clients[i].vm_count++;
 
-				if (e->type == DRM_XE_EUDEBUG_EVENT_VM)
-					clients[i].vm_count++;
+					if (e->type == DRM_XE_EUDEBUG_EVENT_EXEC_QUEUE)
+						clients[i].exec_queue_count++;
 
-				if (e->type == DRM_XE_EUDEBUG_EVENT_EXEC_QUEUE)
-					clients[i].exec_queue_count++;
+					if (e->type == DRM_XE_EUDEBUG_EVENT_VM_BIND_OP)
+						clients[i].vm_bind_op_count++;
+				};
 
-				if (e->type == DRM_XE_EUDEBUG_EVENT_VM_BIND_OP)
-					clients[i].vm_bind_op_count++;
-			};
-
-			igt_assert_lte(0, i);
-
+				igt_assert_lte(0, i);
+			}
 			for (int j = 0; j < i; j++)
 				for (int k = 0; k < i; k++) {
 					if (k == j)
@@ -1317,8 +1324,15 @@ static void test_race_discovery(int fd, unsigned int flags, int clients)
 		pthread_create(&threads[i], NULL, discovery_race_thread, &sessions[i]);
 	}
 
-	for (i = 0; i < count; i++)
+	if (flags & DISCOVERY_SIGINT) {
+		sleep(2);
+		sessions[0].client->done = 1;
+		kill(sessions[0].client->pid, SIGINT);
+	}
+
+	for (i = 0; i < count; i++) {
 		pthread_join(threads[i], NULL);
+	}
 
 	for (i = count - 1; i > 0; i--) {
 		if (sessions[i].flags & PRIMARY_THREAD) {
@@ -2912,6 +2926,9 @@ igt_main
 
 	igt_subtest("discovery-race-vmbind")
 		test_race_discovery(fd, DISCOVERY_VM_BIND, 4);
+
+	igt_subtest("discovery-race-sigint")
+		test_race_discovery(fd, DISCOVERY_SIGINT, 1);
 
 	igt_subtest("discovery-empty")
 		test_empty_discovery(fd, DISCOVERY_CLOSE_CLIENT, 16);
