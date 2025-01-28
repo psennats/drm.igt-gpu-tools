@@ -40,6 +40,7 @@
 #include "igt_psr.h"
 #include "igt_rand.h"
 #include "igt_stats.h"
+#include "igt_sysfs.h"
 
 /**
  * SUBTEST: %s-%s
@@ -1840,6 +1841,7 @@ igt_main
 	};
 
 	igt_fixture {
+		int dir, current_log_level;
 		display.drm_fd = drm_open_driver_master(DRIVER_ANY);
 		kmstest_set_vt_graphics_mode();
 
@@ -1850,6 +1852,15 @@ igt_main
 		 * fetch is enabled, so switching PSR1 for this whole test.
 		 */
 		intel_psr2_restore = i915_psr2_sel_fetch_to_psr1(display.drm_fd, NULL);
+
+		dir = igt_sysfs_drm_module_params_open();
+		if (dir >= 0) {
+			current_log_level = igt_drm_debug_level_get(dir);
+			close(dir);
+
+			if (current_log_level > 10)
+				igt_drm_debug_level_update(10);
+		}
 	}
 
 	igt_describe("Test checks how many cursor updates we can fit between vblanks "
