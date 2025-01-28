@@ -190,6 +190,7 @@ typedef struct {
 	bool user_seed;
 	enum igt_commit_style commit;
 	int fb_list_length;
+	bool do_hibernate;
 	struct {
 		struct igt_fb fb;
 		int width, height;
@@ -270,6 +271,162 @@ static const struct {
  * "Requested display configuration exceeds system watermark limitations"
  */
 #define MAX_SPRITE_PLANE_WIDTH 2000
+
+
+/**
+ * check_hibernation_support:
+ *
+ * Return: True if kernel is configured with resume point for hibernate.
+ */
+static bool check_hibernation_support(void)
+{
+	int fd;
+	char buffer[2048];
+	ssize_t bytes_read;
+	FILE *cmdline;
+
+	/* Check if hibernation is supported in /sys/power/state */
+	fd = open("/sys/power/state", O_RDONLY);
+
+	if (fd <= 0) {
+		igt_debug("Failed to open /sys/power/state\n");
+		return false;
+	}
+
+	bytes_read = read(fd, buffer, sizeof(buffer) - 1);
+	close(fd);
+
+	if (bytes_read <= 0) {
+		igt_debug("Failed to read /sys/power/state");
+		return false;
+	}
+
+	buffer[bytes_read] = '\0';
+	if (strstr(buffer, "disk") == NULL) {
+		igt_debug("Hibernation (suspend to disk) is not supported on this system.\n");
+		return false;
+	}
+
+	/* Check if resume is configured in kernel command line */
+	cmdline = fopen("/proc/cmdline", "r");
+
+	if (!cmdline) {
+		igt_debug("Failed to open /proc/cmdline");
+		return false;
+	}
+
+	fread(buffer, 1, sizeof(buffer) - 1, cmdline);
+	fclose(cmdline);
+
+	if (strstr(buffer, "resume=") == NULL) {
+		igt_debug("Kernel does not have 'resume' parameter configured for hibernation.\n");
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Ensure_grub_boots_same_kernel:
+ *
+ * Return: True if kernel was found and set for next reboot.
+ */
+static bool ensure_grub_boots_same_kernel(void)
+{
+	char cmdline[1024];
+	char current_kernel[256];
+	char last_menuentry[512] = "";
+	char grub_entry[512];
+	char command[1024];
+	FILE *cmdline_file, *grub_cfg;
+	char line[1024];
+	bool kernel_found = false;
+	char *kernel_arg;
+	char *kernel_end;
+
+	/* Read /proc/cmdline to get the current kernel image */
+	cmdline_file = fopen("/proc/cmdline", "r");
+	if (!cmdline_file) {
+		igt_debug("Failed to open /proc/cmdline");
+		return false;
+	}
+
+	if (!fgets(cmdline, sizeof(cmdline), cmdline_file)) {
+		fclose(cmdline_file);
+		igt_debug("Failed to read /proc/cmdline");
+		return false;
+	}
+	fclose(cmdline_file);
+
+	/* Parse the kernel image from cmdline */
+	kernel_arg = strstr(cmdline, "BOOT_IMAGE=");
+	if (!kernel_arg) {
+		igt_debug("BOOT_IMAGE= not found in /proc/cmdline\n");
+		return false;
+	}
+
+	kernel_arg += strlen("BOOT_IMAGE=");
+	kernel_end = strchr(kernel_arg, ' ');
+
+	if (!kernel_end)
+		kernel_end = kernel_arg + strlen(kernel_arg);
+
+	snprintf(current_kernel, sizeof(current_kernel), "%.*s",
+		 (int)(kernel_end - kernel_arg), kernel_arg);
+	igt_debug("Current kernel image: %s\n", current_kernel);
+
+	/* Open GRUB config file to find matching entry */
+	grub_cfg = fopen("/boot/grub/grub.cfg", "r");
+	if (!grub_cfg) {
+		igt_debug("Failed to open GRUB configuration file");
+		return false;
+	}
+
+	while (fgets(line, sizeof(line), grub_cfg)) {
+		/* Check if the line contains a menuentry */
+		if (strstr(line, "menuentry")) {
+		/* Store the menuentry line */
+			char *start = strchr(line, '\'');
+			char *end = start ? strchr(start + 1, '\'') : NULL;
+
+			if (start && end) {
+				snprintf(last_menuentry,
+					 sizeof(last_menuentry),
+					 "%.*s", (int)(end - start - 1),
+					 start + 1);
+			}
+		}
+
+		/* Check if the current line contains the kernel */
+		if (strstr(line, current_kernel)) {
+			/* Use the last seen menuentry as the match */
+			snprintf(grub_entry, sizeof(grub_entry), "%s",
+				 last_menuentry);
+			kernel_found = true;
+			break;
+		}
+	}
+
+	fclose(grub_cfg);
+
+	if (!kernel_found) {
+		igt_debug("Failed to find matching GRUB entry for kernel: %s\n",
+			  current_kernel);
+		return false;
+	}
+
+	/* Set the GRUB boot target using grub-reboot */
+	snprintf(command, sizeof(command), "grub-reboot \"%s\"", grub_entry);
+	if (system(command) != 0) {
+		igt_debug("Failed to set GRUB boot target to: %s\n",
+			  grub_entry);
+		return false;
+	}
+
+	igt_debug("Set GRUB to boot kernel: %s (GRUB entry: %s)\n",
+		  current_kernel, grub_entry);
+	return true;
+}
 
 static void addfb_init(struct igt_fb *fb, struct drm_mode_fb_cmd2 *f)
 {
@@ -839,8 +996,17 @@ static bool try_config(data_t *data, enum test_fb_flags fb_flags,
 
 	if (ret == 0 && !(fb_flags & TEST_BAD_ROTATION_90) && crc) {
 		if (data->flags & TEST_SUSPEND && fb_flags & FB_COMPRESSED) {
-			igt_system_suspend_autoresume(SUSPEND_STATE_MEM,
-						      SUSPEND_TEST_NONE);
+			if (data->do_hibernate) {
+				igt_require_f(check_hibernation_support(),
+					      "Kernel is not cofigured for resume\n");
+				igt_require_f(ensure_grub_boots_same_kernel(),
+					      "Couldn't find correct kernel in grub.cfg\n");
+				igt_system_suspend_autoresume(SUSPEND_STATE_DISK,
+							      SUSPEND_TEST_NONE);
+			} else {
+				igt_system_suspend_autoresume(SUSPEND_STATE_MEM,
+							      SUSPEND_TEST_NONE);
+			}
 
 			/* on resume check flat ccs is still compressed */
 			if (is_xe_device(data->drm_fd) &&
@@ -1044,6 +1210,9 @@ static int opt_handler(int opt, int opt_index, void *opt_data)
 		data->user_seed = true;
 		data->seed = strtoul(optarg, NULL, 0);
 		break;
+	case 'r':
+		data->do_hibernate = true;
+		break;
 	default:
 		return IGT_OPT_HANDLER_ERROR;
 	}
@@ -1056,9 +1225,10 @@ static data_t data;
 static const char *help_str =
 "  -c\t\tCheck the presence of compression meta-data\n"
 "  -s <seed>\tSeed for random number generator\n"
+"  -r\t\tOn suspend test do full hibernate with reboot\n"
 ;
 
-igt_main_args("cs:", NULL, help_str, opt_handler, &data)
+igt_main_args("csr:", NULL, help_str, opt_handler, &data)
 {
 	igt_fixture {
 		data.drm_fd = drm_open_driver_master(DRIVER_INTEL | DRIVER_XE);
