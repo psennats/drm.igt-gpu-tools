@@ -1189,6 +1189,8 @@ static void cursor_subtest(bool dpms)
 	struct igt_fb cursor_fb1, cursor_fb2, cursor_fb3;
 	uint32_t crtc_id;
 
+	igt_require_i915(drm_fd);
+	gem_require_mappable_ggtt(drm_fd);
 	disable_all_screens_and_wait(&ms_data);
 
 	igt_require(default_mode_params);
