@@ -74,6 +74,7 @@ igt@kms_rotation_crc@exhaust-fences
 igt@kms_pm_lpsp@screens-disabled
 igt@kms_pm_rpm@(fences|fences-dpms|pm-caching|pm-tiling)
 igt@kms_pm_rpm@.*pc8-residency.*
+igt@kms_pm_rpm@cursor.*
 ##################################################################
 # KMS: Yet to add/missing XE support
 ##################################################################
