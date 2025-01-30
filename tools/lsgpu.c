@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
 		printf("Notice: Using filter from .igtrc\n");
 	}
 
-	igt_devices_scan();
+	igt_devices_scan_all_attrs();
 
 	if (igt_device != NULL) {
 		struct igt_device_card card;

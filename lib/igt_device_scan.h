@@ -64,6 +64,7 @@ struct igt_device_card {
 };
 
 void igt_devices_scan(void);
+void igt_devices_scan_all_attrs(void);
 
 void igt_devices_print(const struct igt_devices_print_format *fmt);
 void igt_devices_print_vendors(void);

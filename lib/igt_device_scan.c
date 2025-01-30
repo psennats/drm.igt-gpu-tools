@@ -22,6 +22,7 @@
  *
  */
 
+#include "drmtest.h"
 #include "igt_core.h"
 #include "igt_device_scan.h"
 #include "igt_list.h"
@@ -205,6 +206,8 @@ enum dev_type {
 
 #define STR_INTEGRATED "integrated"
 #define STR_DISCRETE "discrete"
+
+static const char * const attrs[] = { "driver", "sriov_numvfs", "physfn" };
 
 static inline bool strequal(const char *a, const char *b)
 {
@@ -548,7 +551,7 @@ static void get_props(struct udev_device *dev, struct igt_device *idev)
  * Function skips sysattrs from blacklist ht (acquiring some values can take
  * seconds).
  */
-static void get_attrs(struct udev_device *dev, struct igt_device *idev)
+static void get_attrs_all(struct udev_device *dev, struct igt_device *idev)
 {
 	struct udev_list_entry *entry;
 
@@ -566,6 +569,19 @@ static void get_attrs(struct udev_device *dev, struct igt_device *idev)
 		igt_device_add_attr(idev, key, value);
 		entry = udev_list_entry_get_next(entry);
 		DBG("attr: %s, val: %s\n", key, value);
+	}
+}
+
+static void get_attrs_limited(struct udev_device *dev, struct igt_device *idev)
+{
+	const char *value;
+
+	for (int i = 0; i < ARRAY_SIZE(attrs); i++) {
+		value = udev_device_get_sysattr_value(dev, attrs[i]);
+		if (!value)
+			continue;
+		igt_device_add_attr(idev, attrs[i], value);
+		DBG("attr: %s, val: %s\n", attrs[i], value);
 	}
 }
 
@@ -639,7 +655,8 @@ static char* strdup_nullsafe(const char* str)
  * Fills structure with most usable udev device variables, properties
  * and sysattrs.
  */
-static struct igt_device *igt_device_new_from_udev(struct udev_device *dev)
+static struct igt_device *igt_device_new_from_udev(struct udev_device *dev,
+						   bool limit_attrs)
 {
 	struct igt_device *idev = igt_device_new();
 
@@ -654,7 +671,8 @@ static struct igt_device *igt_device_new_from_udev(struct udev_device *dev)
 		idev->drm_render = strdup(idev->devnode);
 
 	get_props(dev, idev);
-	get_attrs(dev, idev);
+	limit_attrs ? get_attrs_limited(dev, idev) :
+		      get_attrs_all(dev, idev);
 
 	if (is_pci_subsystem(idev)) {
 		uint16_t vendor, device;
@@ -868,7 +886,8 @@ static struct igt_device *igt_device_from_syspath(const char *syspath)
  */
 static void update_or_add_parent(struct udev *udev,
 				 struct udev_device *dev,
-				 struct igt_device *idev)
+				 struct igt_device *idev,
+				 bool limit_attrs)
 {
 	struct udev_device *parent_dev;
 	struct igt_device *parent_idev;
@@ -899,7 +918,7 @@ static void update_or_add_parent(struct udev *udev,
 		 * return fresh udev device.
 		 */
 		parent_dev = udev_device_new_from_syspath(udev, syspath);
-		parent_idev = igt_device_new_from_udev(parent_dev);
+		parent_idev = igt_device_new_from_udev(parent_dev, limit_attrs);
 		udev_device_unref(parent_dev);
 
 		if (parent_idev)
@@ -1000,7 +1019,7 @@ static void index_pci_devices(void)
  * Function sorts all found devices to keep same order of bus devices
  * for providing predictable search.
  */
-static void scan_drm_devices(void)
+static void scan_drm_devices(bool limit_attrs)
 {
 	struct udev *udev;
 	struct udev_enumerate *enumerate;
@@ -1035,9 +1054,9 @@ static void scan_drm_devices(void)
 
 		path = udev_list_entry_get_name(dev_list_entry);
 		udev_dev = udev_device_new_from_syspath(udev, path);
-		idev = igt_device_new_from_udev(udev_dev);
+		idev = igt_device_new_from_udev(udev_dev, limit_attrs);
 		igt_list_add_tail(&idev->link, &igt_devs.all);
-		update_or_add_parent(udev, udev_dev, idev);
+		update_or_add_parent(udev, udev_dev, idev, limit_attrs);
 
 		udev_device_unref(udev_dev);
 	}
@@ -1092,15 +1111,26 @@ void igt_devices_free(void)
  *
  * Function scans udev in search of gpu devices.
  */
-void igt_devices_scan(void)
+
+static void __igt_devices_scan(bool limit_attrs)
 {
 	if (igt_devs.devs_scanned)
 		igt_devices_free();
 
 	prepare_scan();
-	scan_drm_devices();
+	scan_drm_devices(limit_attrs);
 
 	igt_devs.devs_scanned = true;
+}
+
+void igt_devices_scan(void)
+{
+	__igt_devices_scan(true);
+}
+
+void igt_devices_scan_all_attrs(void)
+{
+	__igt_devices_scan(false);
 }
 
 static inline void _pr_simple(const char *k, const char *v)
