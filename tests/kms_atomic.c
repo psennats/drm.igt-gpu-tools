@@ -506,6 +506,10 @@ plane_immutable_zpos(data_t *data, igt_output_t *output, enum pipe pipe, int n_p
 					  DRM_FORMAT_XRGB8888,
 					  DRM_FORMAT_MOD_LINEAR,
 					  0.0, 0.0, 1.0, &fb_lower);
+	if (!fb_id_lower) {
+		igt_pipe_crc_stop(pipe_crc);
+		igt_pipe_crc_free(pipe_crc);
+	}
 	igt_assert(fb_id_lower);
 
 	fb_id_upper = igt_create_color_fb(data->drm_fd,
@@ -513,6 +517,10 @@ plane_immutable_zpos(data_t *data, igt_output_t *output, enum pipe pipe, int n_p
 					  DRM_FORMAT_XRGB8888,
 					  DRM_FORMAT_MOD_LINEAR,
 					  1.0, 1.0, 0.0, &fb_upper);
+	if (!fb_id_upper) {
+		igt_pipe_crc_stop(pipe_crc);
+		igt_pipe_crc_free(pipe_crc);
+	}
 	igt_assert(fb_id_upper);
 
 	/*
@@ -560,6 +568,8 @@ plane_immutable_zpos(data_t *data, igt_output_t *output, enum pipe pipe, int n_p
 		igt_plane_set_fb(plane_upper, NULL);
 	}
 
+	igt_pipe_crc_stop(pipe_crc);
+	igt_pipe_crc_free(pipe_crc);
 	igt_remove_fb(data->drm_fd, &fb_ref);
 	igt_remove_fb(data->drm_fd, &fb_lower);
 	igt_remove_fb(data->drm_fd, &fb_upper);
