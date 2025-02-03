@@ -24,9 +24,9 @@
 #define MEDIA_STATE_FLUSH		0x0
 #define MAX(X, Y)			(((X) > (Y)) ? (X) : (Y))
 #define SIZE_DATA			64
-#define SIZE_BATCH			0x1000
-#define SIZE_BUFFER_INPUT		MAX(sizeof(float) * SIZE_DATA, 0x1000)
-#define SIZE_BUFFER_OUTPUT		MAX(sizeof(float) * SIZE_DATA, 0x1000)
+#define SIZE_BATCH			0x10000
+#define SIZE_BUFFER_INPUT		MAX(sizeof(float) * SIZE_DATA, 0x10000)
+#define SIZE_BUFFER_OUTPUT		MAX(sizeof(float) * SIZE_DATA, 0x10000)
 #define ADDR_BATCH			0x100000ULL
 #define ADDR_INPUT			0x200000ULL
 #define ADDR_OUTPUT			0x300000ULL
@@ -38,7 +38,7 @@
 
 #define ADDR_GENERAL_STATE_BASE		0x80000000ULL
 #define ADDR_INSTRUCTION_STATE_BASE	0x90000000ULL
-#define OFFSET_BINDING_TABLE		0x1000
+#define OFFSET_BINDING_TABLE		0x10000
 
 #define XE2_ADDR_STATE_CONTEXT_DATA_BASE	0x900000ULL
 #define OFFSET_STATE_SIP			0xFFFF0000
@@ -746,8 +746,8 @@ static void xehp_create_surface_state(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 
-	addr_bo_buffer_batch[b++] = 0x00001000;
-	addr_bo_buffer_batch[b++] = 0x00001040;
+	addr_bo_buffer_batch[b++] = 0x00010000;
+	addr_bo_buffer_batch[b++] = 0x00010040;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
@@ -825,7 +825,6 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = GEN8_3DSTATE_BINDING_TABLE_POOL_ALLOC | 2;
 	addr_bo_buffer_batch[b++] = (addr_surface_state_base & 0xffffffff) | 0x6;
 	addr_bo_buffer_batch[b++] = addr_surface_state_base >> 32;
-	addr_bo_buffer_batch[b++] = 0x00002000;
 	addr_bo_buffer_batch[b++] = 0x001ff000;
 
 	addr_bo_buffer_batch[b++] = XEHP_COMPUTE_WALKER | 0x25;
@@ -852,7 +851,7 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00180000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = 0x00001080;
+	addr_bo_buffer_batch[b++] = 0x00010080;
 	addr_bo_buffer_batch[b++] = 0x0c000002;
 
 	addr_bo_buffer_batch[b++] = 0x00000008;
@@ -895,10 +894,10 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 		  .size = 0x100000,
 		  .name = "dynamic state base"},
 		{ .addr = ADDR_SURFACE_STATE_BASE,
-		  .size = 0x1000,
+		  .size = 0x10000,
 		  .name = "surface state base"},
 		{ .addr = ADDR_GENERAL_STATE_BASE + OFFSET_INDIRECT_DATA_START,
-		  .size =  0x1000,
+		  .size =  0x10000,
 		  .name = "indirect object base"},
 		{ .addr = ADDR_INPUT, .size = SIZE_BUFFER_INPUT,
 		  .name = "addr input"},
@@ -907,7 +906,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 		{ .addr = ADDR_GENERAL_STATE_BASE, .size = 0x100000,
 		  .name = "general state base" },
 		{ .addr = ADDR_SURFACE_STATE_BASE + OFFSET_BINDING_TABLE,
-		  .size = 0x1000,
+		  .size = 0x10000,
 		  .name = "binding table" },
 		{ .addr = ADDR_BATCH, .size = SIZE_BATCH,
 		  .name = "batch" },
@@ -918,7 +917,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	bo_execenv_create(fd, &execenv, eci);
 
 	/* Sets Kernel size */
-	bo_dict[0].size = ALIGN(size, 0x1000);
+	bo_dict[0].size = ALIGN(size, xe_get_default_alignment(fd));
 
 	bo_execenv_bind(&execenv, bo_dict, XEHP_BO_DICT_ENTRIES);
 
