@@ -1124,7 +1124,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	bo_execenv_create(fd, &execenv, eci);
 
 	/* Sets Kernel size */
-	bo_dict[0].size = ALIGN(size, 0x1000);
+	bo_dict[0].size = ALIGN(size, xe_get_default_alignment(fd));
 
 	bo_execenv_bind(&execenv, bo_dict, XEHPC_BO_DICT_ENTRIES);
 
