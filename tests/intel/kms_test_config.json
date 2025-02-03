@@ -52,6 +52,11 @@
                 "description": "Defines the test category. Usually used at subtest level."
             }
         },
+	"GPU excluded platform": {
+	    "_properties_": {
+		"description": "Provides a list of GPUs not capable of running the subtest (or the test as a whole)."
+	    }
+	},
         "Description": {
             "_properties_": {
                 "description": "Provides a description for the test/subtest."
