@@ -690,7 +690,6 @@ int igt_kmod_unbind(const char *mod_name)
  * igt_intel_driver_unload:
  *
  * Unloads an Intel driver and its dependencies.
- *
  */
 int
 igt_intel_driver_unload(const char *driver)
@@ -708,12 +707,6 @@ igt_intel_driver_unload(const char *driver)
 		return ret;
 	}
 	free(who);
-
-	if (igt_kmod_is_loaded("intel-gtt"))
-		igt_kmod_unload("intel-gtt");
-
-	igt_kmod_unload("drm_kms_helper");
-	igt_kmod_unload("drm");
 
 	if (igt_kmod_is_loaded(driver)) {
 		igt_warn("%s.ko still loaded!\n", driver);
