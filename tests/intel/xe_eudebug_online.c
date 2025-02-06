@@ -1184,8 +1184,9 @@ static int query_attention_bitmask_size(int fd, int gt)
 		.size = 0,
 		.data = 0,
 	};
-	int pos = 0, eus;
-	uint8_t *any_dss;
+	uint8_t dss_mask, last_dss;
+	int pos = 0;
+	int i, last_dss_idx;
 
 	thread_count_ptr = xe_hwconfig_lookup_value(fd, INTEL_HWCONFIG_NUM_THREADS_PER_EU,
 						    &thread_count_len);
@@ -1228,22 +1229,27 @@ static int query_attention_bitmask_size(int fd, int gt)
 	igt_assert(g_dss && c_dss && eu_per_dss);
 	igt_assert_eq_u32(c_dss->num_bytes, g_dss->num_bytes);
 
-	any_dss = malloc(c_dss->num_bytes);
-	igt_assert(any_dss);
+	for (i = 0; i < c_dss->num_bytes; i++) {
+		dss_mask = c_dss->mask[i] | g_dss->mask[i];
+		if (dss_mask) {
+			last_dss = dss_mask;
+			last_dss_idx = i;
+		}
+	}
 
-	for (int i = 0; i < c_dss->num_bytes; i++)
-		any_dss[i] = c_dss->mask[i] | g_dss->mask[i];
+	last_dss_idx *= BITS_PER_BYTE;
+	do {
+		last_dss_idx++;
+	} while (last_dss >>= 1);
 
-	eus = count_set_bits(any_dss, c_dss->num_bytes);
-	eus *= count_set_bits(eu_per_dss->mask, eu_per_dss->num_bytes);
+	last_dss_idx *= count_set_bits(eu_per_dss->mask, eu_per_dss->num_bytes);
 
 	if (intel_gen_has_lockstep_eus(fd))
-		eus /= 2;
+		last_dss_idx /= 2;
 
-	free(any_dss);
 	free(topology);
 
-	return eus * DIV_ROUND_UP(threads_per_eu, 8);
+	return last_dss_idx * DIV_ROUND_UP(threads_per_eu, 8);
 }
 
 static struct drm_xe_eudebug_event_exec_queue *
