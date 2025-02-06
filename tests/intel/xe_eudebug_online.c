@@ -694,6 +694,9 @@ static void eu_attention_resume_single_step_trigger(struct xe_eudebug_debugger *
 
 	get_aips_offset_table(data, threads);
 
+	if (data->last_eu_control_seqno > att->base.seqno)
+		return;
+
 	if (d->flags & TRIGGER_RESUME_PARALLEL_WALK) {
 		if (data->stepped_threads_count != -1)
 			if (data->steps_done < SINGLE_STEP_COUNT) {
@@ -766,9 +769,9 @@ static void eu_attention_resume_single_step_trigger(struct xe_eudebug_debugger *
 			     data->target_offset + steering_offset(threads)), sz);
 	fsync(data->vm_fd);
 
-	eu_ctl_resume(d->master_fd, d->fd, att->client_handle,
-		      att->exec_queue_handle, att->lrc_handle,
-		      att->bitmask, att->bitmask_size);
+	data->last_eu_control_seqno = eu_ctl_resume(d->master_fd, d->fd, att->client_handle,
+						    att->exec_queue_handle, att->lrc_handle,
+						    att->bitmask, att->bitmask_size);
 
 	if (data->single_step_bitmask)
 		for (int i = 0; i < att->bitmask_size; i++)
