@@ -530,6 +530,17 @@ static void free_hook_strs(struct igt_vec *hook_strs)
 	igt_vec_fini(hook_strs);
 }
 
+static void free_array_deep(void **arr, size_t n)
+{
+	if (!arr)
+		return;
+
+	for (size_t i = 0; i < n; i++)
+		free(arr[i]);
+
+	free(arr);
+}
+
 static bool file_exists_at(int dirfd, const char *filename)
 {
 	return faccessat(dirfd, filename, F_OK, 0) == 0;
@@ -647,6 +658,7 @@ void clear_settings(struct settings *settings)
 	free_regexes(&settings->exclude_regexes);
 	free_env_vars(&settings->env_vars);
 	free_hook_strs(&settings->hook_strs);
+	free_array_deep((void **)settings->cmdline.argv, settings->cmdline.argc);
 
 	init_settings(settings);
 }
@@ -876,6 +888,16 @@ bool parse_options(int argc, char **argv,
 		goto error;
 	}
 
+	settings->cmdline.argv = calloc(argc, sizeof(*settings->cmdline.argv));
+	if (!settings->cmdline.argv)
+		goto error;
+
+	settings->cmdline.argc = argc;
+	for (int i = 0; i < argc; i++) {
+		settings->cmdline.argv[i] = strdup(argv[i]);
+		if (!settings->cmdline.argv[i])
+			goto error;
+	}
 
 	return true;
 
@@ -1204,6 +1226,7 @@ bool serialize_settings(struct settings *settings)
 	SERIALIZE_INT(f, settings, enable_code_coverage);
 	SERIALIZE_INT(f, settings, cov_results_per_test);
 	SERIALIZE_STR(f, settings, code_coverage_script);
+	SERIALIZE_STR_ARRAY(f, settings, cmdline.argv, cmdline.argc);
 
 	if (settings->sync) {
 		fflush(f);
@@ -1319,6 +1342,7 @@ bool read_settings_from_file(struct settings *settings, FILE *f)
 		PARSE_INT(settings, name, val, enable_code_coverage);
 		PARSE_INT(settings, name, val, cov_results_per_test);
 		PARSE_STR(settings, name, val, code_coverage_script);
+		PARSE_STR_ARRAY(settings, name, val, cmdline.argv, cmdline.argc);
 
 		printf("Warning: Unknown field in settings file: %s = %s\n",
 		       name, val);

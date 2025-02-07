@@ -75,6 +75,10 @@ struct settings {
 	char *code_coverage_script;
 	bool enable_code_coverage;
 	bool cov_results_per_test;
+	struct {
+		int argc;
+		char **argv;
+	} cmdline;
 };
 
 /**
