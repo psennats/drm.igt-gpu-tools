@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
@@ -1052,10 +1053,80 @@ static bool serialize_hook_strs(struct settings *settings, int dirfd)
 	return true;
 }
 
+/*
+ * Serialize @s to @f, escaping '\' and '\n'. See unescape_str()
+ */
+static void escape_str(const char *s, FILE *f)
+{
+	while (*s) {
+		size_t len = strcspn(s, "\\\n");
+
+		if (len > 0) {
+			fwrite(s, len, 1, f);
+			s += len;
+		}
+
+		if (*s) {
+			fprintf(f, "\\x%xh", *s);
+			s++;
+		}
+	}
+}
+
+/*
+ * Unescape a '\' and '\n': undo escape_str
+ *
+ * Escape chars using the form '\x<hex>h' so they don't interfere with the line
+ * parser.
+ *
+ * Return the number of chars saved in buf and optionally
+ * the number of chars scanned in @n_src if that is non-nul.
+ */
+static ssize_t unescape_str(char *buf, size_t *n_src)
+{
+	size_t dst_len = 0;
+	char *s = buf;
+
+	while (*s) {
+		char next = *(s + 1);
+
+		if (*s != '\\') {
+			buf[dst_len++] = *s++;
+		} else if (next == 'x') {
+			unsigned long num;
+
+			s += 2;
+
+			num = strtoul(s, &s, 16);
+			/* cover both error due to overflow or invalid char */
+			if (num > UINT8_MAX || *s != 'h')
+				return -EINVAL;
+
+			buf[dst_len++] = num;
+			s++;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	buf[dst_len] = '\0';
+
+	if (n_src)
+		*n_src = s - buf;
+
+	return dst_len;
+}
+
 #define SERIALIZE_LINE(f, s, name, fmt) fprintf(f, "%s : " fmt "\n", #name, s->name)
 #define SERIALIZE_INT(f, s, name) SERIALIZE_LINE(f, s, name, "%d")
 #define SERIALIZE_UL(f, s, name) SERIALIZE_LINE(f, s, name, "%lu")
-#define SERIALIZE_STR(f, s, name) SERIALIZE_LINE(f, s, name, "%s")
+#define SERIALIZE_STR(f, s, name) do {		\
+		if (s->name) {			\
+			fputs(#name " : ", f);	\
+			escape_str(s->name, f);	\
+			fputc('\n', f);		\
+		}				\
+	} while (0)
 bool serialize_settings(struct settings *settings)
 {
 	FILE *f;
@@ -1171,9 +1242,17 @@ static char *parse_str(char **val)
 {
 	char *ret = *val;
 
-	*val = NULL;
+	/*
+	 * Unescaping a string is guaranteed to produce a string that is
+	 * smaller or of the same size. Just modify it in place and leak the
+	 * buffer
+	 */
+	if (unescape_str(ret, NULL) >= 0) {
+		*val = NULL;
+		return ret;
+	}
 
-	return ret;
+	return NULL;
 }
 
 #define PARSE_LINE(s, name, val, field, _f)	\
