@@ -55,6 +55,8 @@ int main(int argc, char **argv)
 		exitcode = 3;
 	}
 
+	clear_settings(&settings);
+
 	printf("Done.\n");
 	return exitcode;
 }
