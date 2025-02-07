@@ -640,6 +640,7 @@ void clear_settings(struct settings *settings)
 	free(settings->name);
 	free(settings->test_root);
 	free(settings->results_path);
+	free(settings->code_coverage_script);
 
 	free_regexes(&settings->include_regexes);
 	free_regexes(&settings->exclude_regexes);
