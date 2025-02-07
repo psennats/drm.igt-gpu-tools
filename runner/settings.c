@@ -1169,7 +1169,11 @@ static unsigned long parse_ul(char **val)
 
 static char *parse_str(char **val)
 {
-	return *val ? strdup(*val) : NULL;
+	char *ret = *val;
+
+	*val = NULL;
+
+	return ret;
 }
 
 #define PARSE_LINE(s, name, val, field, _f)	\
