@@ -1153,43 +1153,59 @@ bool serialize_settings(struct settings *settings)
 #undef SERIALIZE_LINE
 }
 
-bool read_settings_from_file(struct settings *settings, FILE *f)
+static int parse_int(char **val)
 {
-#define PARSE_LINE(s, name, val, field, write)	\
+	return atoi(*val);
+}
+
+static unsigned long parse_ul(char **val)
+{
+	return strtoul(*val, NULL, 10);
+}
+
+static char *parse_str(char **val)
+{
+	return *val ? strdup(*val) : NULL;
+}
+
+#define PARSE_LINE(s, name, val, field, _f)	\
 	if (!strcmp(name, #field)) {		\
-		s->field = write;		\
+		s->field = _f(val);		\
 		goto cleanup;			\
 	}
-
+#define PARSE_INT(s, name, val, field) PARSE_LINE(s, name, &val, field, parse_int)
+#define PARSE_UL(s, name, val, field)  PARSE_LINE(s, name, &val, field, parse_ul)
+#define PARSE_STR(s, name, val, field) PARSE_LINE(s, name, &val, field, parse_str)
+bool read_settings_from_file(struct settings *settings, FILE *f)
+{
 	char *name = NULL, *val = NULL;
 
 	settings->dmesg_warn_level = -1;
 
 	while (fscanf(f, "%ms : %m[^\n]", &name, &val) == 2) {
-		int numval = atoi(val);
-		PARSE_LINE(settings, name, val, abort_mask, numval);
-		PARSE_LINE(settings, name, val, disk_usage_limit, strtoul(val, NULL, 10));
-		PARSE_LINE(settings, name, val, test_list, val ? strdup(val) : NULL);
-		PARSE_LINE(settings, name, val, name, val ? strdup(val) : NULL);
-		PARSE_LINE(settings, name, val, dry_run, numval);
-		PARSE_LINE(settings, name, val, allow_non_root, numval);
-		PARSE_LINE(settings, name, val, facts, numval);
-		PARSE_LINE(settings, name, val, sync, numval);
-		PARSE_LINE(settings, name, val, log_level, numval);
-		PARSE_LINE(settings, name, val, overwrite, numval);
-		PARSE_LINE(settings, name, val, multiple_mode, numval);
-		PARSE_LINE(settings, name, val, inactivity_timeout, numval);
-		PARSE_LINE(settings, name, val, per_test_timeout, numval);
-		PARSE_LINE(settings, name, val, overall_timeout, numval);
-		PARSE_LINE(settings, name, val, use_watchdog, numval);
-		PARSE_LINE(settings, name, val, piglit_style_dmesg, numval);
-		PARSE_LINE(settings, name, val, dmesg_warn_level, numval);
-		PARSE_LINE(settings, name, val, prune_mode, numval);
-		PARSE_LINE(settings, name, val, test_root, val ? strdup(val) : NULL);
-		PARSE_LINE(settings, name, val, results_path, val ? strdup(val) : NULL);
-		PARSE_LINE(settings, name, val, enable_code_coverage, numval);
-		PARSE_LINE(settings, name, val, cov_results_per_test, numval);
-		PARSE_LINE(settings, name, val, code_coverage_script, val ? strdup(val) : NULL);
+		PARSE_INT(settings, name, val, abort_mask);
+		PARSE_UL(settings, name, val, disk_usage_limit);
+		PARSE_STR(settings, name, val, test_list);
+		PARSE_STR(settings, name, val, name);
+		PARSE_INT(settings, name, val, dry_run);
+		PARSE_INT(settings, name, val, allow_non_root);
+		PARSE_INT(settings, name, val, facts);
+		PARSE_INT(settings, name, val, sync);
+		PARSE_INT(settings, name, val, log_level);
+		PARSE_INT(settings, name, val, overwrite);
+		PARSE_INT(settings, name, val, multiple_mode);
+		PARSE_INT(settings, name, val, inactivity_timeout);
+		PARSE_INT(settings, name, val, per_test_timeout);
+		PARSE_INT(settings, name, val, overall_timeout);
+		PARSE_INT(settings, name, val, use_watchdog);
+		PARSE_INT(settings, name, val, piglit_style_dmesg);
+		PARSE_INT(settings, name, val, dmesg_warn_level);
+		PARSE_INT(settings, name, val, prune_mode);
+		PARSE_STR(settings, name, val, test_root);
+		PARSE_STR(settings, name, val, results_path);
+		PARSE_INT(settings, name, val, enable_code_coverage);
+		PARSE_INT(settings, name, val, cov_results_per_test);
+		PARSE_STR(settings, name, val, code_coverage_script);
 
 		printf("Warning: Unknown field in settings file: %s = %s\n",
 		       name, val);
@@ -1211,9 +1227,11 @@ cleanup:
 	free(val);
 
 	return true;
-
-#undef PARSE_LINE
 }
+#undef PARSE_STR
+#undef PARSE_UL
+#undef PARSE_INT
+#undef PARSE_LINE
 
 /**
  * read_env_vars_from_file() - load env vars from a file
