@@ -3,6 +3,7 @@
   "results_version":10,
   "name":"dynamic-subtest-name-in-multiple-subtests",
   "uname":"Linux hostname 4.18.0-1-amd64 #1 SMP Debian 4.18.6-1 (2018-09-06) x86_64",
+  "cmdline":[],
   "time_elapsed":{
     "__type__":"TimeAttribute",
     "start":1560163492.266377,

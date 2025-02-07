@@ -2281,7 +2281,7 @@ struct json_object *generate_results_json(int dirfd)
 {
 	struct settings settings;
 	struct job_list job_list;
-	struct json_object *obj, *elapsed;
+	struct json_object *obj, *elapsed, *arr;
 	struct results results;
 	int testdirfd, fd;
 	size_t i;
@@ -2318,6 +2318,11 @@ struct json_object *generate_results_json(int dirfd)
 				       new_escaped_json_string(buf, r));
 		close(fd);
 	}
+
+	arr = json_object_new_array();
+	for (i = 0; i < settings.cmdline.argc; i++)
+		json_object_array_add(arr, json_object_new_string(settings.cmdline.argv[i]));
+	json_object_object_add(obj, "cmdline", arr);
 
 	elapsed = json_object_new_object();
 	json_object_object_add(elapsed, "__type__", json_object_new_string("TimeAttribute"));
