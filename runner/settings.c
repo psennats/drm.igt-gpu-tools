@@ -1127,6 +1127,15 @@ static ssize_t unescape_str(char *buf, size_t *n_src)
 			fputc('\n', f);		\
 		}				\
 	} while (0)
+#define SERIALIZE_STR_ARRAY(f, s, name, name_len)		\
+	do {							\
+		SERIALIZE_INT(f, s, name_len);			\
+		for (int _i = 0; _i < s->name_len; _i++) {	\
+			fprintf(f, #name "[%d] : ", _i);	\
+			escape_str(s->name[_i], f);		\
+			fputc('\n', f);				\
+		}						\
+	} while (0)
 bool serialize_settings(struct settings *settings)
 {
 	FILE *f;
@@ -1223,6 +1232,7 @@ bool serialize_settings(struct settings *settings)
 	close(dirfd);
 	return true;
 }
+#undef SERIALIZE_STR_ARRAY
 #undef SERIALIZE_STR
 #undef SERIALIZE_UL
 #undef SERIALIZE_INT
@@ -1260,9 +1270,25 @@ static char *parse_str(char **val)
 		s->field = _f(val);		\
 		goto cleanup;			\
 	}
+#define PARSE_LINE_ARRAY(s, name, val, field, field_len, _f)		\
+	do {								\
+		int idx;						\
+		if (!strcmp(name, #field_len)) {			\
+			s->field_len = parse_int(val);			\
+			s->field = calloc(s->field_len,			\
+					  sizeof(*s->field));		\
+			goto cleanup;					\
+		} else if (sscanf(name, #field "[%u]", &idx) == 1 &&	\
+			   idx < s->field_len) {			\
+			s->field[idx] = _f(val);			\
+			goto cleanup;					\
+		}							\
+	} while (0)
 #define PARSE_INT(s, name, val, field) PARSE_LINE(s, name, &val, field, parse_int)
 #define PARSE_UL(s, name, val, field)  PARSE_LINE(s, name, &val, field, parse_ul)
 #define PARSE_STR(s, name, val, field) PARSE_LINE(s, name, &val, field, parse_str)
+#define PARSE_STR_ARRAY(s, name, val, field, field_len) \
+	PARSE_LINE_ARRAY(s, name, &val, field, field_len, parse_str)
 bool read_settings_from_file(struct settings *settings, FILE *f)
 {
 	char *name = NULL, *val = NULL;
@@ -1315,9 +1341,11 @@ cleanup:
 
 	return true;
 }
+#undef PARSE_STR_ARRAY
 #undef PARSE_STR
 #undef PARSE_UL
 #undef PARSE_INT
+#undef PARSE_LINE_ARRAY
 #undef PARSE_LINE
 
 /**
