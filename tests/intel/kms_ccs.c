@@ -33,6 +33,7 @@
  * Mega feature: E2E Compression
  * Test category: functionality test
  */
+#include <fcntl.h>
 
 #include "igt.h"
 #include "igt_halffloat.h"
