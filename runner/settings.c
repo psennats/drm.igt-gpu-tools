@@ -1052,10 +1052,12 @@ static bool serialize_hook_strs(struct settings *settings, int dirfd)
 	return true;
 }
 
+#define SERIALIZE_LINE(f, s, name, fmt) fprintf(f, "%s : " fmt "\n", #name, s->name)
+#define SERIALIZE_INT(f, s, name) SERIALIZE_LINE(f, s, name, "%d")
+#define SERIALIZE_UL(f, s, name) SERIALIZE_LINE(f, s, name, "%lu")
+#define SERIALIZE_STR(f, s, name) SERIALIZE_LINE(f, s, name, "%s")
 bool serialize_settings(struct settings *settings)
 {
-#define SERIALIZE_LINE(f, s, name, format) fprintf(f, "%s : " format "\n", #name, s->name)
-
 	FILE *f;
 	int dirfd, covfd;
 	char path[PATH_MAX];
@@ -1097,31 +1099,31 @@ bool serialize_settings(struct settings *settings)
 		return false;
 	}
 
-	SERIALIZE_LINE(f, settings, abort_mask, "%d");
-	SERIALIZE_LINE(f, settings, disk_usage_limit, "%zd");
+	SERIALIZE_INT(f, settings, abort_mask);
+	SERIALIZE_UL(f, settings, disk_usage_limit);
 	if (settings->test_list)
-		SERIALIZE_LINE(f, settings, test_list, "%s");
+		SERIALIZE_STR(f, settings, test_list);
 	if (settings->name)
-		SERIALIZE_LINE(f, settings, name, "%s");
-	SERIALIZE_LINE(f, settings, dry_run, "%d");
-	SERIALIZE_LINE(f, settings, allow_non_root, "%d");
-	SERIALIZE_LINE(f, settings, facts, "%d");
-	SERIALIZE_LINE(f, settings, sync, "%d");
-	SERIALIZE_LINE(f, settings, log_level, "%d");
-	SERIALIZE_LINE(f, settings, overwrite, "%d");
-	SERIALIZE_LINE(f, settings, multiple_mode, "%d");
-	SERIALIZE_LINE(f, settings, inactivity_timeout, "%d");
-	SERIALIZE_LINE(f, settings, per_test_timeout, "%d");
-	SERIALIZE_LINE(f, settings, overall_timeout, "%d");
-	SERIALIZE_LINE(f, settings, use_watchdog, "%d");
-	SERIALIZE_LINE(f, settings, piglit_style_dmesg, "%d");
-	SERIALIZE_LINE(f, settings, dmesg_warn_level, "%d");
-	SERIALIZE_LINE(f, settings, prune_mode, "%d");
-	SERIALIZE_LINE(f, settings, test_root, "%s");
-	SERIALIZE_LINE(f, settings, results_path, "%s");
-	SERIALIZE_LINE(f, settings, enable_code_coverage, "%d");
-	SERIALIZE_LINE(f, settings, cov_results_per_test, "%d");
-	SERIALIZE_LINE(f, settings, code_coverage_script, "%s");
+		SERIALIZE_STR(f, settings, name);
+	SERIALIZE_INT(f, settings, dry_run);
+	SERIALIZE_INT(f, settings, allow_non_root);
+	SERIALIZE_INT(f, settings, facts);
+	SERIALIZE_INT(f, settings, sync);
+	SERIALIZE_INT(f, settings, log_level);
+	SERIALIZE_INT(f, settings, overwrite);
+	SERIALIZE_INT(f, settings, multiple_mode);
+	SERIALIZE_INT(f, settings, inactivity_timeout);
+	SERIALIZE_INT(f, settings, per_test_timeout);
+	SERIALIZE_INT(f, settings, overall_timeout);
+	SERIALIZE_INT(f, settings, use_watchdog);
+	SERIALIZE_INT(f, settings, piglit_style_dmesg);
+	SERIALIZE_INT(f, settings, dmesg_warn_level);
+	SERIALIZE_INT(f, settings, prune_mode);
+	SERIALIZE_STR(f, settings, test_root);
+	SERIALIZE_STR(f, settings, results_path);
+	SERIALIZE_INT(f, settings, enable_code_coverage);
+	SERIALIZE_INT(f, settings, cov_results_per_test);
+	SERIALIZE_STR(f, settings, code_coverage_script);
 
 	if (settings->sync) {
 		fflush(f);
@@ -1149,9 +1151,11 @@ bool serialize_settings(struct settings *settings)
 
 	close(dirfd);
 	return true;
-
-#undef SERIALIZE_LINE
 }
+#undef SERIALIZE_STR
+#undef SERIALIZE_UL
+#undef SERIALIZE_INT
+#undef SERIALIZE_LINE
 
 static int parse_int(char **val)
 {
