@@ -640,30 +640,38 @@ static void test_deep_pkgc_state(data_t *data)
 	time_t delay;
 	enum pipe pipe;
 	bool pkgc_flag = false;
-	bool flip = true;
+	bool flip = true, edp_found = false;
 
 	igt_display_t *display = &data->display;
 	igt_plane_t *primary;
 	igt_output_t *output = NULL;
 
 	for_each_pipe_with_valid_output(display, pipe, output) {
-		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
-			igt_skip("No eDP output found, skipping the test.\n");
-		/* Check VRR capabilities before setting up */
-		if (igt_output_has_prop(output, IGT_CONNECTOR_VRR_CAPABLE) &&
-		    igt_output_get_prop(output, IGT_CONNECTOR_VRR_CAPABLE)) {
-			/*
-			 * TODO: Add check for vmin = vmax = flipline if VRR enabled
-			 * when KMD allows for such capability.
-			 */
-			igt_pipe_set_prop_value(display, pipe,
-						IGT_CRTC_VRR_ENABLED, false);
-			igt_assert(igt_display_try_commit_atomic(display,
-								 DRM_MODE_ATOMIC_ALLOW_MODESET,
-								 NULL) == 0);
-			break;
+		if (output->config.connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+
+			edp_found = true;
+			/* Check VRR capabilities before setting up */
+			if (igt_output_has_prop(output, IGT_CONNECTOR_VRR_CAPABLE) &&
+			    igt_output_get_prop(output, IGT_CONNECTOR_VRR_CAPABLE)) {
+				/*
+				 * TODO: Add check for vmin = vmax = flipline if VRR enabled
+				 * when KMD allows for such capability.
+				 */
+				igt_pipe_set_prop_value(display, pipe,
+							IGT_CRTC_VRR_ENABLED, false);
+				igt_assert(igt_display_try_commit_atomic(display,
+									 DRM_MODE_ATOMIC_ALLOW_MODESET,
+									 NULL) == 0);
+			}
+		break;
 		}
 	}
+
+	if (!edp_found) {
+		igt_skip("No eDP output found, skipping the test.\n");
+		return;
+	}
+
 	igt_display_reset(display);
 
 	igt_output_set_pipe(output, pipe);
