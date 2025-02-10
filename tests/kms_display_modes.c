@@ -335,8 +335,10 @@ igt_main
 	}
 
 	igt_describe("Test for validating display extended mode with a pair of connected displays");
-	igt_subtest_with_dynamic("extended-mode-basic")
+	igt_subtest_with_dynamic("extended-mode-basic") {
+		igt_require_f(count > 1, "Minimum 2 outputs are required\n");
 		run_extendedmode_test(&data);
+	}
 
 	igt_describe("Negative test for validating display extended mode with a pair of connected "
 		     "2k-4k or 4k-4k displays");
