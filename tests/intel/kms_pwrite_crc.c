@@ -40,9 +40,7 @@
  * Description: Use the display CRC support to validate pwrite to an already
  *              uncached future scanout buffer.
  * Driver requirement: i915
- * Functionality: crc, kms_core, kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION(

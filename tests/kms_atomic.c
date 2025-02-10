@@ -32,9 +32,7 @@
  * Category: Display
  * Description: Test atomic modesetting API
  * Driver requirement: i915, xe
- * Functionality: kms_core, plane
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <unistd.h>
@@ -57,7 +55,6 @@
  * Description: Test abuse the atomic ioctl directly in order to test various
  *              invalid conditions which the libdrm wrapper won't allow us to
  *              create.
- * Functionality: kms_core
  *
  * SUBTEST: atomic-plane-damage
  * Description: Simple test cases to use FB_DAMAGE_CLIPS plane property
@@ -65,7 +62,6 @@
  * SUBTEST: test-only
  * Description: Test to ensure that DRM_MODE_ATOMIC_TEST_ONLY really only touches
  *              the free-standing state objects and nothing else.
- * Functionality: kms_core
  *
  * SUBTEST: plane-primary-overlay-mutable-zpos
  * Description: Verify that the overlay plane can cover the primary one (and

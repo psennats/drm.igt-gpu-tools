@@ -30,7 +30,6 @@
  *              the metadata exposed to user space matches.
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "config.h"
@@ -46,12 +45,10 @@
  * SUBTEST: inject-4k
  * Description: Make sure that 4K modes exposed by DRM match the forced EDID and
  *              modesetting using it succeed.
- * Functionality: force_connector, hdmi, edid
  *
  * SUBTEST: inject-audio
  * Description: Make sure that audio information exposed by ALSA match the forced
  *              EDID.
- * Functionality: force_connector, hdmi, audio
  */
 
 #define HDISPLAY_4K	3840

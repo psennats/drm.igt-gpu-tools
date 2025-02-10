@@ -30,7 +30,6 @@
  * Description: Test Display Modes
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -39,7 +38,6 @@
  * SUBTEST: extended-mode-basic
  * Description: Test for validating display extended mode with a pair of connected
  *              displays
- * Functionality: kms_core
  */
 
 IGT_TEST_DESCRIPTION("Test Display Modes");

@@ -81,9 +81,7 @@
  * Description: This test is intended for testing of display functionality like
  *              modeset, clone modes, test patterns & pixel generators etc..
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION("Tests basic display functionality.");

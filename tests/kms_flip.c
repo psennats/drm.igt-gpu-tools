@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Tests for validating modeset, dpms and pageflips
  * Driver requirement: i915, xe
- * Functionality: vblank
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "config.h"
@@ -62,13 +60,11 @@
  * SUBTEST: %s
  * Description: %arg[1] test to validate pageflips with available fences
  * Driver requirement: i915
- * Functionality: gtt, vblank
  *
  * SUBTEST: 2x-%s
  * Description: %arg[1] test to validate pageflips along with available fences
  *              on a pair of connected displays
  * Driver requirement: i915
- * Functionality: gtt, vblank
  *
  * arg[1]:
  *
@@ -79,7 +75,6 @@
 /**
  * SUBTEST: dpms-off-%s
  * Description: %arg[1] test to validate pageflips by disabling other connectors usng dpms
- * Functionality: dpms, vblank
  *
  * arg[1]:
  *
@@ -90,7 +85,6 @@
 /**
  * SUBTEST: %s
  * Description: %arg[1] test to validate pageflips with large BO in size
- * Functionality: kms_gem_interop, vblank
  *
  * arg[1]:
  *
@@ -101,11 +95,9 @@
 /**
  * SUBTEST: %s
  * Description: Basic test to validate %arg[1]
- * Functionality: hang, vblank
  *
  * SUBTEST: 2x-%s
  * Description: Test to validate %arg[1] on a pair of connected displays
- * Functionality: hang, vblank
  *
  * arg[1]:
  *
@@ -141,12 +133,10 @@
 /**
  * SUBTEST: %s
  * Description: %arg[1] test to validate pageflips with suspend cycle
- * Functionality: suspend, vblank
  *
  * SUBTEST: 2x-%s
  * Description: %arg[1] test to validate pageflips with suspend cycle on a pair
  *              of connected displays
- * Functionality: suspend, vblank
  *
  * arg[1]:
  *
@@ -157,11 +147,9 @@
 /**
  * SUBTEST: %s
  * Description: Basic test to validate %arg[1]
- * Functionality: dpms, vblank
  *
  * SUBTEST: 2x-%s
  * Description: Basic test to validate %arg[1] on a pair of connected displays
- * Functionality: dpms, vblank
  *
  * SUBTEST: %s-interruptible
  * Description: Basic test to validate %arg[1]
@@ -182,7 +170,6 @@
  * SUBTEST: 2x-flip-vs-dpms
  * Description: Basic test to validate pageflip along with dpms on a pair of
  *              connected displays
- * Functionality: dpms, vblank
  *
  * SUBTEST: 2x-%s
  * Description: Basic test to validate %arg[1] on a pair of connected displays
@@ -228,7 +215,6 @@
  *
  * SUBTEST: basic-flip-vs-dpms
  * Description: Basic test to valide pageflip with dpms
- * Functionality: dpms, vblank
  *
  * SUBTEST: basic-flip-vs-%s
  * Description: Basic test to valide pageflip with %arg[1]

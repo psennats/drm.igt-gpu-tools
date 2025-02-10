@@ -49,9 +49,7 @@
  * SUBTEST: main
  * Description: Tests that caching mode has become UC/WT and flushed using mmap write
  * Driver requirement: i915, xe
- * Functionality: kms_core, kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION(

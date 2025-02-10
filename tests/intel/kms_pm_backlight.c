@@ -30,9 +30,7 @@
  * Category: Display
  * Description: Basic backlight sysfs test
  * Driver requirement: i915, xe
- * Functionality: backlight
  * Mega feature: Display Power Management
- * Test category: functionality test
  */
 
 #include <errno.h>
@@ -61,15 +59,12 @@
  *
  * SUBTEST: fade-with-dpms
  * Description: Test the fade with DPMS.
- * Functionality: dpms, backlight
  *
  * SUBTEST: fade-with-suspend
  * Description: Test the fade with suspend.
- * Functionality: backlight, suspend
  *
  * SUBTEST: brightness-with-dpms
  * Description: test brightness with dpms on and off cycle.
- * Functionality: backlight, dpms
  */
 
 enum {

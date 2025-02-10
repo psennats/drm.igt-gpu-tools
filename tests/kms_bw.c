@@ -25,9 +25,7 @@
  * Category: Display
  * Description: BW test with different resolutions
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: Display Latency/Bandwidth
- * Test category: functionality test
  */
 
 #include "drm_mode.h"

@@ -34,9 +34,7 @@
  *              was disabled and its drawing is directly inserted on the PF by
  *              software.
  * Driver requirement: i915, xe
- * Functionality: cursor
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -49,15 +47,12 @@
 /**
  * SUBTEST: cursor-dpms
  * Description: Check random placement of a cursor with DPMS.
- * Functionality: cursor, dpms
  *
  * SUBTEST: cursor-suspend
  * Description: Check random placement of a cursor with suspend.
- * Functionality: cursor, suspend
  *
  * SUBTEST: cursor-size-hints
  * Description: Check that sizes declared in SIZE_HINTS are accepted.
- * Functionality: cursor
  *
  * SUBTEST: cursor-%s
  * Description: %arg[1]

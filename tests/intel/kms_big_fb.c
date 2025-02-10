@@ -27,7 +27,6 @@
  * Description: Test big framebuffers
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -46,7 +45,6 @@
  * SUBTEST: linear-%dbpp-rotate-%d
  * Description: Sanity check if addfb ioctl works correctly for given combination
  *              of Linear modifier with %arg[1]-bpp & %arg[2]-rotation
- * Functionality: big_fbs, kms_gem_interop, rotation
  *
  * arg[1].values:       8, 16, 32, 64
  * arg[2].values:       0, 90, 180, 270
@@ -56,7 +54,6 @@
  * SUBTEST: %s-%dbpp-rotate-%d
  * Description: Sanity check if addfb ioctl works correctly for given combination
  *              of %arg[1] with %arg[2]-bpp & %arg[3]-rotation
- * Functionality: big_fbs, kms_gem_interop, rotation, tiling
  *
  * arg[1]:
  *
@@ -74,7 +71,6 @@
  * Description: Test maximum hardware supported stride length for given combination
  *              of linear modifier with max hardware stride length, %arg[1]-bpp,
  *              and %arg[2]-rotation
- * Functionality: big_fbs, kms_gem_interop, rotation
  *
  * arg[1].values:       32, 64
  * arg[2].values:       0, 180
@@ -85,7 +81,6 @@
  * Description: Test maximum hardware supported stride length for given combination
  *              of %arg[1] modifier with max hardware stride length, %arg[2]-bpp,
  *              and %arg[3]-rotation
- * Functionality: big_fbs, kms_gem_interop, rotation, tiling
  *
  * arg[1]:
  *
@@ -103,13 +98,11 @@
  * Description: Test maximum hardware supported stride length for given combination
  *              of %arg[1] modifier with max hardware stride length, %arg[2]-bpp,
  *              and %arg[3]-rotation with H-flip mode
- * Functionality: big_fbs, kms_gem_interop, rotation, tiling
  *
  * SUBTEST: %s-max-hw-stride-%dbpp-rotate-%d-%s
  * Description: Test maximum hardware supported stride length for given combination
  *              of %arg[1] modifier with max hardware stride length, %arg[2]-bpp,
  *              and %arg[3]-rotation with %arg[4] mode
- * Functionality: async_flips, big_fbs, kms_gem_interop, rotation, tiling
  *
  * arg[1]:
  *
@@ -131,22 +124,18 @@
  * SUBTEST: linear-addfb
  * Description: Sanity check if addfb ioctl works correctly with Linear modifier
  *              for given size and strides of fb
- * Functionality: big_fbs, kms_gem_interop
  *
  * SUBTEST: %s-addfb
  * Description: Sanity check if addfb ioctl works correctly with %arg[1] modifier
  *              for given size and strides of fb
- * Functionality: big_fbs, kms_gem_interop, tiling
  *
  * SUBTEST: %s-addfb-size-overflow
  * Description: Sanity check if addfb ioctl fails correctly for (%arg[1]) modifier
  *              with small bo.
- * Functionality: big_fbs, kms_gem_interop, tiling
  *
  * SUBTEST: %s-addfb-size-offset-overflow
  * Description: Sanity check if addfb ioctl fails correctly for (%arg[1]) modifier
  *              and offsets with small bo
- * Functionality: big_fbs, kms_gem_interop, tiling
  *
  * arg[1]:
  *

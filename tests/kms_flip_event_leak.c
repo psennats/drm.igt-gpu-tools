@@ -44,9 +44,7 @@
  *              completed. The test itself won't fail even if the kernel leaks
  *              the event, but the resulting dmesg WARN will indicate a failure.
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 typedef struct {

@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Test of CreateLease.
  * Driver requirement: i915, xe
- * Functionality: lease
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

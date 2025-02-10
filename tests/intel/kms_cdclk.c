@@ -29,9 +29,7 @@
  * Category: Display
  * Description: Test cdclk features : crawling and squashing
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Test content protection (HDCP)
  * Driver requirement: i915, xe
- * Functionality: hdcp1.4
  * Mega feature: HDCP
- * Test category: functionality test
  */
 
 #include <poll.h>
@@ -45,21 +43,17 @@
 /**
  * SUBTEST: lic-type-0
  * Description: Test for the integrity of link for type-0 content.
- * Functionality: hdcp1.4, hdcp2.2
  *
  * SUBTEST: lic-type-1
  * Description: Test for the integrity of link for type-1 content.
- * Functionality: hdcp2.2
  *
  * SUBTEST: content-type-change
  * Description: Test the content type change when the content protection already
  *              enabled
- * Functionality: hdcp1.4, hdcp2.2
  *
  * SUBTEST: mei-interface
  * Description: Test the teardown and rebuild of the interface between Intel
  *              and mei hdcp.
- * Functionality: hdcp1.4, hdcp2.2
  *
  * SUBTEST: srm
  * Description: This test writes the facsimile SRM into the /lib/firmware/ and
@@ -83,7 +77,6 @@
 /**
  * SUBTEST: dp-mst-%s
  * Description: Test Content protection %arg[1] over DP MST.
- * Functionality: hdcp1.4, mst
  *
  * arg[1]:
  *

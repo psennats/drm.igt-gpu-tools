@@ -28,9 +28,7 @@
  * Description: Test atomic mode setting with a plane by switching between high
  *              and low resolutions
  * Driver requirement: i915, xe
- * Functionality: plane, tiling
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -45,7 +43,6 @@
  * SUBTEST: tiling-none
  * Description: Tests the visibility of the planes when switching between high
  *              and low resolution with Linear buffer (no tiling)
- * Functionality: plane
  *
  * SUBTEST: tiling-%s
  * Description: Tests the visibility of the planes when switching between high

@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Basic check of KMS ABI with busy framebuffers.
  * Driver requirement: i915
- * Functionality: kms_core, hang
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <poll.h>
@@ -41,7 +39,6 @@
 /**
  * SUBTEST: basic
  * Description: Test for basic check of KMS ABI with busy framebuffers.
- * Functionality: kms_core
  *
  * SUBTEST: basic-hang
  * Description: Test for basic check of KMS ABI with busy framebuffers.

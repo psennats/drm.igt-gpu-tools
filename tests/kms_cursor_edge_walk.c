@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Test to check different cursor sizes by walking different edges of screen
  * Driver requirement: i915, xe
- * Functionality: cursor
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

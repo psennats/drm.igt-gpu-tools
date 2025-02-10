@@ -32,9 +32,7 @@
  * Category: Display
  * Description: Tests GETFB and GETFB2 ioctls.
  * Driver requirement: i915, xe
- * Functionality: kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -71,7 +69,6 @@
  * SUBTEST: getfb-reject-ccs
  * Description: Tests error handling while requesting CCS buffers it should
  *              refuse because getfb supports returning a single buffer handle.
- * Functionality: ccs, kms_gem_interop, tiling
  *
  * SUBTEST: getfb-%s-different-handles
  * Description: Tests error handling while requesting for two different handles
@@ -86,7 +83,6 @@
 /**
  * SUBTEST: getfb2-accept-ccs
  * Description: Tests outputs are correct when retrieving a CCS framebuffer.
- * Functionality: ccs, kms_gem_interop, tiling
  *
  * SUBTEST: getfb2-into-addfb2
  * Description: Output check by passing the output of GETFB2 into ADDFB2.

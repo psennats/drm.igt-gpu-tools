@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Test display plane scaling
  * Driver requirement: i915, xe
- * Functionality: plane, scaling
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -93,15 +91,12 @@
 /**
  * SUBTEST: plane-scaler-unity-scaling-with-pixel-format
  * Description: Tests scaling with pixel formats, unity scaling.
- * Functionality: pixel_formats, plane, scaling
  *
  * SUBTEST: plane-scaler-with-clipping-clamping-pixel-formats
  * Description: Tests scaling with clipping and clamping, pixel formats.
- * Functionality: pixel_formats, plane, scaling
  *
  * SUBTEST: plane-upscale-%s-with-pixel-format
  * Description: Tests upscaling with pixel formats %arg[1].
- * Functionality: pixel_formats, plane, scaling
  *
  * arg[1]:
  *
@@ -112,7 +107,6 @@
 /**
  * SUBTEST: plane-downscale-factor-%s-with-pixel-format
  * Description: Tests downscaling with pixel formats for %arg[1] scaling factor.
- * Functionality: pixel_formats, plane, scaling
  *
  * arg[1]:
  *

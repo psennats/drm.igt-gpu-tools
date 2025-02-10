@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Stress legacy cursor ioctl
  * Driver requirement: i915, xe
- * Functionality: cursor
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <poll.h>

@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Check the debugfs force connector/edid features work correctly.
  * Driver requirement: i915, xe
- * Functionality: force_connector
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -38,7 +36,6 @@
  * SUBTEST: force-load-detect
  * Description: Test to detect forced load.
  * Driver requirement: i915
- * Functionality: force_connector, vga
  *
  * SUBTEST: force-connector-state
  * Description: Test to check the forced connector state

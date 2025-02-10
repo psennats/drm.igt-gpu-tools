@@ -37,9 +37,7 @@
  * Description: Test atomic mode setting concurrently with multiple planes and
  *              screen resolution.
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION("Test atomic mode setting concurrently with multiple planes and screen resolution");

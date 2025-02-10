@@ -27,9 +27,7 @@
  * Description: Tests the mode by iterating through all valid/invalid crtc/connector
  *              combinations
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "config.h"
@@ -50,7 +48,6 @@
  * SUBTEST: basic
  * Description: Tests the vblank timing by iterating through all valid crtc/connector
  *              combinations
- * Functionality: kms_core, vblank
  *
  * SUBTEST: basic-clone-single-crtc
  * Description: Test allows the use of a single CRTC for two connectors, such as VGA/HDMI,

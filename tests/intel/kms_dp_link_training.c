@@ -4,31 +4,21 @@
  * Category: Display
  * Description: Test to validate link training on SST/MST with UHBR/NON_UHBR rates
  * Driver requirement: i915, xe
- * Functionality: link_training
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 /**
  * SUBTEST: uhbr-sst
  * Description: Test we can drive UHBR rates over SST.
- * Functionality: link_training, uhbr, sst
- * Test category: functionality test
  *
  * SUBTEST: uhbr-mst
  * Description: Test we can drive UHBR rates over MST.
- * Functionality: link_training, uhbr, mst
- * Test category: functionality test
  *
  * SUBTEST: non-uhbr-sst
  * Description: Test we can drive non-UHBR rates over SST.
- * Functionality: link_training, sst
- * Test category: functionality test
  *
  * SUBTEST: non-uhbr-mst
  * Description: Test we can drive non-UHBR rates over MST.
- * Functionality: link_training, mst
- * Test category: functionality test
  */
 
 #include "igt.h"

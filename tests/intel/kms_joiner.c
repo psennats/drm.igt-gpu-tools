@@ -29,9 +29,7 @@
  * Category: Display
  * Description: Test big joiner
  * Driver requirement: i915, xe
- * Functionality: 2p1p
  * Mega feature: Pipe Joiner
- * Test category: functionality test
  */
 
 #include "igt.h"

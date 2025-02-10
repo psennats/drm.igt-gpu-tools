@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Test Color Features at Pipe level using Chamelium to verify instead of CRC
  * Driver requirement: i915, xe
- * Functionality: chamelium, colorspace
  * Mega feature: Color Management
- * Test category: functionality test
  */
 
 #include "kms_color_helper.h"

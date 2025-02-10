@@ -8,9 +8,7 @@
  * Category: Display
  * Description: Test DIRTYFB ioctl functionality.
  * Driver requirement: i915, xe
- * Functionality: dirtyfb
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <sys/types.h>
@@ -34,7 +32,6 @@
  * SUBTEST: %s-dirtyfb-ioctl
  * Description: Test DIRTYFB ioctl is working properly using GPU
  *              frontbuffer rendering with %arg[1] feature.
- * Functionality: dirtyfb, %arg[1]
  *
  * arg[1]:
  *

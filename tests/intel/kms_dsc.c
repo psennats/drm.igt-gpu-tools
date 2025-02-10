@@ -35,9 +35,7 @@
  * Category: Display
  * Description: Test to validate display stream compression
  * Driver requirement: i915, xe
- * Functionality: dsc
  * Mega feature: VDSC
- * Test category: functionality test
  */
 
 #include "kms_dsc_helper.h"

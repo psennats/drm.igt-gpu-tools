@@ -29,9 +29,7 @@
  *		The subtests here should only skip or pass,
  *		anything else means we have a serious problem.
  * Driver requirement: i915, xe
- * Functionality: feature_discovery
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -53,22 +51,17 @@
  *
  * SUBTEST: chamelium
  * Description: Make sure that Chamelium is configured and reachable.
- * Functionality: feature_discovery, chamelium
  *
  * SUBTEST: psr1
  * Description: Make sure that we have eDP panel with PSR1 support.
- * Functionality: feature_discovery, psr1, edp
  * Mega feature: PSR
  *
  * SUBTEST: psr2
  * Description: Make sure that we have eDP panel with PSR2 support.
- * Functionality: feature_discovery, psr2, edp
  * Mega feature: PSR
  *
  * SUBTEST: dp-mst
  * Description: Make sure that we have DP-MST configuration.
- * Functionality: feature_discovery, mst
- * Test category: functionality test
  *
  * arg[1].values: 1, 2, 3, 4
  */

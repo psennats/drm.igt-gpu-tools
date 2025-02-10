@@ -25,9 +25,7 @@
  * Category: Display
  * Description: Test to validate diffent features of VRR
  * Driver requirement: i915, xe
- * Functionality: adaptive_sync
  * Mega feature: Adaptive Sync
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -41,7 +39,6 @@
  * SUBTEST: cmrr
  * Description: Test to validate the content rate to exactly match with the
  * 		requested rate without any frame drops.
- * Functionality: CMRR
  *
  * SUBTEST: flip-basic
  * Description: Tests that VRR is enabled and that the difference between flip
@@ -54,33 +51,27 @@
  * SUBTEST: flip-dpms
  * Description: Tests with DPMS that VRR is enabled and that the difference
  *              between flip timestamps converges to the requested rate.
- * Functionality: adaptive_sync, dpms
  *
  * SUBTEST: flip-suspend
  * Description: Tests that VRR is enabled and that the difference between flip
  *              timestamps converges to the requested rate in a suspend test
- * Functionality: adaptive_sync, suspend
  *
  * SUBTEST: flipline
  * Description: Make sure that flips happen at flipline decision boundary.
  *
  * SUBTEST: seamless-rr-switch-vrr
  * Description: Test to switch RR seamlessly without modeset.
- * Functionality: adaptive_sync, lrr
  *
  * SUBTEST: seamless-rr-switch-drrs
  * Description: Test to switch RR seamlessly without modeset.
- * Functionality: adaptive_sync, drrs
  *
  * SUBTEST: seamless-rr-switch-virtual
  * Description: Test to create a Virtual Mode in VRR range and switch to it
  * 		without a full modeset.
- * Functionality: LRR
  *
  * SUBTEST: lobf
  * Description: Test to validate link-off between active frames in non-psr
  *              operation
- * Functionality: LOBF
  *
  * SUBTEST: max-min
  * Description: Oscillates between highest and lowest refresh each frame for

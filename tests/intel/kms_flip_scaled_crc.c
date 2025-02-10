@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Test flipping between scaled/nonscaled framebuffers
  * Driver requirement: i915, xe
- * Functionality: ccs, scaling, tiling, vblank
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -46,7 +44,6 @@
  * SUBTEST: flip-32bpp-linear-to-64bpp-linear-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
  *              clock programming
- * Functionality: scaling, vblank
  *
  * SUBTEST: flip-32bpp-4tile-to-32bpp-4tiledg2rcccs-%s
  * Description: Flip from 32bpp non scaled fb to 32bpp %arg[1] fb to stress CD
@@ -55,12 +52,10 @@
  * SUBTEST: flip-32bpp-4tile-to-64bpp-4tile-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
  *              clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-32bpp-xtile-to-64bpp-xtile-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
  *              clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-32bpp-yftile-to-32bpp-yftileccs-%s
  * Description: Flip from 32bpp non scaled fb to 32bpp %arg[1] fb to stress CD
@@ -69,7 +64,6 @@
  * SUBTEST: flip-32bpp-yftile-to-64bpp-yftile-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
  *              clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-32bpp-yftileccs-to-64bpp-yftile-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
@@ -86,7 +80,6 @@
  * SUBTEST: flip-32bpp-ytile-to-64bpp-ytile-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
  *              clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-32bpp-ytileccs-to-64bpp-ytile-%s
  * Description: Flip from 32bpp non scaled fb to 64bpp %arg[1] fb to stress CD
@@ -106,27 +99,22 @@
  * SUBTEST: flip-64bpp-4tile-to-%dbpp-4tile-%s
  * Description: Flip from 64bpp non scaled fb to %arg[1]bpp %arg[2] fb to stress
  *              CD clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-64bpp-xtile-to-%dbpp-xtile-%s
  * Description: Flip from 64bpp non scaled fb to %arg[1]bpp %arg[2] fb to stress
  *              CD clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-64bpp-yftile-to-%dbpp-yftile-%s
  * Description: Flip from 64bpp non scaled fb to %arg[1]bpp %arg[2] fb to stress
  *              CD clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-64bpp-ytile-to-%dbpp-ytile-%s
  * Description: Flip from 64bpp non scaled fb to %arg[1]bpp %arg[2] fb to stress
  *              CD clock programming
- * Functionality: scaling, tiling, vblank
  *
  * SUBTEST: flip-64bpp-linear-to-%dbpp-linear-%s
  * Description: Flip from 64bpp non scaled fb to %arg[1]bpp %arg[2] fb to stress
  *              CD clock programming
- * Functionality: scaling, tiling, vblank
  *
  * arg[1].values: 16, 32
  * arg[2]:

@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Tests different rotations with different planes & formats
  * Driver requirement: i915, xe
- * Functionality: plane, rotation
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -65,7 +63,6 @@
  *
  * SUBTEST: bad-tiling
  * Description: Checking unsupported tiling for gen9+ with 90 degree of rotation
- * Functionality: plane, rotation, tiling
  *
  * SUBTEST: exhaust-fences
  * Description: This test intends to check for fence leaks exhaustively
@@ -74,7 +71,6 @@
 /**
  * SUBTEST: primary-%s-tiled-reflect-x-%d
  * Description: Test for %arg[1] & %arg[2] degree rotation on primary plane
- * Functionality: plane, rotation, tiling
  *
  * arg[1]:
  *
@@ -89,7 +85,6 @@
 /**
  * SUBTEST: primary-%s-tiled-reflect-x-%d
  * Description: Test for %arg[1] & %arg[2] degree rotation on primary plane
- * Functionality: plane, rotation, tiling
  *
  * arg[1]:
  *

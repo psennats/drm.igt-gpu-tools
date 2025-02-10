@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Tests whether the igt_draw library actually works.
  * Driver requirement: i915, xe
- * Functionality: kms_core, tiling
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "i915/gem.h"

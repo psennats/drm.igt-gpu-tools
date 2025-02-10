@@ -28,7 +28,6 @@
  * Description: Tests behaviour of PSR & PSR2 & PR
  * Driver requirement: i915, xe
  * Mega feature: PSR
- * Test category: functionality test
  */
 
 #include "i915/intel_fbc.h"
@@ -47,39 +46,31 @@
 /**
  * SUBTEST: %s-basic
  * Description: Basic check for %arg[1] if it is detecting changes made in planes
- * Functionality: %arg[1]
  *
  * SUBTEST: fbc-%s-basic
  * Description: Basic check for fbc with %arg[1] if it is detecting changes made in planes
- * Functionality: %arg[1], fbc
  *
  * SUBTEST: %s-dpms
  * Description: Check if %arg[1] is detecting changes when rendering operation
  *              is performed with dpms enabled or disabled
- * Functionality: %arg[1], dpms
  *
  * SUBTEST: fbc-%s-dpms
  * Description: Check if fbc with %arg[1] is detecting changes when rendering operation
  *              is performed with dpms enabled or disabled
- * Functionality: %arg[1], dpms, fbc
  *
  * SUBTEST: %s-no-drrs
  * Description: Check if %arg[1] is detecting changes when drrs is disabled
- * Functionality: %arg[1], drrs
  *
  * SUBTEST: fbc-%s-no-drrs
  * Description: Check if fbc with %arg[1] is detecting changes when drrs is disabled
- * Functionality: %arg[1], drrs, fbc
  *
  * SUBTEST: %s-suspend
  * Description: Check if %arg[1] is detecting changes when plane operation is
  *              performed with suspend resume cycles
- * Functionality: %arg[1], suspend
  *
  * SUBTEST: fbc-%s-suspend
  * Description: Check if fbc with %arg[1] is detecting changes when plane operation is
  *              performed with suspend resume cycles
- * Functionality: %arg[1], suspend, fbc
  *
  * arg[1]:
  *
@@ -92,13 +83,11 @@
  * Description: Check if %arg[1] is detecting memory mapping %arg[3] operations
  * 		performed on %arg[2] planes
  * Driver requirement: i915
- * Functionality: %arg[1], plane
  *
  * SUBTEST: fbc-%s-%s-%s
  * Description: Check if fbc with %arg[1] is detecting memory mapping %arg[3] operations
  *              performed on %arg[2] planes
  * Driver requirement: i915
- * Functionality: %arg[1], plane, fbc
  *
  * arg[1]:
  *
@@ -121,22 +110,18 @@
  * SUBTEST: %s-primary-page-flip
  * Description: Check if %arg[1] is detecting page-flipping operation
  * 		performed on primary plane
- * Functionality: %arg[1], plane
  *
  * SUBTEST: fbc-%s-primary-page-flip
  * Description: Check if fbc with %arg[1] is detecting page-flipping operation
  *              performed on primary plane
- * Functionality: %arg[1], plane, fbc
  *
  * SUBTEST: %s-primary-%s
  * Description: Check if %arg[1] is detecting rendering operations %arg[2]
  * 		when performed on primary plane
- * Functionality: %arg[1], plane
  *
  * SUBTEST: fbc-%s-primary-%s
  * Description: Check if %arg[1] is detecting rendering operations %arg[2]
  *              when performed on primary plane
- * Functionality: %arg[1], plane, fbc
  *
  * arg[1]:
  *
@@ -153,12 +138,10 @@
  * SUBTEST: %s-%s-%s
  * Description: Check if %arg[1] is detecting rendering and plane
  *              operations %arg[3] performed on %arg[2] planes
- * Functionality: %arg[1], plane
  *
  * SUBTEST: fbc-%s-%s-%s
  * Description: Check if fbc with %arg[1] is detecting rendering and plane
  *              operations %arg[3] performed on %arg[2] planes
- * Functionality: %arg[1], plane, fbc
  *
  * arg[1]:
  *
@@ -181,46 +164,38 @@
 /**
  * SUBTEST: pr-basic
  * Description: Basic check for pr if it is detecting changes made in planes
- * Functionality: pr
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-basic
  * Description: Basic check for fbc with pr if it is detecting changes made in planes
- * Functionality: pr, fbc
  * Mega feature: Panel Replay
  *
  * SUBTEST: pr-dpms
  * Description: Check if pr is detecting changes when rendering operation
  *              is performed with dpms enabled or disabled
- * Functionality: pr, dpms
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-dpms
  * Description: Check if fbc with pr is detecting changes when rendering operation
  *              is performed with dpms enabled or disabled
- * Functionality: pr, dpms, fbc
  * Mega feature: Panel Replay
  *
  * SUBTEST: pr-no-drrs
  * Description: Check if pr is detecting changes when drrs is disabled
- * Functionality: pr, drrs
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-no-drrs
  * Description: Check if fbc with pr is detecting changes when drrs is disabled
- * Functionality: pr, drrs, fbc
  * Mega feature: Panel Replay
  *
  * SUBTEST: pr-suspend
  * Description: Check if pr is detecting changes when plane operation is
  *              performed with suspend resume cycles
- * Functionality: pr, suspend
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-suspend
  * Description: Check if fbc with pr is detecting changes when plane operation is
  *              performed with suspend resume cycles
- * Functionality: pr, suspend, fbc
  * Mega feature: Panel Replay
  */
 
@@ -229,14 +204,12 @@
  * Description: Check if pr is detecting memory mapping %arg[2] operations
  * 		performed on %arg[1] planes
  * Driver requirement: i915
- * Functionality: pr, plane
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-%s-%s
  * Description: Check if fbc with pr is detecting memory mapping %arg[2] operations
  *              performed on %arg[1] planes
  * Driver requirement: i915
- * Functionality: pr, plane, fbc
  * Mega feature: Panel Replay
  *
  * arg[1]:
@@ -255,25 +228,21 @@
  * SUBTEST: pr-primary-page-flip
  * Description: Check if pr is detecting page-flipping operation
  * 		performed on primary plane
- * Functionality: pr, plane
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-primary-page-flip
  * Description: Check if fbc with pr is detecting page-flipping operation
  *              performed on primary plane
- * Functionality: pr, plane, fbc
  * Mega feature: Panel Replay
  *
  * SUBTEST: pr-primary-%s
  * Description: Check if pr is detecting rendering operations %arg[1]
  * 		when performed on primary plane
- * Functionality: pr, plane
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-primary-%s
  * Description: Check if fbc with pr is detecting rendering operations %arg[1]
  *              when performed on primary plane
- * Functionality: pr, plane, fbc
  * Mega feature: Panel Replay
  *
  * arg[1]:
@@ -286,13 +255,11 @@
  * SUBTEST: pr-%s-%s
  * Description: Check if pr is detecting rendering and plane
  *              operations %arg[2] performed on %arg[1] planes
- * Functionality: pr, plane
  * Mega feature: Panel Replay
  *
  * SUBTEST: fbc-pr-%s-%s
  * Description: Check if fbc with pr is detecting rendering and plane
  *              operations %arg[2] performed on %arg[1] planes
- * Functionality: pr, plane, fbc
  * Mega feature: Panel Replay
  *
  * arg[1]:

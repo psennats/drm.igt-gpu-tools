@@ -25,9 +25,7 @@
  * TEST: kms atomic transition
  * Category: Display
  * Driver requirement: i915, xe
- * Functionality: plane, watermark
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -46,7 +44,6 @@
 /**
  * SUBTEST: plane-primary-toggle-with-vblank-wait
  * Description: Check toggling of primary plane with vblank
- * Functionality: plane, vblank, watermark
  *
  * SUBTEST: plane-all-modeset-%s
  * Description: Modeset test for all plane combinations %arg[1]
@@ -60,7 +57,6 @@
 /**
  * SUBTEST: plane-all-modeset-%s
  * Description: Modeset test for all plane combinations %arg[1]
- * Functionality: plane, watermark, edp
  *
  * arg[1]:
  *

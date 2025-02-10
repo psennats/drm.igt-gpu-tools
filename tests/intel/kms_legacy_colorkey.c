@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Test to check the legacy set colorkey ioctl on sprite planes.
  * Driver requirement: i915
- * Functionality: plane, xorg_xv
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

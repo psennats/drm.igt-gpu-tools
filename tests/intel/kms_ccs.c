@@ -29,9 +29,7 @@
  *              complemented by a color control surface (CCS) that the display
  *              uses to interpret the compressed data.
  * Driver requirement: i915, xe
- * Functionality: ccs, tiling
  * Mega feature: E2E Compression
- * Test category: functionality test
  */
 #include <fcntl.h>
 
@@ -121,8 +119,6 @@
 /**
  * SUBTEST: %s-%s
  * Description: Test %arg[1] with %arg[2] modifier
- * Functionality: ccs, rotation, tiling
- *
  * arg[1]:
  *
  * @bad-rotation-90:             90 degree rotation

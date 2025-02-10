@@ -42,9 +42,7 @@
  *              Additionally, make sure that the mean time for all connectors is
  *              not too long.
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #define THRESHOLD_PER_CONNECTOR		150

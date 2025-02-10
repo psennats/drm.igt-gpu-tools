@@ -8,9 +8,7 @@
  * Category: Display
  * Description: Test DIRTYFB ioctl functionality with FBC enabled.
  * Driver requirement: xe
- * Functionality: dirtyfb, fbc
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <sys/types.h>

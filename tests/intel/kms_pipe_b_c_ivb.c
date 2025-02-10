@@ -30,9 +30,7 @@
  * Description: Exercise the FDI lane bifurcation code for IVB in the kernel by
  *              setting different combinations of modes for pipes B and C.
  * Driver requirement: i915
- * Functionality: kms_core, obsolete_test
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

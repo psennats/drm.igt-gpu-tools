@@ -42,9 +42,7 @@
  * SUBTEST:
  * Description: Test that /dev/drm_dp_aux reads work
  * Driver requirement: i915, xe
- * Functionality: dp_aux, edp, dp
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION("Test that /dev/drm_dp_aux reads work");

@@ -27,9 +27,6 @@
  * Category: Display
  * Description: Tests to validate display power DC states.
  * Driver requirement: i915, xe
- * Functionality: dpms, pm_dc
- * Mega feature: Display Power Management
- * Test category: functionality test
  */
 
 #include <errno.h>
@@ -52,7 +49,6 @@
  * SUBTEST: dc3co-vpb-simulation
  * Description: Make sure that system enters DC3CO when PSR2 is active and system
  *              is in SLEEP state
- * Functionality: dc3co, pm_dc, psr2
  *
  * SUBTEST: dc5-dpms
  * Description: Validate display engine entry to DC5 state while all connectors's
@@ -64,7 +60,6 @@
  *
  * SUBTEST: dc5-psr
  * Description: This test validates display engine entry to DC5 state while PSR is active
- * Functionality: pm_dc, psr1
  *
  * SUBTEST: dc6-dpms
  * Description: Validate display engine entry to DC6 state while all connectors's
@@ -72,18 +67,15 @@
  *
  * SUBTEST: dc6-psr
  * Description: This test validates display engine entry to DC6 state while PSR is active
- * Functionality: pm_dc, psr1
  *
  * SUBTEST: dc9-dpms
  * Description: This test validates display engine entry to DC9 state
  *
  * SUBTEST: deep-pkgc
  * Description: This test validates display engine entry to PKGC10 state for extended vblank
- * Functionality: pm_dc
  *
  * SUBTEST: dc5-retention-flops
  * Description: This test validates display engine entry to DC5 state while PSR is active on Pipe B
- * Functionality: pm_dc
  */
 
 /* DC State Flags */

@@ -30,7 +30,6 @@
  * Description: Tests requiring a Chamelium board
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt_eld.h"
@@ -41,17 +40,14 @@
  * SUBTEST: dp-crc-fast
  * Description: Pick the first mode of the IGT base EDID, display and capture
  * 		a few frames, then check captured frames are correct
- * Functionality: chamelium, dp, frame_integrity
  *
  * SUBTEST: hdmi-crc-fast
  * Description: Pick the first mode of the IGT base EDID, display and capture
  * 		a few frames, then check captured frames are correct
- * Functionality: chamelium, hdmi, frame_integrity
  *
  * SUBTEST: hdmi-%s-formats
  * Description: Pick the first mode of the IGT base EDID, display and capture a
  *              few frames, then check captured frames are correct
- * Functionality: chamelium, hdmi, frame_integrity
  *
  * arg[1]:
  *
@@ -63,17 +59,14 @@
  * SUBTEST: vga-frame-dump
  * Description: For each mode of the IGT base EDID, display and capture a few
  *              frames, then check captured frames are correct
- * Functionality: chamelium, vga, frame_integrity
  *
  * SUBTEST: dp-crc-%s
  * Description: For each mode of the IGT base EDID, display and capture a %arg[1]
  *              frame(s), then check captured frame(s) are correct
- * Functionality: chamelium, dp, frame_integrity
  *
  * SUBTEST: hdmi-crc-%s
  * Description: For each mode of the IGT base EDID, display and capture a %arg[1]
  *              frame(s), then check captured frame(s) are correct
- * Functionality: chamelium, hdmi, frame_integrity
  *
  * arg[1]:
  *
@@ -86,23 +79,19 @@
  * Description: For each mode of the IGT base EDID, display and capture a few
  *              frames, then download the captured frames and compare them
  *              bit-by-bit to the sent ones
- * Functionality: chamelium, dp, frame_integrity
  *
  * SUBTEST: hdmi-frame-dump
  * Description: For each mode of the IGT base EDID, display and capture a few
  *              frames, then download the captured frames and compare them
  *              bit-by-bit to the sent ones
- * Functionality: chamelium, hdmi, frame_integrity
  *
  * SUBTEST: hdmi-aspect-ratio
  * Description: Pick a mode with a picture aspect-ratio, capture AVI InfoFrames
  *              and check they include the relevant fields
- * Functionality: chamelium, hdmi, frame_integrity
  *
  * SUBTEST: hdmi-%s-planes-random
  * Description: Setup a few overlay planes with random parameters, capture the
  *              frame and check it matches the expected output
- * Functionality: chamelium, hdmi, frame_integrity
  *
  * arg[1]:
  *

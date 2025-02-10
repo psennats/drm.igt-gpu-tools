@@ -37,9 +37,7 @@
  * Description: Verify if simultaneous modesets on all the supported pipes is
  *              successful. Validate using CRC verification
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION("Test simultaneous modeset on all the supported pipes");

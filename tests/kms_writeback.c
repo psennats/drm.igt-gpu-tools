@@ -30,9 +30,7 @@
  *              writeback; it validates bad and good combination, check color
  *              format, and check the output result by using CRC.
  * Driver requirement: i915, xe
- * Functionality: kms_core
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <errno.h>

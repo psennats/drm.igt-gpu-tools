@@ -27,7 +27,6 @@
  * Description: Test speed of WaitVblank.
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -48,44 +47,35 @@
 /**
  * SUBTEST: crtc-id
  * Description: Check the vblank and flip events works with given crtc id
- * Functionality: vblank
  *
  * SUBTEST: invalid
  * Description: Negative test for vblank request
- * Functionality: vblank
  *
  * SUBTEST: ts-continuation-dpms-rpm
  * Description: Test TS continuty with DPMS & RPM while hanging by introducing
  *              NOHANG flag
- * Functionality: dpms, hang, rpm, vblank
  *
  * SUBTEST: ts-continuation-dpms-suspend
  * Description: Test TS continuty with DPMS & Suspend while hanging by introducing
  *              NOHANG flag
- * Functionality: dpms, hang, suspend, vblank
  *
  * SUBTEST: ts-continuation-suspend
  * Description: Test TS continuty with Suspend while hanging by introducing NOHANG
  *              flag
- * Functionality: hang, suspend, vblank
  *
  * SUBTEST: ts-continuation-modeset-rpm
  * Description: Test TS continuty during Modeset with Suspend while hanging by
  *              introducing NOHANG flag
- * Functionality: hang, rpm, vblank
  *
  * SUBTEST: accuracy-idle
  * Description: Test Accuracy of vblank events while hanging by introducing NOHANG
  *              flag
- * Functionality: hang, vblank
  *
  * SUBTEST: %s
  * Description: Test %arg[1] while hanging by introducing NOHANG flag
- * Functionality: hang, vblank
  *
  * SUBTEST: %s-hang
  * Description: Test %arg[1] with injected hang is working properly
- * Functionality: hang, vblank
  *
  * arg[1]:
  *

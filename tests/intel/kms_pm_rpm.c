@@ -12,9 +12,7 @@
  * Category: Display
  * Description: Test to validate Runtime PM
  * Driver requirement: i915, xe
- * Functionality: pm_rpm
  * Mega feature: Display Power Management
- * Test category: functionality test
  */
 
 #include <limits.h> // PATH_MAX
@@ -51,27 +49,21 @@
  *
  * SUBTEST: cursor
  * Description: Validate cursor movements along with suspends using runtime PM
- * Functionality: cursor, pm_rpm, suspend
  *
  * SUBTEST: cursor-dpms
  * Description: Validate cursor movements along with dpms using runtime PM
- * Functionality: cursor, dpms, pm_rpm
  *
  * SUBTEST: dpms-lpsp
  * Description: Validate basic modeset with dpms on lpsp screen using runtime PM
- * Functionality: dpms, pm_rpm
  *
  * SUBTEST: dpms-mode-unset-lpsp
  * Description: Validate basic modeset (negative) with dpms on lpsp screen using runtime PM
- * Functionality: dpms, pm_rpm
  *
  * SUBTEST: dpms-mode-unset-non-lpsp
  * Description: Validate basic modeset (negative) with dpms on non-lpsp screen using runtime PM
- * Functionality: dpms, pm_rpm
  *
  * SUBTEST: dpms-non-lpsp
  * Description: Validate basic modeset with dpms on non-lpsp screen using runtime PM
- * Functionality: dpms, pm_rpm
  *
  * SUBTEST: drm-resources-equal
  * Description: Validate the DRM resources reported by the IOCTLs are still the same.
@@ -83,18 +75,15 @@
  * SUBTEST: fences-dpms
  * Description: Sanity test for drm fences with dpms.
  * Driver requirement: i915
- * Functionality: dpms, pm_rpm
  *
  * SUBTEST: i2c
  * Description: Validate exposed edids using raw I2C read method.
  *
  * SUBTEST: legacy-planes
  * Description: Validate legacy plane (set/unset/change).
- * Functionality: pm_rpm, plane
  *
  * SUBTEST: legacy-planes-dpms
  * Description: Validate legacy plane (set/unset/change) with dpms.
- * Functionality: pm_rpm, plane
  *
  * SUBTEST: modeset-lpsp
  * Description: Validate basic modeset on lpsp screen using runtime PM
@@ -130,19 +119,15 @@
  * SUBTEST: pm-tiling
  * Description: Test to change different tiling methods & check for rpm
  * Driver requirement: i915
- * Functionality: pm_rpm, tiling
  *
  * SUBTEST: system-suspend-modeset
  * Description: Validate basic modeset with suspend
- * Functionality: pm_rpm, suspend
  *
  * SUBTEST: universal-planes
  * Description: Validate universal plane (set/unset/change).
- * Functionality: pm_rpm, plane
  *
  * SUBTEST: universal-planes-dpms
  * Description: Validate universal plane (set/unset/change) with dpms.
- * Functionality: pm_rpm, plane
  */
 
 #define MSR_PC8_RES	0x630

@@ -28,9 +28,7 @@
  * TEST: kms pm lpsp
  * Category: Display
  * Description: These tests validates display Low Power Single Pipe configurations
- * Functionality: pm_lpsp
  * Mega feature: Display Power Management
- * Test category: functionality test
  */
 
 #include "igt.h"

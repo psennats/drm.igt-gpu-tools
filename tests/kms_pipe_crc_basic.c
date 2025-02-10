@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Tests behaviour of CRC
  * Driver requirement: i915, xe
- * Functionality: crc
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -58,17 +56,14 @@
  *
  * SUBTEST: suspend-read-crc
  * Description: Suspend test for pipe CRC reads
- * Functionality: crc, suspend
  *
  * SUBTEST: hang-read-crc
  * Description: Hang test for pipe CRC read
- * Functionality: crc, hang
  */
 
 /**
  * SUBTEST: compare-crc-sanitycheck-%s
  * Description: Basic sanity check for CRC mismatches with %arg[1]
- * Functionality: crc, pixel_formats
  *
  * arg[1]:
  *

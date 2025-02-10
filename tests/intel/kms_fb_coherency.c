@@ -24,9 +24,7 @@
  *		of memset operations on future scanout buffer objects
  *		mmapped with different mmap methods and different caching modes.
  * Mega feature: General Display Features
- * Functionality: kms_core
  * Driver requirement: i915, xe
- * Test category: functionality test
  */
 
 typedef struct {

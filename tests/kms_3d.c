@@ -35,9 +35,7 @@
  * SUBTEST:
  * Description: Tests 3D mode setting.
  * Driver requirement: i915, xe
- * Functionality: stereoscopic
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 IGT_TEST_DESCRIPTION("Tests 3D mode setting.");

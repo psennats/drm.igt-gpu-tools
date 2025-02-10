@@ -30,9 +30,7 @@
  * Category: Display
  * Description: Test Dithering block status
  * Driver requirement: i915, xe
- * Functionality: colorspace, kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

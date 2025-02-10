@@ -8,9 +8,7 @@
  * Category: Display
  * Description: Test link training fallback for eDP/DP connectors
  * Driver requirement: i915, xe
- * Functionality: link training
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <sys/types.h>

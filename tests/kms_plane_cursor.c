@@ -25,9 +25,7 @@
  * Category: Display
  * Description: Tests cursor interactions with primary and overlay planes.
  * Driver requirement: i915, xe
- * Functionality: cursor, plane
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

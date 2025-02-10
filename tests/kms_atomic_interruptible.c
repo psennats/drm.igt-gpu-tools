@@ -27,7 +27,6 @@
  * Description: Tests that interrupt various atomic ioctls.
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include <signal.h>
@@ -39,7 +38,6 @@
 /**
  * SUBTEST: %s-setmode
  * Description: Tests the interrupt properties of %arg[1] modeset
- * Functionality: kms_core
  *
  * arg[1]:
  *
@@ -50,19 +48,15 @@
 /**
  * SUBTEST: legacy-cursor
  * Description: Tests the interrupt properties for Cursor
- * Functionality: cursor, kms_core
  *
  * SUBTEST: legacy-dpms
  * Description: Tests the interrupt properties for DPMS
- * Functionality: dpms, kms_core
  *
  * SUBTEST: legacy-pageflip
  * Description: Tests the interrupt properties for page flip
- * Functionality: kms_core
  *
  * SUBTEST: universal-setplane-%s
  * Description: Tests the interrupt properties for %arg[1]
- * Functionality: kms_core, plane
  *
  * arg[1]:
  *

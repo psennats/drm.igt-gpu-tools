@@ -27,9 +27,7 @@
  * Category: Display
  * Description: Test atomic mode setting with multiple planes.
  * Driver requirement: i915, xe
- * Functionality: plane, tiling
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -45,7 +43,6 @@
  * Description: Check that the kernel handles atomic updates of multiple planes
  *              correctly by changing their geometry and making sure the changes
  *              are reflected immediately after each commit.
- * Functionality: plane
  *
  * SUBTEST: tiling-%s
  * Description: Check that the kernel handles atomic updates of multiple planes

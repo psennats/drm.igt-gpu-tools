@@ -30,9 +30,7 @@
  * Category: Display
  * Description: Test asynchronous page flips.
  * Driver requirement: i915, xe
- * Functionality: async_flips, vblank
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -58,11 +56,9 @@
  *
  * SUBTEST: test-cursor
  * Description: Verify that the DRM_IOCTL_MODE_CURSOR passes after async flip
- * Functionality: async_flips, cursor, vblank
  *
  * SUBTEST: crc
  * Description: Use CRC to verify async flip scans out the correct framebuffer
- * Functionality: async_flips, crc, vblank
  *
  * SUBTEST: invalid-async-flip
  * Description: Negative case to verify if changes in fb are rejected from kernel as expected

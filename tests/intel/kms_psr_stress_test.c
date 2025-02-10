@@ -3,9 +3,7 @@
  * TEST: kms psr stress test
  * Category: Display
  * Driver requirement: i915, xe
- * Functionality: plane, psr1
  * Mega feature: PSR
- * Test category: functionality test
  */
 
 #include "igt.h"

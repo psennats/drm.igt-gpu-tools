@@ -42,7 +42,6 @@
  * Description: Test for Transcoder Port Sync for Display Port Tiled Displays
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -55,12 +54,10 @@
  * SUBTEST: basic-test-pattern
  * Description: Make sure the Tiled CRTCs are synchronized and we get page flips
  *              for all tiled CRTCs in one vblank (executes on real panel).
- * Functionality: tiled_display
  *
  * SUBTEST: basic-test-pattern-with-chamelium
  * Description: Make sure the Tiled CRTCs are synchronized and we get page flips
  *              for all tiled CRTCs in one vblank (executes on chamelium).
- * Functionality: chamelium, tiled_display
  */
 
 IGT_TEST_DESCRIPTION("Test for genlocked CRTCs with tiled displays");

@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Sanity test for framebuffer device.
  * Driver requirement: i915, xe
- * Functionality: fbdev
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 #include "config.h"
 

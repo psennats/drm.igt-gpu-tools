@@ -30,9 +30,7 @@
  * Category: Display
  * Description: Sanity test for ioctls DRM_IOCTL_MODE_ADDFB2 & DRM_IOCTL_MODE_RMFB.
  * Driver requirement: i915, xe
- * Functionality: kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -61,12 +59,10 @@
  *
  * SUBTEST: unused-modifier
  * Description: Test that addfb2 call fails correctly for unused modifier
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: clobberred-modifier
  * Description: Check if addfb2 call works for clobbered modifier
  * Driver requirement: i915
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: invalid-smem-bo-on-discrete
  * Description: Check if addfb2 with a system memory gem object fails correctly
@@ -98,22 +94,18 @@
 /**
  * SUBTEST: basic-x-tiled-legacy
  * Description: Check if addfb2 and rmfb call works for basic x-tiling test
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: basic-y-tiled-legacy
  * Description: Check if addfb2 and rmfb call works for basic y-tiling test
  * Driver requirement: i915
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: framebuffer-vs-set-tiling
  * Description: Check if addfb2 call works for x and y tiling
  * Driver requirement: i915
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: tile-pitch-mismatch
  * Description: Test that addfb2 call fails correctly for pitches mismatch
  * Driver requirement: i915
- * Functionality: kms_gem_interop, tiling
  */
 
 /**
@@ -135,41 +127,33 @@
  * SUBTEST: bo-too-small-due-to-tiling
  * Description: Test that addfb2 call fails correctly with small buffer object
  *              after changing tile
- * Functionality: kms_gem_interop, tiling
  */
 
 /**
  * SUBTEST: addfb25-modifier-no-flag
  * Description: Test that addfb2 call fails correctly for x-tiling with given modifier
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: addfb25-bad-modifier
  * Description: Test that addfb2 call fails correctly for irrelevant modifier
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: addfb25-x-tiled-mismatch-legacy
  * Description: Test that addfb2 call fails correctly for irrelevant x-tiling
  * Driver requirement: i915
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: addfb25-x-tiled-legacy
  * Description: Check if addfb2 call works for x-tiling
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: addfb25-framebuffer-vs-set-tiling
  * Description: Check if addfb2 call works for relevant combination of tiling and fbs
  * Driver requirement: i915
- * Functionality: kms_gem_interop, tiling
  */
 
 /**
  * SUBTEST: addfb25-y-tiled-%s
  * Description: Check if addfb2 call works for y-tiling %arg[1]
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: addfb25-yf-tiled-legacy
  * Description: Check if addfb2 call works for yf-tiling
- * Functionality: kms_gem_interop, tiling
  *
  * arg[1]:
  *
@@ -180,7 +164,6 @@
 /**
  * SUBTEST: addfb25-4-tiled
  * Description: Check if addfb2 call works for tiling-4
- * Functionality: kms_gem_interop, tiling
  *
  * SUBTEST: invalid-%s-%s
  * Description: Test that %arg[1] ioctl call fails correctly for %arg[2] object
