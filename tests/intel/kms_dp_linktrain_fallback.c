@@ -358,7 +358,7 @@ static void test_fallback(data_t *data, bool is_mst)
 	igt_output_t *outputs[IGT_MAX_PIPES];
 	drmModeModeInfo * modes[IGT_MAX_PIPES];
 	struct igt_fb fbs[IGT_MAX_PIPES];
-	struct igt_plane *primarys[IGT_MAX_PIPES];
+	struct igt_plane *primaries[IGT_MAX_PIPES];
 	struct udev_monitor *mon;
 
 	retries = SPURIOUS_HPD_RETRY;
@@ -367,7 +367,7 @@ static void test_fallback(data_t *data, bool is_mst)
 	igt_reset_link_params(data->drm_fd, data->output);
 	if (!setup_outputs(data, is_mst, outputs,
 			   &output_count, modes, fbs,
-			   primarys))
+			   primaries))
 		return;
 
 	igt_info("Testing link training fallback on %s\n",
@@ -409,7 +409,7 @@ static void test_fallback(data_t *data, bool is_mst)
 							  &output_count,
 							  modes,
 							  fbs,
-							  primarys), "modeset failed\n");
+							  primaries), "modeset failed\n");
 		igt_assert_eq(data->output->values[IGT_CONNECTOR_LINK_STATUS], DRM_MODE_LINK_STATUS_GOOD);
 		curr_link_rate = igt_get_current_link_rate(data->drm_fd, data->output);
 		curr_lane_count = igt_get_current_lane_count(data->drm_fd, data->output);
