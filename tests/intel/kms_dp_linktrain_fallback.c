@@ -17,10 +17,14 @@
 #include "igt_sysfs.h"
 #include "igt.h"
 #include "kms_mst_helper.h"
+#include "kms_dsc_helper.h"
 
 /**
  * SUBTEST: dp-fallback
  * Description: Test fallback on DP connectors
+ *
+ * SUBTEST: dsc-fallback
+ * Description: Test fallback to DSC when BW isn't sufficient
  */
 
 #define RETRAIN_COUNT 1
@@ -46,7 +50,7 @@ typedef struct {
 
 typedef int (*condition_check_fn)(int drm_fd, igt_output_t *output);
 
-IGT_TEST_DESCRIPTION("Test link training fallback");
+IGT_TEST_DESCRIPTION("Test link-training / dsc fallback");
 
 static bool setup_mst_outputs(data_t *data, igt_output_t *mst_output[],
 			      int *output_count)
@@ -424,7 +428,7 @@ static void test_fallback(data_t *data, bool is_mst)
 	}
 }
 
-static bool run_test(data_t *data)
+static bool run_lt_fallback_test(data_t *data)
 {
 	bool ran = false;
 	igt_output_t *output;
@@ -462,6 +466,150 @@ static bool run_test(data_t *data)
 	return ran;
 }
 
+static void test_dsc_sst_fallback(data_t *data)
+{
+	bool non_dsc_mode_found = false;
+	bool dsc_fallback_successful = false;
+	int ret;
+	struct udev_monitor *mon;
+	drmModeModeInfo *mode_to_check;
+	igt_output_t *outputs[IGT_MAX_PIPES];
+	int output_count = 0;
+
+	igt_info("Checking DSC fallback on %s\n", igt_output_name(data->output));
+	data->pipe = PIPE_A;
+
+	igt_display_reset(&data->display);
+	igt_reset_link_params(data->drm_fd, data->output);
+	igt_force_link_retrain(data->drm_fd, data->output, RETRAIN_COUNT);
+
+	/* Find a mode that doesn't require DSC initially */
+	for_each_connector_mode(data->output) {
+		data->mode = &data->output->config.connector->modes[j__];
+		igt_create_color_fb(data->drm_fd, data->mode->hdisplay,
+				    data->mode->vdisplay, DRM_FORMAT_XRGB8888,
+				    DRM_FORMAT_MOD_LINEAR, 0.0, 1.0, 0.0,
+				    &data->fb);
+		igt_output_override_mode(data->output, data->mode);
+		igt_output_set_pipe(data->output, data->pipe);
+		data->primary = igt_output_get_plane_type(data->output,
+						DRM_PLANE_TYPE_PRIMARY);
+		igt_plane_set_fb(data->primary, &data->fb);
+
+		ret = igt_display_try_commit_atomic(&data->display,
+						    DRM_MODE_ATOMIC_TEST_ONLY |
+						    DRM_MODE_ATOMIC_ALLOW_MODESET,
+						    NULL);
+		if (ret != 0) {
+			igt_debug("Skipping mode %dx%d@%d on %s\n",
+				 data->mode->hdisplay, data->mode->vdisplay,
+				 data->mode->vrefresh,
+				 igt_output_name(data->output));
+			continue;
+		}
+		igt_display_commit2(&data->display, COMMIT_ATOMIC);
+
+		if (!igt_is_dsc_enabled(data->drm_fd,
+					data->output->name)) {
+			drmModeModeInfo *non_dsc_mode
+				= igt_output_get_mode(data->output);
+			igt_info("Found mode %dx%d@%d %s that doesn't need DSC with link rate %d and lane count %d\n",
+				 non_dsc_mode->hdisplay, non_dsc_mode->vdisplay,
+				 non_dsc_mode->vrefresh, non_dsc_mode->name,
+				 igt_get_current_link_rate(data->drm_fd, data->output),
+				 igt_get_current_lane_count(data->drm_fd, data->output));
+			non_dsc_mode_found = true;
+			break;
+		}
+	}
+	igt_require_f(non_dsc_mode_found,
+		      "No non-DSC mode found on %s\n",
+		      igt_output_name(data->output));
+
+	/* Repeatedly force link failure until DSC is required (or link is disabled) */
+	while (!igt_get_dp_link_retrain_disabled(data->drm_fd, data->output)) {
+		mon = igt_watch_uevents();
+
+		igt_assert_f(force_failure_and_wait(data, data->output,
+						    LT_FAILURE_REDUCED_CAPS,
+						    RETRAIN_COUNT, 1.0, 20.0),
+			     "Forcing DSC fallback timed out\n");
+
+		if (igt_get_dp_link_retrain_disabled(data->drm_fd,
+						     data->output)) {
+			igt_reset_connectors();
+			igt_flush_uevents(mon);
+			return;
+		}
+
+		igt_assert_f(wait_for_hotplug_and_check_bad(data->drm_fd,
+							    data,
+							    data->output,
+							    mon,
+							    20.0),
+			     "Didn't get hotplug or link-status=BAD for DSC\n");
+		igt_flush_uevents(mon);
+
+		outputs[output_count++] = data->output;
+		set_connector_link_status_good(data, outputs, &output_count);
+		igt_display_commit2(&data->display, COMMIT_ATOMIC);
+
+		mode_to_check = igt_output_get_mode(data->output);
+
+		if (igt_is_dsc_enabled(data->drm_fd, data->output->name)) {
+			igt_info("mode %dx%d@%d now requires DSC with link rate %d and lane count %d\n",
+				 mode_to_check->hdisplay, mode_to_check->vdisplay,
+				 mode_to_check->vrefresh,
+				 igt_get_current_link_rate(data->drm_fd, data->output),
+				 igt_get_current_lane_count(data->drm_fd, data->output));
+			igt_info("DSC fallback successful on %s\n",
+				 igt_output_name(data->output));
+			dsc_fallback_successful = true;
+			break;
+		} else {
+			igt_info("mode %dx%d@%d still doesn't require DSC\n",
+				 mode_to_check->hdisplay, mode_to_check->vdisplay,
+				 mode_to_check->vrefresh);
+		}
+	}
+	igt_assert_f(dsc_fallback_successful, "DSC fallback unsuccessful\n");
+}
+
+static bool run_dsc_sst_fallaback_test(data_t *data)
+{
+	bool ran = false;
+	igt_output_t *output;
+
+	if (!is_dsc_supported_by_source(data->drm_fd)) {
+		igt_info("DSC not supported by source.\n");
+		return ran;
+	}
+
+	for_each_connected_output(&data->display, output) {
+		data->output = output;
+
+		if (!igt_has_force_link_training_failure_debugfs(data->drm_fd,
+								 data->output)) {
+			igt_info("Output %s doesn't support forcing link training.\n",
+				 igt_output_name(data->output));
+			continue;
+		}
+
+		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) {
+			igt_info("Skipping output %s as it's not DP\n", output->name);
+			continue;
+		}
+
+		if (!is_dsc_supported_by_sink(data->drm_fd, data->output))
+			continue;
+
+		ran = true;
+		test_dsc_sst_fallback(data);
+	}
+
+	return ran;
+}
+
 igt_main
 {
 	data_t data = {};
@@ -486,8 +634,13 @@ igt_main
 	}
 
 	igt_subtest("dp-fallback") {
-		igt_require_f(run_test(&data),
+		igt_require_f(run_lt_fallback_test(&data),
 			      "Skipping test as no output found or none supports fallback\n");
+	}
+
+	igt_subtest("dsc-fallback") {
+		igt_require_f(run_dsc_sst_fallaback_test(&data),
+			      "Skipping test as DSC fallback conditions not met.\n");
 	}
 
 	igt_fixture {
