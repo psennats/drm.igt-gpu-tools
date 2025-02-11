@@ -631,6 +631,12 @@ igt_main
 			if (current_log_level > 10)
 				igt_drm_debug_level_update(10);
 		}
+		/*
+		 * Some environments may have environment
+		 * variable set to ignore long hpd, disable it for this test
+		 */
+		igt_assert_f(igt_ignore_long_hpd(data.drm_fd, false),
+			     "Unable to disable ignore long hpd\n");
 	}
 
 	igt_subtest("dp-fallback") {
