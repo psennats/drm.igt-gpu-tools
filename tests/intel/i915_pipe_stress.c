@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include "i915/gem.h"
+#include "xe/xe_query.h"
 /**
  * TEST: i915 pipe stress
  * Description: Stress test how gpu and cpu behaves if maximum amount of
@@ -245,6 +246,7 @@ static void *gpu_load(void *ptr)
 	int frame = 0;
 	int rect = 0, total_rects = 0;
 	int pixels = 0;
+	uint32_t region;
 
 	mode = data->highest_mode[pipe];
 	if (!mode)
@@ -255,9 +257,13 @@ static void *gpu_load(void *ptr)
 
 	igt_info("GPU thread pipe %d start\n", pipe);
 
+	if (is_i915_device(data->drm_fd))
+		region = INTEL_MEMORY_REGION_ID(I915_SYSTEM_MEMORY, 0);
+	else
+		region = vram_if_possible(data->drm_fd, 0);
+
 	context->buf = create_buf(data, data->highest_mode[pipe]->hdisplay,
-				  data->highest_mode[pipe]->vdisplay,
-				  INTEL_MEMORY_REGION_ID(I915_SYSTEM_MEMORY, 0));
+				  data->highest_mode[pipe]->vdisplay, region);
 
 	while (data->gpu_thread_state[pipe] != STOPPED) {
 
@@ -846,7 +852,7 @@ igt_main {
 	uint8_t format_idx = 0, tiling_idx = 0;
 
 	igt_fixture {
-		data.drm_fd = data.display.drm_fd = drm_open_driver_master(DRIVER_INTEL);
+		data.drm_fd = data.display.drm_fd = drm_open_driver_master(DRIVER_INTEL | DRIVER_XE);
 
 		kmstest_set_vt_graphics_mode();
 
@@ -854,7 +860,8 @@ igt_main {
 		igt_require(data.display.is_atomic);
 		igt_display_require_output(&data.display);
 		data.devid = intel_get_drm_devid(data.drm_fd);
-		igt_require_gem(data.drm_fd);
+		if (is_i915_device(data.drm_fd))
+			igt_require_gem(data.drm_fd);
 	}
 
 	for (format_idx = 0; format_idx < N_FORMATS; format_idx++) {
