@@ -6407,6 +6407,36 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 }
 
 /**
+ * igt_is_joiner_enabled_for_pipe:
+ * @drmfd: A drm file descriptor
+ * @pipe: display pipe
+ *
+ * Returns: True if joiner is enabled, false otherwise.
+ */
+bool igt_is_joiner_enabled_for_pipe(int drmfd, enum pipe pipe)
+{
+	char buf[16384], master_str[64], slave_str[64];
+	int dir, res;
+	unsigned  int pipe_mask = (1 << 0) | (1 << 1);
+
+	dir = igt_debugfs_dir(drmfd);
+	igt_assert(dir >= 0);
+
+	res = igt_debugfs_simple_read(dir, "i915_display_info",
+					    buf, sizeof(buf));
+	close(dir);
+	igt_assert(res >= 0);
+	pipe_mask <<= pipe;
+
+	snprintf(master_str, sizeof(master_str),
+		 "Linked to 0x%x pipes as a master", pipe_mask);
+	snprintf(slave_str, sizeof(slave_str),
+		 "Linked to 0x%x pipes as a slave", pipe_mask);
+
+	return (strstr(buf, master_str) && strstr(buf, slave_str));
+}
+
+/**
  * igt_ultrajoiner_possible:
  * @mode: libdrm mode
  * @max_dotclock: Max pixel clock frequency
