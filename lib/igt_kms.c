@@ -6407,6 +6407,55 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 }
 
 /**
+ * get_max_hdisplay:
+ * @drm_fd: drm file descriptor
+ *
+ * Returns: The maximum hdisplay supported per pipe.
+ */
+static int get_max_pipe_hdisplay(int drm_fd)
+{
+	int dev_id = intel_get_drm_devid(drm_fd);
+
+	return (intel_display_ver(dev_id) >= 30) ? HDISPLAY_6K_PER_PIPE :
+						   HDISPLAY_5K_PER_PIPE;
+}
+
+/**
+ * max_non_joiner_mode_found:
+ * @drm_fd: drm file descriptor
+ * @connector: libdrm connector
+ * @max_dot_clock: max dot clock frequency
+ * @mode: libdrm mode to be filled
+ *
+ * Finds the highest possible display mode that does
+ * not require a big joiner.
+ *
+ * Returns: True if a valid non-joiner mode is found,
+ * false otherwise.
+ */
+bool max_non_joiner_mode_found(int drm_fd, drmModeConnector *connector,
+			   int max_dotclock, drmModeModeInfo *mode)
+{
+	int max_hdisplay = get_max_pipe_hdisplay(drm_fd);
+
+	for (int i = 0; i < connector->count_modes; i++) {
+		drmModeModeInfo *current_mode = &connector->modes[i];
+
+		if (current_mode->hdisplay == max_hdisplay &&
+		    current_mode->clock < max_dotclock) {
+			*mode = *current_mode;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/* TODO: Move these lib functions to the joiner-specific library file
+ *	 once those patches are merged.
+ */
+
+/**
  * igt_is_joiner_enabled_for_pipe:
  * @drmfd: A drm file descriptor
  * @pipe: display pipe
