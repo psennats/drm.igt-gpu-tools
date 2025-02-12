@@ -263,6 +263,7 @@ simple_vm_bind(int fd, uint32_t vm)
  * @xe_pt_update_ops_prepare:		xe_pt_update_ops_prepare
  * @xe_pt_update_ops_run:		xe_pt_update_ops_run
  * @xe_vma_ops_alloc:			xe_vma_ops_alloc
+ * @xe_sync_entry_parse:		xe_sync_entry_parse
  */
 static void
 vm_bind_fail(int fd, const char function_name[])
@@ -315,6 +316,7 @@ igt_main
 		{ "xe_pt_update_ops_prepare" },
 		{ "xe_pt_update_ops_run" },
 		{ "xe_vma_ops_alloc" },
+		{ "xe_sync_entry_parse" },
 		{ }
 	};
 
