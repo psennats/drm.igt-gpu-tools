@@ -74,6 +74,10 @@
  *
  * SUBTEST: switch-modeset-ultra-joiner-big-joiner
  * Description: Verify switching between ultra joiner and big joiner modeset.
+ *
+ * SUBTEST: basic-max-non-joiner
+ * Description: Validate basic max non-joiner modeset by selecting the max mode
+ *		supported on single pipe.
  */
 IGT_TEST_DESCRIPTION("Test joiner / force joiner");
 
@@ -85,6 +89,7 @@ typedef struct {
 	int ultra_joiner_output_count;
 	int non_big_joiner_output_count;
 	int non_ultra_joiner_output_count;
+	int non_joiner_output_count;
 	int mixed_output_count;
 	int output_count;
 	int n_pipes;
@@ -94,6 +99,7 @@ typedef struct {
 	igt_output_t *non_big_joiner_output[IGT_MAX_PIPES];
 	igt_output_t *non_ultra_joiner_output[IGT_MAX_PIPES];
 	igt_output_t *mixed_output[IGT_MAX_PIPES];
+	igt_output_t *non_joiner_output[IGT_MAX_PIPES];
 	enum pipe pipe_seq[IGT_MAX_PIPES];
 	igt_display_t display;
 } data_t;
@@ -491,6 +497,48 @@ static void test_ultra_joiner(data_t *data, bool invalid_pipe, bool two_display,
 	}
 }
 
+static void test_basic_max_non_joiner(data_t *data)
+{
+	int count;
+	enum pipe pipe;
+	igt_output_t **outputs, *output;
+	igt_fb_t fb;
+	igt_plane_t *primary;
+	drmModeModeInfo mode;
+
+	count = data->non_joiner_output_count;
+	outputs = data->non_joiner_output;
+	igt_display_reset(&data->display);
+
+	for (int i = 0; i < count; i++) {
+		output = outputs[i];
+
+		for (pipe = 0; pipe < data->n_pipes; pipe++) {
+			igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), output->name) {
+				igt_output_set_pipe(output, pipe);
+				igt_require(max_non_joiner_mode_found(data->drm_fd,
+								      output->config.connector,
+								      max_dotclock, &mode));
+				igt_output_override_mode(output, &mode);
+				igt_info("Appplying mode = %dx%d@%d\n", mode.hdisplay,
+					 mode.vdisplay, mode.vrefresh);
+				primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
+				igt_create_pattern_fb(data->drm_fd, mode.hdisplay, mode.vdisplay,
+						      DRM_FORMAT_XRGB8888,
+						      DRM_FORMAT_MOD_LINEAR, &fb);
+				igt_plane_set_fb(primary, &fb);
+				igt_display_commit2(&data->display, COMMIT_ATOMIC);
+				igt_assert_f(!igt_is_joiner_enabled_for_pipe(data->drm_fd, pipe),
+					     "Joiner enabled on pipe %c", 'A' + pipe);
+
+				igt_display_reset(&data->display);
+				igt_plane_set_fb(primary, NULL);
+				igt_remove_fb(data->drm_fd, &fb);
+			}
+		}
+	}
+}
+
 igt_main
 {
 	bool ultra_joiner_supported, is_dgfx;
@@ -505,6 +553,7 @@ igt_main
 		data.ultra_joiner_output_count = 0;
 		data.non_big_joiner_output_count = 0;
 		data.non_ultra_joiner_output_count = 0;
+		data.non_joiner_output_count = 0;
 		data.mixed_output_count = 0;
 		data.output_count = 0;
 		j = 0;
@@ -523,6 +572,7 @@ igt_main
 
 		for_each_connected_output(&data.display, output) {
 			bool ultrajoiner_found = false, bigjoiner_found = false, force_joiner_supported = false;
+			bool non_joiner_found = false;
 			drmModeConnector *connector = output->config.connector;
 
 			/*
@@ -533,6 +583,8 @@ igt_main
 			 */
 			bigjoiner_found = bigjoiner_mode_found(data.drm_fd, connector, max_dotclock, &mode);
 			ultrajoiner_found = ultrajoiner_mode_found(data.drm_fd, connector, max_dotclock, &mode);
+			non_joiner_found = max_non_joiner_mode_found(data.drm_fd, connector,
+								     max_dotclock, &mode);
 
 			if (igt_has_force_joiner_debugfs(data.drm_fd, output->name))
 				force_joiner_supported = true;
@@ -547,6 +599,9 @@ igt_main
 				data.big_joiner_output[data.big_joiner_output_count++] = output;
 			else if (force_joiner_supported)
 				data.non_big_joiner_output[data.non_big_joiner_output_count++] = output;
+
+			if (non_joiner_found)
+				data.non_joiner_output[data.non_joiner_output_count++] = output;
 
 			data.output_count++;
 		}
@@ -711,6 +766,16 @@ igt_main
 				igt_reset_connectors();
 			}
 		}
+	}
+
+	igt_describe("Verify the basic modeset on the maximum non-joiner mode across "
+		     "all pipes");
+	igt_subtest_with_dynamic("basic-max-non-joiner") {
+		igt_require_f(data.n_pipes >= 1,
+			      "At least one pipe is required.\n");
+		igt_require_f(data.non_joiner_output_count  > 0,
+			      "No suitable non-joiner mode found\n");
+			test_basic_max_non_joiner(&data);
 	}
 
 	igt_fixture {
