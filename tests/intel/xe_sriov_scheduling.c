@@ -5,6 +5,7 @@
 #include "igt.h"
 #include "igt_sriov_device.h"
 #include "igt_syncobj.h"
+#include "igt_sysfs.h"
 #include "xe_drm.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_spin.h"
@@ -423,7 +424,6 @@ static void log_sample_values(char *id, struct subm_stats *stats,
 #define MIN_EXEC_QUANTUM_MS 8
 #define MAX_EXEC_QUANTUM_MS 32
 #define MIN_JOB_DURATION_MS 16
-#define JOB_TIMEOUT_MS 5000
 #define MAX_TOTAL_DURATION_MS 15000
 #define PREFERRED_TOTAL_DURATION_MS 10000
 #define MAX_PREFERRED_REPEATS 100
@@ -433,6 +433,18 @@ struct job_sched_params {
 	int num_repeats;
 	struct vf_sched_params sched_params;
 };
+
+static uint32_t sysfs_get_job_timeout_ms(int fd, struct drm_xe_engine_class_instance *eci)
+{
+	int engine_dir;
+	uint32_t ret;
+
+	engine_dir = xe_sysfs_engine_open(fd, eci->gt_id, eci->engine_class);
+	ret = igt_sysfs_get_u32(engine_dir, "job_timeout_ms");
+	close(engine_dir);
+
+	return ret;
+}
 
 static uint32_t derive_preempt_timeout_us(const uint32_t exec_quantum_ms)
 {
@@ -539,15 +551,16 @@ static void throughput_ratio(int pf_fd, int num_vfs, const struct subm_opts *opt
 {
 	struct subm_set set_ = {}, *set = &set_;
 	uint8_t vf_ids[num_vfs + 1 /*PF*/];
+	uint32_t job_timeout_ms = sysfs_get_job_timeout_ms(pf_fd, &xe_engine(pf_fd, 0)->instance);
 	struct job_sched_params job_sched_params = prepare_job_sched_params(num_vfs + 1,
-									    JOB_TIMEOUT_MS,
+									    job_timeout_ms,
 									    opts);
 
-	igt_info("eq=%ums pt=%uus duration=%ums repeats=%d num_vfs=%d\n",
+	igt_info("eq=%ums pt=%uus duration=%ums repeats=%d num_vfs=%d job_timeout=%ums\n",
 		 job_sched_params.sched_params.exec_quantum_ms,
 		 job_sched_params.sched_params.preempt_timeout_us,
 		 job_sched_params.duration_ms, job_sched_params.num_repeats,
-		 num_vfs + 1);
+		 num_vfs + 1, job_timeout_ms);
 
 	init_vf_ids(vf_ids, ARRAY_SIZE(vf_ids),
 		    &(struct init_vf_ids_opts){ .shuffle = true,
@@ -631,16 +644,17 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 				     const struct subm_opts *opts)
 {
 	struct subm_set set_ = {}, *set = &set_;
+	uint32_t job_timeout_ms = sysfs_get_job_timeout_ms(pf_fd, &xe_engine(pf_fd, 0)->instance);
 	struct vf_sched_params vf_sched_params = prepare_vf_sched_params(num_vfs, 1,
-									 JOB_TIMEOUT_MS, opts);
+									 job_timeout_ms, opts);
 	uint64_t duration_ms = 2 * vf_sched_params.exec_quantum_ms +
 			       vf_sched_params.preempt_timeout_us / USEC_PER_MSEC;
 	int preemptible_end = 1;
 	uint8_t vf_ids[num_vfs + 1 /*PF*/];
 
-	igt_info("eq=%ums pt=%uus duration=%lums num_vfs=%d\n",
-		 vf_sched_params.exec_quantum_ms,
-		 vf_sched_params.preempt_timeout_us, duration_ms, num_vfs);
+	igt_info("eq=%ums pt=%uus duration=%lums num_vfs=%d job_timeout=%ums\n",
+		 vf_sched_params.exec_quantum_ms, vf_sched_params.preempt_timeout_us,
+		 duration_ms, num_vfs, job_timeout_ms);
 
 	init_vf_ids(vf_ids, ARRAY_SIZE(vf_ids),
 		    &(struct init_vf_ids_opts){ .shuffle = true,
