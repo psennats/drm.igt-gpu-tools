@@ -151,3 +151,13 @@ igt@kms_ccs@.*-4-tiled-xe2-ccs
 igt@kms_frontbuffer_tracking@plane-fbc-rte
 igt@kms_pm_dc@deep-pkgc
 igt@kms_vrr@cmrr
+
+###############################################
+# Test was written with the idea that edid read shouldn't take an
+# unreasonable amount of time. The timeout is an arbitrary value
+# because it depends on when the display responds and, in some cases,
+# especially when the display is coming back from sleep, it can take
+# quite a while. This test has sporadic behavior across various
+# platforms connected to different displays.
+###############################################
+igt@kms_sysfs_edid_timing
