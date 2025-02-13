@@ -2049,6 +2049,11 @@ static const struct {
 		.compute_exec = xe2lpg_compute_preempt_exec,
 		.compat = COMPAT_DRIVER_XE,
 	},
+	{
+		.ip_ver = IP_VER(30, 00),
+		.compute_exec = xe2lpg_compute_preempt_exec,
+		.compat = COMPAT_DRIVER_XE,
+	},
 };
 
 static bool __run_intel_compute_kernel_preempt(int fd,
