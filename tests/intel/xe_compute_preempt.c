@@ -20,17 +20,17 @@
 
 /**
  * SUBTEST: compute-preempt
- * GPU requirement: LNL
+ * GPU requirement: LNL, PTL
  * Description:
  *      Exercise compute walker mid thread preemption scenario
  *
  * SUBTEST: compute-preempt-many
- * GPU requirement: LNL
+ * GPU requirement: LNL, PTL
  * Description:
  *      Exercise multiple walker mid thread preemption scenario
  *
  * SUBTEST: compute-threadgroup-preempt
- * GPU requirement: LNL
+ * GPU requirement: LNL, PTL
  * Description:
  *      Exercise compute walker threadgroup preemption scenario
  */

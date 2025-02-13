@@ -164,7 +164,7 @@ test_compute_kernel_with_ccs_mode(int num_gt)
 /**
  * SUBTEST: compute-square
  * Sub-category: Compute square tests
- * GPU requirement: TGL, PVC, LNL
+ * GPU requirement: TGL, PVC, LNL, PTL
  * Description:
  *	Run an openCL Kernel that returns output[i] = input[i] * input[i],
  *	for an input dataset..
