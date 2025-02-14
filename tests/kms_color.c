@@ -599,6 +599,7 @@ static bool test_pipe_ctm(data_t *data,
 	 */
 	ret &= igt_skip_crc_compare || igt_check_crc_equal(&crc_software, &crc_hardware);
 
+	disable_ctm(primary->pipe);
 	igt_plane_set_fb(primary, NULL);
 	igt_output_set_pipe(output, PIPE_NONE);
 	igt_display_commit(&data->display);
