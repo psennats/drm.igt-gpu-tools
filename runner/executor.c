@@ -218,11 +218,11 @@ static bool load_ping_config_from_env(void)
 
 /*
  * On some hosts, getting network back up after suspend takes
- * upwards of 10 seconds. 20 seconds should be enough to see
+ * upwards of 10 seconds. 40 seconds should be enough to see
  * if network comes back at all, and hopefully not too long to
  * make external monitoring freak out.
  */
-#define PING_ABORT_DEADLINE 20
+#define PING_ABORT_DEADLINE 40
 
 static bool can_ping(void)
 {
