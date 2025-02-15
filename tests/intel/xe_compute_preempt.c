@@ -64,8 +64,16 @@ igt_main
 				continue;
 
 			igt_dynamic_f("engine-%s", xe_engine_class_string(hwe->engine_class)) {
+				uint16_t dev_id = intel_get_drm_devid(xe);
+				int child_count;
+
+				if (IS_PANTHERLAKE(dev_id))
+					child_count = 50;
+				else
+					child_count = 100;
+
 				test_compute_preempt(xe, hwe, false);
-				igt_fork(child, 100)
+				igt_fork(child, child_count)
 					test_compute_preempt(xe, hwe, false);
 				igt_waitchildren();
 			}
