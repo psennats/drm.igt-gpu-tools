@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include "igt_sysfs.h"
 #include "igt.h"
+#include "kms_mst_helper.h"
 
 /**
  * SUBTEST: dp-fallback
@@ -47,35 +48,6 @@ typedef int (*condition_check_fn)(int drm_fd, igt_output_t *output);
 
 IGT_TEST_DESCRIPTION("Test link training fallback");
 
-static int find_mst_outputs(int drm_fd, igt_display_t *display,
-			    igt_output_t *output,
-			    igt_output_t *mst_outputs[],
-			    int *num_mst_outputs)
-{
-	int output_root_id, root_id;
-	igt_output_t *connector_output;
-
-	if (!igt_check_output_is_dp_mst(output))
-		return -EINVAL;
-
-	output_root_id = igt_get_dp_mst_connector_id(output);
-	if (output_root_id == -EINVAL)
-		return -EINVAL;
-	/*
-	 * If output is MST check all other connected output which shares
-	 * same path and fill mst_outputs and num_mst_outputs
-	 */
-	for_each_connected_output(display, connector_output) {
-		if (!igt_check_output_is_dp_mst(connector_output))
-			continue;
-
-		root_id = igt_get_dp_mst_connector_id(connector_output);
-		if (((*num_mst_outputs) < IGT_MAX_PIPES) && root_id == output_root_id)
-			mst_outputs[(*num_mst_outputs)++] = connector_output;
-	}
-	return 0;
-}
-
 static bool setup_mst_outputs(data_t *data, igt_output_t *mst_output[],
 			      int *output_count)
 {
@@ -90,10 +62,10 @@ static bool setup_mst_outputs(data_t *data, igt_output_t *mst_output[],
 		    traversed_mst_outputs[i] == data->output->config.connector->connector_id)
 			return false;
 
-	igt_assert_f(find_mst_outputs(data->drm_fd, &data->display,
-				      data->output, mst_output,
-				      output_count) == 0,
-				      "Unable to find mst outputs or given output is not mst\n");
+	igt_assert_f(igt_find_all_mst_output_in_topology(data->drm_fd, &data->display,
+							 data->output, mst_output,
+							 output_count) == 0,
+							 "Unable to find mst outputs or given output is not mst\n");
 
 	for (i = 0; i < *output_count; i++) {
 		output = mst_output[i];
