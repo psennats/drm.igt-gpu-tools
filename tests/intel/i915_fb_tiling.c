@@ -32,28 +32,38 @@
  * Functionality: object tiling
  * Feature: mapping
  *
- * SUBTEST:
+ * SUBTEST: basic-x-tiling
  */
 
 IGT_TEST_DESCRIPTION("Object tiling must be fixed after framebuffer creation.");
 
-igt_simple_main
+igt_main
 {
-	int drm_fd = drm_open_driver_master(DRIVER_INTEL);
+	int drm_fd;
 	struct igt_fb fb;
-	int ret;
 
-	igt_require(gem_available_fences(drm_fd) > 0);
+	igt_fixture {
+		drm_fd = drm_open_driver_master(DRIVER_INTEL);
+		igt_require(gem_available_fences(drm_fd) > 0);
+	}
 
-	igt_create_fb(drm_fd, 512, 512, DRM_FORMAT_XRGB8888,
-		      I915_FORMAT_MOD_X_TILED, &fb);
+	igt_subtest("basic-x-tiling") {
+		int ret, ret2;
 
-	ret = __gem_set_tiling(drm_fd, fb.gem_handle, I915_TILING_X, fb.strides[0]);
-	igt_assert_eq(ret, 0);
+		igt_create_fb(drm_fd, 512, 512, DRM_FORMAT_XRGB8888,
+			      I915_FORMAT_MOD_X_TILED, &fb);
 
-	ret = __gem_set_tiling(drm_fd, fb.gem_handle, I915_TILING_NONE, fb.strides[0]);
-	igt_assert_eq(ret, -EBUSY);
+		ret = __gem_set_tiling(drm_fd, fb.gem_handle, I915_TILING_X, fb.strides[0]);
 
-	igt_remove_fb(drm_fd, &fb);
-	drm_close_driver(drm_fd);
+		if (!ret)
+			ret2 = __gem_set_tiling(drm_fd, fb.gem_handle, I915_TILING_NONE, fb.strides[0]);
+
+		igt_remove_fb(drm_fd, &fb);
+
+		igt_assert_eq(ret, 0);
+		igt_assert_eq(ret2, -EBUSY);
+	}
+
+	igt_fixture
+		drm_close_driver(drm_fd);
 }
