@@ -87,6 +87,13 @@ static bool is_4k(drmModeModeInfo mode)
 	        mode.vrefresh >= VREFRESH);
 }
 
+static bool is_equal(drmModeModeInfo mode_hi, drmModeModeInfo mode_lo)
+{
+	return (mode_hi.hdisplay == mode_lo.hdisplay &&
+		mode_hi.vdisplay == mode_lo.vdisplay &&
+		mode_hi.vrefresh == mode_lo.vrefresh);
+}
+
 static drmModeModeInfo *get_lowres_mode(igt_output_t *output)
 {
 	drmModeModeInfo *lowest_mode = NULL;
@@ -196,8 +203,7 @@ static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *out
 	igt_require_f(is_4k(mode_hi), "Mode >= 4K not found on output %s\n",
 	              igt_output_name(output));
 
-	igt_skip_on_f(mode_hi.hdisplay == mode_lo.hdisplay && mode_hi.vdisplay == mode_lo.vdisplay,
-		      "Highest and lowest mode resolutions are same; no transition\n");
+	igt_skip_on_f(is_equal(mode_hi, mode_lo), "Highest and lowest mode resolutions are same; no transition\n");
 
 	primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
 
@@ -233,8 +239,10 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 {
 	igt_display_t *display = &data->display;
 	drmModeModeInfo *mode, mode_hi, mode_lo;
+	drmModeModeInfo mode_highres[IGT_MAX_PIPES] = {0}, mode_lowres[IGT_MAX_PIPES] = {0};
+	igt_output_t *valid_outputs[IGT_MAX_PIPES] = {NULL};
 	igt_output_t *output;
-	int valid_outputs = 0;
+	int count = 0;
 	int cdclk_ref, cdclk_new;
 	uint16_t width = 0, height = 0;
 	struct igt_fb fb;
@@ -245,27 +253,38 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 	do_cleanup_display(display);
 	igt_display_reset(display);
 
-	for_each_connected_output(&data->display, output)
-		valid_outputs++;
-
-	i = 0;
 	for_each_connected_output(display, output) {
-		mode = igt_output_get_mode(output);
+		mode_highres[count] = *igt_output_get_highres_mode(output);
+		igt_require_f(is_4k(mode_highres[count]), "Mode >= 4K not found on output %s.\n",
+			      igt_output_name(output));
+
+		mode_lowres[count] = *get_lowres_mode(output);
+
+		if (is_equal(mode_highres[count], mode_lowres[count])) {
+			igt_info("Highest and lowest mode resolutions are same on output %s; no transition will occur, skipping\n",
+				  igt_output_name(output));
+			continue;
+		}
+
+		valid_outputs[count] = output;
+		count++;
+	}
+
+	igt_skip_on_f(count < 2,
+		      "Number of valid outputs (%d) must be greater than or equal to 2\n", count);
+
+	for (int i = 0; i < count; i++) {
+		mode = igt_output_get_mode(valid_outputs[i]);
 		igt_assert(mode);
 
 		width = max(width, mode->hdisplay);
 		height = max(height, mode->vdisplay);
 
-		mode_hi = *igt_output_get_highres_mode(output);
-		igt_require_f(is_4k(mode_hi), "Mode >= 4K not found on output %s\n",
-			      igt_output_name(output));
-
-		igt_output_set_pipe(output, i);
-		igt_output_override_mode(output, &mode_hi);
-		i++;
+		igt_output_set_pipe(valid_outputs[i], i);
+		igt_output_override_mode(valid_outputs[i], &mode_highres[i]);
 	}
+
 	igt_require(intel_pipe_output_combo_valid(display));
-	igt_display_reset(display);
 
 	igt_create_pattern_fb(data->drm_fd, width, height, DRM_FORMAT_XRGB8888,
 			      DRM_FORMAT_MOD_LINEAR, &fb);
