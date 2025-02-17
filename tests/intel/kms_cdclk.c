@@ -63,7 +63,6 @@ enum {
 
 typedef struct {
 	int drm_fd;
-	int debugfs_fd;
 	uint32_t devid;
 	igt_display_t display;
 } data_t;
@@ -74,34 +73,6 @@ static bool hardware_supported(data_t *data)
 		return true;
 
 	return false;
-}
-
-static int get_current_cdclk_freq(int debugfs_fd)
-{
-	int cdclk_freq_current;
-	char buf[1024];
-	char *start_loc;
-	int res;
-
-	/*
-	 * Display specific clock frequency info is moved to i915_cdclk_info,
-	 * On older kernels if this debugfs is not found, fallback to read from
-	 * i915_frequency_info.
-	 *
-	 * FIXME: As of now, XE debugfs is still using i915 namespace, once the
-	 * Kernel changes are landed, update this to use the XE specific debugfs.
-	 */
-	res = igt_debugfs_simple_read(debugfs_fd, "i915_cdclk_info",
-				      buf, sizeof(buf));
-	if (res <= 0)
-		res = igt_debugfs_simple_read(debugfs_fd, "i915_frequency_info",
-					      buf, sizeof(buf));
-	igt_require(res > 0);
-
-	igt_assert(start_loc = strstr(buf, "Current CD clock frequency: "));
-	igt_assert_eq(sscanf(start_loc, "Current CD clock frequency: %d", &cdclk_freq_current), 1);
-
-	return cdclk_freq_current;
 }
 
 static __u64 get_mode_data_rate(drmModeModeInfo *mode)
@@ -168,7 +139,6 @@ static void do_cleanup_display(igt_display_t *dpy)
 static void test_plane_scaling(data_t *data, enum pipe pipe, igt_output_t *output)
 {
 	igt_display_t *display = &data->display;
-	int debugfs_fd = data->debugfs_fd;
 	int cdclk_ref, cdclk_new;
 	struct igt_fb fb;
 	igt_plane_t *primary;
@@ -197,11 +167,11 @@ static void test_plane_scaling(data_t *data, enum pipe pipe, igt_output_t *outpu
 
 		/* downscaling */
 		igt_plane_set_size(primary, ((fb.width * scaling) / 100), ((fb.height * scaling) / 100));
-		cdclk_ref = get_current_cdclk_freq(debugfs_fd);
+		cdclk_ref = igt_get_current_cdclk(data->drm_fd);
 		ret = igt_display_try_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 		if (ret != -EINVAL) {
 			igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-			cdclk_new = get_current_cdclk_freq(debugfs_fd);
+			cdclk_new = igt_get_current_cdclk(data->drm_fd);
 			igt_info("CD clock frequency %d -> %d\n", cdclk_ref, cdclk_new);
 
 			/* cdclk should bump */
@@ -221,7 +191,6 @@ static void test_plane_scaling(data_t *data, enum pipe pipe, igt_output_t *outpu
 static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *output)
 {
 	igt_display_t *display = &data->display;
-	int debugfs_fd = data->debugfs_fd;
 	int cdclk_ref, cdclk_new;
 	struct igt_fb fb;
 	igt_plane_t *primary;
@@ -251,13 +220,13 @@ static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *out
 	igt_output_override_mode(output, mode_lo);
 	igt_plane_set_fb(primary, &fb);
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-	cdclk_ref = get_current_cdclk_freq(debugfs_fd);
+	cdclk_ref = igt_get_current_cdclk(data->drm_fd);
 
 	/* switch to higher resolution */
 	igt_output_override_mode(output, mode_hi);
 	igt_plane_set_fb(primary, &fb);
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-	cdclk_new = get_current_cdclk_freq(debugfs_fd);
+	cdclk_new = igt_get_current_cdclk(data->drm_fd);
 	igt_info("CD clock frequency %d -> %d\n", cdclk_ref, cdclk_new);
 
 	/* cdclk should bump */
@@ -272,7 +241,6 @@ static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *out
 static void test_mode_transition_on_all_outputs(data_t *data)
 {
 	igt_display_t *display = &data->display;
-	int debugfs_fd = data->debugfs_fd;
 	drmModeModeInfo *mode, *mode_hi, *mode_lo;
 	igt_output_t *output;
 	int valid_outputs = 0;
@@ -330,7 +298,7 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 	}
 
 	igt_display_commit2(display, COMMIT_ATOMIC);
-	cdclk_ref = get_current_cdclk_freq(debugfs_fd);
+	cdclk_ref = igt_get_current_cdclk(data->drm_fd);
 
 	j = 0;
 	for_each_connected_output(display, output) {
@@ -354,7 +322,7 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 	}
 
 	igt_display_commit2(display, COMMIT_ATOMIC);
-	cdclk_new = get_current_cdclk_freq(debugfs_fd);
+	cdclk_new = igt_get_current_cdclk(data->drm_fd);
 	igt_info("CD clock frequency %d -> %d\n", cdclk_ref, cdclk_new);
 
 	/* cdclk should bump */
@@ -394,8 +362,6 @@ igt_main
 	igt_fixture {
 		data.drm_fd = drm_open_driver_master(DRIVER_INTEL | DRIVER_XE);
 		igt_require(data.drm_fd >= 0);
-		data.debugfs_fd = igt_debugfs_dir(data.drm_fd);
-		igt_require(data.debugfs_fd);
 		kmstest_set_vt_graphics_mode();
 		data.devid = intel_get_drm_devid(data.drm_fd);
 		igt_require_f(hardware_supported(&data),

@@ -6303,29 +6303,20 @@ bool igt_max_bpc_constraint(igt_display_t *display, enum pipe pipe,
 	return false;
 }
 
-/**
- * igt_get_max_dotclock:
- * @fd: A drm file descriptor
- *
- * Get the Max pixel clock frequency from intel specific debugfs
- * "i915_frequency_info".
- *
- * Returns: Max supported pixel clock frequency.
- */
-int igt_get_max_dotclock(int fd)
+static int read_and_parse_cdclk_debugfs(int fd, const char *check_str)
 {
 	char buf[4096];
 	char *s;
-	int dir, res, max_dotclock = 0;
+	int dir, res, clk = 0;
 	drmModeRes *resources;
 
 	if (!is_intel_device(fd))
-		return max_dotclock;
+		return 0;
 
-	/* If there is no display, then no point to check for dotclock. */
+	/* If there is no display, then no point to check further. */
 	resources = drmModeGetResources(fd);
 	if (!resources)
-		return max_dotclock;
+		return 0;
 
 	drmModeFreeResources(resources);
 
@@ -6346,14 +6337,61 @@ int igt_get_max_dotclock(int fd)
 
 	igt_require(res > 0);
 
-	igt_assert(s = strstr(buf, "Max pixel clock frequency:"));
-	igt_assert_eq(sscanf(s, "Max pixel clock frequency: %d kHz", &max_dotclock), 1);
+	igt_assert(s = strstr(buf, check_str));
+	s += strlen(check_str);
+	igt_assert_eq(sscanf(s, "%d kHz", &clk), 1);
+
+	return clk;
+}
+
+/**
+ * igt_get_max_dotclock:
+ * @fd: A drm file descriptor
+ *
+ * Get the Max pixel clock frequency from intel specific debugfs
+ * "i915_frequency_info"/"i915_cdclk_info".
+ *
+ * Returns: Max pixel clock frequency, otherwise 0.
+ */
+int igt_get_max_dotclock(int fd)
+{
+	int max_dotclock = read_and_parse_cdclk_debugfs(fd, "Max pixel clock frequency:");
 
 	/* 100 Mhz to 5 GHz seem like reasonable values to expect */
-	igt_assert_lt(max_dotclock, 5000000);
-	igt_assert_lt(100000, max_dotclock);
+	if (max_dotclock > 0) {
+		igt_assert_lt(max_dotclock, 5000000);
+		igt_assert_lt(100000, max_dotclock);
+	}
 
-	return max_dotclock;
+	return max_dotclock > 0 ? max_dotclock : 0;
+}
+
+/**
+ * igt_get_max_cdclk:
+ * @fd: A drm file descriptor
+ *
+ * Get the max CD clock frequency from intel specific debugfs
+ * "i915_frequency_info"/"i915_cdclk_info".
+ *
+ * Returns: Max CD clk frequency, otherwise 0.
+ */
+int igt_get_max_cdclk(int fd)
+{
+	return read_and_parse_cdclk_debugfs(fd, "Max CD clock frequency:");
+}
+
+/**
+ * igt_get_current_cdclk:
+ * @fd: A drm file descriptor
+ *
+ * Get the current CD clock frequency from intel specific debugfs
+ * "i915_frequency_info"/"i915_cdclk_info".
+ *
+ * Returns: Current CD clock frequency, otherwise 0.
+ */
+int igt_get_current_cdclk(int fd)
+{
+	return read_and_parse_cdclk_debugfs(fd, "Current CD clock frequency:");
 }
 
 /**
