@@ -53,7 +53,6 @@ IGT_TEST_DESCRIPTION("Test cdclk features : crawling and squashing");
 #define HDISPLAY_4K	3840
 #define VDISPLAY_4K	2160
 #define VREFRESH	60
-#define MAX_CDCLK_4K	307200
 
 /* Test flags */
 enum {
@@ -227,7 +226,7 @@ static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *out
 	igt_info("CD clock frequency %d -> %d\n", cdclk_ref, cdclk_new);
 
 	/* cdclk should bump */
-	if (cdclk_new != MAX_CDCLK_4K)
+	if (cdclk_new != igt_get_max_cdclk(data->drm_fd))
 		igt_assert_lt(cdclk_ref, cdclk_new);
 
 	/* cleanup */
@@ -314,7 +313,8 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 	igt_info("CD clock frequency %d -> %d\n", cdclk_ref, cdclk_new);
 
 	/* cdclk should bump */
-	igt_assert_lt(cdclk_ref, cdclk_new);
+	if (cdclk_new != igt_get_max_cdclk(data->drm_fd))
+		igt_assert_lt(cdclk_ref, cdclk_new);
 
 	do_cleanup_display(display);
 	igt_remove_fb(data->drm_fd, &fb);
