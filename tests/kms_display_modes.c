@@ -60,18 +60,6 @@ typedef struct {
 	int n_pipes;
 } data_t;
 
-/* Get higher mode supported by panel. */
-static drmModeModeInfo *get_highres_mode(igt_output_t *output)
-{
-	drmModeConnector *connector = output->config.connector;
-	drmModeModeInfo *highest_mode = NULL;
-
-	igt_sort_connector_modes(connector, sort_drm_modes_by_res_dsc);
-	highest_mode = &connector->modes[0];
-
-	return highest_mode;
-}
-
 /* Get the 4k or less then 4k mode of connected panel. */
 static drmModeModeInfo *get_mode(igt_output_t *output)
 {
@@ -346,7 +334,7 @@ igt_main
 		igt_require_f(dp_mst_outputs > 1, "MST not found more then one\n");
 
 		memcpy(&data.mode_mst[0], get_mode(data.mst_output[0]), sizeof(drmModeModeInfo));
-		memcpy(&data.mode_mst[1], get_highres_mode(data.mst_output[1]),
+		memcpy(&data.mode_mst[1], igt_output_get_highres_mode(data.mst_output[1]),
 				sizeof(drmModeModeInfo));
 		igt_require_f((data.mode_mst[1].hdisplay >= HDISPLAY_4K &&
 			       data.mode_mst[1].vdisplay >= VDISPLAY_4K), "4k panel not found\n");

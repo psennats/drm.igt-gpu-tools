@@ -4846,6 +4846,40 @@ drmModeModeInfo *igt_output_get_mode(igt_output_t *output)
 }
 
 /**
+ * igt_output_get_highres_mode:
+ * @output: Target output
+ *
+ * Returns: A #drmModeModeInfo struct representing the highest mode, NULL otherwise.
+ */
+drmModeModeInfo *igt_output_get_highres_mode(igt_output_t *output)
+{
+	drmModeConnector *connector = output->config.connector;
+	drmModeModeInfo *highest_mode = NULL;
+
+	igt_sort_connector_modes(connector, sort_drm_modes_by_res_dsc);
+	highest_mode = &connector->modes[0];
+
+	return highest_mode;
+}
+
+/**
+ * igt_output_get_lowres_mode:
+ * @output: Target output
+ *
+ * Returns: A #drmModeModeInfo struct representing the lowest mode, NULL otherwise.
+ */
+drmModeModeInfo *igt_output_get_lowres_mode(igt_output_t *output)
+{
+	drmModeConnector *connector = output->config.connector;
+	drmModeModeInfo *lowest_mode = NULL;
+
+	igt_sort_connector_modes(connector, sort_drm_modes_by_res_asc);
+	lowest_mode = &connector->modes[0];
+
+	return lowest_mode;
+}
+
+/**
  * igt_output_override_mode:
  * @output: Output of which the mode will be overridden
  * @mode: New mode, or NULL to disable override.

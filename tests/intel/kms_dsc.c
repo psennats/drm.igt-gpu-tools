@@ -94,18 +94,6 @@ static inline void manual(const char *expected)
 	igt_debug_interactive_mode_check("all", expected);
 }
 
-static drmModeModeInfo *get_highres_mode(igt_output_t *output)
-{
-	drmModeConnector *connector = output->config.connector;
-	drmModeModeInfo *highest_mode = NULL;
-
-	igt_sort_connector_modes(connector, sort_drm_modes_by_clk_dsc);
-
-	highest_mode = &connector->modes[0];
-
-	return highest_mode;
-}
-
 static drmModeModeInfo *get_next_mode(igt_output_t *output, int index)
 {
 	drmModeConnector *connector = output->config.connector;
@@ -184,7 +172,7 @@ static void update_display(data_t *data, uint32_t test_type)
 	igt_skip_on(!igt_plane_has_format_mod(primary, data->plane_format,
 		    DRM_FORMAT_MOD_LINEAR));
 
-	mode = get_highres_mode(output);
+	mode = igt_output_get_highres_mode(output);
 
 	do {
 		if (data->output_format != DSC_FORMAT_RGB && index > 0)
