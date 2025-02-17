@@ -333,6 +333,7 @@ igt_main
 	enum igt_draw_method method;
 	int format_idx, modifier_idx;
 	uint64_t modifier;
+	bool found_supported_format = false;
 
 	igt_fixture
 		setup_environment();
@@ -352,6 +353,7 @@ igt_main
 					if (!igt_display_has_format_mod(&display, formats[format_idx], modifier))
 						continue;
 
+					found_supported_format = true;
 					igt_dynamic_f("%s-%s",
 						      format_str(format_idx),
 						      modifier_str(modifier_idx))
@@ -359,6 +361,8 @@ igt_main
 								    modifier);
 				}
 			}
+			if (!found_supported_format)
+				igt_info("Display doesn't supports any required formats/modifiers.\n");
 		}
 	}
 
