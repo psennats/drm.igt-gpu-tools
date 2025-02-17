@@ -7,12 +7,12 @@
 #include "igt_facts.h"
 
 /**
- * SECTION:lsfacts
- * @short_description: lsfacts
- * @title: lsfacts
- * @include: lsfacts.c
+ * SECTION:igt_facts
+ * @short_description: igt_facts
+ * @title: igt_facts
+ * @include: igt_facts.c
  *
- * # lsfacts
+ * # igtfacts
  *
  * Scan for igt-facts and print them on screen. Indicate if no facts are found.
  */
@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 {
 	igt_facts_lists_init();
 
-	igt_facts("lsfacts");
+	igt_facts("igt_facts");
 
 	if (igt_facts_are_all_lists_empty())
 		igt_info("No facts found...\n");

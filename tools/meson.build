@@ -12,6 +12,7 @@ foreach prog : tools_progs_noisnt
 endforeach
 
 tools_progs = [
+	'igt_facts',
 	'igt_power',
 	'igt_stats',
 	'intel_audio_dump',
@@ -43,7 +44,6 @@ tools_progs = [
 	'intel_gem_info',
 	'intel_gvtg_test',
 	'dpcd_reg',
-	'lsfacts',
 	'lsgpu',
 ]
 tool_deps = igt_deps
