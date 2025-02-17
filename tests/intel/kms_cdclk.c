@@ -235,20 +235,35 @@ static void test_mode_transition(data_t *data, enum pipe pipe, igt_output_t *out
 	igt_remove_fb(display->drm_fd, &fb);
 }
 
+static void set_mode(data_t *data, int count, drmModeModeInfo *mode,
+		     igt_output_t **valid_outputs, struct igt_fb fb)
+{
+	igt_display_t *display = &data->display;
+	igt_pipe_t *pipe;
+	igt_plane_t *plane;
+
+	for (int i = 0; i < count; i++) {
+		pipe = &display->pipes[i];
+		plane = igt_pipe_get_plane_type(pipe, DRM_PLANE_TYPE_PRIMARY);
+
+		igt_output_override_mode(valid_outputs[i], &mode[i]);
+
+		igt_plane_set_fb(plane, &fb);
+		igt_fb_set_size(&fb, plane, mode[i].hdisplay, mode[i].vdisplay);
+		igt_plane_set_size(plane, mode[i].hdisplay, mode[i].vdisplay);
+	}
+}
+
 static void test_mode_transition_on_all_outputs(data_t *data)
 {
 	igt_display_t *display = &data->display;
-	drmModeModeInfo *mode, mode_hi, mode_lo;
-	drmModeModeInfo mode_highres[IGT_MAX_PIPES] = {0}, mode_lowres[IGT_MAX_PIPES] = {0};
+	drmModeModeInfo *mode, mode_highres[IGT_MAX_PIPES] = {0}, mode_lowres[IGT_MAX_PIPES] = {0};
 	igt_output_t *valid_outputs[IGT_MAX_PIPES] = {NULL};
 	igt_output_t *output;
 	int count = 0;
 	int cdclk_ref, cdclk_new;
 	uint16_t width = 0, height = 0;
 	struct igt_fb fb;
-	igt_pipe_t *pipe;
-	igt_plane_t *plane;
-	int i = 0, j = 0;
 
 	do_cleanup_display(display);
 	igt_display_reset(display);
@@ -288,51 +303,12 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 
 	igt_create_pattern_fb(data->drm_fd, width, height, DRM_FORMAT_XRGB8888,
 			      DRM_FORMAT_MOD_LINEAR, &fb);
-	i = 0;
-	for_each_connected_output(display, output) {
-		pipe = &display->pipes[i];
-		plane = igt_pipe_get_plane_type(pipe, DRM_PLANE_TYPE_PRIMARY);
 
-		mode = NULL;
-
-		igt_output_set_pipe(output, i);
-		mode = igt_output_get_mode(output);
-		igt_assert(mode);
-
-		mode_lo = *get_lowres_mode(output);
-
-		igt_output_override_mode(output, &mode_lo);
-		igt_plane_set_fb(plane, &fb);
-		igt_fb_set_size(&fb, plane, mode_lo.hdisplay, mode_lo.vdisplay);
-		igt_plane_set_size(plane, mode_lo.hdisplay, mode_lo.vdisplay);
-		i++;
-	}
-
+	set_mode(data, count, mode_lowres, valid_outputs, fb);
 	igt_display_commit2(display, COMMIT_ATOMIC);
 	cdclk_ref = igt_get_current_cdclk(data->drm_fd);
 
-	j = 0;
-	for_each_connected_output(display, output) {
-		pipe = &display->pipes[j];
-		plane = igt_pipe_get_plane_type(pipe, DRM_PLANE_TYPE_PRIMARY);
-
-		mode = NULL;
-
-		igt_output_set_pipe(output, j);
-		mode = igt_output_get_mode(output);
-		igt_assert(mode);
-
-		mode_hi = *igt_output_get_highres_mode(output);
-		igt_require_f(is_4k(mode_hi), "Mode >= 4K not found on output %s\n",
-			      igt_output_name(output));
-
-		igt_output_override_mode(output, &mode_hi);
-		igt_plane_set_fb(plane, &fb);
-		igt_fb_set_size(&fb, plane, mode_hi.hdisplay, mode_hi.vdisplay);
-		igt_plane_set_size(plane, mode_hi.hdisplay, mode_hi.vdisplay);
-		j++;
-	}
-
+	set_mode(data, count, mode_highres, valid_outputs, fb);
 	igt_display_commit2(display, COMMIT_ATOMIC);
 	cdclk_new = igt_get_current_cdclk(data->drm_fd);
 	igt_info("CD clock frequency %d -> %d\n", cdclk_ref, cdclk_new);
@@ -340,7 +316,6 @@ static void test_mode_transition_on_all_outputs(data_t *data)
 	/* cdclk should bump */
 	igt_assert_lt(cdclk_ref, cdclk_new);
 
-	igt_plane_set_fb(plane, NULL);
 	do_cleanup_display(display);
 	igt_remove_fb(data->drm_fd, &fb);
 }
