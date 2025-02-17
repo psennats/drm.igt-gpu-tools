@@ -53,16 +53,15 @@
 
 #define DUMP_PATH			"/sys/class/drm/card%d/device/devcoredump/data"
 #define START_TAG			"**** Job ****"
-#define END_TAG				"**** VM state ****"
 
 /* Optional Space */
-#define SPC_O				"[ \t]*"
+#define SPC_O				"[ \t\\.]*"
 /* Required Space */
-#define SPC				"[ \t]+"
+#define SPC				"[ \t\\.]+"
 /* Optional Non-Space */
-#define NSPC_O				"([^ \t]*)"
+#define NSPC_O				"([^ \t\\.]*)"
 /* Required Non-Space */
-#define NSPC				"([^ \t]+)"
+#define NSPC				"([^ \t\\.]+)"
 #define BEG				"^" SPC_O
 #define REQ_FIELD			NSPC SPC
 #define REQ_FIELD_LAST			NSPC SPC_O
@@ -77,6 +76,8 @@
 #define INDEX_ENGINE_PHYSICAL		2
 #define INDEX_ENGINE_NAME		1
 #define INDEX_ENGINE_INSTANCE		4
+#define INDEX_VM_LENGTH			2
+#define INDEX_VM_SIZE			3
 
 static u64
 xe_sysfs_get_job_timeout_ms(int fd, struct drm_xe_engine_class_instance *eci)
@@ -177,7 +178,8 @@ test_legacy_mode(int fd, struct drm_xe_engine_class_instance *eci, int n_exec_qu
 	};
 
 	sync[0].handle = syncobj_create(fd, 0);
-	xe_vm_bind_async(fd, vm, 0, bo, 0, addr, bo_size, sync, 1);
+	__xe_vm_bind_assert(fd, vm, 0, bo, 0, addr, bo_size,
+			    DRM_XE_VM_BIND_OP_MAP, flags, sync, 1, 0, 0);
 
 	for (i = 0; i < n_execs; i++) {
 		u64 base_addr = addr;
@@ -287,10 +289,6 @@ static int load_all(FILE *fd, char **lines, char *buf)
 
 		/* Only save up to MAX_LINE_LEN to buffer */
 		safe_strncpy(lines[i++], buf, MAX_LINE_LEN);
-
-		/* Stop on END_TAG */
-		if (!strncmp(END_TAG, buf, strlen(END_TAG)))
-			break;
 	}
 	return start_line;
 }
@@ -351,7 +349,6 @@ static char
 				value = &line[match[target_index].rm_so];
 				line[match[target_index].rm_eo] = '\0';
 			}
-
 			if (key && value && strcmp(tag, key) == 0)
 				return value;
 			/* if key != tag,  keep searching and loop to next line */
@@ -361,16 +358,42 @@ static char
 	return NULL;
 }
 
+static uint64_t
+compare_hex_value(const char *output)
+{
+	char result[64];
+	uint64_t ret_val;
+	char *src = (char *)output, *dst = result;
+
+//example i/p : [1580001a0000].length: 0x10000
+	while (*src) {
+		if (*src == '[' || *src == ']') {
+			src++;
+			continue;
+		}
+
+		*dst = toupper((unsigned char)*src);
+		dst++;
+		src++;
+	}
+	*dst = '\0';
+	ret_val = strtoull(result, NULL, 16);
+	return ret_val;
+}
+
 static void
-check_item_u64(regex_t *regex, char **lines, const char *tag, u64 addr_lo, u64 addr_hi)
+check_item_u64(regex_t *regex, char **lines, const char *tag, u64 addr_lo,
+	       u64 addr_hi, int tag_index, int target_index)
 {
 	u64 result;
 	char *output;
 
-	igt_assert_f((output = get_coredump_item(regex, lines, tag, INDEX_KEY, INDEX_VALUE)),
+	igt_assert_f((output = get_coredump_item(regex, lines, tag, tag_index, target_index)),
 		     "Target not found:%s\n", tag);
-	result = strtoul(output, NULL, 16);
-	igt_debug("Compare %s %s vs [0x%lX-0x%lX]\n", tag, output, addr_lo, addr_hi);
+
+	result = compare_hex_value(output);
+	igt_debug("Compare %s %s vs [0x%lX-0x%lX] result %lX\n", tag, output,
+		  addr_lo, addr_hi, result);
 	igt_assert_f((addr_lo <= result) && (result <= addr_hi),
 		     "value %lX out of range[0x%lX-0x%lX]\n", result, addr_lo, addr_hi);
 }
@@ -435,7 +458,7 @@ static void test_card(int fd)
 		igt_debug("Running on engine class: %x instance: %x\n", hwe->engine_class,
 			  hwe->engine_instance);
 
-		test_legacy_mode(fd, hwe, 1, 1, 0, addr);
+		test_legacy_mode(fd, hwe, 1, 1, DRM_XE_VM_BIND_FLAG_DUMPABLE, addr);
 		/* Wait 1 sec for devcoredump complete */
 		sleep(1);
 
@@ -451,10 +474,13 @@ static void test_card(int fd)
 
 		check_item_str(&regex, lines, "Capture_source:", INDEX_KEY, INDEX_VALUE,
 			       "GuC", false);
+
 		check_item_u64(&regex, lines, "ACTHD:", addr,
-			       addr + BATCH_DW_COUNT * sizeof(u32));
+			       addr + BATCH_DW_COUNT * sizeof(u32), INDEX_KEY, INDEX_VALUE);
 		check_item_u64(&regex, lines, "RING_BBADDR:", addr,
-			       addr + BATCH_DW_COUNT * sizeof(u32));
+			       addr + BATCH_DW_COUNT * sizeof(u32), INDEX_KEY, INDEX_VALUE);
+		check_item_u64(&regex, lines, "length:", addr,
+			       addr + BATCH_DW_COUNT * sizeof(u32), INDEX_VALUE, INDEX_KEY);
 
 		/* clear devcoredump */
 		rm_devcoredump(path);
