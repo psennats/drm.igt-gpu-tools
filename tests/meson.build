@@ -282,6 +282,7 @@ intel_xe_progs = [
 	'xe_dma_buf_sync',
 	'xe_debugfs',
 	'xe_drm_fdinfo',
+	'xe_eu_stall',
 	'xe_evict',
 	'xe_evict_ccs',
 	'xe_exec_atomic',
