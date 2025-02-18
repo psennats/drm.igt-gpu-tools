@@ -106,13 +106,13 @@ typedef struct {
 
 static int max_dotclock;
 
-static void set_all_master_pipes_for_platform(data_t *data)
+static void set_all_master_pipes_for_platform(igt_display_t *display, uint32_t *master_pipes)
 {
 	enum pipe pipe;
 
 	for (pipe = PIPE_A; pipe < IGT_MAX_PIPES - 1; pipe++) {
-		if (data->display.pipes[pipe].enabled && data->display.pipes[pipe + 1].enabled) {
-			data->master_pipes |= BIT(pipe);
+		if (display->pipes[pipe].enabled && display->pipes[pipe + 1].enabled) {
+			*master_pipes |= BIT(pipe);
 			igt_info("Found master pipe %s\n", kmstest_pipe_name(pipe));
 		}
 	}
@@ -561,7 +561,7 @@ igt_main
 		data.drm_fd = drm_open_driver_master(DRIVER_INTEL | DRIVER_XE);
 		kmstest_set_vt_graphics_mode();
 		igt_display_require(&data.display, data.drm_fd);
-		set_all_master_pipes_for_platform(&data);
+		set_all_master_pipes_for_platform(&data.display, &data.master_pipes);
 		igt_require(data.display.is_atomic);
 		max_dotclock = igt_get_max_dotclock(data.drm_fd);
 
