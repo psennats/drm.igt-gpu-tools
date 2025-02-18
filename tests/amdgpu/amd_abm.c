@@ -49,6 +49,8 @@ typedef struct data {
 	igt_fb_t ref_fb;
 } data_t;
 
+static void set_abm_level(data_t *data, igt_output_t *output, int level);
+
 /* Common test setup. */
 static void test_init(data_t *data)
 {
@@ -101,6 +103,15 @@ static void test_init(data_t *data)
 static void test_fini(data_t *data)
 {
 	igt_display_t *display = &data->display;
+	igt_output_t *output;
+	enum pipe pipe;
+
+	/* Disable ABM before exit test */
+	for_each_valid_output_on_pipe(&data->display, pipe, output) {
+		if (output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP)
+			continue;
+		set_abm_level(data, output, 0);
+	}
 
 	igt_display_reset(display);
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, 0);
