@@ -164,6 +164,7 @@ if libdrm_amdgpu.found()
 		'amdgpu/amd_shared_process.c',
 		'amdgpu/xalloc.h',
 		'amdgpu/amd_cp_dma.c',
+		'amdgpu/amd_mem_leak.c',
 		'amdgpu/amd_mmd_shared.c'
 	]
 	if libdrm_amdgpu.version().version_compare('> 2.4.99')

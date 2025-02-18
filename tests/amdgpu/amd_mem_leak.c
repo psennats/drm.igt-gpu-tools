@@ -23,6 +23,7 @@
 #include "igt.h"
 #include "igt_amd.h"
 #include <fcntl.h>
+#include "lib/amdgpu/amd_mem_leak.h"
 
 IGT_TEST_DESCRIPTION("Test checking memory leaks with suspend-resume and connector hotplug");
 
@@ -78,85 +79,6 @@ static void test_fini(data_t *data)
 	igt_display_reset(&data->display);
 }
 
-/* return True if scan successfully written to kmemleak */
-static bool send_scan_memleak(void)
-{
-	FILE *fp;
-	const char *cmd = "scan";
-
-	fp = fopen("/sys/kernel/debug/kmemleak", "r+");
-	if (!fp) return false;
-
-	if(fwrite(cmd, 1, strlen(cmd), fp) != strlen(cmd))  {
-		fclose(fp);
-		return false;
-	}
-	fclose(fp);
-	return true;
-}
-
-/* return True if clear successfully sent to kmemleak */
-static bool send_clear_memleak(void)
-{
-	FILE *fp;
-	const char *cmd = "clear";
-
-	fp = fopen("/sys/kernel/debug/kmemleak", "r+");
-	if (!fp) return false;
-
-	if(fwrite(cmd, 1, strlen(cmd), fp) != strlen(cmd))  {
-		fclose(fp);
-		return false;
-	}
-	fclose(fp);
-	return true;
-}
-
-/* return true if kmemleak is enabled and then clear earlier leak records */
-static bool clear_memleak(data_t *data)
-{
-	/* Need to scan + clear twice to properly clear buffer or else leaks
-	 * from modprobe or other tests may appear
-	 */
-	if (!send_scan_memleak() | !send_clear_memleak())
-		return false;
-	if (!send_scan_memleak() | !send_clear_memleak())
-		return false;
-
-	return true;
-}
-
-/* return true if kmemleak did not pick up any memory leaks */
-static bool check_memleak(data_t *data)
-{
-	FILE *fp;
-	const char *buf[1];
-	const char *cmd = "scan";
-	char read_buf[1024];
-
-	fp = fopen("/sys/kernel/debug/kmemleak", "r+");
-	igt_assert_f(fp, "cannot open /sys/kernel/debug/kmemleak for reading\n");
-
-	/* trigger an immediate scan on memory leak */
-	igt_assert_f(fwrite(cmd, 1, strlen(cmd), fp) == strlen(cmd),
-			"fail to trigger a scan for memory leak\n");
-
-	/* read back to see if any leak */
-	if (fread(buf, 1, 1, fp) == 0) {
-		fclose(fp);
-		return true;
-	}
-
-	/* Dump contents of kmemleak */
-	fseek(fp, 0L, SEEK_SET);
-	while (fgets(read_buf, sizeof(read_buf), fp) != NULL) {
-		igt_info("%s", read_buf);
-	}
-
-	fclose(fp);
-	return false;
-}
-
 static void test_suspend_resume(data_t *data)
 {
 	igt_display_t *display = &data->display;
@@ -164,7 +86,7 @@ static void test_suspend_resume(data_t *data)
 
 	test_init(data);
 
-	if(!clear_memleak(data)) {
+	if(!clear_memleak(true)) {
 		igt_skip("kmemleak is not enabled for this kernel\n");
 	}
 
@@ -174,7 +96,7 @@ static void test_suspend_resume(data_t *data)
 
 	igt_system_suspend_autoresume(SUSPEND_STATE_MEM, SUSPEND_TEST_NONE);
 
-	igt_assert_f(check_memleak(data), "memory leak detected\n");
+	igt_assert_f(is_no_memleak(), "memory leak detected\n");
 
 	igt_remove_fb(data->fd, &rfb);
 	test_fini(data);
@@ -189,7 +111,7 @@ static void test_hotplug(data_t *data)
 
 	igt_amd_require_hpd(&data->display, data->fd);
 
-	if(!clear_memleak(data)) {
+	if(!clear_memleak(true)) {
 		igt_skip("kmemleak is not enabled for this kernel\n");
 	}
 
@@ -199,7 +121,7 @@ static void test_hotplug(data_t *data)
 
 	igt_amd_trigger_hotplug(data->fd, data->output->name);
 
-	igt_assert_f(check_memleak(data), "memory leak detected\n");
+	igt_assert_f(is_no_memleak(), "memory leak detected\n");
 
 	igt_remove_fb(data->fd, &rfb);
 	test_fini(data);
