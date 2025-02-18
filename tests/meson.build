@@ -310,6 +310,7 @@ intel_xe_progs = [
 	'xe_peer2peer',
 	'xe_pm',
 	'xe_pm_residency',
+	'xe_pmu',
 	'xe_prime_self_import',
 	'xe_query',
 	'xe_render_copy',
