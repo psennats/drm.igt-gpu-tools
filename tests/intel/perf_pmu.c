@@ -281,39 +281,6 @@ static uint64_t pmu_read_multi(int fd, unsigned int num, uint64_t *val)
 	return buf[1];
 }
 
-#define __assert_within_epsilon(x, ref, tol_up, tol_down, debug_data) \
-	igt_assert_f((double)(x) <= (1.0 + (tol_up)) * (double)(ref) && \
-		     (double)(x) >= (1.0 - (tol_down)) * (double)(ref), \
-		     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n%s\n",\
-		     #x, #ref, (double)(x), \
-		     (tol_up) * 100.0, (tol_down) * 100.0, \
-		     (double)(ref), debug_data)
-
-#define assert_within_epsilon(x, ref, tolerance) \
-	__assert_within_epsilon(x, ref, tolerance, tolerance, no_debug_data)
-
-#define assert_within_epsilon_debug(x, ref, tolerance, debug_data) \
-	__assert_within_epsilon(x, ref, tolerance, tolerance, debug_data)
-/*
- * Helper for cases where we assert on time spent sleeping (directly or
- * indirectly), so make it more robust by ensuring the system sleep time
- * is within test tolerance to start with.
- */
-static unsigned int measured_usleep(unsigned int usec)
-{
-	struct timespec ts = { };
-	unsigned int slept;
-
-	slept = igt_nsec_elapsed(&ts);
-	igt_assert(slept == 0);
-	do {
-		usleep(usec - slept);
-		slept = igt_nsec_elapsed(&ts) / 1000;
-	} while (slept < usec);
-
-	return igt_nsec_elapsed(&ts);
-}
-
 #define TEST_BUSY (1)
 #define FLAG_SYNC (2)
 #define TEST_TRAILING_IDLE (4)
@@ -374,7 +341,7 @@ single(int gem_fd, const intel_ctx_t *ctx,
 		spin = NULL;
 
 	val = pmu_read_single(fd);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	val = pmu_read_single(fd) - val;
@@ -392,7 +359,7 @@ single(int gem_fd, const intel_ctx_t *ctx,
 		igt_assert(!gem_bo_busy(gem_fd, spin->handle));
 
 		val = pmu_read_single(fd);
-		slept = measured_usleep(batch_duration_ns / 1000);
+		slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 		val = pmu_read_single(fd) - val;
 
 		assert_within_epsilon(val, 0, tolerance);
@@ -426,7 +393,7 @@ busy_start(int gem_fd, const intel_ctx_t *ctx,
 	fd = open_pmu(gem_fd, I915_PMU_ENGINE_BUSY(e->class, e->instance));
 
 	val = __pmu_read_single(fd, &ts[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	val = __pmu_read_single(fd, &ts[1]) - val;
 	igt_debug("slept=%lu perf=%"PRIu64"\n", slept, ts[1] - ts[0]);
 
@@ -482,7 +449,7 @@ busy_double_start(int gem_fd, const intel_ctx_t *ctx,
 	fd = open_pmu(gem_fd, I915_PMU_ENGINE_BUSY(e->class, e->instance));
 
 	val = __pmu_read_single(fd, &ts[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	val = __pmu_read_single(fd, &ts[1]) - val;
 	igt_debug("slept=%lu perf=%"PRIu64"\n", slept, ts[1] - ts[0]);
 
@@ -562,7 +529,7 @@ busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 
 	spin = igt_sync_spin(gem_fd, ahnd, ctx, e);
 	pmu_read_multi(fd[0], num_engines, tval[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	pmu_read_multi(fd[0], num_engines, tval[1]);
@@ -637,7 +604,7 @@ most_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	usleep(__igt_sync_spin_wait(gem_fd, spin) * num_engines / 1e3);
 
 	pmu_read_multi(fd[0], num_engines, tval[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	pmu_read_multi(fd[0], num_engines, tval[1]);
@@ -695,7 +662,7 @@ all_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	usleep(__igt_sync_spin_wait(gem_fd, spin) * num_engines / 1e3);
 
 	pmu_read_multi(fd[0], num_engines, tval[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	pmu_read_multi(fd[0], num_engines, tval[1]);
@@ -738,7 +705,7 @@ no_sema(int gem_fd, const intel_ctx_t *ctx,
 		spin = NULL;
 
 	pmu_read_multi(fd[0], 2, val[0]);
-	measured_usleep(batch_duration_ns / 1000);
+	igt_measured_usleep(batch_duration_ns / 1000);
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	pmu_read_multi(fd[0], 2, val[1]);
@@ -851,7 +818,7 @@ sema_wait(int gem_fd, const intel_ctx_t *ctx,
 		     "sampling failed to start withing 10ms\n");
 
 	val[0] = __pmu_read_single(fd, &ts[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		obj_ptr[0] = 1;
 	val[1] = __pmu_read_single(fd, &ts[1]);
@@ -972,11 +939,12 @@ __sema_busy(int gem_fd, uint64_t ahnd, int pmu, const intel_ctx_t *ctx,
 
 	total = pmu_read_multi(pmu, 2, start);
 
-	sema = measured_usleep(batch_duration_ns * sema_pct / 100 / 1000);
+	sema = igt_measured_usleep(batch_duration_ns * sema_pct / 100 / 1000) * NSEC_PER_USEC;
 	*map = 2; __sync_synchronize();
-	busy = measured_usleep(batch_duration_ns * (busy_pct - sema_pct) / 100 / 1000);
+	busy = igt_measured_usleep(batch_duration_ns * (busy_pct - sema_pct) / 100 / 1000)
+	       * NSEC_PER_USEC;
 	igt_spin_end(spin);
-	measured_usleep(batch_duration_ns * (100 - busy_pct) / 100 / 1000);
+	igt_measured_usleep(batch_duration_ns * (100 - busy_pct) / 100 / 1000);
 
 	total = pmu_read_multi(pmu, 2, val) - total;
 	igt_spin_free(gem_fd, spin);
@@ -1041,7 +1009,7 @@ static void test_awake(int i915, const intel_ctx_t *ctx)
 		igt_spin_new(i915, .ahnd = ahnd, .ctx = ctx, .engine = e->flags);
 
 		val = pmu_read_single(fd);
-		slept = measured_usleep(batch_duration_ns / 1000);
+		slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 		val = pmu_read_single(fd) - val;
 
 		gem_quiescent_gpu(i915);
@@ -1053,7 +1021,7 @@ static void test_awake(int i915, const intel_ctx_t *ctx)
 		igt_spin_new(i915, .ahnd = ahnd, .ctx = ctx, .engine = e->flags);
 
 	val = pmu_read_single(fd);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	val = pmu_read_single(fd) - val;
 
 	gem_quiescent_gpu(i915);
@@ -1294,13 +1262,13 @@ multi_client(int gem_fd, const intel_ctx_t *ctx,
 	spin = igt_sync_spin(gem_fd, ahnd, ctx, e);
 
 	val[0] = val[1] = __pmu_read_single(fd[0], &ts[0]);
-	slept[1] = measured_usleep(batch_duration_ns / 1000);
+	slept[1] = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	val[1] = __pmu_read_single(fd[1], &ts[1]) - val[1];
 	perf_slept[1] = ts[1] - ts[0];
 	igt_debug("slept=%lu perf=%"PRIu64"\n", slept[1], perf_slept[1]);
 	close(fd[1]);
 
-	slept[0] = measured_usleep(batch_duration_ns / 1000) + slept[1];
+	slept[0] = (igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC) + slept[1];
 	val[0] = __pmu_read_single(fd[0], &ts[1]) - val[0];
 	perf_slept[0] = ts[1] - ts[0];
 	igt_debug("slept=%lu perf=%"PRIu64"\n", slept[0], perf_slept[0]);
@@ -1574,7 +1542,7 @@ test_frequency(int gem_fd, unsigned int gt)
 	spin = spin_sync_gt(gem_fd, ahnd, gt, &ctx);
 
 	slept = pmu_read_multi(fd[0], 2, start);
-	measured_usleep(batch_duration_ns / 1000);
+	igt_measured_usleep(batch_duration_ns / 1000);
 	slept = pmu_read_multi(fd[0], 2, val) - slept;
 
 	min[0] = 1e9*(val[0] - start[0]) / slept;
@@ -1604,7 +1572,7 @@ test_frequency(int gem_fd, unsigned int gt)
 	spin = spin_sync_gt(gem_fd, ahnd, gt, &ctx);
 
 	slept = pmu_read_multi(fd[0], 2, start);
-	measured_usleep(batch_duration_ns / 1000);
+	igt_measured_usleep(batch_duration_ns / 1000);
 	slept = pmu_read_multi(fd[0], 2, val) - slept;
 
 	max[0] = 1e9*(val[0] - start[0]) / slept;
@@ -1636,7 +1604,7 @@ test_frequency(int gem_fd, unsigned int gt)
 	 * On thermally throttled devices we cannot be sure maximum frequency
 	 * can be reached so use larger tolerance downards.
 	 */
-	__assert_within_epsilon(max[0], max_freq, tolerance, 0.15f, no_debug_data);
+	assert_within_epsilon_up_down(max[0], max_freq, tolerance, 0.15f);
 }
 
 static void
@@ -1659,10 +1627,10 @@ test_frequency_idle(int gem_fd, unsigned int gt)
 	fd[1] = open_group(gem_fd, __I915_PMU_ACTUAL_FREQUENCY(gt), fd[0]);
 
 	gem_quiescent_gpu(gem_fd); /* Be idle! */
-	measured_usleep(2000); /* Wait for timers to cease */
+	igt_measured_usleep(2000); /* Wait for timers to cease */
 
 	slept = pmu_read_multi(fd[0], 2, start);
-	measured_usleep(batch_duration_ns / 1000);
+	igt_measured_usleep(batch_duration_ns / 1000);
 	slept = pmu_read_multi(fd[0], 2, val) - slept;
 
 	close(fd[0]);
@@ -1786,7 +1754,7 @@ test_rc6(int gem_fd, unsigned int gt, unsigned int num_gt, unsigned int flags)
 
 	/* While idle check full RC6. */
 	ts[0] = pmu_read_multi(fd[0], pmus, prev);
-	slept = measured_usleep(duration_ns / 1000);
+	slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 	ts[1] = pmu_read_multi(fd[0], pmus, idle);
 
 	for (gt_ = 0; gt_ < pmus; gt_++) {
@@ -1826,7 +1794,7 @@ test_rc6(int gem_fd, unsigned int gt, unsigned int num_gt, unsigned int flags)
 		      "failed to enter c6 \n%s\n", drpc = get_drpc(gem_fd, test_idx));
 
 	ts[0] = pmu_read_multi(fd[0], pmus, prev);
-	slept = measured_usleep(duration_ns / 1000);
+	slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 	ts[1] = pmu_read_multi(fd[0], pmus, idle);
 
 	for (gt_ = 0; gt_ < pmus; gt_++) {
@@ -1851,7 +1819,7 @@ test_rc6(int gem_fd, unsigned int gt, unsigned int num_gt, unsigned int flags)
 	usleep(1e3); /* wait for the rc6 cycle counter to stop ticking */
 
 	ts[0] = pmu_read_multi(fd[0], pmus, prev);
-	slept = measured_usleep(duration_ns / 1000);
+	slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 	ts[1] = pmu_read_multi(fd[0], pmus, busy);
 
 	for (gt_ = 0; gt_ < num_gt; gt_++) {

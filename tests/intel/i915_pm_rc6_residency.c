@@ -234,17 +234,6 @@ static uint64_t pmu_read_single(int fd)
 	return __pmu_read_single(fd, NULL);
 }
 
-#define __assert_within_epsilon(x, ref, tol_up, tol_down, debug_data) \
-	igt_assert_f((double)(x) <= (1.0 + (tol_up)) * (double)(ref) && \
-		     (double)(x) >= (1.0 - (tol_down)) * (double)(ref), \
-		     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n %s\n",\
-		     #x, #ref, (double)(x), \
-		     (tol_up) * 100.0, (tol_down) * 100.0, \
-		     (double)(ref), debug_data)
-
-#define assert_within_epsilon(x, ref, tolerance, debug_data) \
-	__assert_within_epsilon(x, ref, tolerance, tolerance, debug_data)
-
 static char *get_drpc(int i915, int gt_id)
 {
 	int gt_dir;
@@ -273,21 +262,6 @@ static bool __pmu_wait_for_rc6(int fd)
 	} while (!igt_seconds_elapsed(&tv));
 
 	return false;
-}
-
-static unsigned int measured_usleep(unsigned int usec)
-{
-	struct timespec ts = { };
-	unsigned int slept;
-
-	slept = igt_nsec_elapsed(&ts);
-	igt_assert(slept == 0);
-	do {
-		usleep(usec - slept);
-		slept = igt_nsec_elapsed(&ts) / 1000;
-	} while (slept < usec);
-
-	return igt_nsec_elapsed(&ts);
 }
 
 static uint32_t batch_create(int fd)
@@ -416,7 +390,7 @@ static void rc6_idle(int i915, uint32_t ctx_id, uint64_t flags, unsigned int gt)
 	/* While idle check full RC6. */
 	igt_power_get_energy(&gpu, &sample[0]);
 	rc6 = -__pmu_read_single(fd, &ts[0]);
-	slept = measured_usleep(duration_ns / 1000);
+	slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 	rc6 += __pmu_read_single(fd, &ts[1]);
 	igt_debug("slept=%lu perf=%"PRIu64", rc6=%"PRIu64"\n",
 		  slept, ts[1] - ts[0], rc6);
@@ -431,7 +405,7 @@ static void rc6_idle(int i915, uint32_t ctx_id, uint64_t flags, unsigned int gt)
 	}
 	drpc = get_drpc(i915, gt);
 
-	assert_within_epsilon(rc6, ts[1] - ts[0], 5, drpc);
+	assert_within_epsilon_debug(rc6, ts[1] - ts[0], 5, drpc);
 
 	done = mmap(0, 4096, PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 
@@ -443,7 +417,7 @@ static void rc6_idle(int i915, uint32_t ctx_id, uint64_t flags, unsigned int gt)
 		igt_power_get_energy(&gpu, &sample[0]);
 		cycles = -READ_ONCE(done[1]);
 		rc6 = -__pmu_read_single(fd, &ts[0]);
-		slept = measured_usleep(duration_ns / 1000);
+		slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 		rc6 += __pmu_read_single(fd, &ts[1]);
 		cycles += READ_ONCE(done[1]);
 		igt_debug("%s: slept=%lu perf=%"PRIu64", cycles=%lu, rc6=%"PRIu64"\n",
@@ -469,7 +443,7 @@ static void rc6_idle(int i915, uint32_t ctx_id, uint64_t flags, unsigned int gt)
 		/* While very nearly idle, expect full RC6 */
 		drpc = get_drpc(i915, gt);
 
-		assert_within_epsilon(rc6, ts[1] - ts[0], tolerance, drpc);
+		assert_within_epsilon_debug(rc6, ts[1] - ts[0], tolerance, drpc);
 
 		free(drpc);
 		drpc = NULL;
@@ -512,7 +486,7 @@ static void rc6_fence(int i915, unsigned int gt)
 	/* While idle check full RC6. */
 	igt_power_get_energy(&gpu, &sample[0]);
 	rc6 = -__pmu_read_single(fd, &ts[0]);
-	slept = measured_usleep(duration_ns / 1000);
+	slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 	rc6 += __pmu_read_single(fd, &ts[1]);
 	igt_debug("slept=%lu perf=%"PRIu64", rc6=%"PRIu64"\n",
 		  slept, ts[1] - ts[0], rc6);
@@ -527,7 +501,7 @@ static void rc6_fence(int i915, unsigned int gt)
 	}
 	drpc = get_drpc(i915, gt);
 
-	assert_within_epsilon(rc6, ts[1] - ts[0], 5, drpc);
+	assert_within_epsilon_debug(rc6, ts[1] - ts[0], 5, drpc);
 
 	/* Submit but delay execution, we should be idle and conserving power */
 	ctx = intel_ctx_create_for_gt(i915, gt);
@@ -549,7 +523,7 @@ static void rc6_fence(int i915, unsigned int gt)
 
 		igt_power_get_energy(&gpu, &sample[0]);
 		rc6 = -__pmu_read_single(fd, &ts[0]);
-		slept = measured_usleep(duration_ns / 1000);
+		slept = igt_measured_usleep(duration_ns / 1000) * NSEC_PER_USEC;
 		rc6 += __pmu_read_single(fd, &ts[1]);
 		igt_debug("%s: slept=%lu perf=%"PRIu64", rc6=%"PRIu64"\n",
 			  e->name, slept, ts[1] - ts[0], rc6);
@@ -570,7 +544,7 @@ static void rc6_fence(int i915, unsigned int gt)
 
 		drpc = get_drpc(i915, gt);
 
-		assert_within_epsilon(rc6, ts[1] - ts[0], tolerance, drpc);
+		assert_within_epsilon_debug(rc6, ts[1] - ts[0], tolerance, drpc);
 		gem_quiescent_gpu(i915);
 
 		free(drpc);

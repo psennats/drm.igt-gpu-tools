@@ -1524,9 +1524,11 @@ void igt_kmsg(const char *format, ...);
 #if __WORDSIZE == 64
 #define MSEC_PER_SEC (1000ul)
 #define USEC_PER_MSEC (1000ul)
+#define NSEC_PER_USEC (1000ul)
 #else
 #define MSEC_PER_SEC (1000ull)
 #define USEC_PER_MSEC (1000ull)
+#define NSEC_PER_USEC (1000ull)
 #endif
 
 #define USEC_PER_SEC (1000u * MSEC_PER_SEC)
@@ -1535,6 +1537,23 @@ void igt_kmsg(const char *format, ...);
 #define NSEC_PER_MSEC (1000u * USEC_PER_MSEC)
 
 #define for_if(expr__) if (!(expr__)) {} else
+
+#define __assert_within_epsilon(x, ref, tol_up, tol_down, debug_data) \
+	igt_assert_f((double)(x) <= (1.0 + (tol_up)) * (double)(ref) && \
+		     (double)(x) >= (1.0 - (tol_down)) * (double)(ref), \
+		     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n%s\n",\
+		     #x, #ref, (double)(x), \
+		     (tol_up) * 100.0, (tol_down) * 100.0, \
+		     (double)(ref), debug_data)
+
+#define assert_within_epsilon(x, ref, tolerance) \
+	__assert_within_epsilon(x, ref, tolerance, tolerance, "\0")
+
+#define assert_within_epsilon_up_down(x, ref, tol_up, tol_down) \
+	__assert_within_epsilon(x, ref, tol_up, tol_down, "\0")
+
+#define assert_within_epsilon_debug(x, ref, tolerance, debug_data) \
+	__assert_within_epsilon(x, ref, tolerance, tolerance, debug_data)
 
 /**
  * igt_pci_system_init:
@@ -1578,4 +1597,5 @@ void igt_pci_system_cleanup(void);
 
 void igt_emit_ignore_dmesg_regex(const char *ignore_dmesg_regex);
 
+unsigned int igt_measured_usleep(unsigned int usec);
 #endif /* IGT_CORE_H */

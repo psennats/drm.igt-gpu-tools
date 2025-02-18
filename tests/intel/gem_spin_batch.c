@@ -51,12 +51,6 @@
 
 #define MAX_ERROR 5 /* % */
 
-#define assert_within_epsilon(x, ref, tolerance) \
-	igt_assert_f(100 * x <= (100 + tolerance) * ref && \
-		     100 * x >= (100 - tolerance) * ref, \
-		     "'%s' != '%s' (%lld not within %d%% tolerance of %lld)\n",\
-		     #x, #ref, (long long)x, tolerance, (long long)ref)
-
 static void spin(int fd, const intel_ctx_t *ctx_id,
 		 unsigned int engine,
 		 unsigned int flags,

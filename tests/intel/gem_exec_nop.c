@@ -434,12 +434,6 @@ stable_nop_on_ring(int fd, uint32_t handle, const intel_ctx_t *ctx,
 	return n;
 }
 
-#define assert_within_epsilon(x, ref, tolerance) \
-        igt_assert_f((x) <= (1.0 + tolerance) * ref && \
-                     (x) >= (1.0 - tolerance) * ref, \
-                     "'%s' != '%s' (%f not within %f%% tolerance of %f)\n",\
-                     #x, #ref, x, tolerance * 100.0, ref)
-
 static void headless(int fd, uint32_t handle, const intel_ctx_t *ctx,
 		     const struct intel_execution_engine2 *e)
 {

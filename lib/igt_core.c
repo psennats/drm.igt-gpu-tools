@@ -3553,3 +3553,23 @@ void igt_emit_ignore_dmesg_regex(const char *ignore_dmesg_regex)
 	g_regex_unref(re);
 	igt_kmsg(KMSG_INFO "%s%s\n", mark_ignore_dmesg, ignore_dmesg_regex);
 }
+
+/**
+ * @igt_measured_usleep: Helper to model accurate sleep time for tests
+ * @usec: usec to sleep
+ * Return: usec slept
+ */
+unsigned int igt_measured_usleep(unsigned int usec)
+{
+	struct timespec ts = { };
+	unsigned int slept_usec;
+
+	slept_usec = igt_nsec_elapsed(&ts) / NSEC_PER_USEC;
+	igt_assert(slept_usec == 0);
+	do {
+		usleep(usec - slept_usec);
+		slept_usec = igt_nsec_elapsed(&ts) / NSEC_PER_USEC;
+	} while (slept_usec < usec);
+
+	return igt_nsec_elapsed(&ts) / NSEC_PER_USEC;
+}

@@ -307,21 +307,6 @@ static void test_nopreempt(int i915, int engine)
 	set_heartbeat(engine, saved);
 }
 
-static unsigned int measured_usleep(unsigned int usec)
-{
-	struct timespec ts = { };
-	unsigned int slept;
-
-	slept = igt_nsec_elapsed(&ts);
-	igt_assert(slept == 0);
-	do {
-		usleep(usec - slept);
-		slept = igt_nsec_elapsed(&ts) / 1000;
-	} while (slept < usec);
-
-	return igt_nsec_elapsed(&ts);
-}
-
 static void client(int i915, int engine, int *ctl, int duration, int expect)
 {
 	unsigned int class, inst;
@@ -352,7 +337,7 @@ static void client(int i915, int engine, int *ctl, int duration, int expect)
 			continue;
 		}
 
-		elapsed = measured_usleep(duration * 1000);
+		elapsed = igt_measured_usleep(duration * 1000);
 		igt_spin_end(spin);
 
 		sync_fence_wait(spin->out_fence, -1);
@@ -361,7 +346,7 @@ static void client(int i915, int engine, int *ctl, int duration, int expect)
 
 		igt_assert_f(sync_fence_status(spin->out_fence) == expect,
 			     "%s client: elapsed: %.3fms, expected %d, got %d\n",
-			     expect < 0 ? "Bad" : "Good", elapsed * 1e-6,
+			     expect < 0 ? "Bad" : "Good", elapsed * 1e-3,
 			     expect, sync_fence_status(spin->out_fence));
 		igt_spin_free(i915, spin);
 		count++;

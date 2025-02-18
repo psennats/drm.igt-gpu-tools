@@ -106,23 +106,6 @@ static const char *engine_map[] = {
 	"compute",
 };
 
-#define __assert_within_epsilon(x, ref, tol_up, tol_down) \
-	do { \
-		igt_assert_f((double)(x) <= (1.0 + (tol_up)) * (double)(ref) && \
-			     (double)(x) >= (1.0 - (tol_down)) * (double)(ref), \
-			     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n",\
-			     #x, #ref, (double)(x), \
-			     (tol_up) * 100.0, (tol_down) * 100.0, \
-			     (double)(ref)); \
-		igt_debug("%f within +%.1f%%/-%.1f%% tolerance of %f\n",\
-			  (double)(x), \
-			  (tol_up) * 100.0, (tol_down) * 100.0, \
-			  (double)(ref)); \
-	} while (0)
-
-#define assert_within_epsilon(x, ref, tolerance) \
-	__assert_within_epsilon(x, ref, tolerance, tolerance)
-
 static void basics(int i915, unsigned int num_classes)
 {
 	struct drm_client_fdinfo info = { };
@@ -135,26 +118,6 @@ static void basics(int i915, unsigned int num_classes)
 	igt_assert(!strcmp(info.driver, "i915"));
 
 	igt_assert_eq(info.num_engines, num_classes);
-}
-
-/*
- * Helper for cases where we assert on time spent sleeping (directly or
- * indirectly), so make it more robust by ensuring the system sleep time
- * is within test tolerance to start with.
- */
-static unsigned int measured_usleep(unsigned int usec)
-{
-	struct timespec ts = { };
-	unsigned int slept;
-
-	slept = igt_nsec_elapsed(&ts);
-	igt_assert(slept == 0);
-	do {
-		usleep(usec - slept);
-		slept = igt_nsec_elapsed(&ts) / 1000;
-	} while (slept < usec);
-
-	return igt_nsec_elapsed(&ts);
 }
 
 #define TEST_BUSY (1)
@@ -239,7 +202,7 @@ single(int gem_fd, const intel_ctx_t *ctx,
 		spin = NULL;
 
 	val = read_engine_time(gem_fd, e->class);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(spin_fd, spin, flags);
 	val = read_engine_time(gem_fd, e->class) - val;
@@ -258,7 +221,7 @@ single(int gem_fd, const intel_ctx_t *ctx,
 		igt_assert(!gem_bo_busy(spin_fd, spin->handle));
 
 		val = read_engine_time(gem_fd, e->class);
-		slept = measured_usleep(batch_duration_ns / 1000);
+		slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 		val = read_engine_time(gem_fd, e->class) - val;
 
 		assert_within_epsilon(slept - val, slept, tolerance);
@@ -320,7 +283,7 @@ busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	spin = igt_sync_spin(gem_fd, ahnd, ctx, e);
 
 	read_engine_time_all(gem_fd, tval[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	read_engine_time_all(gem_fd, tval[1]);
@@ -335,7 +298,8 @@ busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	log_busy(num_classes, val);
 
 	for (i = 0; i < num_classes; i++)
-		assert_within_epsilon(i == e->class ? val[i] : slept - val[i], slept, tolerance);
+		assert_within_epsilon(i == e->class ? val[i] : slept - val[i],
+				      slept, tolerance);
 
 	gem_quiescent_gpu(gem_fd);
 }
@@ -395,7 +359,7 @@ most_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	usleep(__igt_sync_spin_wait(gem_fd, spin) * num_engines / 1e3);
 
 	read_engine_time_all(gem_fd, tval[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	read_engine_time_all(gem_fd, tval[1]);
@@ -412,7 +376,8 @@ most_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	for (i = 0; i < num_classes; i++) {
 		double target = slept * busy_class[i] ?: slept;
 
-		assert_within_epsilon(busy_class[i] ? val[i] : slept - val[i], target, tolerance);
+		assert_within_epsilon(busy_class[i] ? val[i] : slept - val[i],
+				      target, tolerance);
 	}
 	gem_quiescent_gpu(gem_fd);
 }
@@ -450,7 +415,7 @@ all_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	usleep(__igt_sync_spin_wait(gem_fd, spin) * num_engines / 1e3);
 
 	read_engine_time_all(gem_fd, tval[0]);
-	slept = measured_usleep(batch_duration_ns / 1000);
+	slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 	if (flags & TEST_TRAILING_IDLE)
 		end_spin(gem_fd, spin, flags);
 	read_engine_time_all(gem_fd, tval[1]);
@@ -467,7 +432,8 @@ all_busy_check_all(int gem_fd, const intel_ctx_t *ctx,
 	for (i = 0; i < num_classes; i++) {
 		double target = slept * busy_class[i] ?: slept;
 
-		assert_within_epsilon(busy_class[i] ? val[i] : slept - val[i], target, tolerance);
+		assert_within_epsilon(busy_class[i] ? val[i] : slept - val[i],
+				      target, tolerance);
 	}
 	gem_quiescent_gpu(gem_fd);
 }
@@ -596,7 +562,7 @@ virtual(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 				spin = NULL;
 
 			val = read_engine_time(i915, class);
-			slept = measured_usleep(batch_duration_ns / 1000);
+			slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 			if (flags & TEST_TRAILING_IDLE)
 				end_spin(i915, spin, flags);
 			val = read_engine_time(i915, class) - val;
@@ -615,8 +581,8 @@ virtual(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 				igt_assert(!gem_bo_busy(i915, spin->handle));
 
 				val = read_engine_time(i915, class);
-				slept = measured_usleep(batch_duration_ns /
-							1000);
+				slept = igt_measured_usleep(batch_duration_ns /
+							1000) * NSEC_PER_USEC;
 				val = read_engine_time(i915, class) - val;
 
 				assert_within_epsilon(slept - val, slept, tolerance);
@@ -705,7 +671,7 @@ virtual_all(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 		usleep(__igt_sync_spin_wait(i915, spin) * count / 1e3);
 
 		val = read_engine_time(i915, class);
-		slept = measured_usleep(batch_duration_ns / 1000);
+		slept = igt_measured_usleep(batch_duration_ns / 1000) * NSEC_PER_USEC;
 		if (flags & TEST_TRAILING_IDLE)
 			end_spin(i915, spin, flags);
 		val = read_engine_time(i915, class) - val;
@@ -723,8 +689,8 @@ virtual_all(int i915, const intel_ctx_cfg_t *base_cfg, unsigned int flags)
 			igt_assert(!gem_bo_busy(i915, spin->handle));
 
 			val = read_engine_time(i915, class);
-			slept = measured_usleep(batch_duration_ns /
-						1000);
+			slept = igt_measured_usleep(batch_duration_ns /
+						1000) * NSEC_PER_USEC;
 			val = read_engine_time(i915, class) - val;
 
 			assert_within_epsilon(slept - val, slept, tolerance);

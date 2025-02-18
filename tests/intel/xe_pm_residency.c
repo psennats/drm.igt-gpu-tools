@@ -32,14 +32,6 @@
 const double tolerance = 0.1;
 int fw_handle = -1;
 
-#define assert_within_epsilon(x, ref, tol) \
-	igt_assert_f((double)(x) <= (1.0 + (tol)) * (double)(ref) && \
-		     (double)(x) >= (1.0 - (tol)) * (double)(ref), \
-		     "'%s' != '%s' (%f not within +%.1f%%/-%.1f%% tolerance of %f)\n",\
-		     #x, #ref, (double)(x), \
-		     (tol) * 100.0, (tol) * 100.0, \
-		     (double)(ref))
-
 enum test_type {
 	TEST_S2IDLE,
 	TEST_IDLE,
@@ -177,21 +169,6 @@ static void exec_load(int fd, struct drm_xe_engine_class_instance *hwe, unsigned
 	xe_vm_destroy(fd, vm);
 }
 
-static unsigned int measured_usleep(unsigned int usec)
-{
-	struct timespec ts = { };
-	unsigned int slept;
-
-	slept = igt_nsec_elapsed(&ts);
-	igt_assert(slept == 0);
-	do {
-		usleep(usec - slept);
-		slept = igt_nsec_elapsed(&ts) / 1000;
-	} while (slept < usec);
-
-	return igt_nsec_elapsed(&ts) / 1000;
-}
-
 static unsigned long read_idle_residency(int fd, int gt)
 {
 	unsigned long residency = 0;
@@ -224,7 +201,7 @@ static void test_idle_residency(int fd, int gt, enum test_type flag)
 
 	if (flag == TEST_IDLE) {
 		residency_start = read_idle_residency(fd, gt);
-		elapsed_ms = measured_usleep(SLEEP_DURATION * USEC_PER_SEC) / 1000;
+		elapsed_ms = igt_measured_usleep(SLEEP_DURATION * USEC_PER_SEC) / 1000;
 		residency_end = read_idle_residency(fd, gt);
 	}
 
@@ -260,7 +237,7 @@ static void idle_residency_on_exec(int fd, struct drm_xe_engine_class_instance *
 
 	start = READ_ONCE(done[1]);
 	residency_start = read_idle_residency(fd, hwe->gt_id);
-	elapsed_ms = measured_usleep(SLEEP_DURATION * USEC_PER_SEC) / 1000;
+	elapsed_ms = igt_measured_usleep(SLEEP_DURATION * USEC_PER_SEC) / 1000;
 	residency_end = read_idle_residency(fd, hwe->gt_id);
 	end = READ_ONCE(done[1]);
 	*done = 1;
@@ -281,7 +258,7 @@ static void measure_power(struct igt_power *gpu, double *power)
 	struct power_sample power_sample[2];
 
 	igt_power_get_energy(gpu, &power_sample[0]);
-	measured_usleep(SLEEP_DURATION * USEC_PER_SEC);
+	igt_measured_usleep(SLEEP_DURATION * USEC_PER_SEC);
 	igt_power_get_energy(gpu, &power_sample[1]);
 	*power = igt_power_get_mW(gpu, &power_sample[0], &power_sample[1]);
 }
