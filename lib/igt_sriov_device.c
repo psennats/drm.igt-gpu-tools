@@ -14,6 +14,7 @@
 #include "igt_device.h"
 #include "igt_sriov_device.h"
 #include "igt_sysfs.h"
+#include "intel_io.h"
 #include "xe/xe_query.h"
 
 /**
@@ -463,4 +464,29 @@ bool igt_sriov_device_reset(int pf, unsigned int vf_num)
 	close(sysfs);
 
 	return ret;
+}
+
+/**
+ * intel_is_vf_device - Check if device is VF
+ * @device: device file descriptor
+ *
+ * Determines if a device is a Virtual Function (VF)
+ * by reading VF_CAPABILITY_REGISTER. If the least
+ * significant bit is set the device is VF.
+ *
+ * Return:
+ * True if device is VF, false otherwise.
+ */
+bool intel_is_vf_device(int fd)
+{
+#define VF_CAP_REG		0x1901f8
+	struct intel_mmio_data mmio_data;
+	uint32_t value;
+
+	intel_register_access_init(&mmio_data, igt_device_get_pci_device(fd), false);
+	value = intel_register_read(&mmio_data, VF_CAP_REG);
+	intel_register_access_fini(&mmio_data);
+	igt_require((value & ~1) == 0);
+
+	return (value & 1) != 0;
 }

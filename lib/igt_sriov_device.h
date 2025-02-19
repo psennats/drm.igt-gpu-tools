@@ -33,6 +33,7 @@ void igt_sriov_unbind_vf_drm_driver(int pf, unsigned int vf_num);
 int igt_sriov_device_sysfs_open(int pf, unsigned int vf_num);
 bool igt_sriov_device_reset_exists(int pf, unsigned int vf_num);
 bool igt_sriov_device_reset(int pf, unsigned int vf_num);
+bool intel_is_vf_device(int device);
 
 /**
  * __is_valid_range - Helper to check VF range is valid
