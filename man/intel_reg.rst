@@ -9,7 +9,7 @@ Intel graphics register multitool
 :Author: Jani Nikula <jani.nikula@intel.com>
 :Date: 2016-03-01
 :Version: |PACKAGE_STRING|
-:Copyright: 2015-2016 Intel Corporation
+:Copyright: 2015-2025 Intel Corporation
 :Manual section: |MANUAL_SECTION|
 :Manual group: |MANUAL_GROUP|
 
@@ -55,6 +55,9 @@ Some options are global, and some specific to commands.
 --devid=DEVID
     Pretend to be PCI ID DEVID. Useful with MMIO bar snapshots from other
     machines.
+
+--pci-slot <domain>:<bus>:<device>[.<func>]
+    Find Intel GPU by PCI slot. Useful with multi-GPU hardware.
 
 --spec=PATH
     Read register spec from directory or file specified by PATH; see REGISTER

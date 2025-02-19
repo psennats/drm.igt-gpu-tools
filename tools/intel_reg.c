@@ -39,6 +39,7 @@
 #include "intel_chipset.h"
 
 #include "intel_reg_spec.h"
+#include "igt_device_scan.h"
 
 
 #ifdef HAVE_SYS_IO_H
@@ -87,6 +88,13 @@ struct config {
 	ssize_t regcount;
 
 	int verbosity;
+};
+
+struct igt_pci_slot {
+	int domain;
+	int bus;
+	int dev;
+	int func;
 };
 
 /* port desc must have been set */
@@ -1055,6 +1063,9 @@ static int intel_reg_help(struct config *config, int argc, char *argv[])
 	printf(" --devid=DEVID  Specify PCI device ID for --mmio=FILE\n");
 	printf(" --decode       Decode registers. Implied by commands that require it\n");
 	printf(" --all          Decode registers for all known platforms. Implies --decode\n");
+	printf(" --pci-slot=BDF Decode registers for platform described by PCI slot\n"
+	       "		<domain>:<bus>:<device>[.<func>]\n"
+	       "                When this option is not provided use first matched Intel GPU\n");
 	printf(" --binary       Binary dump registers\n");
 	printf(" --verbose      Increase verbosity\n");
 	printf(" --quiet        Reduce verbosity\n");
@@ -1164,6 +1175,62 @@ builtin:
 	return config->regcount;
 }
 
+static int parse_pci_slot_name(struct igt_pci_slot *st, const char *slot_name)
+{
+	st->domain = 0;
+	st->bus = 0;
+	st->dev = 0;
+	st->func = 0;
+
+	return sscanf(slot_name, "%x:%x:%x.%x", &st->domain, &st->bus, &st->dev, &st->func);
+}
+
+static bool is_intel_card_valid(struct pci_device *pci_dev)
+{
+	if (!pci_dev) {
+		fprintf(stderr, "PCI card not found\n");
+		return false;
+	}
+
+	if (pci_device_probe(pci_dev) != 0) {
+		fprintf(stderr, "Couldn't probe PCI card\n");
+		return false;
+	}
+
+	if (pci_dev->vendor_id != 0x8086) {
+		fprintf(stderr, "PCI card is non-Intel\n");
+		return false;
+	}
+
+	return true;
+}
+
+static bool find_dev_from_slot(struct pci_device **pci_dev, char *opt_slot)
+{
+	struct igt_pci_slot bdf;
+	bool ret;
+
+	if (parse_pci_slot_name(&bdf, opt_slot) < 3) {
+		fprintf(stderr, "Cannot decode PCI slot from '%s'\n", opt_slot);
+		return false;
+	}
+
+	if (pci_system_init() != 0) {
+		fprintf(stderr, "Couldn't initialize PCI system\n");
+		return false;
+	}
+
+	igt_devices_scan();
+	*pci_dev = pci_device_find_by_slot(bdf.domain, bdf.bus, bdf.dev, bdf.func);
+	ret = is_intel_card_valid(*pci_dev);
+	igt_devices_free();
+
+	if (!ret)
+		fprintf(stderr, "Cannot find PCI card given by slot '%s'\n", opt_slot);
+
+	return ret;
+}
+
 enum opt {
 	OPT_UNKNOWN = '?',
 	OPT_END = -1,
@@ -1173,6 +1240,7 @@ enum opt {
 	OPT_POST,
 	OPT_DECODE,
 	OPT_ALL,
+	OPT_SLOT,
 	OPT_BINARY,
 	OPT_SPEC,
 	OPT_VERBOSE,
@@ -1184,6 +1252,7 @@ int main(int argc, char *argv[])
 {
 	int ret, i, index;
 	char *endp;
+	char *opt_slot = NULL;
 	enum opt opt;
 	const struct command *command = NULL;
 	struct config config = {
@@ -1208,6 +1277,7 @@ int main(int argc, char *argv[])
 		/* options specific to read, dump and decode */
 		{ "decode",	no_argument,		NULL,	OPT_DECODE },
 		{ "all",	no_argument,		NULL,	OPT_ALL },
+		{ "pci-slot",	required_argument,	NULL,	OPT_SLOT },
 		{ "binary",	no_argument,		NULL,	OPT_BINARY },
 		{ 0 }
 	};
@@ -1257,6 +1327,14 @@ int main(int argc, char *argv[])
 		case OPT_DECODE:
 			config.decode = true;
 			break;
+		case OPT_SLOT:
+			opt_slot = strdup(optarg);
+			if (!opt_slot) {
+				fprintf(stderr, "strdup: %s\n",
+					strerror(errno));
+				return EXIT_FAILURE;
+			}
+			break;
 		case OPT_BINARY:
 			config.binary = true;
 			break;
@@ -1298,7 +1376,14 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "--devid without --mmio\n");
 			return EXIT_FAILURE;
 		}
-		config.pci_dev = intel_get_pci_device();
+
+		if (opt_slot) {
+			if (!find_dev_from_slot(&config.pci_dev, opt_slot))
+				return EXIT_FAILURE;
+		} else {
+			config.pci_dev = intel_get_pci_device();
+		}
+
 		config.devid = config.pci_dev->device_id;
 	}
 
@@ -1326,6 +1411,9 @@ int main(int argc, char *argv[])
 
 	if (config.fd >= 0)
 		close(config.fd);
+
+	if (opt_slot)
+		free(opt_slot);
 
 	return ret;
 }
