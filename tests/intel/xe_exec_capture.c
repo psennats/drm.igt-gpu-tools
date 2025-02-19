@@ -20,6 +20,7 @@
 
 #include "igt.h"
 #include "igt_device.h"
+#include "igt_sriov_device.h"
 #include "igt_sysfs.h"
 #include "lib/igt_syncobj.h"
 #include "lib/intel_reg.h"
@@ -434,6 +435,7 @@ static void test_card(int fd)
 	char *single_line_buf =  (char *)malloc(LINE_BUF_SIZE);
 	char temp[MAX_TEMP_LEN];
 	char path[MAX_SYSFS_PATH_LEN];
+	const bool is_vf_device = intel_is_vf_device(fd);
 
 	igt_assert_f(single_line_buf, "Out of memory.\n");
 
@@ -466,19 +468,27 @@ static void test_card(int fd)
 		igt_assert_f((start_line = access_devcoredump(path, lines, single_line_buf)) > 0,
 			     "Devcoredump not exist, errno=%d.\n", errno);
 
-		sprintf(temp, "instance=%d", hwe->engine_instance);
-		check_item_str(&regex, lines, "(physical),", INDEX_ENGINE_PHYSICAL,
-			       INDEX_ENGINE_INSTANCE, temp, false);
-		check_item_str(&regex, lines, "(physical),", INDEX_ENGINE_PHYSICAL,
-			       INDEX_ENGINE_NAME, xe_engine_class_name(hwe->engine_class), true);
+		if (!is_vf_device) {
+			sprintf(temp, "instance=%d", hwe->engine_instance);
+			check_item_str(&regex, lines, "(physical),",
+				       INDEX_ENGINE_PHYSICAL,
+				       INDEX_ENGINE_INSTANCE, temp, false);
+			check_item_str(&regex, lines, "(physical),",
+				       INDEX_ENGINE_PHYSICAL, INDEX_ENGINE_NAME,
+				       xe_engine_class_name(hwe->engine_class),
+				       true);
 
-		check_item_str(&regex, lines, "Capture_source:", INDEX_KEY, INDEX_VALUE,
-			       "GuC", false);
+			check_item_str(&regex, lines,
+				       "Capture_source:", INDEX_KEY,
+				       INDEX_VALUE, "GuC", false);
 
-		check_item_u64(&regex, lines, "ACTHD:", addr,
-			       addr + BATCH_DW_COUNT * sizeof(u32), INDEX_KEY, INDEX_VALUE);
-		check_item_u64(&regex, lines, "RING_BBADDR:", addr,
-			       addr + BATCH_DW_COUNT * sizeof(u32), INDEX_KEY, INDEX_VALUE);
+			check_item_u64(&regex, lines, "ACTHD:", addr,
+				       addr + BATCH_DW_COUNT * sizeof(u32),
+				       INDEX_KEY, INDEX_VALUE);
+			check_item_u64(&regex, lines, "RING_BBADDR:", addr,
+				       addr + BATCH_DW_COUNT * sizeof(u32),
+				       INDEX_KEY, INDEX_VALUE);
+		}
 		check_item_u64(&regex, lines, "length:", addr,
 			       addr + BATCH_DW_COUNT * sizeof(u32), INDEX_VALUE, INDEX_KEY);
 
