@@ -1225,10 +1225,9 @@ igt_main
 
 		display_init(&data);
 
-		if ((intel_display_ver(intel_get_drm_devid(data.drm_fd)) >= 20) &&
-		    (intel_fbc_supported_on_chipset(data.drm_fd, data.pipe))) {
+		if (intel_fbc_supported_on_chipset(data.drm_fd, data.pipe) &&
+		    intel_fbc_psr_combo_supported(data.drm_fd))
 			data.fbc_flag = true;
-		}
 
 		data.damage_area_count = MAX_DAMAGE_AREAS;
 		data.primary_format = DRM_FORMAT_XRGB8888;
