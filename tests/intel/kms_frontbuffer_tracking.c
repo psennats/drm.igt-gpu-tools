@@ -2860,7 +2860,7 @@ static void plane_fbc_rte_subtest(const struct test_mode *t)
 {
 	igt_plane_t *plane;
 
-	igt_require_f((drm.display_ver >= 20), "Can't test fbc for each plane\n");
+	igt_require_f(intel_fbc_psr_combo_supported(drm.fd), "Can't test fbc for each plane\n");
 
 	prepare_subtest_data(t, NULL);
 	unset_all_crtcs();
