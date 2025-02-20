@@ -823,10 +823,9 @@ igt_main
 		data.bops = buf_ops_create(data.drm_fd);
 		igt_display_require(&data.display, data.drm_fd);
 		igt_require_f(output_supports_psr(&data), "Sink does not support PSR/PSR2/PR\n");
-		if ((intel_display_ver(intel_get_drm_devid(data.drm_fd)) >= 20) &&
-		    (intel_fbc_supported_on_chipset(data.drm_fd, pipe))) {
+		if (intel_fbc_supported_on_chipset(data.drm_fd, pipe) &&
+		    intel_fbc_psr_combo_supported(data.drm_fd))
 			data.fbc_flag = true;
-		}
 	}
 
 	for (y = 0; y < ARRAY_SIZE(fbc_status); y++) {
