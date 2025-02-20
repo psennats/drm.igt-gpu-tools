@@ -4852,6 +4852,7 @@ igt_main
 
 		/* See xe_query_oa_units_new() */
 		igt_require(xe_dev->oa_units);
+		igt_require(xe_dev->oa_units->num_oa_units);
 		oau = nth_oa_unit(drm_fd, 0);
 
 		devid = intel_get_drm_devid(drm_fd);
