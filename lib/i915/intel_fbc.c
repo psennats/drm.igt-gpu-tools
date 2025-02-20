@@ -154,3 +154,21 @@ bool intel_fbc_plane_size_supported(int fd, uint32_t width, uint32_t height)
 
 	return width <= max_w && height <= max_h;
 }
+
+/**
+ * intel_fbc_psr_combo_supported
+ *
+ * @fd: fd of the device
+ *
+ * FBC PSR combination support depends on the display version.
+ *
+ * Returns:
+ * true if FBC and PSR can be enabled together in a platform
+ */
+bool intel_fbc_psr_combo_supported(int device)
+{
+	if (intel_display_ver(intel_get_drm_devid(device)) >= 20)
+		return true;
+
+	return false;
+}
