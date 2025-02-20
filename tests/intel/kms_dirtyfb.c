@@ -58,6 +58,7 @@ typedef struct {
 	int debugfs_fd;
 	igt_display_t display;
 	drmModeModeInfo *mode;
+	uint64_t modifier;
 	igt_output_t *output;
 	igt_pipe_crc_t *pipe_crc;
 	enum pipe pipe;
@@ -238,7 +239,7 @@ static void prepare(data_t *data)
 
 	igt_create_color_fb(data->drm_fd, data->mode->hdisplay,
 			    data->mode->vdisplay, DRM_FORMAT_XRGB8888,
-			    DRM_FORMAT_MOD_LINEAR, 0.0, 1.0, 0.0,
+			    data->modifier, 0.0, 1.0, 0.0,
 			    &data->fbs[0]);
 
 	igt_draw_rect_fb(data->drm_fd, data->bops, 0, &data->fbs[0],
@@ -260,7 +261,7 @@ static void prepare(data_t *data)
 
 	igt_create_color_fb(data->drm_fd,  data->mode->hdisplay,
 			    data->mode->vdisplay, DRM_FORMAT_XRGB8888,
-			    DRM_FORMAT_MOD_LINEAR, 0.0, 1.0, 0.0,
+			    data->modifier, 0.0, 1.0, 0.0,
 			    &data->fbs[1]);
 	igt_draw_rect_fb(data->drm_fd, data->bops, 0, &data->fbs[1],
 			 data->rendercopy ? IGT_DRAW_RENDER : IGT_DRAW_BLT,
@@ -268,8 +269,8 @@ static void prepare(data_t *data)
 			 data->fbs[1].height, 0xFF);
 
 	igt_create_color_fb(data->drm_fd, data->mode->hdisplay,
-			     data->mode->vdisplay, DRM_FORMAT_XRGB8888,
-			    DRM_FORMAT_MOD_LINEAR, 0.0, 1.0, 0.0,
+			    data->mode->vdisplay, DRM_FORMAT_XRGB8888,
+			    data->modifier, 0.0, 1.0, 0.0,
 			    &data->fbs[2]);
 
 	igt_plane_set_fb(primary, &data->fbs[2]);
@@ -385,6 +386,13 @@ igt_main
 					/* FBC disabled: Wa_16023588340 */
 					igt_skip_on_f((IS_BATTLEMAGE(data.devid) && data.feature == FEATURE_FBC),
 						       "FBC isn't supported on BMG\n");
+
+					/* FBC Disp_ver 8 and below supports only I915_FORMAT_MOD_X_TILED */
+					if (data.feature == FEATURE_FBC &&
+					    intel_display_ver(intel_get_drm_devid(data.drm_fd) <= 8))
+						data.modifier = I915_FORMAT_MOD_X_TILED;
+					else
+						data.modifier = DRM_FORMAT_MOD_LINEAR;
 
 					if (!check_support(&data))
 						continue;
