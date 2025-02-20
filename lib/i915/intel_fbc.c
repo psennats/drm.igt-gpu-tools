@@ -167,7 +167,10 @@ bool intel_fbc_plane_size_supported(int fd, uint32_t width, uint32_t height)
  */
 bool intel_fbc_psr_combo_supported(int device)
 {
-	if (intel_display_ver(intel_get_drm_devid(device)) >= 20)
+	int ver = intel_display_ver(intel_get_drm_devid(device));
+
+	/* In Xe3 FBC PSR combo not supported because of FBC dirty rect */
+	if (ver >= 20 && ver < 30)
 		return true;
 
 	return false;
