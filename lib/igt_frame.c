@@ -63,19 +63,22 @@ static void igt_write_frame_to_png(cairo_surface_t *surface, int fd,
 	char path[PATH_MAX];
 	const char *test_name;
 	const char *subtest_name;
+	const char *dynamic_subtest_name;
 	cairo_status_t status;
 	int index;
 
 	test_name = igt_test_name();
 	subtest_name = igt_subtest_name();
+	dynamic_subtest_name = igt_dynamic_subtest_name();
 
 	if (suffix)
-		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s-%s.png",
-			 igt_frame_dump_path, test_name, subtest_name, qualifier,
-			 suffix);
+		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s-%s-%s.png",
+			 igt_frame_dump_path, test_name, subtest_name,
+			 dynamic_subtest_name,  qualifier, suffix);
 	else
-		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s.png",
-			 igt_frame_dump_path, test_name, subtest_name, qualifier);
+		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s-%s.png",
+			 igt_frame_dump_path, test_name, subtest_name,
+			 dynamic_subtest_name, qualifier);
 
 	igt_debug("Dumping %s frame to %s...\n", qualifier, path);
 
@@ -110,6 +113,7 @@ void igt_write_compared_frames_to_png(cairo_surface_t *reference,
 	char *id;
 	const char *test_name;
 	const char *subtest_name;
+	const char *dynamic_subtest_name;
 	char path[PATH_MAX];
 	int fd = -1;
 
@@ -120,13 +124,16 @@ void igt_write_compared_frames_to_png(cairo_surface_t *reference,
 
 	test_name = igt_test_name();
 	subtest_name = igt_subtest_name();
+	dynamic_subtest_name = igt_dynamic_subtest_name();
 
 	if (id)
-		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s.txt",
-			 igt_frame_dump_path, test_name, subtest_name, id);
+		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s-%s.txt",
+			 igt_frame_dump_path, test_name, subtest_name,
+			 dynamic_subtest_name, id);
 	else
-		snprintf(path, PATH_MAX, "%s/frame-%s-%s.txt",
-			 igt_frame_dump_path, test_name, subtest_name);
+		snprintf(path, PATH_MAX, "%s/frame-%s-%s-%s.txt",
+			 igt_frame_dump_path, test_name, subtest_name,
+			 dynamic_subtest_name);
 
 	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	igt_assert(fd >= 0);
