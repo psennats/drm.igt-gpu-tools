@@ -380,6 +380,7 @@ bool __igt_run_dynamic_subtest(const char *dynamic_subtest_name);
 	__igt_dynamic_f(igt_unique(__tmpchar), f)
 
 const char *igt_subtest_name(void);
+const char *igt_dynamic_subtest_name(void);
 bool igt_only_list_subtests(void);
 
 void __igt_subtest_group_save(int *, int *);

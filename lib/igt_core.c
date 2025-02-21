@@ -1591,6 +1591,17 @@ const char *igt_subtest_name(void)
 }
 
 /**
+ * igt_dynamic_subtest_name:
+ *
+ * Returns: The name of the currently executed dynamic subtest or NULL if called from
+ * outside a dynamic subtest block.
+ */
+const char *igt_dynamic_subtest_name(void)
+{
+	return in_dynamic_subtest;
+}
+
+/**
  * igt_only_list_subtests:
  *
  * Returns: Returns true if only subtest should be listed and any setup code
