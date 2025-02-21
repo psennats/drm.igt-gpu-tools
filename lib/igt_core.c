@@ -1324,6 +1324,7 @@ out:
 	if (!igt_only_list_subtests()) {
 		bind_fbcon(false);
 		igt_kmsg(KMSG_INFO "%s: executing\n", command_str);
+		igt_trace("%s: executing\n", command_str);
 		print_version();
 		igt_srandom();
 
@@ -1528,6 +1529,7 @@ bool __igt_run_subtest(const char *subtest_name, const char *file, const int lin
 
 	igt_kmsg(KMSG_INFO "%s: starting subtest %s\n",
 		 command_str, subtest_name);
+	igt_trace("%s: starting subtest %s\n", command_str, subtest_name);
 	_subtest_starting_message(_SUBTEST_TYPE_NORMAL, subtest_name);
 
 	_igt_log_buffer_reset();
@@ -1681,6 +1683,8 @@ __noreturn static void exit_subtest(const char *result)
 				igt_time_elapsed(thentime, &now));
 	igt_kmsg(KMSG_INFO "%s: finished subtest %s, %s\n",
 		 command_str, *subtest_name, result);
+	igt_trace("%s: finished subtest %s, %s\n",
+		  command_str, *subtest_name, result);
 
 	igt_terminate_spins();
 
