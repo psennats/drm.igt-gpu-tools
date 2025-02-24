@@ -6,6 +6,7 @@
  */
 
 #include <fcntl.h>
+#include <glob.h>
 
 #include "amd_memory.h"
 #include "amd_ip_blocks.h"
@@ -1131,4 +1132,30 @@ int get_pci_addr_from_fd(int fd, struct pci_addr *pci)
 	}
 
 	return 0;
+}
+
+/*
+ * Function to check if page queue files exist for a given IP block type and PCI address
+ */
+bool is_support_page_queue(enum amd_ip_block_type ip_type, const struct pci_addr *pci)
+{
+	glob_t glob_result;
+	int ret;
+	char search_pattern[1024];
+
+	/* If the IP type is not SDMA, return false */
+	if (ip_type != AMD_IP_DMA)
+		return false;
+
+	/* Construct the search pattern for the page queue files */
+	snprintf(search_pattern, sizeof(search_pattern) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_ring_page*",
+		pci->domain, pci->bus, pci->device, pci->function);
+
+	/* Use glob to find files matching the pattern */
+	ret = glob(search_pattern, GLOB_NOSORT, NULL, &glob_result);
+	/* Free the memory allocated by glob */
+	globfree(&glob_result);
+
+	/* Return true if files matching the pattern were found, otherwise return false */
+	return (ret == 0 && glob_result.gl_pathc > 0);
 }

@@ -179,15 +179,18 @@ void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int 
 	FILE *fp;
 	char cmd[1024];
 	char buffer[128];
-	long sched_mask = 0;
+	uint64_t sched_mask = 0, ring_id;
 	struct drm_amdgpu_info_hw_ip info;
-	uint32_t ring_id, prio;
+	uint32_t  prio;
 	char sysfs[125];
+	bool support_page;
 
 	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
 	igt_assert_eq(r, 0);
 	if (!info.available_rings)
 		igt_info("SKIP ... as there's no ring for ip %d\n", ip_type);
+
+	support_page = is_support_page_queue(ip_type, pci);
 
 	if (ip_type == AMD_IP_GFX)
 		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
@@ -215,7 +218,7 @@ void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int 
 		igt_info("The scheduling ring only enables one for ip %d\n", ip_type);
 	}
 
-	for (ring_id = 0; (0x1 << ring_id) <= sched_mask; ring_id++) {
+	for (ring_id = 0; ((uint64_t)0x1 << ring_id) <= sched_mask; ring_id += 1) {
 		/* check sched is ready is on the ring. */
 		if (!((1 << ring_id) & sched_mask))
 			continue;
@@ -239,9 +242,20 @@ void amdgpu_wait_memory_helper(amdgpu_device_handle device_handle, unsigned int 
 		}
 
 		if (sched_mask > 1) {
-			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
-						0x1 << ring_id, sysfs);
-			igt_info("Disable other rings, keep only ring: %d enabled, cmd: %s\n", ring_id, cmd);
+			/* If page queues are supported, run with
+			 * multiple queues(sdma gfx queue + page queue)
+			 */
+			if (support_page) {
+				snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+							0x3 << ring_id, sysfs);
+				igt_info("Disable other rings, keep ring: %ld and %ld enabled, cmd: %s\n", ring_id, ring_id + 1, cmd);
+				ring_id++;
+
+			} else {
+				snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+							0x1 << ring_id, sysfs);
+				igt_info("Disable other rings, keep only ring: %ld enabled, cmd: %s\n", ring_id, cmd);
+			}
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}
@@ -411,16 +425,18 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 	FILE *fp;
 	char cmd[1024];
 	char buffer[128];
-	long sched_mask = 0;
+	uint64_t sched_mask = 0, ring_id;
 	struct drm_amdgpu_info_hw_ip info;
-	uint32_t ring_id, prio;
+	uint32_t prio;
 	char sysfs[125];
+	bool support_page;
 
 	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
 	igt_assert_eq(r, 0);
 	if (!info.available_rings)
 		igt_info("SKIP ... as there's no ring for ip %d\n", ip_type);
 
+	support_page = is_support_page_queue(ip_type, pci);
 	if (ip_type == AMD_IP_GFX)
 		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
 			pci->domain, pci->bus, pci->device, pci->function);
@@ -447,7 +463,7 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 		igt_info("The scheduling ring only enables one for ip %d\n", ip_type);
 	}
 
-	for (ring_id = 0; (0x1 << ring_id) <= sched_mask; ring_id++) {
+	for (ring_id = 0; ((uint64_t)0x1 << ring_id) <= sched_mask; ring_id++) {
 		/* check sched is ready is on the ring. */
 		if (!((1 << ring_id) & sched_mask))
 			continue;
@@ -471,9 +487,20 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 		}
 
 		if (sched_mask > 1) {
-			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+			/* If page queues are supported, run with
+			 * multiple queues(sdma gfx queue + page queue)
+			 */
+			if (support_page) {
+				snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+						0x3 << ring_id, sysfs);
+				igt_info("Disable other rings, keep ring: %ld and %ld enabled, cmd: %s\n", ring_id, ring_id + 1, cmd);
+				ring_id++;
+			} else {
+				snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
 						0x1 << ring_id, sysfs);
-			igt_info("Disable other rings, keep only ring: %d enabled, cmd: %s\n", ring_id, cmd);
+				igt_info("Disable other rings, keep only ring: %ld enabled, cmd: %s\n", ring_id, cmd);
+			}
+
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}
@@ -496,16 +523,17 @@ void amdgpu_hang_sdma_ring_helper(amdgpu_device_handle device_handle, uint8_t ha
 	FILE *fp;
 	char cmd[1024];
 	char buffer[128];
-	long sched_mask = 0;
+	uint64_t sched_mask = 0, ring_id;
 	struct drm_amdgpu_info_hw_ip info;
-	uint32_t ring_id;
 	char sysfs[125];
+	bool support_page;
 
 	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_DMA, 0, &info);
 	igt_assert_eq(r, 0);
 	if (!info.available_rings)
 		igt_info("SKIP ... as there's no ring for the sdma\n");
 
+	support_page = is_support_page_queue(AMDGPU_HW_IP_DMA, pci);
 	snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
 			pci->domain, pci->bus, pci->device, pci->function);
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
@@ -522,14 +550,26 @@ void amdgpu_hang_sdma_ring_helper(amdgpu_device_handle device_handle, uint8_t ha
 	} else
 		sched_mask = 1;
 
-	for (ring_id = 0; (0x1 << ring_id) <= sched_mask; ring_id++) {
+	for (ring_id = 0; ((uint64_t)0x1 << ring_id) <= sched_mask; ring_id++) {
 		/* check sched is ready is on the ring. */
 		if (!((1 << ring_id) & sched_mask))
 			continue;
 
 		if (sched_mask > 1) {
-			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+			/* If page queues are supported, run with
+			 * multiple queues(sdma gfx queue + page queue)
+			 */
+			if (support_page) {
+				snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
+						0x3 << ring_id, sysfs);
+				igt_info("Disable other rings, keep ring: %ld and %ld enabled, cmd: %s\n", ring_id, ring_id + 1, cmd);
+				ring_id++;
+			} else {
+				snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s",
 						0x1 << ring_id, sysfs);
+				igt_info("Disable other rings, keep only ring: %ld enabled, cmd: %s\n", ring_id, cmd);
+			}
+
 			r = system(cmd);
 			igt_assert_eq(r, 0);
 		}

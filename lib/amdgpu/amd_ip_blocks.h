@@ -237,4 +237,7 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struc
 
 int
 get_pci_addr_from_fd(int fd, struct pci_addr *pci);
+
+bool
+is_support_page_queue(enum amd_ip_block_type ip_type, const struct pci_addr *pci);
 #endif
