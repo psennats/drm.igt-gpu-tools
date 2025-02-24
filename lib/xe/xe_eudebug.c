@@ -1450,12 +1450,16 @@ void xe_eudebug_client_stop(struct xe_eudebug_client *c)
 {
 	if (c->pid) {
 		int waitstatus;
+		int ret;
 
 		xe_eudebug_client_wait_done(c);
 
 		token_signal(c->p_in, CLIENT_STOP, c->pid);
-		igt_assert_eq(waitpid(c->pid, &waitstatus, 0),
-			      c->pid);
+		ret = waitpid(c->pid, &waitstatus, 0);
+		/* process may be gone already */
+		if (!(ret == -1 && errno == ECHILD))
+			igt_assert_eq(ret, c->pid);
+
 		c->pid = 0;
 	}
 }
