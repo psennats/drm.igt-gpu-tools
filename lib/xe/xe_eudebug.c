@@ -1050,6 +1050,11 @@ xe_eudebug_read_event(int fd, struct drm_xe_eudebug_event *event)
 	return ret;
 }
 
+static void terminate_debugger(int sig)
+{
+	pthread_exit(NULL);
+}
+
 static void *debugger_worker_loop(void *data)
 {
 	uint8_t buf[MAX_EVENT_SIZE];
@@ -1060,8 +1065,13 @@ static void *debugger_worker_loop(void *data)
 		.revents = 0,
 	};
 	int timeout_ms = 100, ret;
+	struct sigaction sa = { 0 };
 
 	igt_assert(d->master_fd >= 0);
+
+	igt_assert_eq(sigaction(SIGINT, NULL, &sa), 0);
+	sa.sa_handler = terminate_debugger;
+	igt_assert_eq(sigaction(SIGINT, &sa, NULL), 0);
 
 	do {
 		p.fd = d->fd;
