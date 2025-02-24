@@ -1510,6 +1510,98 @@ static void test_set_breakpoint_online(int fd, struct drm_xe_engine_class_instan
 }
 
 /**
+ * SUBTEST: set-breakpoint-sigint-debugger
+ * Description:
+ *	A variant of set-breakpoint that sends SIGINT to the debugger thread with random timing
+ *	and checks if nothing breaks, exercising the scenario multiple times.
+ */
+static void test_set_breakpoint_online_sigint_debugger(int fd,
+						       struct drm_xe_engine_class_instance *hwe,
+						       int flags)
+{
+	struct xe_eudebug_session *s;
+	struct online_debug_data *data;
+	struct timespec ts = { };
+	int loop_count = 0;
+	uint64_t sleep_time;
+	uint64_t set_breakpoint_time;
+	uint64_t max_sleep_time;
+	uint64_t events_max = 0;
+	int sigints_during_test = 0;
+
+	/*
+	 * Measure the average time required for basic set-breakpoint variant,
+	 * so sleep_time range is correct.
+	 */
+	igt_nsec_elapsed(&ts);
+	for (int i = 0; i < 10; i++)
+		test_set_breakpoint_online(fd, hwe, SHADER_NOP | TRIGGER_UFENCE_SET_BREAKPOINT);
+	set_breakpoint_time = igt_nsec_elapsed(&ts) / (NSEC_PER_MSEC / USEC_PER_MSEC) / 10;
+	igt_info("Average set-breakpoint execution time: %" PRIu64 " us\n", set_breakpoint_time);
+	max_sleep_time = set_breakpoint_time * 11 / 10;
+	igt_info("Maximum sleep_time: %" PRIu64 " us\n", max_sleep_time);
+
+	ts = (struct timespec) { };
+	igt_nsec_elapsed(&ts);
+
+	while (igt_seconds_elapsed(&ts) < 60) {
+		uint64_t event_count;
+
+		sleep_time = rand() % max_sleep_time;
+		igt_debug("Loop %d: SIGINT after %" PRIu64 " us\n", loop_count, sleep_time);
+
+		data = online_debug_data_create(hwe);
+		s = xe_eudebug_session_create(fd, run_online_client, flags, data);
+		xe_eudebug_debugger_add_trigger(s->debugger, DRM_XE_EUDEBUG_EVENT_OPEN,
+						open_trigger);
+		xe_eudebug_debugger_add_trigger(s->debugger, DRM_XE_EUDEBUG_EVENT_EXEC_QUEUE,
+						exec_queue_trigger);
+		xe_eudebug_debugger_add_trigger(s->debugger, DRM_XE_EUDEBUG_EVENT_VM,
+						vm_open_trigger);
+		xe_eudebug_debugger_add_trigger(s->debugger, DRM_XE_EUDEBUG_EVENT_METADATA,
+						create_metadata_trigger);
+		xe_eudebug_debugger_add_trigger(s->debugger, DRM_XE_EUDEBUG_EVENT_VM_BIND_UFENCE,
+						ufence_ack_set_bp_trigger);
+		xe_eudebug_debugger_add_trigger(s->debugger, DRM_XE_EUDEBUG_EVENT_EU_ATTENTION,
+						eu_attention_resume_trigger);
+
+		igt_assert_eq(xe_eudebug_debugger_attach(s->debugger, s->client), 0);
+		xe_eudebug_debugger_start_worker(s->debugger);
+		igt_assert_eq(READ_ONCE(s->debugger->event_count), 0);
+		xe_eudebug_client_start(s->client);
+
+		/* Sample max events without SIGINT */
+		if (!loop_count++)
+			xe_eudebug_client_wait_done(s->client);
+		else
+			usleep(sleep_time);
+
+		event_count = READ_ONCE(s->debugger->event_count);
+		if (event_count > events_max)
+			events_max = event_count;
+		else if (event_count > 0 && event_count < events_max)
+			sigints_during_test++;
+
+		igt_assert_eq(pthread_kill(s->debugger->worker_thread, SIGINT), 0);
+		close(s->debugger->fd);
+
+		igt_assert_eq(READ_ONCE(s->debugger->worker_state), DEBUGGER_WORKER_ACTIVE);
+		WRITE_ONCE(s->debugger->worker_state, DEBUGGER_WORKER_INACTIVE);
+
+		xe_eudebug_client_wait_done(s->client);
+
+		xe_eudebug_event_log_print(s->debugger->log, true);
+		xe_eudebug_event_log_print(s->client->log, true);
+
+		xe_eudebug_session_destroy(s);
+		online_debug_data_destroy(data);
+	}
+
+	igt_info("%d correctly timed SIGINTs in %d loops\n", sigints_during_test, loop_count);
+	igt_assert_lt(0, sigints_during_test);
+}
+
+/**
  * SUBTEST: pagefault-read
  * Description:
  *     Check whether KMD sends pagefault event for workload in debug mode that
@@ -2428,6 +2520,10 @@ igt_main
 
 	test_gt_render_or_compute("set-breakpoint", fd, hwe)
 		test_set_breakpoint_online(fd, hwe, SHADER_NOP | TRIGGER_UFENCE_SET_BREAKPOINT);
+
+	test_gt_render_or_compute("set-breakpoint-sigint-debugger", fd, hwe)
+		test_set_breakpoint_online_sigint_debugger(fd, hwe,
+							   SHADER_NOP | TRIGGER_UFENCE_SET_BREAKPOINT);
 
 	test_gt_render_or_compute("breakpoint-not-in-debug-mode", fd, hwe)
 		test_basic_online(fd, hwe, SHADER_BREAKPOINT | DISABLE_DEBUG_MODE);
