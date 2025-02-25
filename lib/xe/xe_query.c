@@ -9,6 +9,15 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#ifdef HAVE_VALGRIND
+#include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
+
+#define VG(x) x
+#else
+#define VG(x) do {} while (0)
+#endif
+
 #include "drmtest.h"
 #include "ioctl_wrappers.h"
 #include "igt_map.h"
@@ -33,6 +42,8 @@ static struct drm_xe_query_config *xe_query_config_new(int fd)
 
 	query.data = to_user_pointer(config);
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(config, query.size));
 
 	igt_assert(config->num_params > 0);
 
@@ -62,6 +73,8 @@ static uint32_t *xe_query_hwconfig_new(int fd, uint32_t *hwconfig_size)
 	/* Perform the query to get the actual data */
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 
+	VG(VALGRIND_MAKE_MEM_DEFINED(hwconfig, query.size));
+
 	*hwconfig_size = query.size;
 	return hwconfig;
 }
@@ -83,6 +96,8 @@ static struct drm_xe_query_gt_list *xe_query_gt_list_new(int fd)
 
 	query.data = to_user_pointer(gt_list);
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(gt_list, query.size));
 
 	return gt_list;
 }
@@ -117,6 +132,8 @@ static struct drm_xe_query_engines *xe_query_engines(int fd)
 	query.data = to_user_pointer(engines);
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 
+	VG(VALGRIND_MAKE_MEM_DEFINED(engines, query.size));
+
 	return engines;
 }
 
@@ -137,6 +154,8 @@ static struct drm_xe_query_mem_regions *xe_query_mem_regions_new(int fd)
 
 	query.data = to_user_pointer(mem_regions);
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(mem_regions, query.size));
 
 	return mem_regions;
 }
@@ -160,6 +179,8 @@ static struct drm_xe_query_oa_units *xe_query_oa_units_new(int fd)
 
 	query.data = to_user_pointer(oa_units);
 	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(oa_units, query.size));
 
 	return oa_units;
 }
