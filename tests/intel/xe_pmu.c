@@ -21,6 +21,10 @@
 #include "xe/xe_spin.h"
 
 #define SLEEP_DURATION 2 /* in seconds */
+/* flag masks */
+#define TEST_LOAD		BIT(0)
+#define TEST_TRAILING_IDLE	BIT(1)
+
 const double tolerance = 0.1;
 
 #define test_each_engine(test, fd, hwe) \
@@ -122,11 +126,17 @@ static uint64_t get_event_config(int xe, unsigned int gt, struct drm_xe_engine_c
 }
 
 /**
+ * SUBTEST: engine-activity-idle
+ * Description: Test to validate engine activity shows no load when idle
+ *
+ * SUBTEST: engine-activity-load-idle
+ * Description: Test to validate engine activity with full load followed by trailing idle
+ *
  * SUBTEST: engine-activity-load
  * Description: Test to validate engine activity stats by running a workload and
  *              reading engine active ticks and engine total ticks PMU counters
  */
-static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci)
+static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 {
 	uint64_t config, engine_active_ticks, engine_total_ticks, before[2], after[2];
 	struct xe_cork *cork = NULL;
@@ -140,14 +150,20 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci)
 	pmu_fd[1] = open_group(fd, config, pmu_fd[0]);
 
 	vm = xe_vm_create(fd, 0, 0);
-	cork = xe_cork_create_opts(fd, eci, vm, 1, 1);
-	xe_cork_sync_start(fd, cork);
+
+	if (flags & TEST_LOAD) {
+		cork = xe_cork_create_opts(fd, eci, vm, 1, 1);
+		xe_cork_sync_start(fd, cork);
+	}
 
 	pmu_read_multi(pmu_fd[0], 2, before);
 	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	if (flags & TEST_TRAILING_IDLE)
+		xe_cork_sync_end(fd, cork);
 	pmu_read_multi(pmu_fd[0], 2, after);
 
-	xe_cork_sync_end(fd, cork);
+	if ((flags & TEST_LOAD) && !cork->ended)
+		xe_cork_sync_end(fd, cork);
 
 	engine_active_ticks = after[0] - before[0];
 	engine_total_ticks = after[1] - before[1];
@@ -165,7 +181,10 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci)
 	close(pmu_fd[0]);
 	close(pmu_fd[1]);
 
-	assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
+	if (flags & TEST_LOAD)
+		assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
+	else
+		igt_assert(!engine_active_ticks);
 }
 
 /**
@@ -222,9 +241,17 @@ igt_main
 			test_gt_c6_idle(fd, gt);
 	}
 
+	igt_describe("Validate there is no engine activity when idle");
+	test_each_engine("engine-activity-idle", fd, eci)
+		engine_activity(fd, eci, 0);
+
+	igt_describe("Validate engine activity with load and trailing idle");
+	test_each_engine("engine-activity-load-idle", fd, eci)
+		engine_activity(fd, eci, TEST_LOAD | TEST_TRAILING_IDLE);
+
 	igt_describe("Validate engine activity with workload");
 	test_each_engine("engine-activity-load", fd, eci)
-		engine_activity(fd, eci);
+		engine_activity(fd, eci, TEST_LOAD);
 
 	igt_fixture {
 		close(fd);
