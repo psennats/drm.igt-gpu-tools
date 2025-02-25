@@ -197,14 +197,12 @@ int
 syncobj_wait_err(int fd, uint32_t *handles, uint32_t count,
 		 uint64_t abs_timeout_nsec, uint32_t flags)
 {
-	struct drm_syncobj_wait wait;
+	struct drm_syncobj_wait wait = { };
 
 	wait.handles = to_user_pointer(handles);
 	wait.timeout_nsec = abs_timeout_nsec;
 	wait.count_handles = count;
 	wait.flags = flags;
-	wait.first_signaled = 0;
-	wait.pad = 0;
 
 	return __syncobj_wait(fd, &wait);
 }
@@ -227,15 +225,13 @@ syncobj_wait(int fd, uint32_t *handles, uint32_t count,
 	     uint64_t abs_timeout_nsec, uint32_t flags,
 	     uint32_t *first_signaled)
 {
-	struct drm_syncobj_wait wait;
+	struct drm_syncobj_wait wait = { };
 	int ret;
 
 	wait.handles = to_user_pointer(handles);
 	wait.timeout_nsec = abs_timeout_nsec;
 	wait.count_handles = count;
 	wait.flags = flags;
-	wait.first_signaled = 0;
-	wait.pad = 0;
 
 	ret = __syncobj_wait(fd, &wait);
 	if (ret == -ETIME)
@@ -356,7 +352,7 @@ __syncobj_timeline_wait(int fd, uint32_t *handles, uint64_t *points,
 			int64_t timeout_nsec, unsigned flags,
 			uint32_t *first_signaled)
 {
-	struct drm_syncobj_timeline_wait args;
+	struct drm_syncobj_timeline_wait args = { };
 	int ret;
 
 	args.handles = to_user_pointer(handles);
@@ -364,8 +360,6 @@ __syncobj_timeline_wait(int fd, uint32_t *handles, uint64_t *points,
 	args.timeout_nsec = timeout_nsec;
 	args.count_handles = num_handles;
 	args.flags = flags;
-	args.first_signaled = 0;
-	args.pad = 0;
 
 	ret = igt_ioctl(fd, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &args);
 	if (ret < 0) {
@@ -424,13 +418,12 @@ static int
 __syncobj_timeline_query(int fd, uint32_t *handles, uint64_t *points,
 			 uint32_t handle_count)
 {
-	struct drm_syncobj_timeline_array args;
+	struct drm_syncobj_timeline_array args = { };
 	int ret;
 
 	args.handles = to_user_pointer(handles);
 	args.points = to_user_pointer(points);
 	args.count_handles = handle_count;
-	args.flags = 0;
 
 	ret = igt_ioctl(fd, DRM_IOCTL_SYNCOBJ_QUERY, &args);
 	if (ret) {
@@ -464,7 +457,7 @@ __syncobj_transfer(int fd,
 		   uint32_t handle_src, uint64_t point_src,
 		   uint32_t flags)
 {
-	struct drm_syncobj_transfer args;
+	struct drm_syncobj_transfer args = { };
 	int ret;
 
 	args.src_handle = handle_src;
@@ -472,7 +465,6 @@ __syncobj_transfer(int fd,
 	args.src_point = point_src;
 	args.dst_point = point_dst;
 	args.flags = flags;
-	args.pad = 0;
 	ret = igt_ioctl(fd, DRM_IOCTL_SYNCOBJ_TRANSFER, &args);
 	if (ret) {
 		ret = -errno;
@@ -548,14 +540,13 @@ int
 __syncobj_eventfd(int fd, uint32_t handle, uint64_t point, uint32_t flags,
 		  int ev_fd)
 {
-	struct drm_syncobj_eventfd args;
+	struct drm_syncobj_eventfd args = { };
 	int ret;
 
 	args.handle = handle;
 	args.flags = flags;
 	args.point = point;
 	args.fd = ev_fd;
-	args.pad = 0;
 
 	ret = igt_ioctl(fd, DRM_IOCTL_SYNCOBJ_EVENTFD, &args);
 	if (ret) {
