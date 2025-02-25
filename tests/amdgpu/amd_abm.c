@@ -36,6 +36,7 @@
 #define DEBUGFS_TARGET_BACKLIGHT_PWM "amdgpu_target_backlight_pwm"
 #define BACKLIGHT_PATH "/sys/class/backlight/amdgpu_bl0"
 #define PANEL_POWER_SAVINGS_PATH "/sys/class/drm/card0-%s/amdgpu/panel_power_savings"
+#define MK_COLOR(r, g, b)	((0 << 24) | (r << 16) | (g << 8) | b)
 
 typedef struct data {
 	igt_display_t display;
@@ -47,9 +48,66 @@ typedef struct data {
 	enum pipe pipe_id;
 	int w, h;
 	igt_fb_t ref_fb;
+	igt_fb_t ref_fb2;
+	uint32_t *fb_mem;
 } data_t;
 
 static void set_abm_level(data_t *data, igt_output_t *output, int level);
+
+static void fbmem_draw_smpte_pattern(uint32_t *fbmem, int width, int height)
+{
+	uint32_t x, y;
+	uint32_t colors_top[] = {
+		MK_COLOR(192, 192, 192), /* grey */
+		MK_COLOR(192, 192, 0),   /* yellow */
+		MK_COLOR(0, 192, 192),   /* cyan */
+		MK_COLOR(0, 192, 0),     /* green */
+		MK_COLOR(192, 0, 192),   /* magenta */
+		MK_COLOR(192, 0, 0),     /* red */
+		MK_COLOR(0, 0, 192),     /* blue */
+	};
+	uint32_t colors_middle[] = {
+		MK_COLOR(0, 0, 192),     /* blue */
+		MK_COLOR(19, 19, 19),    /* black */
+		MK_COLOR(192, 0, 192),   /* magenta */
+		MK_COLOR(19, 19, 19),    /* black */
+		MK_COLOR(0, 192, 192),   /* cyan */
+		MK_COLOR(19, 19, 19),    /* black */
+		MK_COLOR(192, 192, 192), /* grey */
+	};
+	uint32_t colors_bottom[] = {
+		MK_COLOR(0, 33, 76),     /* in-phase */
+		MK_COLOR(255, 255, 255), /* super white */
+		MK_COLOR(50, 0, 106),    /* quadrature */
+		MK_COLOR(19, 19, 19),    /* black */
+		MK_COLOR(9, 9, 9),       /* 3.5% */
+		MK_COLOR(19, 19, 19),    /* 7.5% */
+		MK_COLOR(29, 29, 29),    /* 11.5% */
+		MK_COLOR(19, 19, 19),    /* black */
+	};
+
+	for (y = 0; y < height * 6 / 9; ++y) {
+		for (x = 0; x < width; ++x)
+			fbmem[x] = colors_top[x * 7 / width];
+		fbmem += width;
+	}
+
+	for (; y < height * 7 / 9; ++y) {
+		for (x = 0; x < width; ++x)
+			fbmem[x] = colors_middle[x * 7 / width];
+		fbmem += width;
+	}
+
+	for (; y < height; ++y) {
+		for (x = 0; x < width * 5 / 7; ++x)
+			fbmem[x] = colors_bottom[x * 4 / (width * 5 / 7)];
+		for (; x < width * 6 / 7; ++x)
+			fbmem[x] = colors_bottom[(x - width * 5 / 7) * 3 / (width / 7) + 4];
+		for (; x < width; ++x)
+			fbmem[x] = colors_bottom[7];
+		fbmem += width;
+	}
+}
 
 /* Common test setup. */
 static void test_init(data_t *data)
@@ -57,7 +115,7 @@ static void test_init(data_t *data)
 	igt_display_t *display = &data->display;
 	drmModeConnectorPtr conn;
 	bool has_edp = false;
-	int i;
+	int i, fb_id;
 
 	/* Skip test if no eDP connected. */
 	for (i = 0; i < display->n_outputs; i++) {
@@ -94,9 +152,16 @@ static void test_init(data_t *data)
 	data->h = data->mode->vdisplay;
 
 	data->ref_fb.fb_id = 0;
+	data->ref_fb2.fb_id = 0;
 
+	fb_id = igt_create_fb(data->drm_fd, data->mode->hdisplay, data->mode->vdisplay,
+		DRM_FORMAT_XRGB8888, DRM_FORMAT_MOD_LINEAR, &data->ref_fb);
+	igt_assert(fb_id);
+
+	data->fb_mem = igt_fb_map_buffer(data->drm_fd, &data->ref_fb);
+	fbmem_draw_smpte_pattern(data->fb_mem, data->w, data->h);
 	igt_create_color_fb(data->drm_fd, data->mode->hdisplay,
-		data->mode->vdisplay, DRM_FORMAT_XRGB8888, 0, 0.0, 0.6, 0.6, &data->ref_fb);
+		data->mode->vdisplay, DRM_FORMAT_XRGB8888, 0, 0.05, 0.05, 0.05, &data->ref_fb2);
 }
 
 /* Common test cleanup. */
@@ -116,8 +181,11 @@ static void test_fini(data_t *data)
 	igt_display_reset(display);
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, 0);
 
+	igt_fb_unmap_buffer(&data->ref_fb, data->fb_mem);
 	if (data->ref_fb.fb_id)
 		igt_remove_fb(data->drm_fd, &data->ref_fb);
+	if (data->ref_fb2.fb_id)
+		igt_remove_fb(data->drm_fd, &data->ref_fb2);
 }
 
 
@@ -226,6 +294,29 @@ static int backlight_read_max_brightness(int *result)
 	errno = 0;
 	*result = strtol(dst, NULL, 10);
 	return errno;
+}
+
+static void page_flip(data_t *data, igt_output_t *output, uint32_t frame_num)
+{
+	int i, ret, frame_count;
+	igt_fb_t *flip_fb;
+
+	if (!data || data->ref_fb.fb_id == 0 || data->ref_fb2.fb_id == 0)
+		igt_skip("Page flip failed.\n");
+
+	for (i = 0; i < 2; i++) {
+		if (i % 2 == 0)
+			flip_fb = &data->ref_fb2;
+		else
+			flip_fb = &data->ref_fb;
+
+		for (frame_count = 0; frame_count <= frame_num; frame_count++) {
+			ret = drmModePageFlip(data->drm_fd, output->config.crtc->crtc_id,
+					flip_fb->fb_id, DRM_MODE_PAGE_FLIP_EVENT, NULL);
+			igt_require(ret == 0);
+			kmstest_wait_for_pageflip(data->drm_fd);
+		}
+	}
 }
 
 static void backlight_dpms_cycle(data_t *data)
@@ -343,7 +434,7 @@ static void abm_enabled(data_t *data)
 		igt_assert_eq(ret, 0);
 
 		set_abm_level(data, output, 0);
-		backlight_write_brightness(max_brightness);
+		backlight_write_brightness(max_brightness-max_brightness/10);
 		usleep(100000);
 		prev_pwm = read_target_backlight_pwm(data->drm_fd, output->name);
 		pwm_without_abm = prev_pwm;
@@ -351,6 +442,7 @@ static void abm_enabled(data_t *data)
 		for (i = 1; i < 5; i++) {
 			set_abm_level(data, output, i);
 			usleep(100000);
+			page_flip(data, output, 10);
 			pwm = read_target_backlight_pwm(data->drm_fd, output->name);
 			igt_assert(pwm <= prev_pwm);
 			igt_assert(pwm < pwm_without_abm);
@@ -377,7 +469,7 @@ static void abm_gradual(data_t *data)
 		igt_assert_eq(ret, 0);
 
 		set_abm_level(data, output, 0);
-		backlight_write_brightness(max_brightness);
+		backlight_write_brightness(max_brightness-max_brightness/10);
 
 		sleep(convergence_delay);
 		prev_pwm = read_target_backlight_pwm(data->drm_fd, output->name);
@@ -387,6 +479,7 @@ static void abm_gradual(data_t *data)
 		set_abm_level(data, output, 4);
 		for (i = 0; i < 10; i++) {
 			usleep(100000);
+			page_flip(data, output, 10);
 			pwm = read_current_backlight_pwm(data->drm_fd, output->name);
 			if (pwm == prev_pwm)
 				break;
