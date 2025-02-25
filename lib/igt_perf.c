@@ -93,18 +93,19 @@ const char *xe_perf_device(int xe, char *buf, int buflen)
 }
 
 /**
- * perf_event_format: Returns the start/end positions of an event format param
+ * perf_event_format: Returns the shift for format param
  * @device: PMU device
- * @param: Parameter for which you need the format start/end bits
+ * @param: Parameter for which you need the format
+ * @shift: bit shift
  *
  * Returns: 0 on success or negative error code
  */
-int perf_event_format(const char *device, const char *param, uint32_t *start, uint32_t *end)
+int perf_event_format(const char *device, const char *param, uint32_t *shift)
 {
 	char buf[NAME_MAX];
 	ssize_t bytes;
-	int ret;
-	int fd;
+	uint32_t end;
+	int ret, fd;
 
 	snprintf(buf, sizeof(buf),
 		 "/sys/bus/event_source/devices/%s/format/%s",
@@ -120,7 +121,7 @@ int perf_event_format(const char *device, const char *param, uint32_t *start, ui
 		return -EINVAL;
 
 	buf[bytes] = '\0';
-	ret = sscanf(buf, "config:%u-%u", start, end);
+	ret = sscanf(buf, "config:%u-%u", shift, &end);
 	if (ret != 2)
 		return -EINVAL;
 
@@ -148,12 +149,12 @@ int perf_event_config(const char *device, const char *event, uint64_t *config)
 
 	fd = open(buf, O_RDONLY);
 	if (fd < 0)
-		return -EINVAL;
+		return -errno;
 
 	bytes = read(fd, buf, sizeof(buf) - 1);
 	close(fd);
 	if (bytes < 1)
-		return ret;
+		return -EINVAL;
 
 	buf[bytes] = '\0';
 	ret = sscanf(buf, "event=0x%lx", config);

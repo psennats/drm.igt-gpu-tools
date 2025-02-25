@@ -70,14 +70,14 @@ static uint64_t get_event_config(int xe, unsigned int gt, char *event)
 	int ret;
 	char xe_device[100];
 	uint64_t pmu_config;
-	u32 start, end;
+	uint32_t shift;
 
 	xe_perf_device(xe, xe_device, sizeof(xe_device));
 	ret = perf_event_config(xe_device, event, &pmu_config);
 	igt_assert(ret >= 0);
-	ret = perf_event_format(xe_device, "gt", &start, &end);
+	ret = perf_event_format(xe_device, "gt", &shift);
 	igt_assert(ret >= 0);
-	pmu_config |= (uint64_t) gt << start;
+	pmu_config |= (uint64_t)gt << shift;
 
 	return pmu_config;
 }
