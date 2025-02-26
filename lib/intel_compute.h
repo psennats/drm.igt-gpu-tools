@@ -53,6 +53,8 @@ struct user_execenv {
 	const unsigned char *kernel;
 	/** @kernel_size: size of the custom kernel, if provided */
 	unsigned int kernel_size;
+	/** @skip_results_check: do not verify correctness of the results if true */
+	bool skip_results_check;
 };
 
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
