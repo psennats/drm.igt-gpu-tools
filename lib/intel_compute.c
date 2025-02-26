@@ -77,10 +77,13 @@ struct bo_execenv {
 	/* i915 part */
 	struct drm_i915_gem_execbuffer2 execbuf;
 	struct drm_i915_gem_exec_object2 *obj;
+
+	struct user_execenv *user;
 };
 
 static void bo_execenv_create(int fd, struct bo_execenv *execenv,
-			      struct drm_xe_engine_class_instance *eci)
+			      struct drm_xe_engine_class_instance *eci,
+			      struct user_execenv *user)
 {
 	igt_assert(execenv);
 
@@ -89,7 +92,13 @@ static void bo_execenv_create(int fd, struct bo_execenv *execenv,
 	execenv->driver = get_intel_driver(fd);
 
 	if (execenv->driver == INTEL_DRIVER_XE) {
-		execenv->vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
+		if (user)
+			execenv->user = user;
+
+		if (user && user->vm)
+			execenv->vm = user->vm;
+		else
+			execenv->vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
 
 		if (eci) {
 			execenv->exec_queue = xe_exec_queue_create(fd, execenv->vm,
@@ -116,7 +125,8 @@ static void bo_execenv_destroy(struct bo_execenv *execenv)
 
 	if (execenv->driver == INTEL_DRIVER_XE) {
 		xe_exec_queue_destroy(execenv->fd, execenv->exec_queue);
-		xe_vm_destroy(execenv->fd, execenv->vm);
+		if (!execenv->user || !execenv->user->vm)
+			xe_vm_destroy(execenv->fd, execenv->vm);
 	}
 }
 
@@ -666,10 +676,12 @@ static void dg1_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
  * @kernel: GPU Kernel binary to be executed
  * @size: size of @kernel.
  * @eci: Xe engine class instance if device is Xe
+ * @user: user-provided execution environment
  */
 static void compute_exec(int fd, const unsigned char *kernel,
 			 unsigned int size,
-			 struct drm_xe_engine_class_instance *eci)
+			 struct drm_xe_engine_class_instance *eci,
+			 struct user_execenv *user)
 {
 #define BO_DICT_ENTRIES 7
 	struct bo_dict_entry bo_dict[BO_DICT_ENTRIES] = {
@@ -698,7 +710,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 	float *input_data, *output_data;
 	uint16_t devid = intel_get_drm_devid(fd);
 
-	bo_execenv_create(fd, &execenv, eci);
+	bo_execenv_create(fd, &execenv, eci, user);
 
 	/* Sets Kernel size */
 	bo_dict[0].size = ALIGN(size, 0x1000);
@@ -948,10 +960,12 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
  * @kernel: GPU Kernel binary to be executed
  * @size: size of @kernel.
  * @eci: Xe engine class instance if device is Xe
+ * @user: user-provided execution environment
  */
 static void xehp_compute_exec(int fd, const unsigned char *kernel,
 			      unsigned int size,
-			      struct drm_xe_engine_class_instance *eci)
+			      struct drm_xe_engine_class_instance *eci,
+			      struct user_execenv *user)
 {
 #define XEHP_BO_DICT_ENTRIES 9
 	struct bo_dict_entry bo_dict[XEHP_BO_DICT_ENTRIES] = {
@@ -981,7 +995,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
 
-	bo_execenv_create(fd, &execenv, eci);
+	bo_execenv_create(fd, &execenv, eci, user);
 
 	/* Sets Kernel size */
 	bo_dict[0].size = ALIGN(size, xe_get_default_alignment(fd));
@@ -1168,10 +1182,12 @@ static void xehpc_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
  * @kernel: GPU Kernel binary to be executed
  * @size: size of @kernel.
  * @eci: Xe engine class instance if device is Xe
+ * @user: user-provided execution environment
  */
 static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 			       unsigned int size,
-			       struct drm_xe_engine_class_instance *eci)
+			       struct drm_xe_engine_class_instance *eci,
+			       struct user_execenv *user)
 {
 #define XEHPC_BO_DICT_ENTRIES 6
 	struct bo_dict_entry bo_dict[XEHPC_BO_DICT_ENTRIES] = {
@@ -1192,7 +1208,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
 
-	bo_execenv_create(fd, &execenv, eci);
+	bo_execenv_create(fd, &execenv, eci, user);
 
 	/* Sets Kernel size */
 	bo_dict[0].size = ALIGN(size, xe_get_default_alignment(fd));
@@ -1517,10 +1533,12 @@ static void xe2_create_indirect_data_inc_kernel(uint32_t *addr_bo_buffer_batch,
  * @kernel: GPU Kernel binary to be executed
  * @size: size of @kernel.
  * @eci: xelpg engine class instance if device is MTL
+ * @user: user-provided execution environment
  */
 static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 				unsigned int size,
-				struct drm_xe_engine_class_instance *eci)
+			       struct drm_xe_engine_class_instance *eci,
+			       struct user_execenv *user)
 {
 #define XELPG_BO_DICT_ENTRIES 9
 	struct bo_dict_entry bo_dict[XELPG_BO_DICT_ENTRIES] = {
@@ -1552,7 +1570,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
 
-	bo_execenv_create(fd, &execenv, eci);
+	bo_execenv_create(fd, &execenv, eci, user);
 
 	/* Sets Kernel size */
 	bo_dict[0].size = ALIGN(size, 0x1000);
@@ -1604,10 +1622,12 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
  * @fd: file descriptor of the opened DRM device
  * @kernel: GPU Kernel binary to be executed
  * @size: size of @kernel.
+ * @user: user-provided execution environment
  */
 static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 				unsigned int size,
-				struct drm_xe_engine_class_instance *eci)
+				struct drm_xe_engine_class_instance *eci,
+				struct user_execenv *user)
 {
 #define XE2_BO_DICT_ENTRIES 10
 	struct bo_dict_entry bo_dict[XE2_BO_DICT_ENTRIES] = {
@@ -1642,7 +1662,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
 
-	bo_execenv_create(fd, &execenv, eci);
+	bo_execenv_create(fd, &execenv, eci, user);
 
 	/* Sets Kernel size */
 	bo_dict[0].size = ALIGN(size, 0x1000);
@@ -1704,7 +1724,8 @@ static const struct {
 	unsigned int ip_ver;
 	void (*compute_exec)(int fd, const unsigned char *kernel,
 			     unsigned int size,
-			     struct drm_xe_engine_class_instance *eci);
+			     struct drm_xe_engine_class_instance *eci,
+			     struct user_execenv *user);
 	uint32_t compat;
 } intel_compute_batches[] = {
 	{
@@ -1750,7 +1771,8 @@ static const struct {
 };
 
 static bool __run_intel_compute_kernel(int fd,
-				       struct drm_xe_engine_class_instance *eci)
+				       struct drm_xe_engine_class_instance *eci,
+				       struct user_execenv *user)
 {
 	unsigned int ip_ver = intel_graphics_ver(intel_get_drm_devid(fd));
 	unsigned int batch;
@@ -1782,14 +1804,14 @@ static bool __run_intel_compute_kernel(int fd,
 		return false;
 
 	intel_compute_batches[batch].compute_exec(fd, kernels->kernel,
-						  kernels->size, eci);
+						  kernels->size, eci, user);
 
 	return true;
 }
 
-bool run_intel_compute_kernel(int fd)
+bool run_intel_compute_kernel(int fd, struct user_execenv *user)
 {
-	return __run_intel_compute_kernel(fd, NULL);
+	return __run_intel_compute_kernel(fd, NULL, user);
 }
 
 /**
@@ -1798,11 +1820,13 @@ bool run_intel_compute_kernel(int fd)
  *
  * @fd: file descriptor of the opened DRM Xe device
  * @eci: Xe engine class instance
+ * @user: user-provided execution environment
  *
  * Returns true on success, false otherwise.
  */
 bool xe_run_intel_compute_kernel_on_engine(int fd,
-					   struct drm_xe_engine_class_instance *eci)
+					   struct drm_xe_engine_class_instance *eci,
+					   struct user_execenv *user)
 {
 	if (!is_xe_device(fd)) {
 		igt_debug("Xe device expected\n");
@@ -1821,7 +1845,7 @@ bool xe_run_intel_compute_kernel_on_engine(int fd,
 		return false;
 	}
 
-	return __run_intel_compute_kernel(fd, eci);
+	return __run_intel_compute_kernel(fd, eci, user);
 }
 
 /**
@@ -1907,8 +1931,8 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	for (int i = 0; i < XE2_BO_PREEMPT_DICT_ENTRIES; ++i)
 		bo_dict_short[i] = bo_dict_long[i];
 
-	bo_execenv_create(fd, &execenv_short, eci);
-	bo_execenv_create(fd, &execenv_long, eci);
+	bo_execenv_create(fd, &execenv_short, eci, NULL);
+	bo_execenv_create(fd, &execenv_long, eci, NULL);
 
 	/* Prepare sync object for long */
 	bo_size_long = xe_bb_size(fd, bo_size_long);

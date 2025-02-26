@@ -27,7 +27,7 @@
 static void
 test_compute_square(int fd)
 {
-	igt_require_f(run_intel_compute_kernel(fd), "GPU not supported\n");
+	igt_require_f(run_intel_compute_kernel(fd, NULL), "GPU not supported\n");
 }
 
 igt_main

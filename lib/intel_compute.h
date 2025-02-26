@@ -33,10 +33,19 @@ struct intel_compute_kernels {
 	const unsigned char *long_kernel;
 };
 
+/**
+ * struct user_execenv - Container of the user-provided execution environment
+ */
+struct user_execenv {
+	/** @vm: use this VM if provided, otherwise create one */
+	uint32_t vm;
+};
+
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
 
-bool run_intel_compute_kernel(int fd);
-bool xe_run_intel_compute_kernel_on_engine(int fd, struct drm_xe_engine_class_instance *eci);
+bool run_intel_compute_kernel(int fd, struct user_execenv *user);
+bool xe_run_intel_compute_kernel_on_engine(int fd, struct drm_xe_engine_class_instance *eci,
+					   struct user_execenv *user);
 bool run_intel_compute_kernel_preempt(int fd, struct drm_xe_engine_class_instance *eci,
 				      bool threadgroup_preemption);
 #endif	/* INTEL_COMPUTE_H */
