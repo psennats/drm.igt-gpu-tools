@@ -191,7 +191,7 @@ static void set_abm_level(data_t *data, igt_output_t *output, int level)
 
 	fd = open(buf, O_WRONLY);
 
-	igt_assert(fd != -1);
+	igt_skip_on_f(fd == -1, "Cannot find %s. Is it an OLED?\n", buf);
 
 	igt_assert_eq(snprintf(buf, sizeof(buf), "%d", level),
 		      write(fd, buf, 1));
