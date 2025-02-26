@@ -250,6 +250,7 @@ intel_kms_progs = [
 	'kms_draw_crc',
 	'kms_dsc',
 	'kms_fb_coherency',
+	'kms_fbc_dirty_rect',
 	'kms_fbcon_fbt',
 	'kms_fence_pin_leak',
 	'kms_flip_scaled_crc',
