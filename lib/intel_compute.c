@@ -1778,6 +1778,8 @@ static bool __run_intel_compute_kernel(int fd,
 	unsigned int batch;
 	const struct intel_compute_kernels *kernels = intel_compute_square_kernels;
 	enum intel_driver driver = get_intel_driver(fd);
+	const unsigned char *kernel;
+	unsigned int kernel_size;
 
 	for (batch = 0; batch < ARRAY_SIZE(intel_compute_batches); batch++) {
 		if (ip_ver == intel_compute_batches[batch].ip_ver)
@@ -1795,16 +1797,24 @@ static bool __run_intel_compute_kernel(int fd,
 		return false;
 	}
 
-	while (kernels->kernel) {
-		if (ip_ver == kernels->ip_ver)
-			break;
-		kernels++;
+	/* If the user provides a kernel, use it */
+	if (user && user->kernel) {
+		kernel = user->kernel;
+		kernel_size = user->kernel_size;
+	} else {
+		while (kernels->kernel) {
+			if (ip_ver == kernels->ip_ver)
+				break;
+			kernels++;
+		}
+		if (!kernels->kernel)
+			return false;
+		kernel = kernels->kernel;
+		kernel_size = kernels->size;
 	}
-	if (!kernels->kernel)
-		return false;
 
-	intel_compute_batches[batch].compute_exec(fd, kernels->kernel,
-						  kernels->size, eci, user);
+	intel_compute_batches[batch].compute_exec(fd, kernel,
+						  kernel_size, eci, user);
 
 	return true;
 }

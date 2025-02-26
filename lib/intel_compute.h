@@ -39,6 +39,20 @@ struct intel_compute_kernels {
 struct user_execenv {
 	/** @vm: use this VM if provided, otherwise create one */
 	uint32_t vm;
+	/**
+	 * @kernel: use this custom kernel if provided, otherwise use a default square kernel
+	 *
+	 * Custom kernel execution in lib/intel_compute has strong limitations, it does not
+	 * allow running any custom kernel. "count" is the size of the input and output arrays
+	 * and the provided kernel must have the following prototype:
+	 *
+	 *    __kernel void square(__global float* input,
+	 *                         __global float* output,
+	 *                         const unsigned int count)
+	 */
+	const unsigned char *kernel;
+	/** @kernel_size: size of the custom kernel, if provided */
+	unsigned int kernel_size;
 };
 
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
