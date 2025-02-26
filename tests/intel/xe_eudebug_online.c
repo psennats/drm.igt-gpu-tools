@@ -158,6 +158,9 @@ static struct gpgpu_shader *get_shader(int fd, const unsigned int flags)
 
 	shader = gpgpu_shader_create(fd);
 
+	if (shader->gen_ver == 3000)
+		gpgpu_shader_set_vrt(shader, VRT_96);
+
 	gpgpu_shader__write_dword(shader, SHADER_CANARY, 0);
 	if (flags & SHADER_BREAKPOINT) {
 		gpgpu_shader__nop(shader);
