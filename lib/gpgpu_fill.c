@@ -359,7 +359,7 @@ void xehp_gpgpu_fillfunc(int i915,
 	intel_bb_out(ibb, GEN7_PIPELINE_SELECT | GEN9_PIPELINE_SELECTION_MASK |
 		  PIPELINE_SELECT_GPGPU);
 	xehp_emit_state_base_address(ibb);
-	xehp_emit_state_compute_mode(ibb);
+	xehp_emit_state_compute_mode(ibb, false);
 	xehp_emit_state_binding_table_pool_alloc(ibb);
 	xehp_emit_cfe_state(ibb, THREADS);
 	xehp_emit_compute_walk(ibb, x, y, width, height, &idd, color);

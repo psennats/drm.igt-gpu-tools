@@ -3,7 +3,7 @@
 
 #include "gpgpu_shader.h"
 
-#define MD5_SUM_IGA64_ASMS f0c9d803408104207f0427e387a8050c
+#define MD5_SUM_IGA64_ASMS 80bb609ce27131259d19629dc74e349f
 
 struct iga64_template const iga64_code_gpgpu_fill[] = {
 	{ .gen_ver = 2000, .size = 44, .code = (const uint32_t []) {
@@ -744,6 +744,31 @@ struct iga64_template const iga64_code_eot[] = {
 	{ .gen_ver = 0, .size = 8, .code = (const uint32_t []) {
 		0x80030061, 0x70050220, 0x00460005, 0x00000000,
 		0x80049031, 0x00000004, 0x7020700c, 0x10000000,
+	}}
+};
+
+struct iga64_template const iga64_code_eot_vrt[] = {
+	{ .gen_ver = 2000, .size = 8, .code = (const uint32_t []) {
+		0x800c0061, 0x50050220, 0x00460005, 0x00000000,
+		0x800f2031, 0x00000004, 0x3000500c, 0x00000000,
+	}},
+	{ .gen_ver = 1270, .size = 12, .code = (const uint32_t []) {
+		0x80030061, 0x50050220, 0x00460005, 0x00000000,
+		0x80001901, 0x00010000, 0x00000000, 0x00000000,
+		0x80034031, 0x00000004, 0x3000500c, 0x00000000,
+	}},
+	{ .gen_ver = 1260, .size = 8, .code = (const uint32_t []) {
+		0x800c0061, 0x50050220, 0x00460005, 0x00000000,
+		0x800f2031, 0x00000004, 0x3000500c, 0x00000000,
+	}},
+	{ .gen_ver = 1250, .size = 12, .code = (const uint32_t []) {
+		0x80030061, 0x50050220, 0x00460005, 0x00000000,
+		0x80001901, 0x00010000, 0x00000000, 0x00000000,
+		0x80034031, 0x00000004, 0x3000500c, 0x00000000,
+	}},
+	{ .gen_ver = 0, .size = 8, .code = (const uint32_t []) {
+		0x80030061, 0x50050220, 0x00460005, 0x00000000,
+		0x80039031, 0x00000004, 0x3000500c, 0x00000000,
 	}}
 };
 

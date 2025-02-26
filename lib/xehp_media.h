@@ -45,7 +45,9 @@ struct xehp_interface_descriptor_data {
 		uint32_t single_program_flow: BITRANGE(18, 18);
 		uint32_t denorm_mode: BITRANGE(19, 19);
 		uint32_t thread_preemption_disable: BITRANGE(20, 20);
-		uint32_t pad5: BITRANGE(21, 31);
+		uint32_t pad5: BITRANGE(21, 25);
+		uint32_t registers_per_thread: BITRANGE(26, 30);
+		uint32_t pad6: BITRANGE(31, 31);
 	} desc2;
 
 	struct {

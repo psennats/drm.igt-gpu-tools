@@ -124,7 +124,7 @@ xehp_fill_interface_descriptor(struct intel_bb *ibb,
 			       struct xehp_interface_descriptor_data *idd);
 
 void
-xehp_emit_state_compute_mode(struct intel_bb *ibb);
+xehp_emit_state_compute_mode(struct intel_bb *ibb, bool vrt);
 
 void
 xehp_emit_state_binding_table_pool_alloc(struct intel_bb *ibb);

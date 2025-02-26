@@ -13,6 +13,11 @@
 struct intel_bb;
 struct intel_buf;
 
+enum gpgpu_shader_vrt_modes {
+	VRT_96 = 0x2,
+	VRT_DISABLED,
+};
+
 struct gpgpu_shader {
 	uint32_t gen_ver;
 	uint32_t size;
@@ -23,6 +28,7 @@ struct gpgpu_shader {
 	};
 	struct igt_map *labels;
 	bool illegal_opcode_exception_enable;
+	enum gpgpu_shader_vrt_modes vrt;
 };
 
 struct iga64_template {
@@ -62,6 +68,8 @@ static inline uint32_t gpgpu_shader_last_instr(struct gpgpu_shader *shdr)
 {
 	return shdr->size / 4 - 1;
 }
+
+void gpgpu_shader_set_vrt(struct gpgpu_shader *shdr, enum gpgpu_shader_vrt_modes vrt);
 
 void gpgpu_shader__wait(struct gpgpu_shader *shdr);
 void gpgpu_shader__breakpoint_on(struct gpgpu_shader *shdr, uint32_t cmd_no);

@@ -1008,13 +1008,13 @@ xehp_emit_cfe_state(struct intel_bb *ibb, uint32_t threads)
 }
 
 void
-xehp_emit_state_compute_mode(struct intel_bb *ibb)
+xehp_emit_state_compute_mode(struct intel_bb *ibb, bool vrt)
 {
 
 	uint32_t dword_length = intel_graphics_ver(ibb->devid) >= IP_VER(20, 0);
 
 	intel_bb_out(ibb, XEHP_STATE_COMPUTE_MODE | dword_length);
-	intel_bb_out(ibb, 0);
+	intel_bb_out(ibb, vrt ? (0x10001) << 10 : 0); /* Enable variable number of threads */
 
 	if (dword_length)
 		intel_bb_out(ibb, 0);

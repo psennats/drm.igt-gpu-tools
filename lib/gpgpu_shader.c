@@ -179,6 +179,9 @@ __xehp_gpgpu_execfunc(struct intel_bb *ibb,
 				       4 * shdr->size, &idd);
 	idd.desc2.illegal_opcode_exception_enable = shdr->illegal_opcode_exception_enable;
 
+	if (shdr->vrt != VRT_DISABLED)
+		idd.desc2.registers_per_thread = shdr->vrt;
+
 	if (sip && sip->size)
 		sip_offset = fill_sip(ibb, sip->instr, 4 * sip->size);
 	else
@@ -190,7 +193,7 @@ __xehp_gpgpu_execfunc(struct intel_bb *ibb,
 	intel_bb_out(ibb, GEN7_PIPELINE_SELECT | GEN9_PIPELINE_SELECTION_MASK |
 		     PIPELINE_SELECT_GPGPU);
 	xehp_emit_state_base_address(ibb);
-	xehp_emit_state_compute_mode(ibb);
+	xehp_emit_state_compute_mode(ibb, shdr->vrt != VRT_DISABLED);
 	xehp_emit_state_binding_table_pool_alloc(ibb);
 	xehp_emit_cfe_state(ibb, THREADS);
 
@@ -276,7 +279,9 @@ struct gpgpu_shader *gpgpu_shader_create(int fd)
 	shdr->max_size = 16 * 4;
 	shdr->code = malloc(4 * shdr->max_size);
 	shdr->labels = igt_map_create(igt_map_hash_32, igt_map_equal_32);
+	shdr->vrt = VRT_DISABLED;
 	igt_assert(shdr->code);
+
 	return shdr;
 }
 
@@ -310,6 +315,19 @@ void gpgpu_shader_dump(struct gpgpu_shader *shdr)
 		igt_info("0x%08x 0x%08x 0x%08x 0x%08x\n",
 			 shdr->instr[i][0], shdr->instr[i][1],
 			 shdr->instr[i][2], shdr->instr[i][3]);
+}
+
+/**
+ * gpgpu_shader_set_vrt:
+ * @shdr: shader to be modified
+ * @vrt: one of accepted VRT modes
+ *
+ * Sets variable register per thread mode for given shader.
+ */
+void gpgpu_shader_set_vrt(struct gpgpu_shader *shdr, enum gpgpu_shader_vrt_modes vrt)
+{
+	igt_assert(vrt == VRT_DISABLED || shdr->gen_ver >= 3000);
+	shdr->vrt = vrt;
 }
 
 /**
@@ -371,14 +389,20 @@ void gpgpu_shader__nop(struct gpgpu_shader *shdr)
  */
 void gpgpu_shader__eot(struct gpgpu_shader *shdr)
 {
-	emit_iga64_code(shdr, eot, "						\n\
+	if (shdr->vrt == VRT_96)
+		emit_iga64_code(shdr, eot_vrt, "				\n\
+(W)	mov (8|M0)               r80.0<1>:ud  r0.0<8;8,1>:ud			\n\
+(W)	send.gtwy (8|M0)         null r80 src1_null     0 0x02000000 {EOT}	\n\
+		");
+	else
+		emit_iga64_code(shdr, eot, "					\n\
 (W)	mov (8|M0)               r112.0<1>:ud  r0.0<8;8,1>:ud			\n\
 #if GEN_VER < 1250								\n\
 (W)	send.ts (16|M0)          null r112 null 0x10000000 0x02000010 {EOT,@1}	\n\
 #else										\n\
 (W)	send.gtwy (8|M0)         null r112 src1_null     0 0x02000000 {EOT}	\n\
 #endif										\n\
-	");
+		");
 }
 
 /**
