@@ -22,6 +22,9 @@ extern "C" {
 
 #define DRM_XE_MMAP_OFFSET_FLAG_PCI_BARRIER	(1 << 0)
 
+#define DRM_XE_EXEC_QUEUE_LOW_LATENCY_HINT      (1 << 0)
+#define DRM_XE_QUERY_CONFIG_FLAG_HAS_LOW_LATENCY        (1 << 1)
+
 #if defined(__cplusplus)
 }
 #endif

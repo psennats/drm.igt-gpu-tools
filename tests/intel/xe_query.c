@@ -533,6 +533,9 @@ test_query_config(int fd)
 	igt_info("  DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM\t%s\n",
 		config->info[DRM_XE_QUERY_CONFIG_FLAGS] &
 		DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM ? "ON":"OFF");
+	igt_info("  DRM_XE_QUERY_CONFIG_FLAG_HAS_LOW_LATENCY\t%s\n",
+		 config->info[DRM_XE_QUERY_CONFIG_FLAGS] &
+		 DRM_XE_QUERY_CONFIG_FLAG_HAS_LOW_LATENCY ? "ON":"OFF");
 	igt_info("DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT\t\t%#llx\n",
 		config->info[DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT]);
 	igt_info("DRM_XE_QUERY_CONFIG_VA_BITS\t\t\t%llu\n",

@@ -60,6 +60,35 @@ static int __create_bo(int fd, uint32_t vm, uint64_t size, uint32_t placement,
 }
 
 /**
+ * SUBTEST: valid-flag
+ * Functionality: ioctl_input_validation
+ * Description: Check ioctl with valid flag returns expected pass if supported
+ */
+static void valid_flag(int fd)
+{
+	uint32_t vm;
+	struct drm_xe_query_config *config = xe_config(fd);
+	struct drm_xe_exec_queue_create create = {
+		.flags = DRM_XE_EXEC_QUEUE_LOW_LATENCY_HINT,
+		.extensions = 0,
+		.vm_id = 0,
+		.width = 1,
+		.num_placements = 1,
+		.instances = to_user_pointer(&xe_engine(fd, 0)->instance),
+	};
+
+	igt_assert_neq(config->info[DRM_XE_QUERY_CONFIG_FLAGS] &
+			DRM_XE_QUERY_CONFIG_FLAG_HAS_LOW_LATENCY, 0);
+
+	vm = xe_vm_create(fd, 0, 0);
+	create.vm_id = vm;
+
+	do_ioctl(fd, DRM_IOCTL_XE_EXEC_QUEUE_CREATE, &create);
+	xe_exec_queue_destroy(fd, create.exec_queue_id);
+	xe_vm_destroy(fd, vm);
+}
+
+/**
  * SUBTEST: invalid-flag
  * Functionality: ioctl_input_validation
  * Description: Check ioctl with invalid flag returns expected error code
@@ -502,6 +531,9 @@ igt_main_args("Q:p:", NULL, help_str, opt_handler, NULL)
 
 	igt_fixture
 		xe = drm_open_driver(DRIVER_XE);
+
+	igt_subtest("valid-flag")
+		valid_flag(xe);
 
 	igt_subtest("invalid-flag")
 		invalid_flag(xe);
