@@ -19,8 +19,8 @@
  * Mega feature: General Core features
  * Sub-category: Synchronization
  * Functionality: waitfence
- * Test category: functionality test
  * Description: Test waitfences functionality
+ * Test category: functionality test
  */
 
 uint64_t wait_fence = 0;
@@ -139,21 +139,20 @@ waitfence(int fd, enum waittype wt)
 }
 
 /**
- * TEST: Negative test for wait ufence ioctl
- * Category: Core
- * Mega feature: General Core features
- * Sub-category: Synchronization
+ * SUBTEST: invalid-flag
  * Functionality: waitfence
+ * Description: Check query with invalid flag returns expected error code
  * Test category: negative test
  *
- * SUBTEST: invalid-flag
- * Description: Check query with invalid flag returns expected error code
- *
  * SUBTEST: invalid-ops
+ * Functionality: waitfence
  * Description: Check query with invalid ops returns expected error code
+ * Test category: negative test
  *
  * SUBTEST: exec_queue-reset-wait
+ * Functionality: waitfence
  * Description: Don’t wait till timeout on user fence when exec_queue reset is detected and return return proper error
+ * Test category: negative test
  */
 
 static void

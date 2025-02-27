@@ -153,7 +153,8 @@ static void set_retval(const char function_name[], long long retval)
 
 /**
  * SUBTEST: inject-fault-probe-function-%s
- * Description: inject an error in the injectable function %arg[1] then reprobe driver
+ * Description: inject an error in the injectable function %arg[1] then
+ *		reprobe driver
  * Functionality: fault
  *
  * arg[1]:
@@ -254,7 +255,8 @@ simple_vm_bind(int fd, uint32_t vm)
 
 /**
  * SUBTEST: vm-bind-fail-%s
- * Description: inject an error in function %arg[1] used in vm bind IOCTL to make it fail
+ * Description: inject an error in function %arg[1] used in vm bind IOCTL
+ *		to make it fail
  * Functionality: fault
  *
  * arg[1]:

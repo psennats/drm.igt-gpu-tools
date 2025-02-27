@@ -19,32 +19,30 @@
  * Mega feature: SR-IOV
  * Sub-category: provisioning
  * Functionality: auto-provisioning
- * Run type: FULL
  * Description: Examine behavior of SR-IOV auto-provisioning
+ * Run type: FULL
  *
  * SUBTEST: fair-allocation
- * Description:
- *   Verify that auto-provisioned resources are allocated by PF driver in fairly manner
+ * Description: Verify that auto-provisioned resources are allocated by
+ *		PF driver in fairly manner
  *
  * SUBTEST: resources-released-on-vfs-disabling
- * Description:
- *   Verify that auto-provisioned resources are released once VFs are disabled
+ * Description: Verify that auto-provisioned resources are released
+ *		once VFs are disabled
  *
  * SUBTEST: exclusive-ranges
- * Description:
- *   Verify that ranges of auto-provisioned resources are exclusive
+ * Description: Verify that ranges of auto-provisioned resources are exclusive
  *
  * SUBTEST: selfconfig-basic
- * Description:
- *   Check if VF configuration data is the same as provisioned
+ * Description: Check if VF configuration data is the same as provisioned
  *
  * SUBTEST: selfconfig-reprovision-increase-numvfs
- * Description:
- *   Check if VF configuration data is updated properly after increasing number of VFs
+ * Description: Check if VF configuration data is updated properly after
+ *		increasing number of VFs
  *
  * SUBTEST: selfconfig-reprovision-reduce-numvfs
- * Description:
- *   Check if VF configuration data is updated properly after decreasing number of VFs
+ * Description: Check if VF configuration data is updated properly after
+ *		decreasing number of VFs
  */
 
 IGT_TEST_DESCRIPTION("Xe tests for SR-IOV auto-provisioning");

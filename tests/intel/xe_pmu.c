@@ -130,7 +130,8 @@ static uint64_t get_event_config(int xe, unsigned int gt, struct drm_xe_engine_c
  * Description: Test to validate engine activity shows no load when idle
  *
  * SUBTEST: engine-activity-load-idle
- * Description: Test to validate engine activity with full load followed by trailing idle
+ * Description: Test to validate engine activity with full load followed by
+ *		trailing idle
  *
  * SUBTEST: engine-activity-load
  * Description: Test to validate engine activity stats by running a workload and

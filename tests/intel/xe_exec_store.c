@@ -105,8 +105,10 @@ static void persistance_batch(struct data *data, uint64_t addr)
 /**
  * SUBTEST: basic-store
  * Description: Basic test to verify store dword.
+ *
  * SUBTEST: basic-cond-batch
  * Description: Basic test to verify cond batch end instruction.
+ *
  * SUBTEST: basic-all
  * Description: Test to verify store dword on all available engines.
  */
@@ -277,7 +279,7 @@ static void store_cachelines(int fd, struct drm_xe_engine_class_instance *eci,
 
 /**
  * SUBTEST: persistent
- * DESCRIPTION: Validate MI_PRT_BATCH_BUFFER_START functionality
+ * Description: Validate MI_PRT_BATCH_BUFFER_START functionality
  */
 static void persistent(int fd)
 {
@@ -343,9 +345,10 @@ static void persistent(int fd)
 
 /**
  * SUBTEST: long-shader-bb-check
- * DESCRIPTION: Write incrementing values to 2-page-long target surface using long shader. Check if
- *		the bb contains full shader. Check if all written values are in the target surface.
- *		Place bb and surface in various memory regions to validate memory coherency.
+ * Description: Write incrementing values to 2-page-long target surface using
+ *		long shader. Check if the bb contains full shader. Check if all
+ *		written values are in the target surface. Place bb and surface
+ *		in various memory regions to validate memory coherency.
  */
 static void long_shader(int fd, struct drm_xe_engine_class_instance *hwe,
 			uint64_t bb_region, uint64_t target_region)

@@ -17,11 +17,11 @@
 
 /**
  * TEST: xe_peer2peer
- * Description: Peer2peer dma buf copy tests
  * Category: Core
  * Mega feature: General Core features
  * Sub-category: MultiGPU
  * Functionality: dma buf copy
+ * Description: Peer2peer dma buf copy tests
  * Test category: xe
  *
  * SUBTEST: read

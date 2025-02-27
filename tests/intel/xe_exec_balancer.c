@@ -333,7 +333,6 @@ test_exec(int fd, int gt, int class, int n_exec_queues, int n_execs,
  * Description: Run compute mode virtual exec_queue arg[1] test only once
  * Test category: functionality test
  *
- *
  * SUBTEST: twice-cm-%s
  * Description: Run compute mode virtual exec_queue arg[1] test twice
  * Test category: functionality test

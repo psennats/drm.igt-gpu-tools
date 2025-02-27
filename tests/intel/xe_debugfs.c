@@ -5,11 +5,11 @@
 
 /**
  * TEST: Check debugfs userspace API
- * Description: Validate debugfs entries
  * Category: Core
  * Mega feature: General Core features
  * Sub-category: uapi
  * Functionality: debugfs
+ * Description: Validate debugfs entries
  * Test category: functionality test
  */
 

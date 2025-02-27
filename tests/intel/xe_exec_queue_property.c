@@ -10,10 +10,14 @@
  * Sub-category: uapi
  * Functionality: exec queue set property
  * Test category: functionality test
+ *
  * SUBTEST: priority-set-property
- * Description: tests basic priority property by setting invalid values and positive values.
+ * Description: tests basic priority property by setting invalid values
+ *		and positive values.
+ *
  * SUBTEST: %s-property-min-max
- * Description: Test to check if %arg[1] schedule parameter checks for min max values.
+ * Description: Test to check if %arg[1] schedule parameter checks for min max
+ *		values.
  *
  * arg[1]:
  *
@@ -94,7 +98,8 @@ static void test_property_min_max(int xe, int engine, const char **property,
 
 /**
  * SUBTEST: Invalid-exec-queue
- * Description: Negative test to check the expected behaviour with invalid exec_queue_id.
+ * Description: Negative test to check the expected behaviour with invalid
+ *		exec_queue_id.
  * Test category: functionality test
  */
 static void Invalid_exec_queue_id(int xe)
@@ -109,7 +114,8 @@ static void Invalid_exec_queue_id(int xe)
 
 /**
  * SUBTEST: non-zero-reserved
- * Description: Negative test to check the expected behaviour with non-zero reserved.
+ * Description: Negative test to check the expected behaviour with non-zero
+ *		reserved.
  * Test category: functionality test
  */
 static void non_zero_reserved(int xe)

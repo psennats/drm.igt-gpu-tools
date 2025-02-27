@@ -48,9 +48,12 @@ static void atomic_batch(struct data *data, uint64_t addr, int ops)
 
 /**
  * SUBTEST: basic-inc-all
- * Description: Test to verify atomic increment on all available engines and memory types.
+ * Description: Test to verify atomic increment on all available engines
+ *		and memory types.
+ *
  * SUBTEST: basic-dec-all
- * Description: Test to verify atomic decrement on all available engines and memory types.
+ * Description: Test to verify atomic decrement on all available engines
+ *		and memory types.
  */
 static void basic_inst(int fd, int inst_type, struct drm_xe_engine_class_instance *eci,
 		       uint32_t placement)

@@ -83,8 +83,8 @@ write_dwords(int fd, uint32_t vm, int n_dwords, uint64_t *addrs)
 
 /**
  * SUBTEST: scratch
- * Description: Test scratch page creation and write
  * Functionality: scratch page
+ * Description: Test scratch page creation and write
  * Test category: functionality test
  */
 
@@ -206,8 +206,8 @@ uint64_t addrs_57b[] = {
 
 /**
  * SUBTEST: bind-once
- * Description: bind once on one BO
  * Functionality: bind BO
+ * Description: bind once on one BO
  * Test category: functionality test
  */
 
@@ -223,8 +223,8 @@ test_bind_once(int fd)
 
 /**
  * SUBTEST: bind-one-bo-many-times
- * Description: bind many times on one BO
  * Functionality: bind BO
+ * Description: bind many times on one BO
  * Test category: functionality test
  */
 
@@ -243,8 +243,8 @@ test_bind_one_bo_many_times(int fd)
 
 /**
  * SUBTEST: bind-one-bo-many-times-many-vm
- * Description: Test bind many times and many VM on one BO
  * Functionality: bind BO
+ * Description: Test bind many times and many VM on one BO
  * Test category: functionality test
  */
 
@@ -261,8 +261,8 @@ test_bind_one_bo_many_times_many_vm(int fd)
 
 /**
  * SUBTEST: partial-unbinds
- * Description: Test partial unbinds
  * Functionality: unbind
+ * Description: Test partial unbinds
  * Test category: functionality test
  */
 
@@ -301,8 +301,8 @@ static void test_partial_unbinds(int fd)
 
 /**
  * SUBTEST: unbind-all-%d-vmas
- * Description: Test unbind all with %arg[1] VMAs
  * Functionality: unbind
+ * Description: Test unbind all with %arg[1] VMAs
  * Test category: functionality test
  *
  * arg[1].values: 2, 8
@@ -339,10 +339,10 @@ static void unbind_all(int fd, int n_vmas)
 
 /**
  * SUBTEST: userptr-invalid
+ * Functionality: userptr
  * Description:
  *	Verifies that mapping an invalid userptr returns -EFAULT,
  *	and that it is correctly handled.
- * Functionality: userptr
  * Test category: negative test
  */
 static void userptr_invalid(int fd)
@@ -368,9 +368,9 @@ static void userptr_invalid(int fd)
 
 /**
  * SUBTEST: compact-64k-pages
+ * Functionality: bind
  * Description:
  *	Take corner cases related to compact and 64k pages
- * Functionality: bind
  * Test category: functionality test
  */
 static void compact_64k_pages(int fd, struct drm_xe_engine_class_instance *eci)
@@ -676,13 +676,13 @@ shared_pte_page(int fd, struct drm_xe_engine_class_instance *eci, int n_bo,
 
 /**
  * SUBTEST: bind-execqueues-independent
- * Description: Test independent bind exec_queues
  * Functionality: bind exec_queues
+ * Description: Test independent bind exec_queues
  * Test category: functionality test
  *
  * SUBTEST: bind-execqueues-conflict
- * Description: Test conflict bind exec_queues
  * Functionality: bind exec_queues
+ * Description: Test conflict bind exec_queues
  * Test category: functionality test
  */
 
@@ -869,28 +869,28 @@ static void xe_vm_bind_array_err(int fd, uint32_t vm, uint32_t exec_queue,
 
 /**
  * SUBTEST: bind-array-twice
- * Description: Test bind array twice
  * Functionality: bind exec_queues
+ * Description: Test bind array twice
  * Test category: functionality test
  *
  * SUBTEST: bind-array-many
- * Description: Test bind array many times
  * Functionality: bind exec_queues
+ * Description: Test bind array many times
  * Test category: functionality test
  *
  * SUBTEST: bind-array-enobufs
- * Description: Test bind array which too large are trigger -ENOBUFs error
  * Functionality: bind exec_queues
+ * Description: Test bind array which too large are trigger -ENOBUFs error
  * Test category: functionality test
  *
  * SUBTEST: bind-array-exec_queue-twice
- * Description: Test bind array exec_queue twice
  * Functionality: bind exec_queues
+ * Description: Test bind array exec_queue twice
  * Test category: functionality test
  *
  * SUBTEST: bind-array-exec_queue-many
- * Description: Test bind array exec_queue many times
  * Functionality: bind exec_queues
+ * Description: Test bind array exec_queue many times
  * Test category: functionality test
  */
 static void
@@ -1029,18 +1029,18 @@ test_bind_array(int fd, struct drm_xe_engine_class_instance *eci, int n_execs,
 
 /**
  * SUBTEST: bind-array-conflict
- * Description: Test bind array with conflicting address
  * Functionality: bind exec_queues and page table updates
+ * Description: Test bind array with conflicting address
  * Test category: functionality test
  *
  * SUBTEST: bind-no-array-conflict
- * Description: Test binding with conflicting address
  * Functionality: bind and page table updates
+ * Description: Test binding with conflicting address
  * Test category: functionality test
  *
  * SUBTEST: bind-array-conflict-error-inject
- * Description: Test bind array with conflicting address plus error injection
  * Functionality: bind exec_queues and page table updates error paths
+ * Description: Test bind array with conflicting address plus error injection
  * Test category: functionality test
  */
 static void
@@ -1284,8 +1284,8 @@ test_bind_array_conflict(int fd, struct drm_xe_engine_class_instance *eci,
 
 /**
  * SUBTEST: %s-%ld
- * Description: Test %arg[1] with %arg[2] bind size
  * Functionality: bind
+ * Description: Test %arg[1] with %arg[2] bind size
  * Test category: functionality test
  *
  * arg[1]:
@@ -1302,8 +1302,8 @@ test_bind_array_conflict(int fd, struct drm_xe_engine_class_instance *eci,
 
 /**
  * SUBTEST: %s-%ld
- * Description: Test %arg[1] with %arg[2] bind size
  * Functionality: userptr bind
+ * Description: Test %arg[1] with %arg[2] bind size
  * Test category: functionality test
  *
  * arg[1]:
@@ -1321,8 +1321,8 @@ test_bind_array_conflict(int fd, struct drm_xe_engine_class_instance *eci,
 /**
  *
  * SUBTEST: %s-%ld
- * Description: Test %arg[1] with %arg[2] bind size
  * Functionality: mixed bind
+ * Description: Test %arg[1] with %arg[2] bind size
  * Test category: functionality test
  *
  * arg[1]:
@@ -1336,8 +1336,8 @@ test_bind_array_conflict(int fd, struct drm_xe_engine_class_instance *eci,
 /**
  *
  * SUBTEST: %s-%ld
- * Description: Test %arg[1] with %arg[2] bind size
  * Functionality: mixed bind
+ * Description: Test %arg[1] with %arg[2] bind size
  * Test category: functionality test
  *
  * arg[1]:
@@ -1582,8 +1582,8 @@ static void *hammer_thread(void *tdata)
 
 /**
  * SUBTEST: munmap-style-unbind-%s
- * Description: Test munmap style unbind with %arg[1]
  * Functionality: unbind
+ * Description: Test munmap style unbind with %arg[1]
  * Test category: functionality test
  *
  * arg[1]:
@@ -1600,8 +1600,8 @@ static void *hammer_thread(void *tdata)
 
 /**
  * SUBTEST: munmap-style-unbind-%s
- * Description: Test munmap style unbind with %arg[1]
  * Functionality: unbind
+ * Description: Test munmap style unbind with %arg[1]
  * Test category: functionality test
  *
  * arg[1]:
@@ -1918,8 +1918,8 @@ try_again_after_invalidate:
 
 /**
  * SUBTEST: mmap-style-bind-%s
- * Description: Test mmap style unbind with %arg[1]
  * Functionality: bind
+ * Description: Test mmap style unbind with %arg[1]
  * Test category: functionality test
  *
  * arg[1]:
@@ -2175,9 +2175,8 @@ test_mmap_style_bind(int fd, struct drm_xe_engine_class_instance *eci,
 
 /**
  * SUBTEST: bind-flag-invalid
- * Description:
- *	Ensure invalid bind flags are rejected.
  * Functionality: bind
+ * Description: Ensure invalid bind flags are rejected.
  * Test category: negative test
  */
 static void bind_flag_invalid(int fd)
@@ -2249,8 +2248,8 @@ static void bind_flag_invalid(int fd)
 
 /**
  * SUBTEST: invalid-flag-%s
- * Description:  function %arg[1] used in vm create IOCTL to make it fail
  * Functionality: ioctl_input_validation
+ * Description:  function %arg[1] used in vm create IOCTL to make it fail
  *
  * arg[1]:
  * @xe_vm_create_fault:  xe_vm_create_fault
@@ -2269,12 +2268,12 @@ static void invalid_flag(int fd, __u32 flags)
 
 /**
  * SUBTEST: invalid-extensions
- * Description: Check query with invalid extensions returns expected error code
  * Functionality: ioctl_input_validation
+ * Description: Check query with invalid extensions returns expected error code
  *
  * SUBTEST: vm-create-invalid-reserved
- * Description: Send query with invalid reserved value for vm_create ioctl
  * Functionality: ioctl_input_validation
+ * Description: Send query with invalid reserved value for vm_create ioctl
  */
 
 static void invalid_extensions(int fd)
@@ -2301,16 +2300,16 @@ static void vm_create_invalid_reserved(int fd)
 
 /**
  * SUBTEST: vm-destroy-invalid-reserved
- * Description: Send query with invalid reserved value for vm_destroy ioctl
  * Functionality: ioctl_input_validation
+ * Description: Send query with invalid reserved value for vm_destroy ioctl
  *
  * SUBTEST: invalid-pad
- * Description: Check query with invalid pad returns expected error code
  * Functionality: ioctl_input_validation
+ * Description: Check query with invalid pad returns expected error code
  *
  * SUBTEST: invalid-vm-id
- * Description: Check query with invalid vm_id returns expected error code
  * Functionality: ioctl_input_validation
+ * Description: Check query with invalid vm_id returns expected error code
  */
 
 static void vm_destroy_invalid_reserved(int fd)

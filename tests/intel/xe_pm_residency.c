@@ -55,13 +55,15 @@ enum test_type {
  *
  * SUBTEST: toggle-gt-c6
  * Description: toggles GT C states by acquiring/releasing forcewake,
- *		also validates power consumed by GPU in GT C6 is lesser than that of GT C0.
+ *		also validates power consumed by GPU in GT C6 is lesser than
+ *		that of GT C0.
  *
  * SUBTEST: cpg-basic
  * Description: Validate GT coarse power gating status with S3 cycle.
  *
  * SUBTEST: cpg-gt-toggle
- * Description: Toggle GT coarse power gating states by acquiring/releasing forcewake.
+ * Description: Toggle GT coarse power gating states by acquiring/releasing
+ *		forcewake.
  */
 IGT_TEST_DESCRIPTION("Tests for gtidle properties");
 

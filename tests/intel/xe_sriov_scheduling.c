@@ -17,7 +17,6 @@
  * Mega feature: SR-IOV
  * Sub-category: scheduling
  * Functionality: vGPU profiles scheduling parameters
- * Run type: FULL
  * Description: Verify behavior after modifying scheduling attributes.
  */
 

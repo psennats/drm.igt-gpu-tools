@@ -184,10 +184,8 @@ const char *get_topo_name(int value)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-engines
- * Description: Display engine classes available for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Display engine classes available for all Xe devices.
  * Test category: functionality test
  */
 static void
@@ -208,15 +206,13 @@ test_query_engines(int fd)
 
 /**
  * SUBTEST: query-mem-usage
- * Test category: functionality test
  * Description: Display memory information like memory class, size
  *	and alignment.
+ * Test category: functionality test
  *
  * SUBTEST: multigpu-query-mem-usage
- * Description: Display memory information for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Display memory information for all Xe devices.
  * Test category: functionality test
  */
 static void
@@ -275,14 +271,12 @@ test_query_mem_regions(int fd)
 
 /**
  * SUBTEST: query-gt-list
- * Test category: functionality test
  * Description: Display information about available GT components for xe device.
+ * Test category: functionality test
  *
  * SUBTEST: multigpu-query-gt-list
- * Description: Display information about GT components for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Display information about GT components for all Xe devices.
  * Test category: functionality test
  */
 static void
@@ -352,14 +346,12 @@ test_query_gt_list(int fd)
 
 /**
  * SUBTEST: query-topology
- * Test category: functionality test
  * Description: Display topology information of GT.
+ * Test category: functionality test
  *
  * SUBTEST: multigpu-query-topology
- * Description: Display topology information of GT for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Display topology information of GT for all Xe devices.
  * Test category: functionality test
  */
 static void
@@ -418,13 +410,13 @@ test_query_gt_topology(int fd)
 
 /**
  * SUBTEST: query-topology-l3-bank-mask
- * Test category: functionality test
  * Description: Check the value of the l3 bank mask
+ * Test category: functionality test
  *
  * SUBTEST: multigpu-query-topology-l3-bank-mask
- * Test category: functionality test
- * Description: Check the value of the l3 bank mask for all Xe devices.
  * Sub-category: MultiGPU
+ * Description: Check the value of the l3 bank mask for all Xe devices.
+ * Test category: functionality test
  */
 static void
 test_query_gt_topology_l3_bank_mask(int fd)
@@ -490,14 +482,12 @@ test_query_gt_topology_l3_bank_mask(int fd)
 
 /**
  * SUBTEST: query-config
- * Test category: functionality test
  * Description: Display xe device id, revision and configuration.
+ * Test category: functionality test
  *
  * SUBTEST: multigpu-query-config
- * Description: Display config information for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Display config information for all Xe devices.
  * Test category: functionality test
  */
 static void
@@ -549,14 +539,12 @@ test_query_config(int fd)
 
 /**
  * SUBTEST: query-hwconfig
- * Test category: functionality test
  * Description: Display hardware configuration of xe device.
+ * Test category: functionality test
  *
  * SUBTEST: multigpu-query-hwconfig
- * Description: Display hardware configuration for all Xe devices.
- * Category: Core
  * Sub-category: MultiGPU
- * Mega feature: General Core features
+ * Description: Display hardware configuration for all Xe devices.
  * Test category: functionality test
  */
 static void
@@ -590,14 +578,12 @@ test_query_hwconfig(int fd)
 
 /**
  * SUBTEST: query-invalid-query
- * Test category: negative test
  * Description: Check query with invalid arguments returns expected error code.
+ * Test category: negative test
  *
  * SUBTEST: multigpu-query-invalid-query
- * Description: Check query with invalid arguments for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Check query with invalid arguments for all Xe devices.
  * Test category: negative test
  */
 static void
@@ -615,14 +601,12 @@ test_query_invalid_query(int fd)
 
 /**
  * SUBTEST: query-invalid-size
- * Test category: negative test
  * Description: Check query with invalid size returns expected error code.
+ * Test category: negative test
  *
  * SUBTEST: multigpu-query-invalid-size
- * Description: Check query with invalid size for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Check query with invalid size for all Xe devices.
  * Test category: negative test
  */
 static void
@@ -640,14 +624,12 @@ test_query_invalid_size(int fd)
 
 /**
  * SUBTEST: query-invalid-extension
- * Test category: negative test
  * Description: Check query with invalid extension returns expected error code.
+ * Test category: negative test
  *
  * SUBTEST: multigpu-query-invalid-extension
- * Description: Check query with invalid extension for all Xe devices.
- * Category: Core
- * Mega feature: General Core features
  * Sub-category: MultiGPU
+ * Description: Check query with invalid extension for all Xe devices.
  * Test category: negative test
  */
 static void

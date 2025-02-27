@@ -30,11 +30,11 @@
 
 /**
  * TEST: perf
- * Description: Test the Xe OA metrics streaming interface
  * Category: Core
  * Mega feature: Performance interface
  * Sub-category: Performance tests
  * Functionality: oa
+ * Description: Test the Xe OA metrics streaming interface
  * Feature: xe streaming interface, oa
  * Test category: Perf
  */

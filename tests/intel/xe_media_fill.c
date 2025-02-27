@@ -27,11 +27,11 @@
 
 /**
  * TEST: xe media fill
- * Description: Basic tests for the media_fill() function.
  * Category: Core
  * Mega feature: Media
  * Sub-category: Media tests
  * Functionality: fill surface with media block
+ * Description: Basic tests for the media_fill() function.
  * Feature: media
  * Test category: functionality test
  *

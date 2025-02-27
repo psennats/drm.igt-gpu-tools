@@ -11,11 +11,13 @@
  * Functionality: scheduler control interface
  *
  * SUBTEST: %s-invalid
- * Description: Test to check if %s arg[1] schedule parameter rejects any unrepresentable intervals.
+ * Description: Test to check if %s arg[1] schedule parameter rejects any
+ *		unrepresentable intervals.
  * Test category: negative test
  *
  * SUBTEST: %s-min-max
- * Description: Test to check if %s arg[1] schedule parameter checks for min max values.
+ * Description: Test to check if %s arg[1] schedule parameter checks for
+ *		min max values.
  * Test category: functionality test
  *
  * arg[1]:

@@ -170,8 +170,6 @@ test_compute_kernel_with_ccs_mode(int num_gt)
  * Description:
  *	Run an openCL Kernel that returns output[i] = input[i] * input[i],
  *	for an input dataset..
- * Mega feature: WMTP
- * Functionality: OpenCL kernel
  */
 static void
 test_compute_square(int fd)
