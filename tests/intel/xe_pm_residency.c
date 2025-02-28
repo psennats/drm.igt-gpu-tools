@@ -7,7 +7,7 @@
  * TEST: Test gtidle properties
  * Category: Core
  * Mega feature: Power management
- * Sub-category: Power management tests
+ * Sub-category: GT C-states and idle residency tests
  * Functionality: GT C States
  * Test category: functionality test
  */

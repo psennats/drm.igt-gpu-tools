@@ -7,7 +7,7 @@
  * TEST: Check Power Management functionality
  * Category: Core
  * Mega feature: Power management
- * Sub-category: Power management tests
+ * Sub-category: Suspend-resume tests
  * Test category: functionality test
  */
 
