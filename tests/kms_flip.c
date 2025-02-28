@@ -164,6 +164,7 @@
  * @single-buffer-flip-vs-dpms-off-vs-modeset: pageflip of same buffer along with
  *                                             the modeset and dpms off
  * @dpms-vs-vblank-race:                       vblank along with the dpms & modeset
+ * @flip-vs-dpms-on-nop:                       pageflip and issue nop DPMS ON
  */
 
 /**
@@ -226,6 +227,7 @@
  */
 
 #define TEST_DPMS		(1 << 0)
+#define TEST_DPMS_ON_NOP	(1 << 1)
 
 #define TEST_PAN		(1 << 3)
 #define TEST_MODESET		(1 << 4)
@@ -943,7 +945,7 @@ static bool run_test_step(struct test_output *o, unsigned int *events)
 	if (o->flags & TEST_MODESET)
 		igt_assert(set_mode(o, o->fb_ids[o->current_fb_id], 0, 0) == 0);
 
-	if (o->flags & TEST_DPMS)
+	if (o->flags & (TEST_DPMS | TEST_DPMS_ON_NOP))
 		set_dpms(o, DRM_MODE_DPMS_ON);
 
 	if (o->flags & TEST_VBLANK_RACE) {
@@ -2006,6 +2008,7 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 			"plain-flip-fb-recreate" },
 		{ 30, TEST_FLIP | TEST_RMFB | TEST_MODESET , "flip-vs-rmfb" },
 		{ 2, TEST_FLIP | TEST_DPMS | TEST_EINVAL | TEST_BASIC, "flip-vs-dpms" },
+		{ 2, TEST_FLIP | TEST_DPMS_ON_NOP | TEST_CHECK_TS, "flip-vs-dpms-on-nop" },
 		{ 30,  TEST_FLIP | TEST_PAN, "flip-vs-panning" },
 		{ 2, TEST_FLIP | TEST_MODESET | TEST_EINVAL | TEST_BASIC, "flip-vs-modeset" },
 		{ 30,  TEST_FLIP | TEST_VBLANK_EXPIRED_SEQ,
