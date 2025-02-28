@@ -577,13 +577,45 @@ bool open_output_files(int dirfd, int *fds, bool write)
 	return true;
 }
 
+/**
+ * open_output_files_rdonly:
+ * @dirfd: fd of output directory with err.txt, dmesg.txt and other files
+ * @fds: array for fd's of opened output files
+ *
+ * Tries to open output files in read-only mode and saves file descriptors
+ * in fds array.
+ *
+ * Returns: true if all files opened, false otherwise
+ */
+bool open_output_files_rdonly(int dirfd, int *fds)
+{
+	bool ret = true;
+
+	for (int i = 0; i < _F_LAST; i++)
+		if ((fds[i] = open_for_reading(dirfd, filenames[i])) < 0) {
+			fds[i] = -errno;
+			ret = false; /* Remember failure */
+		}
+
+	return ret;
+}
+
 void close_outputs(int *fds)
 {
 	int i;
 
 	for (i = 0; i < _F_LAST; i++) {
-		close(fds[i]);
+		if (fds[i] >= 0)
+			close(fds[i]);
 	}
+}
+
+const char *get_out_filename(int fid)
+{
+	if (fid >= 0 && fid < _F_LAST)
+		return filenames[fid];
+
+	return "output-filename-index-error";
 }
 
 /* Returns the number of bytes written to disk, or a negative number on error */

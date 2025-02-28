@@ -2176,12 +2176,42 @@ static bool parse_test_directory(int dirfd,
 {
 	int fds[_F_LAST];
 	struct subtest_list subtests = {};
-	bool status = true;
 	int commsparsed;
 
-	if (!open_output_files(dirfd, fds, false)) {
-		fprintf(stderr, "Error opening output files\n");
-		return false;
+	if (!open_output_files_rdonly(dirfd, fds)) {
+		struct stat statbuf;
+		size_t fsizes[_F_LAST]; /* checks for both comm and out/err empty */
+		int fst_err;
+
+		for (int i = 0; i < _F_LAST; ++i) {
+			fsizes[i] = 0;
+			if (fds[i] > 0) {
+				fst_err = fstat(fds[i], &statbuf);
+				if (!fst_err)
+					fsizes[i] = statbuf.st_size;
+				else
+					fprintf(stderr, "results: %s: stats failed: %s\n",
+						get_out_filename(i), strerror(fst_err));
+			} else {
+				fprintf(stderr, "results: %s: open failed: %s\n",
+					get_out_filename(i), strerror(-fds[i]));
+			}
+		}
+
+		/* out/err/dmesg.txt should exist, otherwise there was crash */
+		if (fds[_F_OUT] < 0 || fds[_F_ERR] < 0 || fds[_F_DMESG] < 0) {
+			fprintf(stderr, "results: missing output file(s)\n");
+			close_outputs(fds);
+
+			return false;
+		}
+
+		if (!fsizes[_F_SOCKET] && !fsizes[_F_OUT] && !fsizes[_F_ERR]) {
+			if (!fsizes[_F_DMESG])
+				fprintf(stderr, "results: empty output files\n");
+			else
+				fprintf(stderr, "results: comms/err/out empty, using only dmesg\n");
+		}
 	}
 
 	/*
@@ -2191,8 +2221,6 @@ static bool parse_test_directory(int dirfd,
 	commsparsed = fill_from_comms(fds[_F_SOCKET], entry, &subtests, results);
 	if (commsparsed == COMMSPARSE_ERROR) {
 		fprintf(stderr, "Error parsing output files (comms)\n");
-		status = false;
-		goto parse_output_end;
 	}
 
 	if (commsparsed == COMMSPARSE_EMPTY) {
@@ -2200,20 +2228,17 @@ static bool parse_test_directory(int dirfd,
 		 * fill_from_journal fills the subtests struct and
 		 * adds timeout results where applicable.
 		 */
-		fill_from_journal(fds[_F_JOURNAL], entry, &subtests, results);
+		if (fds[_F_JOURNAL] > 0)
+			fill_from_journal(fds[_F_JOURNAL], entry, &subtests, results);
 
 		if (!fill_from_output(fds[_F_OUT], entry->binary, "out", &subtests, results->tests) ||
 		    !fill_from_output(fds[_F_ERR], entry->binary, "err", &subtests, results->tests)) {
 			fprintf(stderr, "Error parsing output files (out.txt, err.txt)\n");
-			status = false;
-			goto parse_output_end;
 		}
 	}
 
 	if (!fill_from_dmesg(fds[_F_DMESG], settings, entry->binary, &subtests, results->tests)) {
 		fprintf(stderr, "Error parsing output files (dmesg.txt)\n");
-		status = false;
-		goto parse_output_end;
 	}
 
 	override_results(entry->binary, &subtests, results->tests);
@@ -2221,11 +2246,10 @@ static bool parse_test_directory(int dirfd,
 
 	add_to_totals(entry->binary, &subtests, results);
 
- parse_output_end:
 	close_outputs(fds);
 	free_subtests(&subtests);
 
-	return status;
+	return true;
 }
 
 static void try_add_notrun_results(const struct job_list_entry *entry,
@@ -2359,14 +2383,21 @@ struct json_object *generate_results_json(int dirfd)
 		char name[16];
 
 		snprintf(name, 16, "%zd", i);
+		fprintf(stderr, "results: parsing output: %s/ for test: %s\n",
+			name, job_list.entries[i].binary);
 		if ((testdirfd = openat(dirfd, name, O_DIRECTORY | O_RDONLY)) < 0) {
+			if (settings.log_level >= LOG_LEVEL_NORMAL)
+				fprintf(stderr, "results: no output, setting notrun\n");
+
 			try_add_notrun_results(&job_list.entries[i], &settings, &results);
 			continue;
 		}
 
 		if (!parse_test_directory(testdirfd, &job_list.entries[i], &settings, &results)) {
-			close(testdirfd);
-			return NULL;
+			if (settings.log_level >= LOG_LEVEL_NORMAL)
+				fprintf(stderr, "results: no useful output, setting notrun\n");
+
+			try_add_notrun_results(&job_list.entries[i], &settings, &results);
 		}
 		close(testdirfd);
 	}

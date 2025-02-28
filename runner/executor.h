@@ -26,7 +26,9 @@ enum {
 };
 
 bool open_output_files(int dirfd, int *fds, bool write);
+bool open_output_files_rdonly(int dirfd, int *fds);
 void close_outputs(int *fds);
+const char *get_out_filename(int fid);
 
 /*
  * Initialize execute_state object to a state where it's ready to
