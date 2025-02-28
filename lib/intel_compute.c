@@ -708,8 +708,6 @@ static void compute_exec(int fd, const unsigned char *kernel,
 	};
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
-	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
-	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
 	uint16_t devid = intel_get_drm_devid(fd);
 
 	bo_execenv_create(fd, &execenv, eci, user);
@@ -721,24 +719,16 @@ static void compute_exec(int fd, const unsigned char *kernel,
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
-	create_surface_state(bo_dict[2].data, bind_input_addr, bind_output_addr);
-	create_indirect_data(bo_dict[3].data, bind_input_addr, bind_output_addr,
+	create_surface_state(bo_dict[2].data, ADDR_INPUT, ADDR_OUTPUT);
+	create_indirect_data(bo_dict[3].data, ADDR_INPUT, ADDR_OUTPUT,
 			     IS_DG1(devid) ? 0x200 : 0x40, SIZE_DATA);
 
-	if (user && user->input_addr) {
-		input_data = (float *) user->input_addr;
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
+	input_data = (float *) bo_dict[4].data;
+	output_data = (float *) bo_dict[5].data;
+	srand(time(NULL));
 
-		for (int i = 0; i < SIZE_DATA; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = (float *) user->output_addr;
-	else
-		output_data = (float *) bo_dict[5].data;
+	for (int i = 0; i < SIZE_DATA; i++)
+		input_data[i] = rand() / (float)RAND_MAX;
 
 	if (IS_DG1(devid))
 		dg1_compute_exec_compute(bo_dict[6].data,
@@ -1005,8 +995,6 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	};
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
-	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
-	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1017,24 +1005,16 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
-	xehp_create_surface_state(bo_dict[2].data, bind_input_addr, bind_output_addr);
-	xehp_create_indirect_data(bo_dict[3].data, bind_input_addr, bind_output_addr, SIZE_DATA);
-	xehp_create_surface_state(bo_dict[7].data, bind_input_addr, bind_output_addr);
+	xehp_create_surface_state(bo_dict[2].data, ADDR_INPUT, ADDR_OUTPUT);
+	xehp_create_indirect_data(bo_dict[3].data, ADDR_INPUT, ADDR_OUTPUT, SIZE_DATA);
+	xehp_create_surface_state(bo_dict[7].data, ADDR_INPUT, ADDR_OUTPUT);
 
-	if (user && user->input_addr) {
-		input_data = (float *) user->input_addr;
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
+	input_data = (float *) bo_dict[4].data;
+	output_data = (float *) bo_dict[5].data;
+	srand(time(NULL));
 
-		for (int i = 0; i < SIZE_DATA; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = (float *) user->output_addr;
-	else
-		output_data = (float *) bo_dict[5].data;
+	for (int i = 0; i < SIZE_DATA; i++)
+		input_data[i] = rand() / (float)RAND_MAX;
 
 	xehp_compute_exec_compute(bo_dict[8].data,
 				  ADDR_GENERAL_STATE_BASE,
@@ -1229,8 +1209,6 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	};
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
-	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
-	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1240,22 +1218,14 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	bo_execenv_bind(&execenv, bo_dict, XEHPC_BO_DICT_ENTRIES);
 
 	memcpy(bo_dict[0].data, kernel, size);
-	xehpc_create_indirect_data(bo_dict[1].data, bind_input_addr, bind_output_addr, SIZE_DATA);
+	xehpc_create_indirect_data(bo_dict[1].data, ADDR_INPUT, ADDR_OUTPUT, SIZE_DATA);
 
-	if (user && user->input_addr) {
-		input_data = (float *) user->input_addr;
-	} else {
-		input_data = (float *) bo_dict[2].data;
-		srand(time(NULL));
+	input_data = (float *) bo_dict[2].data;
+	output_data = (float *) bo_dict[3].data;
+	srand(time(NULL));
 
-		for (int i = 0; i < SIZE_DATA; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = (float *) user->output_addr;
-	else
-		output_data = (float *) bo_dict[3].data;
+	for (int i = 0; i < SIZE_DATA; i++)
+		input_data[i] = rand() / (float)RAND_MAX;
 
 	xehpc_compute_exec_compute(bo_dict[5].data,
 				   ADDR_GENERAL_STATE_BASE,
@@ -1602,8 +1572,6 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
-	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
-	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1615,24 +1583,16 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 	memcpy(bo_dict[0].data, kernel, size);
 
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
-	xehp_create_surface_state(bo_dict[2].data, bind_input_addr, bind_output_addr);
-	xehp_create_indirect_data(bo_dict[3].data, bind_input_addr, bind_output_addr, SIZE_DATA);
-	xehp_create_surface_state(bo_dict[7].data, bind_input_addr, bind_output_addr);
+	xehp_create_surface_state(bo_dict[2].data, ADDR_INPUT, ADDR_OUTPUT);
+	xehp_create_indirect_data(bo_dict[3].data, ADDR_INPUT, ADDR_OUTPUT, SIZE_DATA);
+	xehp_create_surface_state(bo_dict[7].data, ADDR_INPUT, ADDR_OUTPUT);
 
-	if (user && user->input_addr) {
-		input_data = (float *) user->input_addr;
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
+	input_data = (float *) bo_dict[4].data;
+	output_data = (float *) bo_dict[5].data;
+	srand(time(NULL));
 
-		for (int i = 0; i < SIZE_DATA; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = (float *) user->output_addr;
-	else
-		output_data = (float *) bo_dict[5].data;
+	for (int i = 0; i < SIZE_DATA; i++)
+		input_data[i] = rand() / (float)RAND_MAX;
 
 	xelpg_compute_exec_compute(bo_dict[8].data,
 				   ADDR_GENERAL_STATE_BASE,
@@ -1705,8 +1665,6 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 
 	struct bo_execenv execenv;
 	float *input_data, *output_data;
-	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
-	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1717,24 +1675,16 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
-	xehp_create_surface_state(bo_dict[2].data, bind_input_addr, bind_output_addr);
-	xehp_create_indirect_data(bo_dict[3].data, bind_input_addr, bind_output_addr, SIZE_DATA);
-	xehp_create_surface_state(bo_dict[7].data, bind_input_addr, bind_output_addr);
+	xehp_create_surface_state(bo_dict[2].data, ADDR_INPUT, ADDR_OUTPUT);
+	xehp_create_indirect_data(bo_dict[3].data, ADDR_INPUT, ADDR_OUTPUT, SIZE_DATA);
+	xehp_create_surface_state(bo_dict[7].data, ADDR_INPUT, ADDR_OUTPUT);
 
-	if (user && user->input_addr) {
-		input_data = (float *) user->input_addr;
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
+	input_data = (float *) bo_dict[4].data;
+	output_data = (float *) bo_dict[5].data;
+	srand(time(NULL));
 
-		for (int i = 0; i < SIZE_DATA; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = (float *) user->output_addr;
-	else
-		output_data = (float *) bo_dict[5].data;
+	for (int i = 0; i < SIZE_DATA; i++)
+		input_data[i] = rand() / (float)RAND_MAX;
 
 	xe2lpg_compute_exec_compute(bo_dict[8].data,
 				  ADDR_GENERAL_STATE_BASE,
