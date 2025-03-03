@@ -93,6 +93,23 @@ struct accumulator {
 	uint64_t deltas[MAX_RAW_OA_COUNTERS];
 };
 
+struct oa_buf_size {
+	char name[12];
+	uint32_t size;
+} buf_sizes[] = {
+	{ "128K", SZ_128K },
+	{ "256K", SZ_256K },
+	{ "512K", SZ_512K },
+	{ "1M", SZ_1M },
+	{ "2M", SZ_2M },
+	{ "4M", SZ_4M },
+	{ "8M", SZ_8M },
+	{ "16M", SZ_16M },
+	{ "32M", SZ_32M },
+	{ "64M", SZ_64M },
+	{ "128M", SZ_128M },
+};
+
 /* OA unit types */
 enum {
 	OAG,
@@ -305,6 +322,7 @@ static struct intel_mmio_data mmio_data;
 static igt_render_copyfunc_t render_copy;
 static uint32_t rc_width, rc_height;
 static uint32_t buffer_fill_size;
+static uint32_t num_buf_sizes;
 
 static struct intel_xe_perf_metric_set *metric_set(const struct drm_xe_engine_class_instance *hwe)
 {
@@ -1094,6 +1112,7 @@ init_sys_info(void)
 	rc_width = 1920;
 	rc_height = 1080;
 	buffer_fill_size = SZ_16M;
+	num_buf_sizes = ARRAY_SIZE(buf_sizes);
 	oa_exponent_default = max_oa_exponent_for_period_lte(1000000);
 
 	default_oa_buffer_size = get_default_oa_buffer_size(drm_fd);
@@ -4795,6 +4814,17 @@ igt_main
 	igt_subtest_with_dynamic("buffer-fill")
 		__for_one_hwe_in_oag(hwe)
 			test_buffer_fill(hwe);
+
+	/**
+	 * SUBTEST: buffer-size
+	 * Description: Test various OA buffer sizes
+	 */
+	igt_subtest_with_dynamic("buffer-size") {
+		long k = random() % num_buf_sizes;
+
+		__for_one_hwe_in_oag_w_arg(hwe, buf_sizes[k].name)
+			test_non_zero_reason(hwe, buf_sizes[k].size);
+	}
 
 	igt_subtest_with_dynamic("non-zero-reason")
 		__for_one_hwe_in_oag(hwe)
