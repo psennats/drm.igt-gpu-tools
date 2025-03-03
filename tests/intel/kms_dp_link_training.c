@@ -223,6 +223,7 @@ static bool run_link_rate_test(data_t *data, bool mst, bool uhbr)
 
 	igt_display_reset(&data->display);
 	igt_reset_link_params(data->drm_fd, data->output);
+	do_modeset(data, mst);
 
 	/* Retrain at default/driver parameters */
 	igt_force_link_retrain(data->drm_fd, data->output, RETRAIN_COUNT);
@@ -230,7 +231,6 @@ static bool run_link_rate_test(data_t *data, bool mst, bool uhbr)
 						   igt_get_dp_pending_retrain,
 						   1.0, 20.0), 0);
 	assert_link_status_good(data, mst);
-	do_modeset(data, mst);
 
 	/* FIXME : Driver may lie max link rate or max lane count */
 	/* Read max_link_rate and max_lane_count */
