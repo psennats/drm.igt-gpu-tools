@@ -2437,7 +2437,7 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
 		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
-		DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, oa_buffer_size,
+		DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, oa_buffer_size ?: buffer_fill_size
 	};
 	struct intel_xe_oa_open_prop param = {
 		.num_properties = ARRAY_SIZE(properties) / 2,
@@ -4796,15 +4796,9 @@ igt_main
 		__for_one_hwe_in_oag(hwe)
 			test_buffer_fill(hwe);
 
-	igt_subtest_with_dynamic("non-zero-reason") {
-		if (oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE) {
-			__for_one_hwe_in_oag_w_arg(hwe, "16M")
-				test_non_zero_reason(hwe, SZ_16M);
-		} else {
-			__for_one_hwe_in_oag_w_arg(hwe, "default")
-				test_non_zero_reason(hwe, 0);
-		}
-	}
+	igt_subtest_with_dynamic("non-zero-reason")
+		__for_one_hwe_in_oag(hwe)
+			test_non_zero_reason(hwe, 0);
 
 	igt_subtest("disabled-read-error")
 		test_disabled_read_error();
