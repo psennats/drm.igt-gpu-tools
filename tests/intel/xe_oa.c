@@ -688,10 +688,10 @@ timebase_scale(uint64_t delta)
 }
 
 /* Returns: the largest OA exponent that will still result in a sampling period
- * less than or equal to the given @period.
+ * less than or equal to the given @period_ns.
  */
 static int
-max_oa_exponent_for_period_lte(uint64_t period)
+max_oa_exponent_for_period_lte(uint64_t period_ns)
 {
 	/* NB: timebase_scale() takes a uint64_t and an exponent of 30
 	 * would already represent a period of ~3 minutes so there's
@@ -700,7 +700,7 @@ max_oa_exponent_for_period_lte(uint64_t period)
 	for (int i = 0; i < 30; i++) {
 		uint64_t oa_period = timebase_scale(2 << i);
 
-		if (oa_period > period)
+		if (oa_period > period_ns)
 			return max(0, i - 1);
 	}
 
