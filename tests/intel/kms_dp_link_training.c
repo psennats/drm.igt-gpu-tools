@@ -85,7 +85,7 @@ static void assert_link_status_good(data_t *data, bool mst)
 	if (mst) {
 		igt_assert_f(igt_find_all_mst_output_in_topology(data->drm_fd,
 								 &data->display, data->output,
-								 outputs, &count),
+								 outputs, &count) == 0,
 								 "Unable to find MST outputs\n");
 
 		for (i = 0; i < count; i++) {
@@ -184,7 +184,7 @@ static void do_modeset(data_t *data, bool mst)
 		igt_assert_f(igt_find_all_mst_output_in_topology(data->drm_fd,
 								 &data->display,
 								 data->output, outs,
-								 &out_count),
+								 &out_count) == 0,
 								 "Unable to find MST outputs\n");
 	} else {
 		outs[0] = data->output;
