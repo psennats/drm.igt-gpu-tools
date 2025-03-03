@@ -296,12 +296,12 @@ static int pm_fd = -1;
 static int stream_fd = -1;
 static uint32_t devid;
 
-struct drm_xe_engine_class_instance default_hwe;
+static struct drm_xe_engine_class_instance default_hwe;
 
 static struct intel_xe_perf *intel_xe_perf;
 static uint64_t oa_exp_1_millisec;
 static size_t default_oa_buffer_size;
-struct intel_mmio_data mmio_data;
+static struct intel_mmio_data mmio_data;
 static igt_render_copyfunc_t render_copy;
 
 static struct intel_xe_perf_metric_set *metric_set(const struct drm_xe_engine_class_instance *hwe)
