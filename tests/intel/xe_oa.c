@@ -2524,145 +2524,53 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 static void
 test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 {
-	/* ~5 micro second period */
-	int oa_exponent = max_oa_exponent_for_period_lte(5000);
-	uint64_t oa_period = oa_exponent_to_ns(oa_exponent);
+	uint32_t num_reports = 5;
 	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
 	uint64_t fmt = test_set->perf_oa_format;
 	uint64_t properties[] = {
 		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
-
-		/* Include OA reports in samples */
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
-
-		/* OA unit configuration */
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
-		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
 		DRM_XE_OA_PROPERTY_OA_DISABLED, true,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
+		DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS, num_reports,
 	};
 	struct intel_xe_oa_open_prop param = {
 		.num_properties = ARRAY_SIZE(properties) / 2,
 		.properties_ptr = to_user_pointer(properties),
 	};
-	size_t report_size = get_oa_format(fmt).size;
-	int buf_size = 65536 * report_size;
-	uint8_t *buf = malloc(buf_size);
-	int n_full_oa_reports = default_oa_buffer_size / report_size;
-	uint64_t fill_duration = n_full_oa_reports * oa_period;
-	uint32_t *last_periodic_report = malloc(report_size);
-
-	load_helper_init();
-	load_helper_run(HIGH);
+	size_t format_size = get_oa_format(fmt).size;
+	uint8_t buf[num_reports * format_size];
+	struct pollfd pollfd;
+	int ret;
 
 	stream_fd = __perf_open(drm_fd, &param, true /* prevent_pm */);
-        set_fd_flags(stream_fd, O_CLOEXEC);
+	set_fd_flags(stream_fd, O_CLOEXEC | O_NONBLOCK);
 
-	for (int i = 0; i < 5; i++) {
-		int len;
-		uint32_t n_periodic_reports;
-		uint64_t first_timestamp = 0, last_timestamp = 0;
-		u32 oa_status;
+	errno = 0;
+	ret = read(stream_fd, buf, sizeof(buf));
+	igt_assert_eq(ret, -1);
+	igt_assert_eq(errno, EINVAL);
 
-		/* Giving enough time for an overflow might help catch whether
-		 * the OA unit has been enabled even if the driver might at
-		 * least avoid copying reports while disabled.
-		 */
-		nanosleep(&(struct timespec){ .tv_sec = 0,
-					      .tv_nsec = fill_duration * 1.25 },
-			  NULL);
+	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
 
-		while ((len = read(stream_fd, buf, buf_size)) == -1 &&
-		       (errno == EINTR || errno == EIO))
-			;
+	/*
+	 * Wait for number of reports specified in
+	 * DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS
+	 */
+	pollfd.fd = stream_fd;
+	pollfd.events = POLLIN;
+	poll(&pollfd, 1, -1);
+	igt_assert(pollfd.revents & POLLIN);
 
-		igt_assert_eq(len, -1);
-		igt_assert_eq(errno, EINVAL);
-
-		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
-
-		nanosleep(&(struct timespec){ .tv_sec = 0,
-					      .tv_nsec = fill_duration / 2 },
-			NULL);
-
-		n_periodic_reports = 0;
-
-		/* Because of the race condition between notification of new
-		 * reports and reports landing in memory, we need to rely on
-		 * timestamps to figure whether we've read enough of them.
-		 */
-		while (((last_timestamp - first_timestamp) * oa_period) < (fill_duration / 2)) {
-
-			while ((len = read(stream_fd, buf, buf_size)) == -1 && errno == EINTR)
-				;
-			if (errno == EIO) {
-				oa_status = get_stream_status(stream_fd);
-				igt_debug("oa_status %#x\n", oa_status);
-				igt_assert(!(oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW));
-				continue;
-			}
-			igt_assert_neq(len, -1);
-
-			for (int offset = 0; offset < len; offset += report_size) {
-				uint32_t *report = (void *) (buf + offset);
-
-				if (first_timestamp == 0)
-					first_timestamp = oa_timestamp(report, fmt);
-				last_timestamp = oa_timestamp(report, fmt);
-
-				igt_debug(" > report ts=%"PRIx64""
-					  " ts_delta_last_periodic=%s%"PRIu64""
-					  " is_timer=%i ctx_id=0x%8x\n",
-					  oa_timestamp(report, fmt),
-					  oa_report_is_periodic(report) ? " " : "*",
-					  n_periodic_reports > 0 ?  oa_timestamp_delta(report, last_periodic_report, fmt) : 0,
-					  oa_report_is_periodic(report),
-					  oa_report_get_ctx_id(report));
-
-				if (oa_report_is_periodic(report)) {
-					memcpy(last_periodic_report, report, report_size);
-
-					/* We want to measure only the periodic reports,
-					 * ctx-switch might inflate the content of the
-					 * buffer and skew or measurement.
-					 */
-					n_periodic_reports++;
-				}
-			}
-		}
-
-		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
-
-		igt_debug("first ts = %"PRIu64", last ts = %"PRIu64"\n", first_timestamp, last_timestamp);
-
-		igt_debug("%f < %zu < %f\n",
-			  report_size * n_full_oa_reports * 0.45,
-			  n_periodic_reports * report_size,
-			  report_size * n_full_oa_reports * 0.55);
-
-		igt_assert((n_periodic_reports * report_size) >
-			   (report_size * n_full_oa_reports * 0.45));
-		igt_assert((n_periodic_reports * report_size) <
-			   report_size * n_full_oa_reports * 0.55);
-
-
-		/* It's considered an error to read a stream while it's disabled
-		 * since it would block indefinitely...
-		 */
-		len = read(stream_fd, buf, buf_size);
-
-		igt_assert_eq(len, -1);
-		igt_assert_eq(errno, EINVAL);
-	}
-
-	free(last_periodic_report);
-	free(buf);
+	/* Ensure num_reports can be read */
+	while ((ret = read(stream_fd, buf, sizeof(buf))) < 0 && errno == EINTR)
+		;
+	igt_assert_eq(ret, sizeof(buf));
 
 	__perf_close(stream_fd);
-
-	load_helper_stop();
-	load_helper_fini();
 }
 
 /**
