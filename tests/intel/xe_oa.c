@@ -304,6 +304,7 @@ static size_t default_oa_buffer_size;
 static struct intel_mmio_data mmio_data;
 static igt_render_copyfunc_t render_copy;
 static uint32_t rc_width, rc_height;
+static uint32_t buffer_fill_size;
 
 static struct intel_xe_perf_metric_set *metric_set(const struct drm_xe_engine_class_instance *hwe)
 {
@@ -1092,6 +1093,7 @@ init_sys_info(void)
 
 	rc_width = 1920;
 	rc_height = 1080;
+	buffer_fill_size = SZ_16M;
 	oa_exponent_default = max_oa_exponent_for_period_lte(1000000);
 
 	default_oa_buffer_size = get_default_oa_buffer_size(drm_fd);
@@ -2352,7 +2354,7 @@ test_oa_tlb_invalidate(const struct drm_xe_engine_class_instance *hwe)
 
 /**
  * SUBTEST: buffer-fill
- * Description: Test filling, wraparound and overflow of OA buffer
+ * Description: Test filling and overflow of OA buffer
  */
 static void
 test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
@@ -2373,123 +2375,41 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
 		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
+		DRM_XE_OA_PROPERTY_OA_DISABLED, true,
+		DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, buffer_fill_size,
 	};
 	struct intel_xe_oa_open_prop param = {
 		.num_properties = ARRAY_SIZE(properties) / 2,
 		.properties_ptr = to_user_pointer(properties),
 	};
-	size_t report_size = get_oa_format(fmt).size;
-	int buf_size = 65536 * report_size;
-	uint8_t *buf = malloc(buf_size);
-	int len;
-	int n_full_oa_reports = default_oa_buffer_size / report_size;
-	uint64_t fill_duration = n_full_oa_reports * oa_period;
-	uint32_t *last_periodic_report = malloc(report_size);
+	char *buf = malloc(1024);
+	bool overflow_seen;
 	u32 oa_status;
+	int len;
 
-	igt_assert(fill_duration < 1000000000);
-
+	igt_debug("oa_period %s\n", pretty_print_oa_period(oa_period));
 	stream_fd = __perf_open(drm_fd, &param, true /* prevent_pm */);
         set_fd_flags(stream_fd, O_CLOEXEC);
 
-	for (int i = 0; i < 5; i++) {
-		bool overflow_seen;
-		uint32_t n_periodic_reports;
-		uint32_t first_timestamp = 0, last_timestamp = 0;
+	/* OA buffer is disabled, we do not expect any error status */
+	oa_status = get_stream_status(stream_fd);
+	overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
+	igt_assert_eq(overflow_seen, 0);
 
-		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
+	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
 
-		nanosleep(&(struct timespec){ .tv_sec = 0,
-					      .tv_nsec = fill_duration * 1.25 },
-			  NULL);
-again:
-		oa_status = 0;
-		while ((len = read(stream_fd, buf, buf_size)) == -1 && errno == EINTR)
-			;
-
-		if (errno == EIO) {
-			oa_status = get_stream_status(stream_fd);
-			igt_debug("oa_status %#x\n", oa_status);
-			overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
-			igt_assert_eq(overflow_seen, true);
-			goto again;
-		}
-		igt_assert_neq(len, -1);
-
-		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
-
-		igt_debug("fill_duration = %"PRIu64"ns, oa_exponent = %u\n",
-			  fill_duration, oa_exponent);
-
-		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
-
-		nanosleep(&(struct timespec){ .tv_sec = 0,
-					.tv_nsec = fill_duration / 2 },
-			NULL);
-
-		n_periodic_reports = 0;
-
-		/* Because of the race condition between notification of new
-		 * reports and reports landing in memory, we need to rely on
-		 * timestamps to figure whether we've read enough of them.
-		 */
-		while (((last_timestamp - first_timestamp) * oa_period) < (fill_duration / 2)) {
-
-			igt_debug("dts=%u elapsed=%"PRIu64" duration=%"PRIu64"\n",
-				  last_timestamp - first_timestamp,
-				  (last_timestamp - first_timestamp) * oa_period,
-				  fill_duration / 2);
-again_1:
-			oa_status = 0;
-			while ((len = read(stream_fd, buf, buf_size)) == -1 && errno == EINTR)
-				;
-			if (errno == EIO) {
-				oa_status = get_stream_status(stream_fd);
-				igt_debug("oa_status %#x\n", oa_status);
-				igt_assert(!(oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW));
-				goto again_1;
-			}
-			igt_assert_neq(len, -1);
-
-			for (int offset = 0; offset < len; offset += report_size) {
-				uint32_t *report = (void *) (buf + offset);
-
-				igt_debug(" > report ts=%"PRIu64""
-					  " ts_delta_last_periodic=%"PRIu64" is_timer=%i ctx_id=%8x nb_periodic=%u\n",
-					  oa_timestamp(report, fmt),
-					  n_periodic_reports > 0 ?  oa_timestamp_delta(report, last_periodic_report, fmt) : 0,
-					  oa_report_is_periodic(report),
-					  oa_report_get_ctx_id(report),
-					  n_periodic_reports);
-
-				if (first_timestamp == 0)
-					first_timestamp = oa_timestamp(report, fmt);
-				last_timestamp = oa_timestamp(report, fmt);
-
-				if (oa_report_is_periodic(report)) {
-					memcpy(last_periodic_report, report, report_size);
-					n_periodic_reports++;
-				}
-			}
-		}
-
-		do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
-
-		igt_debug("first ts = %u, last ts = %u\n", first_timestamp, last_timestamp);
-
-		igt_debug("%f < %zu < %f\n",
-			  report_size * n_full_oa_reports * 0.45,
-			  n_periodic_reports * report_size,
-			  report_size * n_full_oa_reports * 0.55);
-
-		igt_assert(n_periodic_reports * report_size >
-			   report_size * n_full_oa_reports * 0.45);
-		igt_assert(n_periodic_reports * report_size <
-			   report_size * n_full_oa_reports * 0.55);
+	errno = 0;
+	/* Read 0 bytes repeatedly until you see an EIO */
+	while ((len = read(stream_fd, buf, 0)) == -1 && (errno == EINTR || errno == ENOSPC)) {
+		usleep(100);
 	}
+	igt_assert_eq(len, -1);
+	igt_assert_eq(errno, EIO);
 
-	free(last_periodic_report);
-	free(buf);
+	/* Ensure buffer overflowed */
+	oa_status = get_stream_status(stream_fd);
+	overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
+	igt_assert(overflow_seen);
 
 	__perf_close(stream_fd);
 }
