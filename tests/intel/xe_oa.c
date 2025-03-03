@@ -4788,13 +4788,6 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 		igt_dynamic_f("%s-%d-%s", xe_engine_class_name(hwe->engine_class), \
 			      hwe->engine_instance, str)
 
-#define __for_one_render_engine_0(hwe) \
-	xe_for_each_engine(drm_fd, hwe) \
-		if (hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER) \
-			break; \
-	for_each_if(hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER) \
-		igt_dynamic_f("rcs-%d", hwe->engine_instance)
-
 #define __for_one_render_engine(hwe)	      \
 	for (int m = 0, done = 0; !done; m++) \
 		for_each_if(m < xe_number_engines(drm_fd) && \
