@@ -2216,7 +2216,6 @@ static void test_polling(uint64_t requested_oa_period,
  */
 static void test_polling_small_buf(void)
 {
-	int oa_exponent = max_oa_exponent_for_period_lte(40 * 1000); /* 40us */
 	uint64_t properties[] = {
 		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
 
@@ -2226,50 +2225,44 @@ static void test_polling_small_buf(void)
 		/* OA unit configuration */
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, default_test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(default_test_set->perf_oa_format),
-		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
+		DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS, 5,
 		DRM_XE_OA_PROPERTY_OA_DISABLED, true,
 	};
 	struct intel_xe_oa_open_prop param = {
 		.num_properties = ARRAY_SIZE(properties) / 2,
 		.properties_ptr = to_user_pointer(properties),
 	};
-	uint32_t test_duration = 80 * 1000 * 1000;
-	int sample_size = get_oa_format(default_test_set->perf_oa_format).size;
-	int n_expected_reports = test_duration / oa_exponent_to_ns(oa_exponent);
-	int n_expect_read_bytes = n_expected_reports * sample_size;
-	struct timespec ts = {};
-	int n_bytes_read = 0;
-	uint32_t n_polls = 0;
+	struct pollfd pollfd;
+	uint8_t buf[10];
+	int ret;
 
 	stream_fd = __perf_open(drm_fd, &param, true /* prevent_pm */);
 	set_fd_flags(stream_fd, O_CLOEXEC | O_NONBLOCK);
+
+	/* Kickstart the capture */
 	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
 
-	while (igt_nsec_elapsed(&ts) < test_duration) {
-		struct pollfd pollfd = { .fd = stream_fd, .events = POLLIN };
+	/*
+	 * Wait for number of reports specified in
+	 * DRM_XE_OA_PROPERTY_WAIT_NUM_REPORTS
+	 */
+	pollfd.fd = stream_fd;
+	pollfd.events = POLLIN;
+	poll(&pollfd, 1, -1);
+	igt_assert(pollfd.revents & POLLIN);
 
-		ppoll(&pollfd, 1, NULL, NULL);
-		if (pollfd.revents & POLLIN) {
-			uint8_t buf[1024];
-			int ret;
+	/* Just read one report and expect ENOSPC */
+	errno = 0;
+	ret = read(stream_fd, buf, sizeof(buf));
+	igt_assert_eq(ret, -1);
+	igt_assert_eq(errno, ENOSPC);
 
-			ret = read(stream_fd, buf, sizeof(buf));
-			if (ret >= 0)
-				n_bytes_read += ret;
-		}
-
-		n_polls++;
-	}
-
-	igt_info("Read %d expected %d (%.2f%% of the expected number), polls=%u\n",
-		 n_bytes_read, n_expect_read_bytes,
-		 n_bytes_read * 100.0f / n_expect_read_bytes,
-		 n_polls);
+	/* Poll with 0 timeout and expect POLLIN flag to be set */
+	poll(&pollfd, 1, 0);
+	igt_assert(pollfd.revents & POLLIN);
 
 	__perf_close(stream_fd);
-
-	igt_assert(abs(n_expect_read_bytes - n_bytes_read) <
-		   0.20 * n_expect_read_bytes);
 }
 
 static int
