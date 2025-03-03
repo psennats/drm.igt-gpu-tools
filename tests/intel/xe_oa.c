@@ -303,6 +303,7 @@ static uint64_t oa_exponent_default;
 static size_t default_oa_buffer_size;
 static struct intel_mmio_data mmio_data;
 static igt_render_copyfunc_t render_copy;
+static uint32_t rc_width, rc_height;
 
 static struct intel_xe_perf_metric_set *metric_set(const struct drm_xe_engine_class_instance *hwe)
 {
@@ -1089,6 +1090,8 @@ init_sys_info(void)
 
 	intel_xe_perf_load_perf_configs(intel_xe_perf, drm_fd);
 
+	rc_width = 1920;
+	rc_height = 1080;
 	oa_exponent_default = max_oa_exponent_for_period_lte(1000000);
 
 	default_oa_buffer_size = get_default_oa_buffer_size(drm_fd);
@@ -1608,7 +1611,7 @@ static void load_helper_run(enum load load)
 
 		while (!lh.exit) {
 			render_copy(lh.ibb,
-				    &lh.src, 0, 0, 1920, 1080,
+				    &lh.src, 0, 0, rc_width, rc_height,
 				    &lh.dst, 0, 0);
 
 			intel_bb_sync(lh.ibb);
@@ -1645,8 +1648,8 @@ static void load_helper_init(void)
 
 	lh.ibb = intel_bb_create_with_context(drm_fd, lh.context_id, lh.vm, NULL, BATCH_SZ);
 
-	scratch_buf_init(lh.bops, &lh.dst, 1920, 1080, 0);
-	scratch_buf_init(lh.bops, &lh.src, 1920, 1080, 0);
+	scratch_buf_init(lh.bops, &lh.dst, rc_width, rc_height, 0);
+	scratch_buf_init(lh.bops, &lh.src, rc_width, rc_height, 0);
 }
 
 static void load_helper_fini(void)
@@ -3112,8 +3115,6 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	uint64_t delta_ts64, delta_oa32;
 	uint64_t delta_ts64_ns, delta_oa32_ns;
 	uint64_t delta_delta;
-	int width = 800;
-	int height = 600;
 #define INVALID_CTX_ID 0xffffffff
 	uint32_t ctx0_id = INVALID_CTX_ID;
 	uint32_t ctx1_id = INVALID_CTX_ID;
@@ -3125,8 +3126,8 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	bops = buf_ops_create(drm_fd);
 
 	for (int i = 0; i < ARRAY_SIZE(src); i++) {
-		scratch_buf_init(bops, &src[i], width, height, 0xff0000ff);
-		scratch_buf_init(bops, &dst[i], width, height, 0x00ff00ff);
+		scratch_buf_init(bops, &src[i], rc_width, rc_height, 0xff0000ff);
+		scratch_buf_init(bops, &dst[i], rc_width, rc_height, 0x00ff00ff);
 	}
 
 	vm = xe_vm_create(drm_fd, 0, 0);
@@ -3139,7 +3140,7 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 
 	/* Submit some early, unmeasured, work to the context we want */
 	render_copy(ibb0,
-		    &src[0], 0, 0, width, height,
+		    &src[0], 0, 0, rc_width, rc_height,
 		    &dst[0], 0, 0);
 
 	/* Initialize the context parameter to the perf open ioctl here */
@@ -3175,7 +3176,7 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 
 	/* This is the work/context that is measured for counter increments */
 	render_copy(ibb0,
-		    &src[0], 0, 0, width, height,
+		    &src[0], 0, 0, rc_width, rc_height,
 		    &dst[0], 0, 0);
 	intel_bb_flush_render(ibb0);
 
@@ -3200,11 +3201,11 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	 * context1
 	 */
 	render_copy(ibb1,
-		    &src[1], 0, 0, width, height,
+		    &src[1], 0, 0, rc_width, rc_height,
 		    &dst[1], 0, 0);
 
 	render_copy(ibb1,
-		    &src[2], 0, 0, width, height,
+		    &src[2], 0, 0, rc_width, rc_height,
 		    &dst[2], 0, 0);
 	intel_bb_flush_render(ibb1);
 
@@ -3325,7 +3326,7 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	igt_debug("n samples written = %"PRIu64"/%"PRIu64" (%ix%i)\n",
 		  accumulator.deltas[2 + 21],
 		  accumulator.deltas[2 + 26],
-		  width, height);
+		  rc_width, rc_height);
 	accumulator_print(&accumulator, "filtered");
 
 	/* Verify that the work actually happened by comparing the src
@@ -3334,7 +3335,7 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	buf_map(drm_fd, &src[0], false);
 	buf_map(drm_fd, &dst[0], false);
 
-	ret = memcmp(src[0].ptr, dst[0].ptr, 4 * width * height);
+	ret = memcmp(src[0].ptr, dst[0].ptr, 4 * rc_width * rc_height);
 	intel_buf_unmap(&src[0]);
 	intel_buf_unmap(&dst[0]);
 
@@ -3350,9 +3351,9 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	/* Check that this test passed. The test measures the number of 2x2
 	 * samples written to the render target using the counter A26. For
 	 * OAR, this counter will only have increments relevant to this specific
-	 * context. The value equals the width * height of the rendered work.
+	 * context. The value equals the rc_width * rc_height of the rendered work.
 	 */
-	igt_assert_eq(accumulator.deltas[2 + 26], width * height);
+	igt_assert_eq(accumulator.deltas[2 + 26], rc_width * rc_height);
 
  skip_check:
 	/* Clean up */
@@ -4006,8 +4007,6 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 	struct buf_ops *bops;
 	struct intel_bb *ibb;
 	uint32_t context, vm;
-	int height = 600;
-	int width = 800;
 	uint8_t *buf;
 
 	bops = buf_ops_create(drm_fd);
@@ -4019,8 +4018,8 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 	memset(dst_buf->ptr, 0, 4096);
 	intel_buf_unmap(dst_buf);
 
-	scratch_buf_init(bops, &src, width, height, 0xff0000ff);
-	scratch_buf_init(bops, &dst, width, height, 0x00ff00ff);
+	scratch_buf_init(bops, &src, rc_width, rc_height, 0xff0000ff);
+	scratch_buf_init(bops, &dst, rc_width, rc_height, 0x00ff00ff);
 
 	vm = xe_vm_create(drm_fd, 0, 0);
 	context = xe_exec_queue_create(drm_fd, vm, hwe, 0);
@@ -4039,7 +4038,7 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 
 	if (render_copy)
 		render_copy(ibb,
-			    &src, 0, 0, width, height,
+			    &src, 0, 0, rc_width, rc_height,
 			    &dst, 0, 0);
 
 	emit_mmio_triggered_report(ibb, 0xc0ffee22);
