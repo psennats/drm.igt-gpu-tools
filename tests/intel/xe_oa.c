@@ -321,6 +321,8 @@ static size_t default_oa_buffer_size;
 static struct intel_mmio_data mmio_data;
 static igt_render_copyfunc_t render_copy;
 static uint32_t rc_width, rc_height;
+static uint32_t max_oa_exponent;
+static uint32_t min_oa_exponent;
 static uint32_t buffer_fill_size;
 static uint32_t num_buf_sizes;
 
@@ -1109,6 +1111,8 @@ init_sys_info(void)
 
 	intel_xe_perf_load_perf_configs(intel_xe_perf, drm_fd);
 
+	min_oa_exponent = 5;
+	max_oa_exponent = 20;
 	rc_width = 1920;
 	rc_height = 1080;
 	buffer_fill_size = SZ_16M;
@@ -1710,7 +1714,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 	 * test can fail due to buffer overflows if it wasn't possible to
 	 * keep up, so we don't start from an exponent of zero...
 	 */
-	for (int exponent = 5; exponent < 20; exponent++) {
+	for (int exponent = min_oa_exponent; exponent < max_oa_exponent; exponent++) {
 		uint64_t properties[] = {
 			DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
 
