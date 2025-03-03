@@ -158,6 +158,8 @@ static void get_method_crc(enum igt_draw_method method, uint32_t drm_format,
 
 	primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
 
+	igt_require(igt_plane_has_format_mod(primary, drm_format, modifier));
+
 	igt_create_fb(drm_fd, mode->hdisplay, mode->vdisplay,
 		      drm_format, modifier, &fb);
 	igt_plane_set_fb(primary, &fb);
