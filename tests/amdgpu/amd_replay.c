@@ -212,6 +212,8 @@ static bool dpcd_read_byte(int drm_fd,
 	closedir(dir);
 	close(dir_fd);
 
+	igt_skip("Missing /dev/drm_dp_aux*, check DRM_DISPLAY_DP_AUX_CHARDEV in kernel config\n");
+
 	return false;
 }
 
