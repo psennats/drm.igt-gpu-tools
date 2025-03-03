@@ -3689,7 +3689,7 @@ emit_oa_reg_read(struct intel_bb *ibb, struct intel_buf *dst, uint32_t offset,
 {
 	intel_bb_add_intel_buf(ibb, dst, true);
 
-	intel_bb_out(ibb, MI_STORE_REGISTER_MEM | 2);
+	intel_bb_out(ibb, MI_STORE_REGISTER_MEM_GEN8);
 	intel_bb_out(ibb, reg);
 	intel_bb_emit_reloc(ibb, dst->handle,
 			    I915_GEM_DOMAIN_INSTRUCTION,
