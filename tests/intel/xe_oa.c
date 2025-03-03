@@ -2316,7 +2316,6 @@ num_valid_reports_captured(struct intel_xe_oa_open_prop *param,
 static void
 test_oa_tlb_invalidate(const struct drm_xe_engine_class_instance *hwe)
 {
-	int oa_exponent = max_oa_exponent_for_period_lte(30000000);
 	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
 	uint64_t properties[] = {
 		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
@@ -2324,7 +2323,7 @@ test_oa_tlb_invalidate(const struct drm_xe_engine_class_instance *hwe)
 
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
-		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
 		DRM_XE_OA_PROPERTY_OA_DISABLED, true,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
 	};
@@ -2342,14 +2341,14 @@ test_oa_tlb_invalidate(const struct drm_xe_engine_class_instance *hwe)
 	 */
 	duration = 5LL * NSEC_PER_SEC;
 	num_reports1 = num_valid_reports_captured(&param, &duration, test_set->perf_oa_format);
-	num_expected_reports = duration / oa_exponent_to_ns(oa_exponent);
+	num_expected_reports = duration / oa_exponent_to_ns(oa_exponent_default);
 	igt_debug("expected num reports = %d\n", num_expected_reports);
 	igt_debug("actual num reports = %d\n", num_reports1);
 	igt_assert(num_reports1 > 0.95 * num_expected_reports);
 
 	duration = 5LL * NSEC_PER_SEC;
 	num_reports2 = num_valid_reports_captured(&param, &duration, test_set->perf_oa_format);
-	num_expected_reports = duration / oa_exponent_to_ns(oa_exponent);
+	num_expected_reports = duration / oa_exponent_to_ns(oa_exponent_default);
 	igt_debug("expected num reports = %d\n", num_expected_reports);
 	igt_debug("actual num reports = %d\n", num_reports2);
 	igt_assert(num_reports2 > 0.95 * num_expected_reports);
@@ -2738,7 +2737,6 @@ test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 static void
 test_short_reads(void)
 {
-	int oa_exponent = max_oa_exponent_for_period_lte(5000);
 	uint64_t properties[] = {
 		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
 
@@ -2748,7 +2746,7 @@ test_short_reads(void)
 		/* OA unit configuration */
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, default_test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(default_test_set->perf_oa_format),
-		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
 	};
 	struct intel_xe_oa_open_prop param = {
 		.num_properties = ARRAY_SIZE(properties) / 2,
@@ -3464,7 +3462,6 @@ test_stress_open_close(const struct drm_xe_engine_class_instance *hwe)
 	load_helper_run(HIGH);
 
 	igt_until_timeout(2) {
-		int oa_exponent = 5; /* 5 micro seconds */
 		uint64_t properties[] = {
 			DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
 
@@ -3476,7 +3473,7 @@ test_stress_open_close(const struct drm_xe_engine_class_instance *hwe)
 			/* OA unit configuration */
 			DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 			DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
-			DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
+			DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
 			DRM_XE_OA_PROPERTY_OA_DISABLED, true,
 			DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
 		};
@@ -3990,12 +3987,11 @@ static void
 __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 {
 	struct intel_xe_perf_metric_set *test_set = default_test_set;
-	int oa_exponent = max_oa_exponent_for_period_lte(2 * NSEC_PER_SEC);
 	uint64_t properties[] = {
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
-		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
 	};
 	struct intel_xe_oa_open_prop param = {
