@@ -754,7 +754,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
 				  i, input, output, expected_output);
 		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq(output, expected_output);
+			igt_assert_eq_double(output, expected_output);
 	}
 
 	bo_execenv_unbind(&execenv, bo_dict, BO_DICT_ENTRIES);
@@ -1035,7 +1035,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
 				  i, input, output, expected_output);
 		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq(output, expected_output);
+			igt_assert_eq_double(output, expected_output);
 	}
 
 	bo_execenv_unbind(&execenv, bo_dict, XEHP_BO_DICT_ENTRIES);
@@ -1246,7 +1246,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
 				  i, input, output, expected_output);
 		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq(output, expected_output);
+			igt_assert_eq_double(output, expected_output);
 	}
 
 	bo_execenv_unbind(&execenv, bo_dict, XEHPC_BO_DICT_ENTRIES);
@@ -1613,7 +1613,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
 				  i, input, output, expected_output);
 		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq(output, expected_output);
+			igt_assert_eq_double(output, expected_output);
 	}
 
 	bo_execenv_unbind(&execenv, bo_dict, XELPG_BO_DICT_ENTRIES);
@@ -1706,7 +1706,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
 				  i, input, output, expected_output);
 		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq(output, expected_output);
+			igt_assert_eq_double(output, expected_output);
 	}
 
 	bo_execenv_unbind(&execenv, bo_dict, XE2_BO_DICT_ENTRIES);
@@ -2048,7 +2048,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 		if (output != expected_output)
 			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
 				  i, input, output, expected_output);
-		igt_assert_eq(output, expected_output);
+		igt_assert_eq_double(output, expected_output);
 	}
 
 	for (int i = 0; i < SIZE_DATA; i++) {
