@@ -377,7 +377,7 @@ static void basic_engine_utilization(int xe)
 				   ARRAY_SIZE(engine_map), NULL, 0);
 	igt_assert_f(ret != 0, "failed with err:%d\n", errno);
 	igt_assert(!strcmp(info.driver, "xe"));
-	igt_require(info.num_engines);
+	igt_assert(info.num_engines);
 }
 
 static void
