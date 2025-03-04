@@ -171,6 +171,7 @@ void xe_eudebug_client_wait_stage(struct xe_eudebug_client *c, uint64_t stage);
 uint64_t xe_eudebug_client_get_seqno(struct xe_eudebug_client *c);
 void xe_eudebug_client_set_data(struct xe_eudebug_client *c, void *ptr);
 
+int __xe_eudebug_enable_getset(int fd, bool *old, bool *new);
 bool xe_eudebug_enable(int fd, bool enable);
 
 int xe_eudebug_client_open_driver(struct xe_eudebug_client *c);

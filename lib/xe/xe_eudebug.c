@@ -1710,7 +1710,18 @@ static void metadata_event(struct xe_eudebug_client *c, uint32_t flags,
 	xe_eudebug_event_log_write(c->log, (void *)&em);
 }
 
-static int enable_getset(int fd, bool *old, bool *new)
+/**
+ * __xe_eudebug_enable_getset
+ * @fd: xe client
+ * @old: pointer to store current toggle value
+ * @new: pointer to new toggle value
+ *
+ * Stores current eudebug feature state in @old if not NULL. Sets new eudebug
+ * feature state to @new if not NULL. Asserts if both @old and @new are NULL.
+ *
+ * Returns: 0 on success, -1 on failure.
+ */
+int __xe_eudebug_enable_getset(int fd, bool *old, bool *new)
 {
 	static const char * const fname = "enable_eudebug";
 	int ret = 0;
@@ -1767,7 +1778,7 @@ out:
 bool xe_eudebug_enable(int fd, bool enable)
 {
 	bool old = false;
-	int ret = enable_getset(fd, &old, &enable);
+	int ret = __xe_eudebug_enable_getset(fd, &old, &enable);
 
 	if (ret) {
 		igt_skip_on(enable);
