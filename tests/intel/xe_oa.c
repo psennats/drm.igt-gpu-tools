@@ -4731,7 +4731,7 @@ igt_main
 		test_missing_sample_flags();
 
 	igt_subtest_with_dynamic("oa-formats")
-		__for_one_render_engine(hwe)
+		__for_one_hwe_in_oag(hwe)
 			test_oa_formats(hwe);
 
 	igt_subtest("invalid-oa-exponent")
