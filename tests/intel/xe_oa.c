@@ -1111,13 +1111,25 @@ init_sys_info(void)
 
 	intel_xe_perf_load_perf_configs(intel_xe_perf, drm_fd);
 
-	min_oa_exponent = 5;
-	max_oa_exponent = 20;
-	rc_width = 1920;
-	rc_height = 1080;
-	buffer_fill_size = SZ_16M;
-	num_buf_sizes = ARRAY_SIZE(buf_sizes);
-	oa_exponent_default = max_oa_exponent_for_period_lte(1000000);
+	if (igt_run_in_simulation()) {
+		igt_debug("SIMULATION run\n");
+		min_oa_exponent = 5;
+		max_oa_exponent = 10;
+		rc_width = 64;
+		rc_height = 36;
+		buffer_fill_size = SZ_128K;
+		num_buf_sizes = 3;
+		oa_exponent_default = max_oa_exponent_for_period_lte(1000);
+	} else {
+		igt_debug("HW run\n");
+		min_oa_exponent = 5;
+		max_oa_exponent = 20;
+		rc_width = 1920;
+		rc_height = 1080;
+		buffer_fill_size = SZ_16M;
+		num_buf_sizes = ARRAY_SIZE(buf_sizes);
+		oa_exponent_default = max_oa_exponent_for_period_lte(1000000);
+	}
 
 	default_oa_buffer_size = get_default_oa_buffer_size(drm_fd);
 	igt_debug("default_oa_buffer_size: %zu\n", default_oa_buffer_size);
@@ -4758,6 +4770,7 @@ igt_main
 			test_enable_disable(hwe);
 
 	igt_subtest_with_dynamic("blocking") {
+		igt_require(!igt_run_in_simulation());
 		__for_one_hwe_in_oag(hwe)
 			test_blocking(40 * 1000 * 1000 /* 40ms oa period */,
 				      false /* set_kernel_hrtimer */,
@@ -4766,6 +4779,7 @@ igt_main
 	}
 
 	igt_subtest_with_dynamic("polling") {
+		igt_require(!igt_run_in_simulation());
 		__for_one_hwe_in_oag(hwe)
 			test_polling(40 * 1000 * 1000 /* 40ms oa period */,
 				     false /* set_kernel_hrtimer */,
@@ -4805,8 +4819,10 @@ igt_main
 		igt_subtest("oa-unit-exclusive-stream-exec-q")
 			test_oa_unit_exclusive_stream(false);
 
-		igt_subtest("oa-unit-concurrent-oa-buffer-read")
+		igt_subtest("oa-unit-concurrent-oa-buffer-read") {
+			igt_require(!igt_run_in_simulation());
 			test_oa_unit_concurrent_oa_buffer_read();
+		}
 	}
 
 	igt_subtest("rc6-disable") {
