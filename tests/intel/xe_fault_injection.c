@@ -186,6 +186,37 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 	injection_list_do(INJECTION_LIST_REMOVE, function_name);
 }
 
+/**
+ * SUBTEST: exec-queue-create-fail-%s
+ * Description: inject an error in function %arg[1] used in exec queue create IOCTL to make it fail
+ * Functionality: fault
+ *
+ * arg[1]:
+ * @xe_exec_queue_create:                 xe_exec_queue_create
+ * @xe_hw_engine_group_add_exec_queue:    xe_hw_engine_group_add_exec_queue
+ * @xe_vm_add_compute_exec_queue:         xe_vm_add_compute_exec_queue
+ * @xe_exec_queue_create_bind:            xe_exec_queue_create_bind
+ */
+static void
+exec_queue_create_fail(int fd, struct drm_xe_engine_class_instance *instance,
+		const char function_name[], unsigned int flags)
+{
+	uint32_t exec_queue_id;
+	uint32_t vm = xe_vm_create(fd, flags, 0);
+	/* sanity check */
+	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id), 0);
+	xe_exec_queue_destroy(fd, exec_queue_id);
+
+	ignore_faults_in_dmesg(function_name);
+	injection_list_do(INJECTION_LIST_ADD, function_name);
+	set_retval(function_name, INJECT_ERRNO);
+	igt_assert(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id) != 0);
+	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+
+	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id), 0);
+	xe_exec_queue_destroy(fd, exec_queue_id);
+}
+
 static int
 simple_vm_create(int fd, unsigned int flags)
 {
@@ -286,6 +317,7 @@ vm_bind_fail(int fd, const char function_name[])
 igt_main
 {
 	int fd;
+	struct drm_xe_engine_class_instance *hwe;
 	char pci_slot[NAME_MAX];
 	const struct section {
 		const char *name;
@@ -322,6 +354,18 @@ igt_main
 		{ }
 	};
 
+	const struct section exec_queue_create_fail_functions[] = {
+		{ "xe_exec_queue_create", 0 },
+		{ "xe_hw_engine_group_add_exec_queue", 0 },
+		{ "xe_vm_add_compute_exec_queue", DRM_XE_VM_CREATE_FLAG_LR_MODE },
+		{ }
+	};
+
+	const struct section exec_queue_create_vmbind_fail_functions[] = {
+		{ "xe_exec_queue_create_bind", 0 },
+		{ }
+	};
+
 	igt_fixture {
 		igt_require(fail_function_injection_enabled());
 		fd = drm_open_driver(DRIVER_XE);
@@ -336,6 +380,18 @@ igt_main
 	for (const struct section *s = vm_bind_fail_functions; s->name; s++)
 		igt_subtest_f("vm-bind-fail-%s", s->name)
 			vm_bind_fail(fd, s->name);
+
+	for (const struct section *s = exec_queue_create_fail_functions; s->name; s++)
+		igt_subtest_f("exec-queue-create-fail-%s", s->name)
+			xe_for_each_engine(fd, hwe)
+				if (hwe->engine_class != DRM_XE_ENGINE_CLASS_VM_BIND)
+					exec_queue_create_fail(fd, hwe, s->name, s->flags);
+
+	for (const struct section *s = exec_queue_create_vmbind_fail_functions; s->name; s++)
+		igt_subtest_f("exec-queue-create-fail-%s", s->name)
+			xe_for_each_engine(fd, hwe)
+				if (hwe->engine_class == DRM_XE_ENGINE_CLASS_VM_BIND)
+					exec_queue_create_fail(fd, hwe, s->name, s->flags);
 
 	igt_fixture {
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_UNBIND);
