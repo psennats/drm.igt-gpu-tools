@@ -1314,13 +1314,14 @@ read_2_oa_reports(int format_id,
 	int max_reports = default_oa_buffer_size / format_size;
 	int buf_size = format_size * max_reports * 1.5;
 	uint8_t *buf = malloc(buf_size);
+	ssize_t len = 0;
 	int n = 0;
 
 	for (int i = 0; i < 1000; i++) {
 		u32 oa_status = 0;
-		ssize_t len;
+		int ret;
 
-		while ((len = read(stream_fd, buf, buf_size)) < 0 && errno == EINTR)
+		while ((ret = read(stream_fd, buf + len, buf_size)) < 0 && errno == EINTR)
 			;
 		if (errno == EIO) {
 			oa_status = get_stream_status(stream_fd);
@@ -1328,9 +1329,10 @@ read_2_oa_reports(int format_id,
 			continue;
 		}
 
-		igt_assert(len > 0);
-		igt_debug("read %d bytes\n", (int)len);
+		igt_assert(ret > 0);
+		igt_debug("read %d bytes\n", (int)ret);
 
+		len += ret;
 		/* Need at least 2 reports */
 		if (len < 2 * format_size)
 			continue;
