@@ -130,7 +130,7 @@ set_fb_and_collect_crc(data_t *data, igt_plane_t *plane, struct igt_fb *fb,
 	igt_pipe_crc_get_current(data->drm_fd, data->pipe_crc, crc);
 	igt_pipe_crc_stop(data->pipe_crc);
 	igt_assert_f(intel_fbc_is_enabled(data->drm_fd, data->pipe,
-					  IGT_LOG_WARN),
+					  IGT_LOG_INFO),
 					  "FBC is not enabled\n");
 }
 
