@@ -358,6 +358,16 @@ static void basic_memory(int xe)
 	}
 }
 
+static void require_engine_utilization_data(int xe)
+{
+	struct drm_client_fdinfo info = {};
+
+	igt_require(igt_parse_drm_fdinfo(xe, &info, engine_map,
+					 ARRAY_SIZE(engine_map), NULL, 0));
+	igt_require(info.num_engines);
+	igt_require(info.utilization_mask & DRM_FDINFO_UTILIZATION_CYCLES);
+}
+
 static void basic_engine_utilization(int xe)
 {
 	struct drm_client_fdinfo info = { };
@@ -736,8 +746,10 @@ igt_main
 		basic_memory(xe);
 
 	igt_describe("Check if basic fdinfo content is present for engine utilization");
-	igt_subtest("basic-utilization")
+	igt_subtest("basic-utilization") {
+		require_engine_utilization_data(xe);
 		basic_engine_utilization(xe);
+	}
 
 	igt_describe("Create and compare total and resident memory consumption by client");
 	igt_subtest("mem-total-resident")
@@ -751,50 +763,69 @@ igt_main
 	igt_subtest("mem-active")
 		mem_active(xe, xe_engine(xe, 0));
 
-	igt_subtest("utilization-single-idle")
+	igt_subtest("utilization-single-idle") {
+		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_single(xe, hwe, 0);
+	}
 
-	igt_subtest("utilization-single-full-load")
+	igt_subtest("utilization-single-full-load") {
+		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE);
+	}
 
-	igt_subtest("utilization-single-full-load-isolation")
+	igt_subtest("utilization-single-full-load-isolation") {
+		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE | TEST_ISOLATION);
+	}
 
-	igt_subtest("utilization-single-full-load-destroy-queue")
+	igt_subtest("utilization-single-full-load-destroy-queue") {
+		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_single_destroy_queue(xe, hwe);
+	}
 
-	igt_subtest("utilization-others-idle")
+	igt_subtest("utilization-others-idle") {
+		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_others_idle(xe, hwe);
+	}
 
-	igt_subtest("utilization-others-full-load")
+	igt_subtest("utilization-others-full-load") {
+		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_others_full_load(xe, hwe);
+	}
 
-	igt_subtest("utilization-all-full-load")
+	igt_subtest("utilization-all-full-load") {
+		require_engine_utilization_data(xe);
 		utilization_all_full_load(xe);
+	}
 
 
 	for (const struct section *s = sections; s->name; s++) {
-		igt_subtest_f("%s-utilization-single-idle", s->name)
+		igt_subtest_f("%s-utilization-single-idle", s->name) {
+			require_engine_utilization_data(xe);
 			xe_for_each_gt(xe, gt)
 				xe_for_each_engine_class(class)
 					utilization_multi(xe, gt, class, s->flags);
+		}
 
-		igt_subtest_f("%s-utilization-single-full-load", s->name)
+		igt_subtest_f("%s-utilization-single-full-load", s->name) {
+			require_engine_utilization_data(xe);
 			xe_for_each_gt(xe, gt)
 				xe_for_each_engine_class(class)
 					utilization_multi(xe, gt, class,
 							  s->flags |
 							  TEST_BUSY |
 							  TEST_TRAILING_IDLE);
+		}
 
 		igt_subtest_f("%s-utilization-single-full-load-isolation",
-			      s->name)
+			      s->name) {
+			require_engine_utilization_data(xe);
 			xe_for_each_gt(xe, gt)
 				xe_for_each_engine_class(class)
 					utilization_multi(xe, gt, class,
@@ -802,6 +833,7 @@ igt_main
 							  TEST_BUSY |
 							  TEST_TRAILING_IDLE |
 							  TEST_ISOLATION);
+		}
 	}
 
 	igt_fixture {
