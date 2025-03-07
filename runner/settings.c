@@ -42,6 +42,7 @@ enum {
 	OPT_EXCLUDE = 'x',
 	OPT_ENVIRONMENT = 'e',
 	OPT_FACTS = 'f',
+	OPT_KMEMLEAK = 'k',
 	OPT_SYNC = 's',
 	OPT_LOG_LEVEL = 'l',
 	OPT_OVERWRITE = 'o',
@@ -233,6 +234,16 @@ static const char *usage_str =
 	"                                   not respond to ping.\n"
 	"                         all     - abort for all of the above.\n"
 	"  -f, --facts           Enable facts tracking\n"
+	"  -k, -k<option>, --kmemleak, --kmemleak=<option>\n"
+	"                        Enable kmemleak tracking. Each kmemleak scan\n"
+	"                        can take from 5 to 60 seconds, slowing down\n"
+	"                        the run considerably. The default is to scan\n"
+	"                        only once after the last test. It is also\n"
+	"                        possible to scan after each test. Possible\n"
+	"                        options:\n"
+	"                         once - The default is to run one kmemleak\n"
+	"                                scan after the last test\n"
+	"                         each - Run one kmemleak scan after each test\n"
 	"  -s, --sync            Sync results to disk after every test\n"
 	"  -l {quiet,verbose,dummy}, --log-level {quiet,verbose,dummy}\n"
 	"                        Set the logger verbosity level\n"
@@ -682,6 +693,7 @@ bool parse_options(int argc, char **argv,
 		{"abort-on-monitored-error", optional_argument, NULL, OPT_ABORT_ON_ERROR},
 		{"disk-usage-limit", required_argument, NULL, OPT_DISK_USAGE_LIMIT},
 		{"facts", no_argument, NULL, OPT_FACTS},
+		{"kmemleak", optional_argument, NULL, OPT_KMEMLEAK},
 		{"sync", no_argument, NULL, OPT_SYNC},
 		{"log-level", required_argument, NULL, OPT_LOG_LEVEL},
 		{"test-list", required_argument, NULL, OPT_TEST_LIST},
@@ -712,7 +724,7 @@ bool parse_options(int argc, char **argv,
 	settings->dmesg_warn_level = -1;
 	settings->prune_mode = -1;
 
-	while ((c = getopt_long(argc, argv, "hn:dt:x:e:fsl:omb:L",
+	while ((c = getopt_long(argc, argv, "hn:dt:x:e:fk::sl:omb:L",
 				long_options, NULL)) != -1) {
 		switch (c) {
 		case OPT_VERSION:
@@ -756,6 +768,19 @@ bool parse_options(int argc, char **argv,
 		case OPT_FACTS:
 			settings->facts = true;
 			break;
+		case OPT_KMEMLEAK:
+			/* The default is once */
+			settings->kmemleak = true;
+			settings->kmemleak_each = false;
+			if (optarg) {
+				if (strcmp(optarg, "each") == 0) {
+					settings->kmemleak_each = true;
+				/* "once" is the default. No action needed */
+				} else if (strcmp(optarg, "once") != 0) {
+					usage(stderr, "Invalid kmemleak option");
+					goto error;
+				}
+			}
 		case OPT_SYNC:
 			settings->sync = true;
 			break;
@@ -1210,6 +1235,8 @@ bool serialize_settings(struct settings *settings)
 	SERIALIZE_INT(f, settings, dry_run);
 	SERIALIZE_INT(f, settings, allow_non_root);
 	SERIALIZE_INT(f, settings, facts);
+	SERIALIZE_INT(f, settings, kmemleak);
+	SERIALIZE_INT(f, settings, kmemleak_each);
 	SERIALIZE_INT(f, settings, sync);
 	SERIALIZE_INT(f, settings, log_level);
 	SERIALIZE_INT(f, settings, overwrite);
@@ -1326,6 +1353,8 @@ bool read_settings_from_file(struct settings *settings, FILE *f)
 		PARSE_INT(settings, name, val, dry_run);
 		PARSE_INT(settings, name, val, allow_non_root);
 		PARSE_INT(settings, name, val, facts);
+		PARSE_INT(settings, name, val, kmemleak);
+		PARSE_INT(settings, name, val, kmemleak_each);
 		PARSE_INT(settings, name, val, sync);
 		PARSE_INT(settings, name, val, log_level);
 		PARSE_INT(settings, name, val, overwrite);

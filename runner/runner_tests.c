@@ -191,6 +191,7 @@ static void assert_settings_equal(struct settings *one, struct settings *two)
 	igt_assert_eq(one->dry_run, two->dry_run);
 	igt_assert_eq(one->allow_non_root, two->allow_non_root);
 	igt_assert_eq(one->facts, two->facts);
+	igt_assert_eq(one->kmemleak, two->kmemleak);
 	igt_assert_eq(one->sync, two->sync);
 	igt_assert_eq(one->log_level, two->log_level);
 	igt_assert_eq(one->overwrite, two->overwrite);
@@ -305,6 +306,7 @@ igt_main
 		igt_assert(igt_list_empty(&settings->env_vars));
 		igt_assert(!igt_vec_length(&settings->hook_strs));
 		igt_assert(!settings->facts);
+		igt_assert(!settings->kmemleak);
 		igt_assert(!settings->sync);
 		igt_assert_eq(settings->log_level, LOG_LEVEL_NORMAL);
 		igt_assert(!settings->overwrite);
@@ -427,6 +429,7 @@ igt_main
 		igt_assert_eq(settings->include_regexes.size, 0);
 		igt_assert_eq(settings->exclude_regexes.size, 0);
 		igt_assert(!settings->facts);
+		igt_assert(!settings->kmemleak);
 		igt_assert(!settings->sync);
 		igt_assert_eq(settings->log_level, LOG_LEVEL_NORMAL);
 		igt_assert(!settings->overwrite);
@@ -465,6 +468,7 @@ igt_main
 				       "-b", blacklist_name,
 				       "--blacklist", blacklist2_name,
 				       "-f",
+				       "-k",
 				       "-s",
 				       "-l", "verbose",
 				       "--overwrite",
@@ -524,6 +528,7 @@ igt_main
 		igt_assert_eqstr(*((char **)igt_vec_elem(&settings->hook_strs, 1)), "echo world");
 
 		igt_assert(settings->facts);
+		igt_assert(settings->kmemleak);
 		igt_assert(settings->sync);
 		igt_assert_eq(settings->log_level, LOG_LEVEL_VERBOSE);
 		igt_assert(settings->overwrite);
@@ -719,6 +724,7 @@ igt_main
 	igt_subtest("parse-clears-old-data") {
 		const char *argv[] = { "runner",
 				       "-n", "foo",
+				       "--overwrite",
 				       "--dry-run",
 				       "--allow-non-root",
 				       "test-root-dir",
@@ -728,21 +734,26 @@ igt_main
 		igt_assert(parse_options(ARRAY_SIZE(argv), (char**)argv, settings));
 
 		igt_assert_eqstr(settings->name, "foo");
+		igt_assert(settings->overwrite);
 		igt_assert(settings->dry_run);
 		igt_assert(!settings->test_list);
 		igt_assert(!settings->facts);
+		igt_assert(!settings->kmemleak);
 		igt_assert(!settings->sync);
 
 		argv[1] = "--test-list";
 		argv[3] = "--facts";
-		argv[4] = "--sync";
+		argv[4] = "--kmemleak";
+		argv[5] = "--sync";
 
 		igt_assert(parse_options(ARRAY_SIZE(argv), (char**)argv, settings));
 
 		igt_assert_eqstr(settings->name, "results-path");
 		igt_assert(!settings->dry_run);
+		igt_assert(!settings->overwrite);
 		igt_assert(strstr(settings->test_list, "foo") != NULL);
 		igt_assert(settings->facts);
+		igt_assert(settings->kmemleak);
 		igt_assert(settings->sync);
 	}
 

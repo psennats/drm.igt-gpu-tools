@@ -34,6 +34,7 @@
 #include "igt_taints.h"
 #include "igt_vec.h"
 #include "executor.h"
+#include "kmemleak.h"
 #include "output_strings.h"
 #include "runnercomms.h"
 
@@ -2370,6 +2371,14 @@ bool execute(struct execute_state *state,
 	if (settings->facts)
 		igt_facts_lists_init();
 
+	if (settings->kmemleak)
+		if (!runner_kmemleak_init(NULL)) {
+			errf("Failed to initialize kmemleak. Is kernel support enabled?\n"
+			     "Disabling kmemleak on igt_runner and continuing...\n");
+			settings->kmemleak = false;
+			settings->kmemleak_each = false;
+		}
+
 	if (state->next >= job_list->size) {
 		outf("All tests already executed.\n");
 		return true;
@@ -2497,10 +2506,18 @@ bool execute(struct execute_state *state,
 		bool already_written = false;
 
 		/* Collect facts before running each test */
-		if (settings->facts) {
+		if (settings->facts)
 			igt_facts(last_test);
+
+		if (settings->kmemleak_each)
+			if (!runner_kmemleak(last_test, resdirfd,
+					     settings->kmemleak_each,
+					     settings->sync))
+				errf("Failed to collect kmemleak logs after %s\n",
+				     last_test);
+
+		if (settings->facts || settings->kmemleak_each)
 			last_test = entry_display_name(&job_list->entries[state->next]);
-		}
 
 		if (should_die_because_signal(sigfd)) {
 			status = false;
@@ -2594,6 +2611,11 @@ bool execute(struct execute_state *state,
 	/* Collect facts after the last test runs */
 	if (settings->facts)
 		igt_facts(last_test);
+
+	if (settings->kmemleak)
+		if (!runner_kmemleak(last_test, resdirfd,
+				     settings->kmemleak_each, settings->sync))
+			errf("Failed to collect kmemleak logs after the last test\n");
 
 	if ((timefd = openat(resdirfd, "endtime.txt", O_CREAT | O_WRONLY | O_EXCL, 0666)) >= 0) {
 		dprintf(timefd, "%f\n", timeofday_double());

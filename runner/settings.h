@@ -58,6 +58,8 @@ struct settings {
 	struct igt_list_head env_vars;
 	struct igt_vec hook_strs;
 	bool facts;
+	bool kmemleak;
+	bool kmemleak_each;
 	bool sync;
 	int log_level;
 	bool overwrite;
