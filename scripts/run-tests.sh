@@ -132,9 +132,13 @@ print_help() {
 	echo "  -P              store code coverage results per each test. Should be"
 	echo "                  used together with -k option"
 	echo "  -d              download Piglit to $ROOT/piglit"
+	echo "  -f              enable igt_facts on igt_runner"
 	echo "  -h              display this help message"
 	echo "  -k <kernel_dir> Linux Kernel source code directory used to generate code"
 	echo "                  coverage builds."
+	echo "  -K <mode>       Linux Kernel kmemleak reports"
+	echo "                   - once: run a kmemleak scan after all tests"
+	echo "                   - each: run a kmemleak scan after each test"
 	echo "  -l              list all available tests"
 	echo "  -r <directory>  store the results in directory"
 	echo "                  (default: $RESULTS)"
@@ -160,12 +164,14 @@ print_help() {
 	echo "Useful patterns for test filtering are described in the API documentation."
 }
 
-while getopts ":c:dhk:lPr:st:T:vx:Rnpb:m:" opt; do
+while getopts ":c:dfhk:K:lPr:st:T:vx:Rnpb:m:" opt; do
 	case $opt in
 		c) COV_ARGS="$COV_ARGS --collect-code-cov --collect-script $OPTARG " ;;
 		d) download_piglit; exit ;;
+		f) IGT_FACTS="-f" ;;
 		h) print_help; exit ;;
 		k) IGT_KERNEL_TREE="$OPTARG" ;;
+		K) KMEMLEAK="--kmemleak=$OPTARG" ;;
 		l) LIST_TESTS="true" ;;
 		P) COV_ARGS="$COV_ARGS --coverage-per-test"; COV_PER_TEST=1 ;;
 		r) RESULTS="$OPTARG" ;;
@@ -256,7 +262,7 @@ if [ "x$RESUME_RUN" != "x" ]; then
 	execute_runner 1 $RESUME $RESUME_ARGS $COV_ARGS "$RESULTS"
 else
 	mkdir -p "$RESULTS"
-	execute_runner 1 $RUNNER $RUN_ARGS -o -s "$RESULTS" $COV_ARGS $VERBOSE $FILTER --prune-mode $PRUNE_MODE
+	execute_runner 1 $RUNNER $RUN_ARGS -o $IGT_FACTS $KMEMLEAK -s "$RESULTS" $COV_ARGS $VERBOSE $FILTER --prune-mode $PRUNE_MODE
 fi
 
 if [ "$SUMMARY" = "html" ]; then
