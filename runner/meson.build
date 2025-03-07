@@ -3,6 +3,7 @@ build_runner = get_option('runner')
 runnerlib_sources = [ 'settings.c',
 		      'job_list.c',
 		      'executor.c',
+		      'kmemleak.c',
 		      'resultgen.c',
 		      lib_version,
 		    ]
@@ -13,6 +14,7 @@ results_sources = [ 'results.c' ]
 decoder_sources = [ 'decoder.c' ]
 runner_test_sources = [ 'runner_tests.c' ]
 runner_json_test_sources = [ 'runner_json_tests.c' ]
+runner_kmemleak_test_sources = [ 'runner_kmemleak_test.c' ]
 
 jsonc = dependency('json-c', required: build_runner)
 runner_deps = [jsonc, glib]
@@ -73,6 +75,13 @@ if jsonc.found() and build_tests
 				      install : false,
 				      dependencies : [igt_deps, jsonc])
 	test('runner_json', runner_json_test, timeout : 300)
+
+	runner_kmemleak_test = executable('runner_kmemleak_test',
+				 runner_kmemleak_test_sources,
+				 link_with : runnerlib,
+				 install : false,
+				 dependencies : [igt_deps])
+	test('runner_kmemleak', runner_kmemleak_test, timeout : 300)
 
 	build_info += 'Build test runner: true'
 	if liboping.found()
