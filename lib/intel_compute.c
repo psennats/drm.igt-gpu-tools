@@ -1339,7 +1339,7 @@ static void xelpg_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = 0x00001080;
+	addr_bo_buffer_batch[b++] = 0x00010080;
 	addr_bo_buffer_batch[b++] = 0x0c000020;
 
 	addr_bo_buffer_batch[b++] = 0x00000008;
@@ -1551,10 +1551,10 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 		  .size = 0x100000,
 		  .name = "dynamic state base"},
 		{ .addr = ADDR_SURFACE_STATE_BASE,
-		  .size = 0x1000,
+		  .size = 0x10000,
 		  .name = "surface state base"},
 		{ .addr = ADDR_GENERAL_STATE_BASE + OFFSET_INDIRECT_DATA_START,
-		  .size =  0x1000,
+		  .size =  0x10000,
 		  .name = "indirect object base"},
 		{ .addr = ADDR_INPUT, .size = SIZE_BUFFER_INPUT,
 		  .name = "addr input"},
@@ -1563,7 +1563,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 		{ .addr = ADDR_GENERAL_STATE_BASE, .size = 0x100000,
 		  .name = "general state base" },
 		{ .addr = ADDR_SURFACE_STATE_BASE + OFFSET_BINDING_TABLE,
-		  .size = 0x1000,
+		  .size = 0x10000,
 		  .name = "binding table" },
 		{ .addr = ADDR_BATCH,
 		  .size = SIZE_BATCH,
@@ -1576,7 +1576,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 	bo_execenv_create(fd, &execenv, eci, user);
 
 	/* Sets Kernel size */
-	bo_dict[0].size = ALIGN(size, 0x1000);
+	bo_dict[0].size = ALIGN(size, 0x10000);
 
 	bo_execenv_bind(&execenv, bo_dict, XELPG_BO_DICT_ENTRIES);
 
