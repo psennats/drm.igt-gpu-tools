@@ -116,9 +116,6 @@ static bool runner_kmemleak_found_leaks(void)
 
 	rlen = read(fd, buf, 1);
 
-	if (rlen == 1)
-		lseek(fd, 0, SEEK_SET);
-
 	close(fd);
 
 	return rlen == 1;
@@ -168,12 +165,6 @@ static bool runner_kmemleak_append_to(const char *last_test, int resdirfd,
 	kmemleakfd = open(runner_kmemleak_file, O_RDONLY);
 	if (kmemleakfd < 0)
 		return false;
-
-	/* Seek back to first byte */
-	if (lseek(kmemleakfd, 0, SEEK_SET) == (off_t)-1) {
-		close(kmemleakfd);
-		return false;
-	}
 
 	/* Open text file to append */
 	resfilefd = openat(resdirfd, KMEMLEAK_RESFILENAME,
