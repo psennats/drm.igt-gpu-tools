@@ -368,8 +368,6 @@ igt_main
 		const char * unwanted_drivers[] = {
 			"i915",
 			"intel-gtt",
-			"snd_hda_intel",
-			"snd_hdmi_lpe_audio",
 			NULL
 		};
 
