@@ -166,11 +166,14 @@ static void set_retval(const char function_name[], long long retval)
  * arg[1]:
  * @wait_for_lmem_ready:	wait_for_lmem_ready
  * @xe_device_create:		xe_device_create
+ * @xe_device_probe_early:	xe_device_probe_early
  * @xe_ggtt_init_early:		xe_ggtt_init_early
  * @xe_guc_ads_init:		xe_guc_ads_init
  * @xe_guc_ct_init:		xe_guc_ct_init
  * @xe_guc_log_init:		xe_guc_log_init
  * @xe_guc_relay_init:		xe_guc_relay_init
+ * @xe_mmio_probe_early:	xe_mmio_probe_early
+ * @xe_pcode_probe_early:	xe_pcode_probe_early
  * @xe_pm_init_early:		xe_pm_init_early
  * @xe_sriov_init:		xe_sriov_init
  * @xe_tile_init_early:		xe_tile_init_early
@@ -331,11 +334,14 @@ igt_main
 	} probe_fail_functions[] = {
 		{ "wait_for_lmem_ready" },
 		{ "xe_device_create" },
+		{ "xe_device_probe_early" },
 		{ "xe_ggtt_init_early" },
 		{ "xe_guc_ads_init" },
 		{ "xe_guc_ct_init" },
 		{ "xe_guc_log_init" },
 		{ "xe_guc_relay_init" },
+		{ "xe_mmio_probe_early" },
+		{ "xe_pcode_probe_early" },
 		{ "xe_pm_init_early" },
 		{ "xe_sriov_init" },
 		{ "xe_tile_init_early" },
