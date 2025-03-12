@@ -989,15 +989,20 @@ igt_main
 		igt_require(has_addfb2_iface(fd));
 	}
 
-	invalid_tests(fd);
+	igt_subtest_group
+		invalid_tests(fd);
 
-	pitch_tests(fd);
+	igt_subtest_group
+		pitch_tests(fd);
 
-	prop_tests(fd);
+	igt_subtest_group
+		prop_tests(fd);
 
-	master_tests(fd);
+	igt_subtest_group
+		master_tests(fd);
 
-	tiling_tests(fd);
+	igt_subtest_group
+		tiling_tests(fd);
 
 	igt_subtest_group {
 		igt_fixture
