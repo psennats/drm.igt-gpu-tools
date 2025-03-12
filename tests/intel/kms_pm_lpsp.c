@@ -28,6 +28,7 @@
  * TEST: kms pm lpsp
  * Category: Display
  * Description: These tests validates display Low Power Single Pipe configurations
+ * Driver requirement: i915, xe
  * Mega feature: Display Power Management
  */
 
@@ -43,7 +44,6 @@
 /**
  * SUBTEST: kms-lpsp
  * Description: This test validates lpsp on all connected outputs on low power pipes
- * Driver requirement: i915, xe
  *
  * SUBTEST: screens-disabled
  * Description: This test validates lpsp while all crtc are disabled

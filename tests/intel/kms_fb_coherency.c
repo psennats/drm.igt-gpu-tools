@@ -7,6 +7,8 @@
  * TEST: kms_fb_coherency
  * Category: Display
  * Description: Exercise coherency of future scanout buffer objects
+ * Mega feature: General Display Features
+ * Driver requirement: i915, xe
  */
 
 #include <errno.h>
@@ -23,8 +25,6 @@
  * Description: Use display controller CRC hardware to validate (non)coherency
  *		of memset operations on future scanout buffer objects
  *		mmapped with different mmap methods and different caching modes.
- * Mega feature: General Display Features
- * Driver requirement: i915, xe
  */
 
 typedef struct {

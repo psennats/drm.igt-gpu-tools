@@ -50,6 +50,8 @@
  * TEST: testdisplay
  * Category: Display
  * Description: Tests basic display functionality.
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "config.h"
@@ -80,8 +82,6 @@
  * SUBTEST:
  * Description: This test is intended for testing of display functionality like
  *              modeset, clone modes, test patterns & pixel generators etc..
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Tests basic display functionality.");

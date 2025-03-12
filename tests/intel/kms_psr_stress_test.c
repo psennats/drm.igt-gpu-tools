@@ -2,6 +2,9 @@
 /**
  * TEST: kms psr stress test
  * Category: Display
+ * Description: This test mixes page flips and frontbuffer writes in primary and overlay
+ *              planes and expects that PSR stays active after each subtest without
+ *              any warnings or underruns.
  * Driver requirement: i915, xe
  * Mega feature: PSR
  */

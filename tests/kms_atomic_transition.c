@@ -24,6 +24,9 @@
 /**
  * TEST: kms atomic transition
  * Category: Display
+ * Description: This is a stress test, to ensure that all combinations of
+ * 		atomic transitions work correctly. For i915/xe this will mainly be a
+ * 		stress test on watermark calculations.
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
  */

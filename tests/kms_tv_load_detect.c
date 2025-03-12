@@ -26,6 +26,8 @@
  * TEST: kms tv load detect
  * Category: Display
  * Description: Test to check tv load detection.
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -33,8 +35,6 @@
 /**
  * SUBTEST: load-detect
  * Description: Check tv load detection works correctly.
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Check tv load detection works correctly.");

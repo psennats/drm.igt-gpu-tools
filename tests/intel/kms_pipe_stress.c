@@ -21,10 +21,11 @@
 #include "xe/xe_query.h"
 /**
  * TEST: kms pipe stress
+ * Category: Display
  * Description: Stress test how gpu and cpu behaves if maximum amount of
  *              planes, cpu and gpu utilization is achieved in order to reveal
  *              possible bandwidth/watermark and similar problems.
- * Category: Display
+ * Driver requirement: i915, xe
  * Mega feature: General Display Features
  *
  * SUBTEST: stress-xrgb8888-untiled

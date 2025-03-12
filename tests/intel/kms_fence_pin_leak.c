@@ -26,6 +26,8 @@
  * TEST: kms fence pin leak
  * Category: Display
  * Description: Exercises full ppgtt fence pin_count leak in the kernel.
+ * Driver requirement: i915
+ * Mega feature: General Display Features
  */
 
 #include <errno.h>
@@ -40,8 +42,6 @@
 /**
  * SUBTEST:
  * Description: Along with the modeset, validate fence pin_count leakage.
- * Driver requirement: i915
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Exercises full ppgtt fence pin_count leak in the "

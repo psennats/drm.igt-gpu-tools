@@ -30,6 +30,7 @@
  * Description: Test the relationship between fbcon and the frontbuffer tracking
  *              infrastructure.
  * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -44,12 +45,10 @@
  * SUBTEST: fbc
  * Description: Test the relationship between fbcon and the frontbuffer tracking
  *              infrastructure with fbc enabled.
- * Mega feature: General Display Features
  *
  * SUBTEST: fbc-suspend
  * Description: Suspend test to validate  the relationship between fbcon and the
  *              frontbuffer tracking infrastructure with fbc enabled.
- * Mega feature: General Display Features
  *
  * SUBTEST: psr
  * Description: Test the relationship between fbcon and the frontbuffer tracking

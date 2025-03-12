@@ -26,6 +26,8 @@
  * TEST: kms dp aux dev
  * Category: Display
  * Description: Test that /dev/drm_dp_aux reads work
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "config.h"
@@ -41,8 +43,6 @@
 /**
  * SUBTEST:
  * Description: Test that /dev/drm_dp_aux reads work
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Test that /dev/drm_dp_aux reads work");

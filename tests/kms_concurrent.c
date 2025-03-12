@@ -27,6 +27,8 @@
  * Category: Display
  * Description: Test atomic mode setting concurrently with multiple planes and
  *              screen resolution
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -36,8 +38,6 @@
  * SUBTEST: multi-plane-atomic-lowres
  * Description: Test atomic mode setting concurrently with multiple planes and
  *              screen resolution.
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Test atomic mode setting concurrently with multiple planes and screen resolution");

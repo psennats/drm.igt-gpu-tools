@@ -28,6 +28,8 @@
  * TEST: kms multipipe modeset
  * Category: Display
  * Description: Test simultaneous modeset on all the supported pipes
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -36,8 +38,6 @@
  * SUBTEST: basic-max-pipe-crc-check
  * Description: Verify if simultaneous modesets on all the supported pipes is
  *              successful. Validate using CRC verification
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Test simultaneous modeset on all the supported pipes");

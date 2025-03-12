@@ -27,6 +27,7 @@
  * Category: Display
  * Description: Tests to validate display power DC states.
  * Driver requirement: i915, xe
+ * Mega feature: Display Power Management
  */
 
 #include <errno.h>

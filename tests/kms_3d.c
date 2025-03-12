@@ -26,6 +26,8 @@
  * TEST: kms 3d
  * Category: Display
  * Description: Tests 3D mode setting.
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -34,8 +36,6 @@
 /**
  * SUBTEST:
  * Description: Tests 3D mode setting.
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Tests 3D mode setting.");

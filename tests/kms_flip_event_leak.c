@@ -26,6 +26,8 @@
  * TEST: kms flip event leak
  * Category: Display
  * Description: Test to validate flip event leak
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -43,8 +45,6 @@
  *              page flip event when the fd is closed before the flip has
  *              completed. The test itself won't fail even if the kernel leaks
  *              the event, but the resulting dmesg WARN will indicate a failure.
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 typedef struct {

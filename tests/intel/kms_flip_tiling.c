@@ -28,6 +28,8 @@
  * TEST: kms flip tiling
  * Category: Display
  * Description: Test page flips and tiling scenarios
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include <errno.h>
@@ -40,8 +42,6 @@
 /**
  * SUBTEST: flip-change-tiling
  * Description: Check pageflip between modifiers
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION("Test page flips and tiling scenarios");

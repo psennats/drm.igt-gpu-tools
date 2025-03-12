@@ -25,6 +25,8 @@
  * TEST: kms sysfs edid timing
  * Category: Display
  * Description: Test to check the time it takes to reprobe each connector.
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -41,8 +43,6 @@
  *              if the mean time it takes to reprobe one connector is too long.
  *              Additionally, make sure that the mean time for all connectors is
  *              not too long.
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 #define THRESHOLD_PER_CONNECTOR		150

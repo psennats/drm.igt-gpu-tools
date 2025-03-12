@@ -29,6 +29,8 @@
  * Category: Display
  * Description: Use the display CRC support to validate mmap write to an already
  *              uncached future scanout buffer.
+ * Driver requirement: i915, xe
+ * Mega feature: General Display Features
  */
 
 #include <errno.h>
@@ -48,8 +50,6 @@
 /**
  * SUBTEST: main
  * Description: Tests that caching mode has become UC/WT and flushed using mmap write
- * Driver requirement: i915, xe
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION(

@@ -26,6 +26,8 @@
  * TEST: kms pwrite crc
  * Category: Display
  * Description: Test to validate pwrite buffer using the display CRC
+ * Driver requirement: i915
+ * Mega feature: General Display Features
  */
 
 #include "igt.h"
@@ -39,8 +41,6 @@
  * SUBTEST:
  * Description: Use the display CRC support to validate pwrite to an already
  *              uncached future scanout buffer.
- * Driver requirement: i915
- * Mega feature: General Display Features
  */
 
 IGT_TEST_DESCRIPTION(
