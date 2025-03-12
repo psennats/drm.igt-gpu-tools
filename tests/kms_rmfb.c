@@ -27,9 +27,7 @@
  * Description: This tests rmfb and close-fd behavior. In these cases the
  *              framebuffers should be removed from the crtc.
  * Driver requirement: i915, xe
- * Functionality: kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"

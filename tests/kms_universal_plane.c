@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Check pageflip & modeset on universal plane
  * Driver requirement: i915, xe
- * Functionality: plane
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -41,7 +39,6 @@
 /**
  * SUBTEST: cursor-fb-leak
  * Description: Check for cursor leaks after performing cursor operations
- * Functionality: cursor, plane
  *
  * SUBTEST: disable-primary-vs-flip
  * Description: Check pageflips while primary plane is disabled before IOCTL or

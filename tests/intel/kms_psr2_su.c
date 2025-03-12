@@ -28,7 +28,6 @@
  * Description: Test PSR2 selective update
  * Driver requirement: i915, xe
  * Mega feature: PSR
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -43,11 +42,9 @@
 /**
  * SUBTEST: frontbuffer-XRGB8888
  * Description: Test that selective update works when screen changes
- * Functionality: fbt, psr2, selective_update
  *
  * SUBTEST: page_flip-%s
  * Description: Test the selective update with %arg[1] when screen changes
- * Functionality: pixel_formats, psr2, selective_update
  *
  * arg[1]:
  *

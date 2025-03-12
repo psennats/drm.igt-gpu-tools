@@ -26,9 +26,7 @@
  * Category: Display
  * Description: Prime tests, focusing on KMS side
  * Driver requirement: i915, xe
- * Functionality: hybrid, kms_gem_interop
  * Mega feature: General Display Features
- * Test category: functionality test
  */
 
 #include "igt.h"
@@ -51,7 +49,6 @@
  * SUBTEST: basic-crc-%s
  * Description: Make a dumb color buffer, export to another device and compare
  *              the CRCs with a buffer native to that device
- * Functionality: crc, hybrid, kms_gem_interop
  *
  * arg[1]:
  *
