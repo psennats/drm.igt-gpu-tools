@@ -1,3 +1,99 @@
+Release 2.00 (2025-03-13)
+-------------------------
+
+General changes:
+
+- Added Karthik B S as a new maintainer.
+
+Library changes:
+
+- Added GFX1153 to GFX1150 amdgpu family. (Tim Huang)
+
+- Improved kernel module un/loading. (Lucas De Marchi)
+
+- Added ftrace logs at test boundaries. (Umesh Nerlige Ramappa)
+
+- Improved device scanning used in device filters. (Zbigniew Kempczyński)
+
+- Add support to check joiner mode limit. (Jeevan B)
+
+- Updated PCI ids for DG2/MTL/BMG/PTL. (Matt Atwood)
+
+- Added PTL opencl kernels. (Janga Rahul Kumar and Priyanka Dandamudi)
+
+- Extended GPGPU compute square kernel for PTL. (Sai Gowtham Ch)
+
+- Using Long Running mode for GPGPU compute with Xe. (Francois Dugast)
+
+- Make running under Valgrind quiet. (Tvrtko Ursulin)
+
+Runner changes:
+
+- Added igt_runner cmdline to results. (Lucas De Marchi)
+
+- Added printing GPU related facts. (Peter Senna Tschudin)
+
+- Added kmemleak scans. (Peter Senna Tschudin)
+
+- Parse results more persistently. (Kamil Konieczny)
+
+Test changes:
+
+- Improved Xe EUdebug tests. (Dominik Grzegorzek)
+
+- Improved support for 3d testing on VMs for vmwgfx. (Maaz Mombasawala)
+
+- Improved Xe debugfs testing. (Pravalika Gurram)
+
+- Improved amdgpu PCI unplug test. (Vitaly Prosyak)
+
+- Added support for page queues in amdgpu tests. (Jesse Zhang)
+
+- New short hibernate subtest in Intel KMS ccs. (Juha-Pekka Heikkila)
+
+- Renamed test i915_pipe_stress into kms_pipe_stress and added
+  support for Xe in it. (Swati Sharma)
+
+- New test for devcoredump for Xe. (Zhanjun Dong)
+
+- New DP link training validation of both UHBR and non-UHBR link
+  rates over SST and MST configurations. (Kunal Joshi)
+
+- New test for Frame Buffer Compression (FBC) with dirty rectangles which
+  allows FBC to recompress a subsection of a frame. (Santhosh Reddy Guddati)
+
+- New test for EU stall sampling for Xe. (Harish Chegondi)
+
+- New test for eudebug/SR-IOV exclusion for Xe. (Christoph Manszewski)
+
+- New test for PMU (Performance Monitoring Unit) for Xe. (Vinay Belgaumkar
+  and Riana Tauro)
+
+- New test for SRIOV auto-provisioning for Xe. (Marcin Bernatowicz)
+
+- New equal-throughput validation for VFs in SRIOV. (Marcin Bernatowicz)
+
+- Improved test documentation. (Katarzyna Piecielska and Swati Sharma)
+
+- Improved Xe OA test. (Umesh Nerlige Ramappa, Sai Teja Pottumuttu and
+  Ashutosh Dixit)
+
+Tools and scripts changes:
+
+- New tool for measuring display memory bandwidth utilization (Ville Syrjälä)
+
+- New igt_facts tool for displaying GPU related info. (Peter Senna Tschudin)
+
+- Power tool renamed to igt_power (Kamil Konieczny)
+
+- New --pci-slot option in intel_reg for multi-GPU configs. (Łukasz Łaguna
+  and Kamil Konieczny)
+
+- Added kmemleak option to run-tests.sh script. (Peter Senna Tschudin)
+
+And many other bug fixes, improvements, cleanups and new tests.
+
+
 Release 1.30 (2024-12-13)
 -------------------------
 
