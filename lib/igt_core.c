@@ -1905,11 +1905,10 @@ void igt_fail(int exitcode)
 		failed_one = true;
 	}
 
-	/* Silent exit, parent will do the yelling. */
+	_igt_log_buffer_dump();
+
 	if (test_child)
 		exit(exitcode);
-
-	_igt_log_buffer_dump();
 
 	if (test_multi_fork_child)
 		exit(exitcode);
