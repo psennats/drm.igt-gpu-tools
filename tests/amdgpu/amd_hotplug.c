@@ -20,6 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <fcntl.h>
+
 #include "igt.h"
 #include "igt_amd.h"
 
