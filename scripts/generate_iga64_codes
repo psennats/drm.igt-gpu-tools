@@ -104,7 +104,7 @@ for asm in "${ASMS[@]}"; do
     asm_name="${asm%%:*}"
     asm_code="${asm_name/assembly/code}"
     asm_body="${asm#*:}"
-    cur_code=""
+    cur_code="NONE"
     cur_ver=""
     echo -e "\nstruct iga64_template const $asm_code[] = {" >>$OUTPUT
     for gen in $GEN_VERSIONS; do
@@ -117,7 +117,7 @@ for asm in "${ASMS[@]}"; do
         done
         SHOW_CMD=1 compile_iga64 > "$WD/$asm_name.$gen_name.bin" || die "Cannot write to $WD/$asm_name.$gen_name.bin"
         code="$(hexdump -v -e '"\t\t" 4/4 "0x%08x, " "\n"' $WD/$asm_name.$gen_name.bin)"
-        [ -z "$cur_code" ] && cur_code="$code"
+        [ "$cur_code" = "NONE" ] && cur_code="$code"
         [ "$cur_code" != "$code" ] && {
             echo -e "\t{ .gen_ver = $cur_ver, .size = $(dword_count "$cur_code"), .code = (const uint32_t []) {\n$cur_code\n\t}}," >>$OUTPUT
             cur_code="$code"
