@@ -165,22 +165,23 @@ static void set_retval(const char function_name[], long long retval)
  * Functionality: fault
  *
  * arg[1]:
- * @wait_for_lmem_ready:	wait_for_lmem_ready
- * @xe_device_create:		xe_device_create
- * @xe_device_probe_early:	xe_device_probe_early
- * @xe_ggtt_init_early:		xe_ggtt_init_early
- * @xe_guc_ads_init:		xe_guc_ads_init
- * @xe_guc_ct_init:		xe_guc_ct_init
- * @xe_guc_log_init:		xe_guc_log_init
- * @xe_guc_relay_init:		xe_guc_relay_init
- * @xe_mmio_probe_early:	xe_mmio_probe_early
- * @xe_pcode_probe_early:	xe_pcode_probe_early
- * @xe_pm_init_early:		xe_pm_init_early
- * @xe_sriov_init:		xe_sriov_init
- * @xe_tile_init_early:		xe_tile_init_early
- * @xe_uc_fw_init:		xe_uc_fw_init
- * @xe_wa_init:			xe_wa_init
- * @xe_wopcm_init:		xe_wopcm_init
+ * @wait_for_lmem_ready:		wait_for_lmem_ready
+ * @xe_add_hw_engine_class_defaults:	xe_add_hw_engine_class_defaults
+ * @xe_device_create:			xe_device_create
+ * @xe_device_probe_early:		xe_device_probe_early
+ * @xe_ggtt_init_early:			xe_ggtt_init_early
+ * @xe_guc_ads_init:			xe_guc_ads_init
+ * @xe_guc_ct_init:			xe_guc_ct_init
+ * @xe_guc_log_init:			xe_guc_log_init
+ * @xe_guc_relay_init:			xe_guc_relay_init
+ * @xe_mmio_probe_early:		xe_mmio_probe_early
+ * @xe_pcode_probe_early:		xe_pcode_probe_early
+ * @xe_pm_init_early:			xe_pm_init_early
+ * @xe_sriov_init:			xe_sriov_init
+ * @xe_tile_init_early:			xe_tile_init_early
+ * @xe_uc_fw_init:			xe_uc_fw_init
+ * @xe_wa_init:				xe_wa_init
+ * @xe_wopcm_init:			xe_wopcm_init
  */
 static void
 inject_fault_probe(int fd, char pci_slot[], const char function_name[])
@@ -381,6 +382,7 @@ igt_main
 		unsigned int flags;
 	} probe_fail_functions[] = {
 		{ "wait_for_lmem_ready" },
+		{ "xe_add_hw_engine_class_defaults" },
 		{ "xe_device_create" },
 		{ "xe_device_probe_early" },
 		{ "xe_ggtt_init_early" },
