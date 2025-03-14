@@ -92,7 +92,7 @@ EOF
 # Compiles assembly to binary representation sent to stdout.
 compile_iga64() {
     cmd="cpp -P - -o $WD/$asm_name.$gen_name.asm"
-    cmd+=" -DGEN_VER=$gen_ver -D'ARG(n)=($IGA64_ARG0 + (n))' -imacros $IGT_SRCDIR/lib/iga64_macros.h"
+    cmd+=" -DGEN_VER=$gen_ver -D'ARG(n)=$IGA64_ARG0 + n' -imacros $IGT_SRCDIR/lib/iga64_macros.h"
     eval "$cmd" <<<"$asm_body" || die "cpp error for $asm_name.$gen_name\ncmd: $cmd"
     cmd="iga64 -Xauto-deps -Wall -p=$gen_name"
     cmd+=" $WD/$asm_name.$gen_name.asm"
