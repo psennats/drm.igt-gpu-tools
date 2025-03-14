@@ -96,7 +96,7 @@ compile_iga64() {
     eval "$cmd" <<<"$asm_body" || die "cpp error for $asm_name.$gen_name\ncmd: $cmd"
     cmd="iga64 -Xauto-deps -Wall -p=$gen_name"
     cmd+=" $WD/$asm_name.$gen_name.asm"
-    warn "$cmd"
+    [ -n "$SHOW_CMD" ] && warn "$cmd"
     eval "$cmd" || die "iga64 error for $asm_name.$gen_name\ncmd: $cmd"
 }
 
@@ -110,13 +110,12 @@ for asm in "${ASMS[@]}"; do
     for gen in $GEN_VERSIONS; do
         gen_ver="${gen%%:*}"
         gen_name="${gen#*:}"
-        warn "Generating $asm_code for platform $gen_name"
         # Verify generated code will not contain IGA64_ARGs.
         for d in $(IGA64_ARG0=0 compile_iga64 | hexdump -v -e '1/4 "0x%08x\n"'); do
             (( (d & IGA64_ARG_MASK) == IGA64_ARG0 )) || continue
             die "Assembly for $asm_name.$gen_name contains instruction which compiles to $d, conflicts with IGA64_ARG0/mask $IGA64_ARG0/$IGA64_ARG_MASK\ncmd: $cmd"
         done
-        compile_iga64 > "$WD/$asm_name.$gen_name.bin" || die "Cannot write to $WD/$asm_name.$gen_name.bin"
+        SHOW_CMD=1 compile_iga64 > "$WD/$asm_name.$gen_name.bin" || die "Cannot write to $WD/$asm_name.$gen_name.bin"
         code="$(hexdump -v -e '"\t\t" 4/4 "0x%08x, " "\n"' $WD/$asm_name.$gen_name.bin)"
         [ -z "$cur_code" ] && cur_code="$code"
         [ "$cur_code" != "$code" ] && {
