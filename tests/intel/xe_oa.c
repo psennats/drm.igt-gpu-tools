@@ -4893,7 +4893,7 @@ igt_main
 
 		for (const struct sync_section *s = sync_sections; s->name; s++) {
 			igt_subtest_with_dynamic_f("syncs-%s", s->name) {
-				__for_one_render_engine(hwe)
+				__for_one_hwe_in_oag(hwe)
 					test_syncs(hwe, s->sync_type, s->flags);
 			}
 		}
