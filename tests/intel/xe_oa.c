@@ -4645,13 +4645,10 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 		igt_dynamic_f("%s-%d-%s", xe_engine_class_name(hwe->engine_class), \
 			      hwe->engine_instance, str)
 
-#define __for_one_render_engine(hwe)	      \
-	for (int m = 0, done = 0; !done; m++) \
-		for_each_if(m < xe_number_engines(drm_fd) && \
-			    (hwe = &xe_engine(drm_fd, m)->instance) && \
-			    hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER && \
-			    (done = 1)) \
-			igt_dynamic_f("rcs-%d", hwe->engine_instance)
+#define __for_one_render_engine(hwe) \
+	hwe = &xe_find_engine_by_class(drm_fd, DRM_XE_ENGINE_CLASS_RENDER)->instance; \
+	igt_require_f(hwe, "no render engine\n"); \
+	igt_dynamic_f("rcs-%d", hwe->engine_instance)
 
 igt_main
 {
@@ -4895,10 +4892,10 @@ igt_main
 		}
 
 		for (const struct sync_section *s = sync_sections; s->name; s++) {
-			igt_subtest_with_dynamic_f("syncs-%s", s->name)
+			igt_subtest_with_dynamic_f("syncs-%s", s->name) {
 				__for_one_render_engine(hwe)
 					test_syncs(hwe, s->sync_type, s->flags);
-
+			}
 		}
 	}
 
