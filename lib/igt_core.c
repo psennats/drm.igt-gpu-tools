@@ -2600,6 +2600,7 @@ bool __igt_fork(void)
 		test_child = true;
 		pthread_mutex_init(&print_mutex, NULL);
 		pthread_mutex_init(&ahnd_map_mutex, NULL);
+		pthread_mutex_init(&log_buffer_mutex, NULL);
 		ahnd_map = igt_map_create(igt_map_hash_64, igt_map_equal_64);
 		child_pid = getpid();
 		child_tid = -1;
