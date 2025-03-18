@@ -40,10 +40,11 @@
 #include <dirent.h>
 
 #include "drmtest.h"
+#include "igt_aux.h"
 #include "igt_device_scan.h"
 #include "igt_kms.h"
+#include "igt_pci.h"
 #include "igt_pm.h"
-#include "igt_aux.h"
 #include "igt_sysfs.h"
 
 /**
@@ -81,6 +82,7 @@ enum {
 #define MAX_POLICY_STRLEN	strlen(MAX_PERFORMANCE_STR)
 /* Root Port bus can have max 32 dev and each dev can have max 8 func */
 #define MAX_PCI_DEVICES		256
+#define PCI_PM_CAP_ID 0x01
 int8_t *__sata_pm_policies;
 int __scsi_host_cnt;
 
@@ -1469,4 +1471,19 @@ void igt_pm_ignore_slpc_efficient_freq(int i915, int gtfd, bool val)
 
 	igt_require(igt_sysfs_has_attr(gtfd, "slpc_ignore_eff_freq"));
 	igt_sysfs_set_u32(gtfd, "slpc_ignore_eff_freq", val);
+}
+
+/**
+ * igt_has_pci_pm_capability:
+ * @pci_dev: PCI device struct
+ *
+ * Returns: true if the device has PCI Power Management capability, false otherwise.
+ */
+bool igt_has_pci_pm_capability(struct pci_device *pci_dev)
+{
+	int offset;
+
+	offset = find_pci_cap_offset(pci_dev, PCI_PM_CAP_ID);
+
+	return (offset > 0);
 }
