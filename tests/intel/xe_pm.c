@@ -146,6 +146,9 @@ static void vram_d3cold_threshold_restore(int sig)
 
 static bool setup_d3(device_t device, enum igt_acpi_d_state state)
 {
+	igt_require_f(igt_has_pci_pm_capability(device.pci_xe),
+		      "PCI power management capability not found\n");
+
 	dpms_on_off(device, DRM_MODE_DPMS_OFF);
 
 	/*
