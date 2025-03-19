@@ -6429,6 +6429,20 @@ int igt_get_current_cdclk(int fd)
 }
 
 /**
+ * get_max_hdisplay:
+ * @drm_fd: drm file descriptor
+ *
+ * Returns: The maximum hdisplay supported per pipe.
+ */
+static int get_max_pipe_hdisplay(int drm_fd)
+{
+	int dev_id = intel_get_drm_devid(drm_fd);
+
+	return (intel_display_ver(dev_id) >= 30) ? HDISPLAY_6K_PER_PIPE :
+						   HDISPLAY_5K_PER_PIPE;
+}
+
+/**
  * igt_bigjoiner_possible:
  * @drm_fd: drm file descriptor
  * @mode: libdrm mode
@@ -6441,13 +6455,8 @@ int igt_get_current_cdclk(int fd)
  */
 bool igt_bigjoiner_possible(int drm_fd, drmModeModeInfo *mode, int max_dotclock)
 {
-	int max_hdisplay, dev_id;
-
-	dev_id = intel_get_drm_devid(drm_fd);
-	max_hdisplay = (intel_display_ver(dev_id) >= 30) ? HDISPLAY_6K_PER_PIPE :
-			HDISPLAY_5K_PER_PIPE;
-
-	return (mode->hdisplay > max_hdisplay || mode->clock > max_dotclock);
+	return (mode->hdisplay > get_max_pipe_hdisplay(drm_fd) ||
+		mode->clock > max_dotclock);
 }
 
 /**
@@ -6469,27 +6478,13 @@ bool bigjoiner_mode_found(int drm_fd, drmModeConnector *connector,
 
 	for (int i=0; i< connector->count_modes; i++) {
 		if (igt_bigjoiner_possible(drm_fd, &connector->modes[i], max_dotclock) &&
-		    !igt_ultrajoiner_possible(&connector->modes[i], max_dotclock)) {
+		    !igt_ultrajoiner_possible(drm_fd, &connector->modes[i], max_dotclock)) {
 			*mode = connector->modes[i];
 			found = true;
 			break;
 		}
 	}
 	return found;
-}
-
-/**
- * get_max_hdisplay:
- * @drm_fd: drm file descriptor
- *
- * Returns: The maximum hdisplay supported per pipe.
- */
-static int get_max_pipe_hdisplay(int drm_fd)
-{
-	int dev_id = intel_get_drm_devid(drm_fd);
-
-	return (intel_display_ver(dev_id) >= 30) ? HDISPLAY_6K_PER_PIPE :
-						   HDISPLAY_5K_PER_PIPE;
 }
 
 /**
@@ -6567,9 +6562,9 @@ bool igt_is_joiner_enabled_for_pipe(int drmfd, enum pipe pipe)
  *
  * Returns: True if mode requires Ultrajoiner, else False.
  */
-bool igt_ultrajoiner_possible(drmModeModeInfo *mode, int max_dotclock)
+bool igt_ultrajoiner_possible(int drm_fd, drmModeModeInfo *mode, int max_dotclock)
 {
-	return (mode->hdisplay > 2 * HDISPLAY_5K_PER_PIPE ||
+	return (mode->hdisplay > 2 * get_max_pipe_hdisplay(drm_fd) ||
 		mode->clock > 2 * max_dotclock);
 }
 
@@ -6591,7 +6586,7 @@ bool ultrajoiner_mode_found(int drm_fd, drmModeConnector *connector,
 	bool found = false;
 
 	for (int i = 0; i < connector->count_modes; i++) {
-		if (igt_ultrajoiner_possible(&connector->modes[i], max_dotclock)) {
+		if (igt_ultrajoiner_possible(drm_fd, &connector->modes[i], max_dotclock)) {
 			*mode = connector->modes[i];
 			found = true;
 			break;
