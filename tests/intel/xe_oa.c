@@ -2480,7 +2480,7 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 		.num_properties = ARRAY_SIZE(properties) / 2,
 		.properties_ptr = to_user_pointer(properties),
 	};
-	uint32_t buf_size = 3 * 65536 * report_size;
+	uint32_t buf_size = 3 * (oa_buffer_size ?: buffer_fill_size);
 	uint8_t *buf = malloc(buf_size);
 	uint32_t total_len = 0;
 	const uint32_t *last_report;
