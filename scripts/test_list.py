@@ -1399,7 +1399,7 @@ class TestList:
 
                 # Handle multi-line field contents
                 if current_field:
-                    match = re.match(r'\s+(.*)', file_line)
+                    match = re.match(r'(.*)', file_line)
                     if match:
                         if handle_section == 'test':
                             dic = self.doc[current_test]
@@ -1408,7 +1408,7 @@ class TestList:
 
                         if dic[current_field] != '':
                             dic[current_field] += " "
-                        dic[current_field] += match.group(1)
+                        dic[current_field] += match.group(1).strip()
                         continue
 
                 # Handle multi-line argument contents
@@ -1427,7 +1427,7 @@ class TestList:
                     continue
 
                 file_line.rstrip(r"\n")
-                sys.exit(f"{fname}:{file_ln + 1}: Error: unrecognized line. Need to add field at %s?\n\t==> %s" %
+                printf(f"{fname}:{file_ln + 1}: Warning: unrecognized line. Need to add field at %s?\n\t==> %s" %
                          (config_origin, file_line))
 
     def show_subtests(self, sort_field):
