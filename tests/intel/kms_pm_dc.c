@@ -146,12 +146,25 @@ static void set_output_on_pipe_b(data_t *data)
 
 static void setup_output(data_t *data)
 {
+	int disp_ver = intel_display_ver(data->devid);
 	igt_display_t *display = &data->display;
 	igt_output_t *output;
+	bool is_low_power;
 	enum pipe pipe;
 
 	for_each_pipe_with_valid_output(display, pipe, output) {
 		drmModeConnectorPtr c = output->config.connector;
+
+		if (disp_ver >= 13) {
+			if (disp_ver == 20 || IS_BATTLEMAGE(data->devid) || IS_DG2(data->devid))
+				is_low_power = (pipe == PIPE_A);
+			else
+				is_low_power = (pipe == PIPE_A || pipe == PIPE_B);
+		} else {
+			is_low_power = (pipe == PIPE_A);
+		}
+
+		igt_skip_on_f(!is_low_power, "Low power pipe was not selected for the DC5 transaction.\n");
 
 		if (c->connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
