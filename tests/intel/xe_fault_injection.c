@@ -137,6 +137,12 @@ static void setup_injection_fault(void)
 	close(dir);
 }
 
+static void cleanup_injection_fault(int sig)
+{
+	/* If nothing specified (‘’) injection list is cleared */
+	injection_list_do(INJECTION_LIST_ADD, "");
+}
+
 static void set_retval(const char function_name[], long long retval)
 {
 	char path[96];
@@ -371,6 +377,7 @@ igt_main
 		fd = drm_open_driver(DRIVER_XE);
 		igt_device_get_pci_slot_name(fd, pci_slot);
 		setup_injection_fault();
+		igt_install_exit_handler(cleanup_injection_fault);
 	}
 
 	for (const struct section *s = vm_create_fail_functions; s->name; s++)
