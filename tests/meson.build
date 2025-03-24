@@ -400,6 +400,7 @@ extra_dependencies = {
 	'perf': [ lib_igt_i915_perf ],
 	'perf_pmu':  [ lib_igt_perf ],
 	'sw_sync': [ libatomic ],
+	'xe_fault_injection': [ lib_igt_xe_oa ],
 	'xe_oa': [ lib_igt_xe_oa ],
 }
 

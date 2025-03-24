@@ -20,6 +20,7 @@
 #include "lib/igt_syncobj.h"
 #include "lib/intel_pat.h"
 #include "xe/xe_ioctl.h"
+#include "xe/xe_oa.h"
 #include "xe/xe_query.h"
 
 #define INJECT_ERRNO	-ENOMEM
@@ -323,10 +324,57 @@ vm_bind_fail(int fd, const char function_name[])
 	igt_assert_eq(simple_vm_bind(fd, vm), 0);
 }
 
+/**
+ * SUBTEST: oa-add-config-fail-%s
+ * Description: inject an error in function %arg[1] used in oa add config IOCTL to make it fail
+ * Functionality: fault
+ *
+ * arg[1]:
+ * @xe_oa_alloc_regs:		xe_oa_alloc_regs
+ */
+static void
+oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
+{
+	char path[512];
+	uint64_t config_id;
+#define SAMPLE_MUX_REG (intel_graphics_ver(devid) >= IP_VER(20, 0) ?	\
+			0x13000 /* PES* */ : 0x9888 /* NOA_WRITE */)
+
+	uint32_t mux_regs[] = { SAMPLE_MUX_REG, 0x0 };
+	struct drm_xe_oa_config config;
+	const char *uuid = "01234567-0123-0123-0123-0123456789ab";
+
+	snprintf(path, sizeof(path), "metrics/%s/id", uuid);
+	/* Destroy previous configuration if present */
+	if (igt_sysfs_scanf(sysfs, path, "%" PRIu64, &config_id) == 1)
+		igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG,
+						  &config_id), 0);
+
+	memset(&config, 0, sizeof(config));
+	memcpy(config.uuid, uuid, sizeof(config.uuid));
+	config.n_regs = 1;
+	config.regs_ptr = to_user_pointer(mux_regs);
+
+	igt_assert_lt(0, intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config));
+	igt_assert(igt_sysfs_scanf(sysfs, path, "%" PRIu64, &config_id) == 1);
+	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
+
+	ignore_faults_in_dmesg(function_name);
+	injection_list_do(INJECTION_LIST_ADD, function_name);
+	set_retval(function_name, INJECT_ERRNO);
+	igt_assert_lt(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config), 0);
+	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+
+	igt_assert_lt(0, intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config));
+	igt_assert(igt_sysfs_scanf(sysfs, path, "%" PRIu64, &config_id) == 1);
+	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
+}
+
 igt_main
 {
-	int fd;
+	int fd, sysfs;
 	struct drm_xe_engine_class_instance *hwe;
+	static uint32_t devid;
 	char pci_slot[NAME_MAX];
 	const struct section {
 		const char *name;
@@ -378,9 +426,16 @@ igt_main
 		{ }
 	};
 
+	const struct section oa_add_config_fail_functions[] = {
+		{ "xe_oa_alloc_regs"},
+		{ }
+	};
+
 	igt_fixture {
 		igt_require(fail_function_injection_enabled());
 		fd = drm_open_driver(DRIVER_XE);
+		devid = intel_get_drm_devid(fd);
+		sysfs = igt_sysfs_open(fd);
 		igt_device_get_pci_slot_name(fd, pci_slot);
 		setup_injection_fault();
 		igt_install_exit_handler(cleanup_injection_fault);
@@ -406,6 +461,10 @@ igt_main
 				if (hwe->engine_class == DRM_XE_ENGINE_CLASS_VM_BIND)
 					exec_queue_create_fail(fd, hwe, s->name, s->flags);
 
+	for (const struct section *s = oa_add_config_fail_functions; s->name; s++)
+		igt_subtest_f("oa-add-config-fail-%s", s->name)
+			oa_add_config_fail(fd, sysfs, devid, s->name);
+
 	igt_fixture {
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_UNBIND);
 	}
@@ -415,6 +474,7 @@ igt_main
 			inject_fault_probe(fd, pci_slot, s->name);
 
 	igt_fixture {
+		close(sysfs);
 		drm_close_driver(fd);
 		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_BIND);
 	}
