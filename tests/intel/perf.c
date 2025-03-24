@@ -5909,7 +5909,7 @@ igt_main
 		igt_assert(perf_oa_groups && num_perf_oa_groups);
 
 		if (has_class_instance(drm_fd, I915_ENGINE_CLASS_RENDER, 0))
-			render_copy = igt_get_render_copyfunc(devid);
+			render_copy = igt_get_render_copyfunc(drm_fd);
 	}
 
 	igt_subtest("non-system-wide-paranoid")

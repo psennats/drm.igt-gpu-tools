@@ -2831,7 +2831,7 @@ static void copy_with_engine(struct fb_blit_upload *blit,
 	if (use_vebox_copy(src_fb, dst_fb))
 		vebox_copy = igt_get_vebox_copyfunc(intel_get_drm_devid(blit->fd));
 	else
-		render_copy = igt_get_render_copyfunc(intel_get_drm_devid(blit->fd));
+		render_copy = igt_get_render_copyfunc(blit->fd);
 
 	igt_require(vebox_copy || render_copy);
 

@@ -236,7 +236,7 @@ static void render(int fd, uint32_t width, uint32_t height, uint32_t tiling)
 	memcpy(src.ptr, refs[0].ptr, src.bo_size);
 	intel_buf_unmap(&src);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(fd);
 	igt_assert(render_copy);
 
 	render_copy(ibb,

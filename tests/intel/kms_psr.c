@@ -427,7 +427,7 @@ static void fill_render(data_t *data, const struct igt_fb *fb,
 	struct intel_buf *src, *dst;
 	struct intel_bb *ibb;
 	const uint8_t buf[4] = { color, color, color, color };
-	igt_render_copyfunc_t rendercopy = igt_get_render_copyfunc(data->devid);
+	igt_render_copyfunc_t rendercopy = igt_get_render_copyfunc(data->drm_fd);
 	int height, width, tiling;
 
 	igt_skip_on(!rendercopy);
@@ -917,7 +917,7 @@ igt_main
 					igt_display_reset(&data.display);
 					data.output = output;
 					igt_dynamic_f("%s", data.output->name) {
-						data.op = igt_get_render_copyfunc(data.devid) ?
+						data.op = igt_get_render_copyfunc(data.drm_fd) ?
 										  RENDER : BLT;
 						data.test_plane_id = DRM_PLANE_TYPE_PRIMARY;
 						test_setup(&data);

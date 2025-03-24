@@ -900,8 +900,7 @@ static void draw_rect_render(int fd, struct cmd_data *cmd_data,
 			     uint32_t tiling, uint64_t color)
 {
 	struct intel_buf *src, *dst;
-	uint32_t devid = intel_get_drm_devid(fd);
-	igt_render_copyfunc_t rendercopy = igt_get_render_copyfunc(devid);
+	igt_render_copyfunc_t rendercopy = igt_get_render_copyfunc(fd);
 	struct intel_bb *ibb;
 	struct buf_data tmp;
 	int pixel_size = buf->bpp / 8;
@@ -1081,7 +1080,7 @@ bool igt_draw_supports_method(int fd, enum igt_draw_method method)
 		return is_i915_device(fd);
 
 	if (method == IGT_DRAW_RENDER)
-		return !!igt_get_render_copyfunc(intel_get_drm_devid(fd));
+		return !!igt_get_render_copyfunc(fd);
 
 	return true;
 }

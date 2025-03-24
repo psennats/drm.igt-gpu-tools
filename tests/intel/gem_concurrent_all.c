@@ -1905,7 +1905,7 @@ igt_main
 		intel_detect_and_clear_missed_interrupts(fd);
 		devid = intel_get_drm_devid(fd);
 		gen = intel_gen(devid);
-		rendercopy = igt_get_render_copyfunc(devid);
+		rendercopy = igt_get_render_copyfunc(fd);
 
 		vgem_drv = __drm_open_driver(DRIVER_VGEM);
 

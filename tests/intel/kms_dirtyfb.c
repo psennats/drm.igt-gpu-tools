@@ -365,7 +365,7 @@ igt_main
 		data.devid = intel_get_drm_devid(data.drm_fd);
 
 		data.bops = buf_ops_create(data.drm_fd);
-		data.rendercopy = igt_get_render_copyfunc(intel_get_drm_devid(data.drm_fd));
+		data.rendercopy = igt_get_render_copyfunc(data.drm_fd);
 	}
 
 	for (data.feature = FEATURE_DEFAULT; data.feature > 0;

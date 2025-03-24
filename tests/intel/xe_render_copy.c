@@ -266,7 +266,6 @@ static int render(struct buf_ops *bops, uint32_t tiling,
 	struct intel_buf src, dst, final, grfs;
 	int xe = buf_ops_get_fd(bops);
 	uint32_t fails = 0;
-	uint32_t devid = intel_get_drm_devid(xe);
 	igt_render_copyfunc_t render_copy = NULL;
 	int compression = testtype == COPY_FULL_COMPRESSED ? I915_COMPRESSION_RENDER :
 							     I915_COMPRESSION_NONE;
@@ -326,7 +325,7 @@ static int render(struct buf_ops *bops, uint32_t tiling,
 			       0, 0, width, height,
 			       0, 0, width, height, 0);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(xe);
 	igt_assert(render_copy);
 
 	switch (testtype) {

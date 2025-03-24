@@ -130,7 +130,7 @@ static void run_test (int fd, int count)
 
 	devid = intel_get_drm_devid(fd);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(fd);
 	igt_require(render_copy);
 
 	snoop = 1;

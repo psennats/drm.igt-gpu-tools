@@ -257,7 +257,7 @@ igt_main
 		devid = intel_get_drm_devid(fd);
 		igt_require(intel_gen(devid) >= 6);
 
-		rendercopy = igt_get_render_copyfunc(devid);
+		rendercopy = igt_get_render_copyfunc(fd);
 		igt_require(rendercopy);
 
 		bops = buf_ops_create(fd);

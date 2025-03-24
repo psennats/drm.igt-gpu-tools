@@ -97,7 +97,7 @@ static void run_test (int fd, int count)
 	struct intel_buf *bufs;
 	int i, j;
 
-	render_copy = igt_get_render_copyfunc(intel_get_drm_devid(fd));
+	render_copy = igt_get_render_copyfunc(fd);
 	igt_require(render_copy);
 
 	bops = buf_ops_create(fd);

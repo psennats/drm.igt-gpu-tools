@@ -374,7 +374,7 @@ static void render_copyfunc(struct intel_buf *src, unsigned src_x, unsigned src_
 			    unsigned logical_tile_no)
 {
 	static unsigned keep_gpu_busy_counter = 0;
-	igt_render_copyfunc_t rendercopy = igt_get_render_copyfunc(devid);
+	igt_render_copyfunc_t rendercopy = igt_get_render_copyfunc(drm_fd);
 
 	/* check both edges of the fence usage */
 	if (keep_gpu_busy_counter & 1)

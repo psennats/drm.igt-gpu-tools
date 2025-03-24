@@ -138,7 +138,7 @@ update_rect_with_dirtyfb(data_t *data, struct igt_fb *fb1, struct igt_fb *fb2,
 	igt_render_copyfunc_t rendercopy;
 
 	bops = buf_ops_create(data->drm_fd);
-	rendercopy = igt_get_render_copyfunc(intel_get_drm_devid(data->drm_fd));
+	rendercopy = igt_get_render_copyfunc(data->drm_fd);
 
 	src = intel_buf_create_full(bops, fb1->gem_handle, fb1->width,
 				    fb1->height,

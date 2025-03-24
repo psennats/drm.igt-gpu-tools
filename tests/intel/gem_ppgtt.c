@@ -103,19 +103,16 @@ static void fork_rcs_copy(int timeout, uint32_t final,
 #define CREATE_CONTEXT 0x1
 {
 	igt_render_copyfunc_t render_copy;
-	int devid;
 
 	for (int child = 0; child < count; child++) {
 		int fd = drm_open_driver(DRIVER_INTEL);
 		struct buf_ops *bops;
 
-		devid = intel_get_drm_devid(fd);
-
 		bops = buf_ops_create(fd);
 
 		dst[child] = create_bo(bops, ~0);
 
-		render_copy = igt_get_render_copyfunc(devid);
+		render_copy = igt_get_render_copyfunc(fd);
 		igt_require_f(render_copy,
 			      "no render-copy function\n");
 	}

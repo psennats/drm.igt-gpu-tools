@@ -363,7 +363,6 @@ static void pat_index_blt(struct xe_pat_param *p)
 static void pat_index_render(struct xe_pat_param *p)
 {
 	int fd = p->fd;
-	uint32_t devid = intel_get_drm_devid(fd);
 	igt_render_copyfunc_t render_copy = NULL;
 	int size, stride, width = p->size->width, height = p->size->height;
 	struct intel_buf src, dst;
@@ -372,7 +371,7 @@ static void pat_index_render(struct xe_pat_param *p)
 	int bpp = 32;
 	int i;
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(fd);
 	igt_require(render_copy);
 	igt_require(xe_has_engine_class(fd, DRM_XE_ENGINE_CLASS_RENDER));
 
@@ -754,7 +753,7 @@ static void display_vs_wb_transient(int fd)
 
 	igt_require(intel_get_device_info(devid)->graphics_ver >= 20);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(fd);
 	igt_require(render_copy);
 	igt_require(xe_has_engine_class(fd, DRM_XE_ENGINE_CLASS_RENDER));
 

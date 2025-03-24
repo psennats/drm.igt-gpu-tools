@@ -1015,7 +1015,7 @@ igt_main
 		 * blitter there as well.
 		 */
 		if (intel_display_ver(data.devid) >= 4)
-			data.render_copy = igt_get_render_copyfunc(data.devid);
+			data.render_copy = igt_get_render_copyfunc(data.drm_fd);
 
 		data.bops = buf_ops_create(data.drm_fd);
 

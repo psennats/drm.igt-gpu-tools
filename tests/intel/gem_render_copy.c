@@ -862,7 +862,7 @@ igt_main_args("dac", NULL, help_str, opt_handler, NULL)
 		data.devid = intel_get_drm_devid(data.drm_fd);
 		igt_require_gem(data.drm_fd);
 
-		data.render_copy = igt_get_render_copyfunc(data.devid);
+		data.render_copy = igt_get_render_copyfunc(data.drm_fd);
 		igt_require_f(data.render_copy,
 			      "no render-copy function\n");
 

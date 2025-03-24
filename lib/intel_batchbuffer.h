@@ -143,7 +143,7 @@ typedef void (*igt_render_copyfunc_t)(struct intel_bb *ibb,
 				      struct intel_buf *dst,
 				      uint32_t dst_x, uint32_t dst_y);
 
-igt_render_copyfunc_t igt_get_render_copyfunc(int devid);
+igt_render_copyfunc_t igt_get_render_copyfunc(int fd);
 
 
 /**

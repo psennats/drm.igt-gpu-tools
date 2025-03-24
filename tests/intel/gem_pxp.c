@@ -368,11 +368,6 @@ static void test_ctx_mod_protected_to_all_invalid(int i915)
 	gem_context_destroy(i915, ctx);
 }
 
-static igt_render_copyfunc_t get_copy_func(int i915)
-{
-	return igt_get_render_copyfunc(intel_get_drm_devid(i915));
-}
-
 static void fill_bo_content(int i915, uint32_t bo, uint32_t size, uint32_t initcolor)
 {
 	uint32_t *ptr, *ptrtmp;
@@ -515,7 +510,7 @@ static void test_render_baseline(int i915)
 	struct intel_bb *ibb;
 	int ret;
 
-	render_copy = get_copy_func(i915);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	bops = buf_ops_create(i915);
@@ -567,7 +562,7 @@ static void __test_render_pxp_src_to_protdest(int i915, uint32_t *outpixels, int
 	struct intel_bb *ibb;
 	int ret;
 
-	render_copy = get_copy_func(i915);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	bops = buf_ops_create(i915);
@@ -636,7 +631,7 @@ static void test_render_pxp_protsrc_to_protdest(int i915)
 	int ret;
 	uint32_t encrypted[TSTSURF_SIZE/TSTSURF_BYTESPP];
 
-	render_copy = get_copy_func(i915);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	bops = buf_ops_create(i915);
@@ -727,7 +722,7 @@ static void test_pxp_dmabuffshare_refcnt(int i915)
 	int fd[2], dmabuf_fd = 0, ret, n, num_matches = 0;
 	uint32_t encrypted[2][TSTSURF_SIZE/TSTSURF_BYTESPP];
 
-	render_copy = get_copy_func(i915);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	/* First, create the client driver handles and
@@ -1146,7 +1141,7 @@ static void setup_protected_fb(int i915, int width, int height, igt_fb_t *fb, ui
 	struct intel_bb *ibb;
 	igt_render_copyfunc_t render_copy;
 
-	render_copy = get_copy_func(i915);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	bops = buf_ops_create(i915);
@@ -1321,7 +1316,7 @@ igt_main
 		devid = intel_get_drm_devid(i915);
 		igt_assert(devid);
 		pxp_supported = is_pxp_hw_supported(i915);
-		rendercopy = igt_get_render_copyfunc(devid);
+		rendercopy = igt_get_render_copyfunc(i915);
 	}
 
 	igt_subtest_group {

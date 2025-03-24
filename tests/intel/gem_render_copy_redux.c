@@ -93,7 +93,7 @@ static void data_init(data_t *data)
 	data->devid = intel_get_drm_devid(data->fd);
 
 	data->bops = buf_ops_create(data->fd);
-	data->render_copy = igt_get_render_copyfunc(data->devid);
+	data->render_copy = igt_get_render_copyfunc(data->fd);
 	igt_require_f(data->render_copy,
 		      "no render-copy function\n");
 }

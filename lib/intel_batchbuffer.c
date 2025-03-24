@@ -644,17 +644,22 @@ void igt_blitter_fast_copy__raw(int fd,
 
 /**
  * igt_get_render_copyfunc:
- * @devid: pci device id
+ * @fd: drm fd
  *
  * Returns:
  *
- * The platform-specific render copy function pointer for the device
- * specified with @devid. Will return NULL when no render copy function is
- * implemented.
+ * The platform-specific render copy function pointer for drm @fd. Will
+ * return NULL when no render copy function is implemented.
  */
-igt_render_copyfunc_t igt_get_render_copyfunc(int devid)
+igt_render_copyfunc_t igt_get_render_copyfunc(int fd)
 {
 	igt_render_copyfunc_t copy = NULL;
+	int devid;
+
+	if (is_xe_device(fd) && !xe_has_engine_class(fd, DRM_XE_ENGINE_CLASS_RENDER))
+		return NULL;
+
+	devid = intel_get_drm_devid(fd);
 
 	if (IS_METEORLAKE(devid))
 		copy = mtl_render_copyfunc;

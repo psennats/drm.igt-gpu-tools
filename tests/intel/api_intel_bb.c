@@ -1339,7 +1339,7 @@ static int render(struct buf_ops *bops, uint32_t tiling, bool do_reloc,
 			       0, 0, width, height,
 			       0, 0, width, height, 0);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	render_copy(ibb,
@@ -1439,7 +1439,7 @@ static void render_ccs(struct buf_ops *bops)
 	scratch_buf_init(bops, &final, width, height, I915_TILING_NONE,
 			 I915_COMPRESSION_NONE);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(i915);
 	igt_assert(render_copy);
 
 	intel_buf_draw_pattern(bops, &src,

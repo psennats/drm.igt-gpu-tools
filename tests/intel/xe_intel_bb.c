@@ -897,7 +897,7 @@ static int render(struct buf_ops *bops, uint32_t tiling,
 			       0, 0, width, height,
 			       0, 0, width, height, 0);
 
-	render_copy = igt_get_render_copyfunc(devid);
+	render_copy = igt_get_render_copyfunc(xe);
 	igt_assert(render_copy);
 
 	render_copy(ibb,

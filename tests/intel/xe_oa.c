@@ -4712,7 +4712,7 @@ igt_main
 
 		write_u64_file("/proc/sys/dev/xe/observation_paranoid", 1);
 
-		render_copy = igt_get_render_copyfunc(devid);
+		render_copy = igt_get_render_copyfunc(drm_fd);
 	}
 
 	igt_subtest("non-system-wide-paranoid")
