@@ -36,7 +36,7 @@ bool igt_kmod_has_param(const char *mod_name, const char *param);
 int igt_kmod_load(const char *mod_name, const char *opts);
 int igt_kmod_unload(const char *mod_name);
 
-int igt_kmod_unbind(const char *mod_name);
+int igt_kmod_unbind(const char *mod_name, const char *pci_device);
 
 int igt_audio_driver_unload(char **whom);
 

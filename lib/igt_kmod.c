@@ -633,7 +633,7 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 	}
 
 	if (igt_kmod_is_loaded(driver)) {
-		igt_kmod_unbind(driver);
+		igt_kmod_unbind(driver, NULL);
 
 		ret = igt_kmod_unload(driver);
 		if (ret) {
@@ -647,10 +647,14 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 	return 0;
 }
 
-/*
+/**
+ * igt_kmod_unbind:
+ *
  * Unbind driver from devices. Currently supports only PCI bus
+ * @mod_name: name of the module to unbind
+ * @pci_device: if provided, unbind only this device, otherwise unbind all devices
  */
-int igt_kmod_unbind(const char *mod_name)
+int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 {
 	char path[PATH_MAX];
 	struct dirent *de;
@@ -672,6 +676,9 @@ int igt_kmod_unbind(const char *mod_name)
 		bool ret;
 
 		if (de->d_type != DT_LNK || !isdigit(de->d_name[0]))
+			continue;
+
+		if (pci_device && strcmp(pci_device, de->d_name) != 0)
 			continue;
 
 		devfd = openat(dirfd(dir), de->d_name, O_RDONLY | O_CLOEXEC);
@@ -718,7 +725,7 @@ igt_intel_driver_unload(const char *driver)
 
 int igt_xe_driver_unload(void)
 {
-	igt_kmod_unbind("xe");
+	igt_kmod_unbind("xe", NULL);
 
 	igt_kmod_unload("xe");
 	if (igt_kmod_is_loaded("xe"))
