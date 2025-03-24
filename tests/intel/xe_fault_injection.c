@@ -466,7 +466,7 @@ igt_main
 			oa_add_config_fail(fd, sysfs, devid, s->name);
 
 	igt_fixture {
-		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_UNBIND);
+		igt_kmod_unbind("xe", pci_slot);
 	}
 
 	for (const struct section *s = probe_fail_functions; s->name; s++)

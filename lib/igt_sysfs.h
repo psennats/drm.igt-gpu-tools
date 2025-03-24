@@ -186,7 +186,6 @@ int xe_sysfs_engine_open(int xe_device, int gt, int class);
 enum xe_sysfs_driver_action {
 	XE_SYSFS_DRIVER_BIND,
 	XE_SYSFS_DRIVER_TRY_BIND,
-	XE_SYSFS_DRIVER_UNBIND,
 	XE_SYSFS_DRIVER_REBIND,
 };
 

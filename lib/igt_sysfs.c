@@ -1505,10 +1505,6 @@ int xe_sysfs_driver_do(int xe_device, char pci_slot[], enum xe_sysfs_driver_acti
 		igt_sysfs_set(sysfs, "bind", pci_slot);
 		close(sysfs);
 		break;
-	case XE_SYSFS_DRIVER_UNBIND:
-		igt_assert(igt_sysfs_set(sysfs, "unbind", pci_slot));
-		close(sysfs);
-		break;
 	case XE_SYSFS_DRIVER_REBIND:
 		igt_assert(igt_sysfs_set(sysfs, "unbind", pci_slot));
 
