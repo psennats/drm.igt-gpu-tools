@@ -30,6 +30,7 @@
 const double tolerance = 0.1;
 static char xe_device[NAME_MAX];
 static bool autoprobe;
+static int total_exec_quantum;
 
 #define test_each_engine(test, fd, hwe) \
 	igt_subtest_with_dynamic(test) \
@@ -268,6 +269,76 @@ static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *
 }
 
 /**
+ * SUBTEST: fn-engine-activity-load
+ * Description: Test to validate engine activity by running load on a function
+ *
+ * SUBTEST: fn-engine-activity-sched-if-idle
+ * Description: Test to validate engine activity by running load on a function
+ */
+static void engine_activity_fn(int fd, struct drm_xe_engine_class_instance *eci, int function)
+{
+	uint64_t config, engine_active_ticks, engine_total_ticks, before[2], after[2];
+	double busy_percent, exec_quantum_ratio;
+	struct xe_cork *cork = NULL;
+	int pmu_fd[2], fn_fd;
+	bool sched_if_idle;
+	uint32_t vm;
+
+	if (function > 0) {
+		fn_fd = igt_sriov_open_vf_drm_device(fd, function);
+		igt_assert_fd(fn_fd);
+	} else {
+		fn_fd = fd;
+	}
+
+	config = get_event_config_fn(eci->gt_id, function, eci, "engine-active-ticks");
+	pmu_fd[0] = open_group(fd, config, -1);
+
+	config = get_event_config_fn(eci->gt_id, function, eci, "engine-total-ticks");
+	pmu_fd[1] = open_group(fd, config, pmu_fd[0]);
+
+	vm = xe_vm_create(fn_fd, 0, 0);
+	cork = xe_cork_create_opts(fn_fd, eci, vm, 1, 1);
+	xe_cork_sync_start(fn_fd, cork);
+
+	pmu_read_multi(pmu_fd[0], 2, before);
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	pmu_read_multi(pmu_fd[0], 2, after);
+
+	xe_cork_sync_end(fn_fd, cork);
+
+	engine_active_ticks = after[0] - before[0];
+	engine_total_ticks = after[1] - before[1];
+
+	igt_debug("[%d] Engine active ticks: after %ld, before %ld delta %ld\n", function,
+		  after[0], before[0], engine_active_ticks);
+	igt_debug("[%d] Engine total ticks: after %ld, before %ld delta %ld\n", function,
+		  after[1], before[1], engine_total_ticks);
+
+	busy_percent = (double)engine_active_ticks / engine_total_ticks;
+	exec_quantum_ratio = (double)total_exec_quantum / xe_sriov_get_exec_quantum_ms(fd, function, eci->gt_id);
+
+	igt_debug("Percent %lf\n", busy_percent * 100);
+
+	if (cork)
+		xe_cork_destroy(fn_fd, cork);
+
+	xe_vm_destroy(fn_fd, vm);
+
+	close(pmu_fd[0]);
+	close(pmu_fd[1]);
+
+	if (function > 0)
+		close(fn_fd);
+
+	sched_if_idle = xe_sriov_get_sched_if_idle(fd, eci->gt_id);
+	if (sched_if_idle)
+		assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
+	else
+		assert_within_epsilon(busy_percent, exec_quantum_ratio, tolerance);
+}
+
+/**
  * SUBTEST: gt-c6-idle
  * Description: Basic residency test to validate idle residency
  *		measured over a time interval is within the tolerance
@@ -333,6 +404,8 @@ static unsigned int enable_and_provision_vfs(int fd)
 	for (vf = 1; vf <= num_vfs; vf++)
 		igt_sriov_bind_vf_drm_driver(fd, vf);
 
+	total_exec_quantum = pf_exec_quantum + (num_vfs * vf_exec_quantum);
+
 	return num_vfs;
 }
 
@@ -392,6 +465,18 @@ igt_main
 		igt_describe("Validate engine activity on all functions");
 		test_each_engine("all-fn-engine-activity-load", fd, eci)
 			engine_activity_all_fn(fd, eci, num_fns);
+
+		igt_describe("Validate per-function engine activity");
+		test_each_engine("fn-engine-activity-load", fd, eci)
+			for (int fn = 0; fn < num_fns; fn++)
+				engine_activity_fn(fd, eci, fn);
+
+		igt_describe("Validate per-function engine activity when sched-if-idle is set");
+		test_each_engine("fn-engine-activity-sched-if-idle", fd, eci) {
+			xe_sriov_set_sched_if_idle(fd, eci->gt_id, 1);
+			for (int fn = 0; fn < num_fns; fn++)
+				engine_activity_fn(fd, eci, fn);
+		}
 
 		igt_fixture
 			disable_vfs(fd);
