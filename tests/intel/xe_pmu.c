@@ -14,11 +14,13 @@
 
 #include "igt.h"
 #include "igt_perf.h"
+#include "igt_sriov_device.h"
 #include "igt_sysfs.h"
 
 #include "xe/xe_gt.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_spin.h"
+#include "xe/xe_sriov_provisioning.h"
 
 #define SLEEP_DURATION 2 /* in seconds */
 /* flag masks */
@@ -27,6 +29,7 @@
 
 const double tolerance = 0.1;
 static char xe_device[NAME_MAX];
+static bool autoprobe;
 
 #define test_each_engine(test, fd, hwe) \
 	igt_subtest_with_dynamic(test) \
@@ -124,6 +127,12 @@ static uint64_t get_event_config(unsigned int gt, struct drm_xe_engine_class_ins
 	return pmu_config;
 }
 
+static uint64_t get_event_config_fn(unsigned int gt, int function,
+				    struct drm_xe_engine_class_instance *eci, const char *event)
+{
+	return get_event_config(gt, eci, event) | add_format_config("function", function);
+}
+
 /**
  * SUBTEST: engine-activity-idle
  * Description: Test to validate engine activity shows no load when idle
@@ -188,6 +197,77 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 }
 
 /**
+ * SUBTEST: all-fn-engine-activity-load
+ * Description: Test to validate engine activity by running load on all functions simultaneously
+ */
+static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *eci, int num_fns)
+{
+	uint64_t config, engine_active_ticks, engine_total_ticks;
+	uint64_t after[2 * num_fns], before[2 * num_fns];
+	struct pmu_function {
+		struct xe_cork *cork;
+		uint32_t vm;
+		uint64_t pmu_fd[2];
+		int fd;
+	} fn[num_fns];
+	struct pmu_function *f;
+	int i;
+
+	fn[0].pmu_fd[0] = -1;
+	for (i = 0; i < num_fns; i++) {
+		f = &fn[i];
+
+		config = get_event_config_fn(eci->gt_id, i, eci, "engine-active-ticks");
+		f->pmu_fd[0] = open_group(fd, config, fn[0].pmu_fd[0]);
+
+		config = get_event_config_fn(eci->gt_id, i, eci, "engine-total-ticks");
+		f->pmu_fd[1] = open_group(fd, config, fn[0].pmu_fd[0]);
+
+		if (i > 0)
+			f->fd = igt_sriov_open_vf_drm_device(fd, i);
+		else
+			f->fd = fd;
+
+		igt_assert_fd(f->fd);
+
+		f->vm = xe_vm_create(f->fd, 0, 0);
+		f->cork = xe_cork_create_opts(f->fd, eci, f->vm, 1, 1);
+		xe_cork_sync_start(f->fd, f->cork);
+	}
+
+	pmu_read_multi(fn[0].pmu_fd[0], 2 * num_fns, before);
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	pmu_read_multi(fn[0].pmu_fd[0], 2 * num_fns, after);
+
+	for (i = 0; i < num_fns; i++) {
+		int idx = i * 2;
+
+		f = &fn[i];
+		xe_cork_sync_end(f->fd, f->cork);
+		engine_active_ticks = after[idx] - before[idx];
+		engine_total_ticks = after[idx + 1] - before[idx + 1];
+
+		igt_debug("[%d] Engine active ticks: after %ld, before %ld delta %ld\n", i,
+			  after[idx], before[idx], engine_active_ticks);
+		igt_debug("[%d] Engine total ticks: after %ld, before %ld delta %ld\n", i,
+			  after[idx + 1], before[idx + 1], engine_total_ticks);
+
+		if (f->cork)
+			xe_cork_destroy(f->fd, f->cork);
+
+		xe_vm_destroy(f->fd, f->vm);
+
+		close(f->pmu_fd[0]);
+		close(f->pmu_fd[1]);
+
+		if (i > 0)
+			close(f->fd);
+
+		assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
+	}
+}
+
+/**
  * SUBTEST: gt-c6-idle
  * Description: Basic residency test to validate idle residency
  *		measured over a time interval is within the tolerance
@@ -225,6 +305,55 @@ static void test_gt_c6_idle(int xe, unsigned int gt)
 	close(pmu_fd);
 }
 
+static unsigned int enable_and_provision_vfs(int fd)
+{
+	unsigned int gt, num_vfs;
+	int pf_exec_quantum = 64, vf_exec_quantum = 32, vf;
+
+	igt_require(igt_sriov_is_pf(fd));
+	igt_require(igt_sriov_get_enabled_vfs(fd) == 0);
+	autoprobe = igt_sriov_is_driver_autoprobe_enabled(fd);
+
+	/* Enable VF's */
+	igt_sriov_disable_driver_autoprobe(fd);
+	igt_sriov_enable_vfs(fd, 2);
+	num_vfs = igt_sriov_get_enabled_vfs(fd);
+	igt_require(num_vfs == 2);
+
+	/* Set 32ms for VF execution quantum and 64ms for PF execution quantum */
+	xe_for_each_gt(fd, gt) {
+		xe_sriov_set_sched_if_idle(fd, gt, 0);
+		for (int fn = 0; fn <= num_vfs; fn++)
+			xe_sriov_set_exec_quantum_ms(fd, fn, gt, fn ? vf_exec_quantum :
+						     pf_exec_quantum);
+	}
+
+	/* probe VFs */
+	igt_sriov_enable_driver_autoprobe(fd);
+	for (vf = 1; vf <= num_vfs; vf++)
+		igt_sriov_bind_vf_drm_driver(fd, vf);
+
+	return num_vfs;
+}
+
+static void disable_vfs(int fd)
+{
+	unsigned int gt;
+
+	xe_for_each_gt(fd, gt)
+		xe_sriov_set_sched_if_idle(fd, gt, 0);
+
+	igt_sriov_disable_vfs(fd);
+	/* abort to avoid execution of next tests with enabled VFs */
+	igt_abort_on_f(igt_sriov_get_enabled_vfs(fd) > 0,
+		       "Failed to disable VF(s)");
+	autoprobe ? igt_sriov_enable_driver_autoprobe(fd) :
+		    igt_sriov_disable_driver_autoprobe(fd);
+
+	igt_abort_on_f(autoprobe != igt_sriov_is_driver_autoprobe_enabled(fd),
+		       "Failed to restore sriov_drivers_autoprobe value\n");
+}
+
 igt_main
 {
 	int fd, gt;
@@ -253,6 +382,20 @@ igt_main
 	igt_describe("Validate engine activity with workload");
 	test_each_engine("engine-activity-load", fd, eci)
 		engine_activity(fd, eci, TEST_LOAD);
+
+	igt_subtest_group {
+		unsigned int num_fns;
+
+		igt_fixture
+			num_fns = enable_and_provision_vfs(fd) + 1;
+
+		igt_describe("Validate engine activity on all functions");
+		test_each_engine("all-fn-engine-activity-load", fd, eci)
+			engine_activity_all_fn(fd, eci, num_fns);
+
+		igt_fixture
+			disable_vfs(fd);
+	}
 
 	igt_fixture {
 		close(fd);
