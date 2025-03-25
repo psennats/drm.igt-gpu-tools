@@ -687,6 +687,11 @@ static void dump_general_features(struct context *context,
 	       YESNO(features->underscan_vga_timings));
 	if (context->bdb->version >= 183)
 		printf("\tDynamic CD clock: %s\n", YESNO(features->display_clock_mode));
+	else
+		printf("\tReference clock mode: %s\n",
+		       features->display_clock_mode ?
+		       "BTM (Legacy Buffer Through Mode)" :
+		       "DCI (Display Clock Integration)");
 	printf("\tHotplug support in VBIOS: %s\n",
 	       YESNO(features->vbios_hotplug_support));
 
