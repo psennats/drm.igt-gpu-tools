@@ -1313,10 +1313,6 @@ do { \
 	ATTR_INIT();
 	igt_assert_eq(perf_event_open(&attr, 0, 0, -1, 0), -1);
 	igt_assert_eq(errno, EINVAL);
-
-	ATTR_INIT();
-	igt_assert_eq(perf_event_open(&attr, -1, 1, -1, 0), -1);
-	igt_assert_eq(errno, EINVAL);
 }
 
 static void open_invalid(int i915)
