@@ -26,6 +26,7 @@
 #define TEST_TRAILING_IDLE	BIT(1)
 
 const double tolerance = 0.1;
+static char xe_device[NAME_MAX];
 
 #define test_each_engine(test, fd, hwe) \
 	igt_subtest_with_dynamic(test) \
@@ -92,7 +93,7 @@ static unsigned long read_idle_residency(int fd, int gt)
 	return residency;
 }
 
-static uint64_t add_format_config(const char *xe_device, const char *format, uint64_t val)
+static uint64_t add_format_config(const char *format, uint64_t val)
 {
 	int ret;
 	uint32_t shift;
@@ -105,21 +106,19 @@ static uint64_t add_format_config(const char *xe_device, const char *format, uin
 	return config;
 }
 
-static uint64_t get_event_config(int xe, unsigned int gt, struct drm_xe_engine_class_instance *eci,
+static uint64_t get_event_config(unsigned int gt, struct drm_xe_engine_class_instance *eci,
 				 const char *event)
 {
-	char xe_device[100];
 	uint64_t pmu_config = 0;
 	int ret;
 
-	xe_perf_device(xe, xe_device, sizeof(xe_device));
 	ret = perf_event_config(xe_device, event, &pmu_config);
 	igt_assert(ret >= 0);
-	pmu_config |= add_format_config(xe_device, "gt", gt);
+	pmu_config |= add_format_config("gt", gt);
 
 	if (eci) {
-		pmu_config |= add_format_config(xe_device, "engine_class", eci->engine_class);
-		pmu_config |= add_format_config(xe_device, "engine_instance", eci->engine_instance);
+		pmu_config |= add_format_config("engine_class", eci->engine_class);
+		pmu_config |= add_format_config("engine_instance", eci->engine_instance);
 	}
 
 	return pmu_config;
@@ -144,10 +143,10 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 	uint32_t vm;
 	int pmu_fd[2];
 
-	config = get_event_config(fd, eci->gt_id, eci, "engine-active-ticks");
+	config = get_event_config(eci->gt_id, eci, "engine-active-ticks");
 	pmu_fd[0] = open_group(fd, config, -1);
 
-	config = get_event_config(fd, eci->gt_id, eci, "engine-total-ticks");
+	config = get_event_config(eci->gt_id, eci, "engine-total-ticks");
 	pmu_fd[1] = open_group(fd, config, pmu_fd[0]);
 
 	vm = xe_vm_create(fd, 0, 0);
@@ -202,7 +201,7 @@ static void test_gt_c6_idle(int xe, unsigned int gt)
 	uint64_t val;
 
 	/* Get the PMU config for the gt-c6 event */
-	pmu_config = get_event_config(xe, gt, NULL, "gt-c6-residency");
+	pmu_config = get_event_config(gt, NULL, "gt-c6-residency");
 
 	pmu_fd = open_pmu(xe, pmu_config);
 
@@ -233,6 +232,7 @@ igt_main
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
+		xe_perf_device(fd, xe_device, sizeof(xe_device));
 	}
 
 	igt_describe("Validate PMU gt-c6 residency counters when idle");
