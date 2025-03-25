@@ -56,7 +56,7 @@ bool igt_is_dsc_supported_by_source(int drmfd)
 	dir = igt_debugfs_dir(drmfd);
 	igt_assert(dir >= 0);
 
-	res = igt_debugfs_simple_read(dir, "i915_display_capabilities",
+	res = igt_debugfs_simple_read(dir, "intel_display_caps",
 				      buf, sizeof(buf));
 	close(dir);
 
