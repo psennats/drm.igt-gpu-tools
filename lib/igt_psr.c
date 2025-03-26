@@ -92,7 +92,7 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 {
 	char debugfs_file[128] = {0};
 	char buf[PSR_STATUS_MAX_LEN];
-	drmModeConnector *c;
+	drmModeConnector *c = NULL;
 	const char *state;
 	bool active;
 	int ret;
@@ -122,7 +122,9 @@ static bool psr_active_check(int debugfs_fd, enum psr_mode mode, igt_output_t *o
 
 	igt_skip_on(strstr(buf, "PSR sink not reliable: yes"));
 
-	active = strstr(buf, state);
+	active = strstr(buf, state) ||
+		 (c && (c->connector_type == DRM_MODE_CONNECTOR_DisplayPort) &&
+		  strstr(buf, "SU_STANDBY"));
 
 	if (active && output && sink_status_checks()) {
 		active = psr_active_sink_check(debugfs_fd, output);
