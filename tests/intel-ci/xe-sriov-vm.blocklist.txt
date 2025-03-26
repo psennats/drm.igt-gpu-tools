@@ -1,0 +1,8 @@
+##################################################################
+# Block list for VM runs
+##################################################################
+#
+# rtcwake does not wake the VM from s2idle
+#
+igt@xe_pm@s2idle.*
+igt@xe_ccs@suspend-resume
