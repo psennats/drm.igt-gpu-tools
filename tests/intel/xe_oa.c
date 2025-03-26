@@ -382,6 +382,7 @@ static u32 get_stream_status(int fd)
 	struct drm_xe_oa_stream_status status;
 
 	do_ioctl(fd, DRM_XE_OBSERVATION_IOCTL_STATUS, &status);
+	igt_debug("oa status %llx\n", status.oa_status);
 
 	return status.oa_status;
 }
@@ -1337,7 +1338,6 @@ read_2_oa_reports(int format_id,
 			;
 		if (errno == EIO) {
 			oa_status = get_stream_status(stream_fd);
-			igt_debug("oa_status %#x\n", oa_status);
 			continue;
 		}
 
@@ -1773,7 +1773,6 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 				;
 			if (errno == EIO) {
 				oa_status = get_stream_status(stream_fd);
-				igt_debug("oa_status %#x\n", oa_status);
 				continue;
 			}
 
@@ -2505,7 +2504,6 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 		(len == -1 && (errno == EINTR || errno == EIO)))) {
 		if (errno == EIO) {
 			oa_status = get_stream_status(stream_fd);
-			igt_debug("oa_status %#x\n", oa_status);
 			igt_assert(!(oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW));
 		}
 		if (len > 0)
