@@ -462,8 +462,20 @@ void xe_exec(int fd, struct drm_xe_exec *exec)
 	igt_assert_eq(__xe_exec(fd, exec), 0);
 }
 
-void xe_exec_sync(int fd, uint32_t exec_queue, uint64_t addr,
-		  struct drm_xe_sync *sync, uint32_t num_syncs)
+/**
+ * xe_exec_sync_failable:
+ * @fd: xe device fd
+ * @exec_queue: exec_queue id
+ * @addr: address of the batch to execute within the VM used by the exec_queue
+ * @sync: array of drm_xe_sync structs to be used in the exec
+ * @num_syncs: number of entries in the sync array
+ *
+ * Calls the DRM_IOCTL_XE_EXEC ioctl using the provided information.
+ *
+ * Returns 0 on success, -errno of ioctl on error.
+ */
+int xe_exec_sync_failable(int fd, uint32_t exec_queue, uint64_t addr,
+			  struct drm_xe_sync *sync, uint32_t num_syncs)
 {
 	struct drm_xe_exec exec = {
 		.exec_queue_id = exec_queue,
@@ -473,7 +485,24 @@ void xe_exec_sync(int fd, uint32_t exec_queue, uint64_t addr,
 		.num_batch_buffer = 1,
 	};
 
-	igt_assert_eq(__xe_exec(fd, &exec), 0);
+	return __xe_exec(fd, &exec);
+}
+
+/**
+ * xe_exec_sync:
+ * @fd: xe device fd
+ * @exec_queue: exec_queue id
+ * @addr: address of the batch to execute within the VM used by the exec_queue
+ * @sync: array of drm_xe_sync structs to be used in the exec
+ * @num_syncs: number of entries in the sync array
+ *
+ * Calls the DRM_IOCTL_XE_EXEC ioctl using the provided information. Asserts on
+ * failure.
+ */
+void xe_exec_sync(int fd, uint32_t exec_queue, uint64_t addr,
+		  struct drm_xe_sync *sync, uint32_t num_syncs)
+{
+	igt_assert_eq(xe_exec_sync_failable(fd, exec_queue, addr, sync, num_syncs), 0);
 }
 
 void xe_exec_wait(int fd, uint32_t exec_queue, uint64_t addr)

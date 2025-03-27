@@ -2433,9 +2433,26 @@ static void update_offsets(struct intel_bb *ibb,
 
 #define LINELEN 76
 
-static int
-__xe_bb_exec(struct intel_bb *ibb, uint64_t flags, bool sync)
+/*
+ * __xe_bb_exec:
+ * @ibb: pointer to intel_bb
+ * @flags: I915_EXEC_* flags used to select the engine to submit to (internally
+ * converted to DRM_XE_ENGINE_* ones)
+ * @sync: if true wait for execbuf completion, otherwise caller is responsible
+ * to wait for completion
+ *
+ * Submits the intel_bb to HW. If an exec_queue was provided during the creation
+ * of the intel_bb, it will be used for the submission; otherwise, a new
+ * exec_queue will be created targeting the engine specified in the flags. The
+ * exec_queue created in the latter case will be saved internally and re-used
+ * for subsequent submissions to the same engine, but it will be replaced if the
+ * intel_bb is re-submitted to a different engine.
+ *
+ * Returns: 0 on success, otherwise errno.
+ */
+int __xe_bb_exec(struct intel_bb *ibb, uint64_t flags, bool sync)
 {
+	int ret = 0;
 	uint32_t engine = flags & (I915_EXEC_BSD_MASK | I915_EXEC_RING_MASK);
 	uint32_t engine_id;
 	struct drm_xe_sync syncs[2] = {
@@ -2512,12 +2529,12 @@ __xe_bb_exec(struct intel_bb *ibb, uint64_t flags, bool sync)
 	ibb->engine_syncobj = syncobj_create(ibb->fd, 0);
 	syncs[1].handle = ibb->engine_syncobj;
 
-	xe_exec_sync(ibb->fd, engine_id, ibb->batch_offset, syncs, 2);
+	ret = xe_exec_sync_failable(ibb->fd, engine_id, ibb->batch_offset, syncs, 2);
 
 	if (sync)
 		intel_bb_sync(ibb);
 
-	return 0;
+	return ret;
 }
 
 static int

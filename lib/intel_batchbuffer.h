@@ -508,6 +508,7 @@ void intel_bb_dump_cache(struct intel_bb *ibb);
 
 void intel_bb_exec(struct intel_bb *ibb, uint32_t end_offset,
 		   uint64_t flags, bool sync);
+int __xe_bb_exec(struct intel_bb *ibb, uint64_t flags, bool sync);
 
 uint64_t intel_bb_get_object_offset(struct intel_bb *ibb, uint32_t handle);
 bool intel_bb_object_offset_to_buf(struct intel_bb *ibb, struct intel_buf *buf);
