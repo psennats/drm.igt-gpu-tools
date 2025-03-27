@@ -1190,6 +1190,8 @@ igt_main
 		"pr-"
 	};
 	int psr_status[] = {PSR_MODE_2, PR_MODE_SEL_FETCH};
+	bool fbc_chipset_support;
+	int disp_ver;
 
 	igt_fixture {
 		drmModeResPtr res;
@@ -1200,9 +1202,8 @@ igt_main
 
 		display_init(&data);
 
-		if (intel_fbc_supported_on_chipset(data.drm_fd, data.pipe) &&
-		    intel_fbc_psr_combo_supported(data.drm_fd))
-			data.fbc_flag = true;
+		disp_ver = intel_display_ver(intel_get_drm_devid(data.drm_fd));
+		fbc_chipset_support = intel_fbc_supported_on_chipset(data.drm_fd, data.pipe);
 
 		data.damage_area_count = MAX_DAMAGE_AREAS;
 		data.primary_format = DRM_FORMAT_XRGB8888;
@@ -1240,6 +1241,8 @@ igt_main
 
 			data.op_fbc_mode = fbc_status[y];
 			data.psr_mode = psr_status[z];
+			data.fbc_flag = fbc_chipset_support &&
+					intel_fbc_supported_for_psr_mode(disp_ver, data.psr_mode);
 
 			/* Verify primary plane selective fetch */
 			igt_describe("Test that selective fetch works on primary plane");

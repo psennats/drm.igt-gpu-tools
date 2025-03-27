@@ -6,6 +6,7 @@
 #include <fcntl.h>
 
 #include "igt.h"
+#include "igt_psr.h"
 
 #include "intel_fbc.h"
 
@@ -156,22 +157,46 @@ bool intel_fbc_plane_size_supported(int fd, uint32_t width, uint32_t height)
 }
 
 /**
- * intel_fbc_psr_combo_supported
+ * intel_fbc_supported_for_psr_mode
  *
- * @fd: fd of the device
+ * @disp_ver: Display version
+ * @mode: psr mode
  *
- * FBC PSR combination support depends on the display version.
+ * FBC and PSR1/PSR2/PR combination support depends on the display version.
  *
  * Returns:
- * true if FBC and PSR can be enabled together in a platform
+ * true if FBC and the given PSR mode can be enabled together in a platform
  */
-bool intel_fbc_psr_combo_supported(int device)
+bool intel_fbc_supported_for_psr_mode(int disp_ver, enum psr_mode mode)
 {
-	int ver = intel_display_ver(intel_get_drm_devid(device));
+	bool fbc_supported = true;
 
-	/* In Xe3 FBC PSR combo not supported because of FBC dirty rect */
-	if (ver >= 20 && ver < 30)
-		return true;
+	switch(mode) {
+	case PSR_MODE_1:
+		/* TODO: Update this to exclude MTL C0 onwards from this list */
+		if (disp_ver >= 12 && disp_ver <= 14)
+			fbc_supported = false;
+		break;
+	case PSR_MODE_2:
+	case PSR_MODE_2_SEL_FETCH:
+	case PSR_MODE_2_ET:
+	case PR_MODE_SEL_FETCH:
+	case PR_MODE_SEL_FETCH_ET:
+		/*
+		 * FBC is not supported if PSR2 is enabled in display version 12 to 14.
+		 * According to the xe2lpd+ requirements, display driver need to
+		 * implement a selection logic between FBC and PSR2/Panel Replay selective
+		 * update based on dirty region threshold. Until that is implemented,
+		 * keep FBC disabled if PSR2/PR selective update is on.
+		 *
+		 * TODO: Update this based on the selection logic in the driver
+		 */
+		fbc_supported = false;
+		break;
+	case PR_MODE:
+	default:
+		break;
+	}
 
-	return false;
+	return fbc_supported;
 }

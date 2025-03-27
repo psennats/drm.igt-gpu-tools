@@ -781,6 +781,8 @@ igt_main
 	int modes[] = {PSR_MODE_1, PSR_MODE_2, PR_MODE};
 	int fbc_status[] = {FBC_DISABLED, FBC_ENABLED};
 	igt_output_t *output;
+	bool fbc_chipset_support;
+	int disp_ver;
 
 	igt_fixture {
 		data.drm_fd = drm_open_driver_master(DRIVER_INTEL | DRIVER_XE);
@@ -790,15 +792,17 @@ igt_main
 		data.bops = buf_ops_create(data.drm_fd);
 		igt_display_require(&data.display, data.drm_fd);
 		igt_require_f(output_supports_psr(&data), "Sink does not support PSR/PSR2/PR\n");
-		if (intel_fbc_supported_on_chipset(data.drm_fd, pipe) &&
-		    intel_fbc_psr_combo_supported(data.drm_fd))
-			data.fbc_flag = true;
+		disp_ver = intel_display_ver(data.devid);
+		fbc_chipset_support = intel_fbc_supported_on_chipset(data.drm_fd, pipe);
 	}
 
 	for (y = 0; y < ARRAY_SIZE(fbc_status); y++) {
 		data.op_fbc_mode = fbc_status[y];
 		for (z = 0; z < ARRAY_SIZE(modes); z++) {
 			data.op_psr_mode = modes[z];
+			data.fbc_flag = fbc_chipset_support &&
+					intel_fbc_supported_for_psr_mode(disp_ver,
+									 data.op_psr_mode);
 
 			igt_describe("Basic check for psr if it is detecting changes made "
 				     "in planes");
