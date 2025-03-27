@@ -63,6 +63,15 @@ Sending Patches
 
   on its first invocation.
 
+- If you plan to contribute regularly, please subscribe to igt-dev mailinglist:
+  https://lists.freedesktop.org/mailman/listinfo/igt-dev
+  When you are not subscribed, please note that your contribution will take
+  more time to reach to mailing list. You could find out if it was delivered or
+  what is a testing status of your patches at page:
+  https://patchwork.freedesktop.org/project/igt/series/
+  and also on
+  https://lore.kernel.org/igt-dev/
+
 - Place relevant prefix in subject, for example when your change is in one
   testfile, use its name without '.c' nor '.h' suffix, like:
   tests/simple_test: short description
