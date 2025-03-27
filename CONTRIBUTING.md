@@ -38,6 +38,34 @@ The Code
 
 [igt-describe]: https://drm.pages.freedesktop.org/igt-gpu-tools/igt-gpu-tools-Core.html#igt-describe
 
+IGT libraries
+-------------
+- Tests and benchmarks are the main usage of IGT libraries, so they
+  could use test specific macros/functions, for example igt_assert,
+  igt_require, igt_skip, igt_info or igt_debug.
+
+- New library function could be written when it will have at least two
+  different users, for example if it could be used by two or more tests.
+  In some cases single user can be accepted, when it is very likely it
+  will be used in future.
+
+- In a new library function():
+  if it uses some of the macros igt_assert/igt_require/igt_skip then
+  consider to write also __function() with the same functionality but
+  without those macros.
+
+- Libraries and igt_runner
+  Runner should not use lib functions. It is crucial for CI runs so using
+  libraries puts a risk of bringing changes meant for tests which in turn
+  could break runner.
+  Note: You will find places where igt_runner uses lib functions - this will
+  be on ToDo list to be fixed.
+
+- Libraries and tools/
+  Give some thought if you are planning to use IGT lib code in tools, some
+  IGT lib functions might not be appropriate in tools. For example, any
+  abnormal condition should be simply reported by printf or fprintf to
+  stdout/stderr and then tool should exit gracefully.
 
 Sending Patches
 ---------------
