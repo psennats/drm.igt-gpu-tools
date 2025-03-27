@@ -1337,8 +1337,19 @@ void intel_bb_destroy(struct intel_bb *ibb)
 	free(ibb);
 }
 
+/*
+ * Since we re-use drm_i915_gem_exec_object2 to store details about the object
+ * for submission to Xe, we don't have dedicated fields for the info needed for
+ * binding the object, so we store it into rsvd1. The data is stores as follows:
+ *   Bits 63-12: Objects size in multiples of SZ_4K (i.e. size / SZ_4K)
+ *   Bits 9-11: Unused
+ *   Bit 8: Object protected
+ *   Bits 0-7: Pat index
+ */
 #define XE_OBJ_SIZE(rsvd1) ((rsvd1) & ~(SZ_4K-1))
-#define XE_OBJ_PAT_IDX(rsvd1) ((rsvd1) & (SZ_4K-1))
+#define XE_OBJ_PAT_IDX(rsvd1) ((rsvd1) & (0xFF))
+#define XE_OBJ_PXP_BIT (0x100)
+#define XE_OBJ_PXP(rsvd1) ((rsvd1) & (XE_OBJ_PXP_BIT))
 
 static struct drm_xe_vm_bind_op *xe_alloc_bind_ops(struct intel_bb *ibb,
 						   uint32_t op, uint32_t flags,
@@ -1360,6 +1371,9 @@ static struct drm_xe_vm_bind_op *xe_alloc_bind_ops(struct intel_bb *ibb,
 
 		ops->op = op;
 		ops->flags = flags;
+
+		if (XE_OBJ_PXP(objects[i]->rsvd1))
+			ops->flags |= DRM_XE_VM_BIND_FLAG_CHECK_PXP;
 		ops->obj_offset = 0;
 		ops->addr = objects[i]->offset;
 		ops->range = XE_OBJ_SIZE(objects[i]->rsvd1);
@@ -1750,7 +1764,7 @@ static void __remove_from_objects(struct intel_bb *ibb,
 static struct drm_i915_gem_exec_object2 *
 __intel_bb_add_object(struct intel_bb *ibb, uint32_t handle, uint64_t size,
 		      uint64_t offset, uint64_t alignment, uint8_t pat_index,
-		      bool write)
+		      bool protected, bool write)
 {
 	struct drm_i915_gem_exec_object2 *object;
 
@@ -1827,17 +1841,24 @@ __intel_bb_add_object(struct intel_bb *ibb, uint32_t handle, uint64_t size,
 		object->alignment = alignment;
 		object->rsvd1 = size;
 		igt_assert(!XE_OBJ_PAT_IDX(object->rsvd1));
+		igt_assert(!XE_OBJ_PXP(object->rsvd1));
 
 		if (pat_index == DEFAULT_PAT_INDEX)
 			pat_index = intel_get_pat_idx_wb(ibb->fd);
 
 		/*
-		 * XXX: For now encode the pat_index in the first few bits of
-		 * rsvd1. intel_batchbuffer should really stop using the i915
-		 * drm_i915_gem_exec_object2 to encode VMA placement
-		 * information on xe...
+		 * XXX: For now encode the pat_index and whether the bo is
+		 * protected in the first few bits of rsvd1 (8 bits for the
+		 * pat and 1 bit for the flag, see comment above
+		 * xe_alloc_bind_ops for the full map).
+		 * intel_batchbuffer should really stop using the i915
+		 * drm_i915_gem_exec_object2 to encode VMA placement information
+		 * on xe...
 		 */
 		object->rsvd1 |= pat_index;
+
+		if (protected)
+			object->rsvd1 |= XE_OBJ_PXP_BIT;
 	}
 
 	return object;
@@ -1850,7 +1871,7 @@ intel_bb_add_object(struct intel_bb *ibb, uint32_t handle, uint64_t size,
 	struct drm_i915_gem_exec_object2 *obj = NULL;
 
 	obj = __intel_bb_add_object(ibb, handle, size, offset,
-				    alignment, DEFAULT_PAT_INDEX, write);
+				    alignment, DEFAULT_PAT_INDEX, false, write);
 	igt_assert(obj);
 
 	return obj;
@@ -1914,7 +1935,7 @@ __intel_bb_add_intel_buf(struct intel_bb *ibb, struct intel_buf *buf,
 
 	obj = __intel_bb_add_object(ibb, buf->handle, intel_buf_bo_size(buf),
 				    buf->addr.offset, alignment, buf->pat_index,
-				    write);
+				    buf->is_protected, write);
 	igt_assert(obj);
 	buf->addr.offset = obj->offset;
 
