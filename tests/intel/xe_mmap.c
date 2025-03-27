@@ -298,6 +298,7 @@ static void test_small_bar(int fd)
 	igt_assert_neq(__xe_bo_create(fd, 0, visible_size + page_size,
 				      vram_memory(fd, 0),
 				      DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
+				      NULL,
 				      &bo),
 		       0);
 

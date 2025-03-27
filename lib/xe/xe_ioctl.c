@@ -264,7 +264,8 @@ static bool vram_selected(int fd, uint32_t selected_regions)
 }
 
 static uint32_t ___xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t placement,
-				uint32_t flags, uint16_t cpu_caching, uint32_t *handle)
+				uint32_t flags, uint16_t cpu_caching, void *ext,
+				uint32_t *handle)
 {
 	struct drm_xe_gem_create create = {
 		.vm_id = vm,
@@ -274,6 +275,9 @@ static uint32_t ___xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t pla
 		.cpu_caching = cpu_caching,
 	};
 	int err;
+
+	if (ext)
+		create.extensions = to_user_pointer(ext);
 
 	/*
 	 * In case vram_if_possible returned system_memory,
@@ -292,11 +296,11 @@ static uint32_t ___xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t pla
 }
 
 uint32_t __xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t placement,
-			uint32_t flags, uint32_t *handle)
+			uint32_t flags, void *ext, uint32_t *handle)
 {
 	uint16_t cpu_caching = __xe_default_cpu_caching(fd, placement, flags);
 
-	return ___xe_bo_create(fd, vm, size, placement, flags, cpu_caching, handle);
+	return ___xe_bo_create(fd, vm, size, placement, flags, cpu_caching, ext, handle);
 }
 
 uint32_t xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t placement,
@@ -304,7 +308,7 @@ uint32_t xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t placement,
 {
 	uint32_t handle;
 
-	igt_assert_eq(__xe_bo_create(fd, vm, size, placement, flags, &handle), 0);
+	igt_assert_eq(__xe_bo_create(fd, vm, size, placement, flags, NULL, &handle), 0);
 
 	return handle;
 }
@@ -312,7 +316,7 @@ uint32_t xe_bo_create(int fd, uint32_t vm, uint64_t size, uint32_t placement,
 uint32_t __xe_bo_create_caching(int fd, uint32_t vm, uint64_t size, uint32_t placement,
 				uint32_t flags, uint16_t cpu_caching, uint32_t *handle)
 {
-	return ___xe_bo_create(fd, vm, size, placement, flags, cpu_caching, handle);
+	return ___xe_bo_create(fd, vm, size, placement, flags, cpu_caching, NULL, handle);
 }
 
 uint32_t xe_bo_create_caching(int fd, uint32_t vm, uint64_t size, uint32_t placement,
