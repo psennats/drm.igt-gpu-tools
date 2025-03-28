@@ -475,7 +475,7 @@ amdgpu_bo_eviction_test(amdgpu_device_handle device_handle)
 }
 
 static void
-amdgpu_sync_dependency_test(amdgpu_device_handle device_handle)
+amdgpu_sync_dependency_test(amdgpu_device_handle device_handle, bool user_queue)
 {
 	const unsigned const_size = 8192;
 	const unsigned const_alignment = 4096;
@@ -498,25 +498,44 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle)
 
 	uint32_t size_bytes, code_offset, data_offset;
 	const uint32_t *shader;
+	struct amdgpu_ring_context *ring_context;
 
 	struct amdgpu_cmd_base *base = get_cmd_base();
 	const struct amdgpu_ip_block_version *ip_block = get_ip_block(device_handle, AMD_IP_GFX);
 
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle[0]);
-	igt_assert_eq(r, 0);
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle[1]);
+	ring_context = calloc(1, sizeof(*ring_context));
+	igt_assert(ring_context);
+
+	if (user_queue) {
+		amdgpu_user_queue_create(device_handle, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_create(device_handle, &context_handle[0]);
+		igt_assert_eq(r, 0);
+
+		r = amdgpu_cs_ctx_create(device_handle, &context_handle[1]);
+		igt_assert_eq(r, 0);
+	}
+
+	r = amdgpu_bo_alloc_and_map_sync(device_handle, const_size,
+					 const_alignment, AMDGPU_GEM_DOMAIN_GTT, 0,
+					 AMDGPU_VM_MTYPE_UC,
+					 &ib_result_handle, &ib_result_cpu,
+					 &ib_result_mc_address, &va_handle,
+					 ring_context->timeline_syncobj_handle,
+					 ++ring_context->point, user_queue);
+
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_bo_alloc_and_map(device_handle, const_size, const_alignment,
-			AMDGPU_GEM_DOMAIN_GTT, 0,
-			&ib_result_handle, &ib_result_cpu,
-			&ib_result_mc_address, &va_handle);
-
-	igt_assert_eq(r, 0);
-
-	r = amdgpu_get_bo_list(device_handle, ib_result_handle, NULL,
+	if (user_queue) {
+		r = amdgpu_timeline_syncobj_wait(device_handle,
+						 ring_context->timeline_syncobj_handle,
+						 ring_context->point);
+		igt_assert_eq(r, 0);
+	} else {
+		r = amdgpu_get_bo_list(device_handle, ib_result_handle, NULL,
 			       &bo_list);
-	igt_assert_eq(r, 0);
+		igt_assert_eq(r, 0);
+	}
 
 	shader = get_shader_bin(&size_bytes, &code_offset, &data_offset);
 
@@ -585,7 +604,14 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle)
 	ibs_request.resources = bo_list;
 	ibs_request.fence_info.handle = NULL;
 
-	r = amdgpu_cs_submit(context_handle[1], 0, &ibs_request, 1);
+	if (user_queue) {
+		ring_context->pm4_dw = ib_info.size;
+		amdgpu_user_queue_submit(device_handle, ring_context, ip_block->type,
+					 ib_result_mc_address);
+	} else {
+		r = amdgpu_cs_submit(context_handle[1], 0, &ibs_request, 1);
+	}
+
 	igt_assert_eq(r, 0);
 	seq_no = ibs_request.seq_no;
 
@@ -618,8 +644,14 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle)
 	ibs_request.dependencies[0].ring = 0;
 	ibs_request.dependencies[0].fence = seq_no;
 
-	r = amdgpu_cs_submit(context_handle[0], 0, &ibs_request, 1);
-	igt_assert_eq(r, 0);
+	if (user_queue) {
+		ring_context->pm4_dw = ib_info.size;
+		amdgpu_user_queue_submit(device_handle, ring_context, ip_block->type,
+					ib_info.ib_mc_address);
+	} else {
+		r = amdgpu_cs_submit(context_handle[0], 0, &ibs_request, 1);
+		igt_assert_eq(r, 0);
+	}
 
 	memset(&fence_status, 0, sizeof(struct amdgpu_cs_fence));
 	fence_status.context = context_handle[0];
@@ -628,24 +660,33 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle)
 	fence_status.ring = 0;
 	fence_status.fence = ibs_request.seq_no;
 
-	r = amdgpu_cs_query_fence_status(&fence_status,
+	if (!user_queue) {
+		r = amdgpu_cs_query_fence_status(&fence_status,
 		       AMDGPU_TIMEOUT_INFINITE, 0, &expired);
-	igt_assert_eq(r, 0);
+		igt_assert_eq(r, 0);
+	}
 
 	/* Expect the second command to wait for shader to complete */
 	igt_assert_eq(base->buf[data_offset], 99);
 
-	r = amdgpu_bo_list_destroy(bo_list);
-	igt_assert_eq(r, 0);
+	if (!user_queue) {
+		r = amdgpu_bo_list_destroy(bo_list);
+		igt_assert_eq(r, 0);
+	}
 
-	 amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
-				     ib_result_mc_address, const_alignment);
+	amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
+				 ib_result_mc_address, const_alignment);
 
-	amdgpu_cs_ctx_free(context_handle[0]);
-	amdgpu_cs_ctx_free(context_handle[1]);
+	if (user_queue) {
+		amdgpu_user_queue_destroy(device_handle, ring_context, ip_block->type);
+	} else {
+		amdgpu_cs_ctx_free(context_handle[0]);
+		amdgpu_cs_ctx_free(context_handle[1]);
+	}
 
 	free(ibs_request.dependencies);
 	free_cmd_base(base);
+	free(ring_context);
 }
 
 igt_main
@@ -743,7 +784,7 @@ igt_main
 	igt_subtest_with_dynamic("sync-dependency-test-with-IP-GFX") {
 		if (arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("sync-dependency-test")
-			amdgpu_sync_dependency_test(device);
+			amdgpu_sync_dependency_test(device, false);
 		}
 	}
 
@@ -760,6 +801,14 @@ igt_main
 		if (arr_cap[AMD_IP_COMPUTE]) {
 			igt_dynamic_f("cs-compute-with-umq")
 			amdgpu_command_submission_compute(device, true);
+		}
+	}
+
+	igt_describe("Check-sync-dependency-using-GFX-ring");
+	igt_subtest_with_dynamic("sync-dependency-test-with-IP-GFX-UMQ") {
+		if (arr_cap[AMD_IP_GFX]) {
+			igt_dynamic_f("sync-dependency-test-with-umq")
+			amdgpu_sync_dependency_test(device, true);
 		}
 	}
 
