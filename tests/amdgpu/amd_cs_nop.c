@@ -11,70 +11,7 @@
 #include <amdgpu_drm.h>
 #include "lib/amdgpu/amd_PM4.h"
 #include "lib/amdgpu/amd_ip_blocks.h"
-
-
-static int
-amdgpu_bo_alloc_and_map(amdgpu_device_handle dev, unsigned int size,
-			unsigned int alignment, unsigned int heap, uint64_t flags,
-			amdgpu_bo_handle *bo, void **cpu, uint64_t *mc_address,
-			amdgpu_va_handle *va_handle)
-{
-	struct amdgpu_bo_alloc_request request = {
-		.alloc_size = size,
-		.phys_alignment = alignment,
-		.preferred_heap = heap,
-		.flags = flags,
-	};
-	amdgpu_bo_handle buf_handle;
-	amdgpu_va_handle handle;
-	uint64_t vmc_addr;
-	int r;
-
-	r = amdgpu_bo_alloc(dev, &request, &buf_handle);
-	if (r)
-		return r;
-
-	r = amdgpu_va_range_alloc(dev,
-				  amdgpu_gpu_va_range_general,
-				  size, alignment, 0, &vmc_addr,
-				  &handle, 0);
-	if (r)
-		goto error_va_alloc;
-
-	r = amdgpu_bo_va_op(buf_handle, 0, size, vmc_addr, 0, AMDGPU_VA_OP_MAP);
-	if (r)
-		goto error_va_map;
-
-	r = amdgpu_bo_cpu_map(buf_handle, cpu);
-	if (r)
-		goto error_cpu_map;
-
-	*bo = buf_handle;
-	*mc_address = vmc_addr;
-	*va_handle = handle;
-
-	return 0;
-
-error_cpu_map:
-	amdgpu_bo_cpu_unmap(buf_handle);
-
-error_va_map:
-	amdgpu_bo_va_op(buf_handle, 0, size, vmc_addr, 0, AMDGPU_VA_OP_UNMAP);
-
-error_va_alloc:
-	amdgpu_bo_free(buf_handle);
-	return r;
-}
-
-static void
-amdgpu_bo_unmap_and_free(amdgpu_bo_handle bo, amdgpu_va_handle va_handle,
-			 uint64_t mc_addr, uint64_t size)
-{
-	amdgpu_bo_cpu_unmap(bo);
-	amdgpu_bo_va_op(bo, 0, size, mc_addr, 0, AMDGPU_VA_OP_UNMAP);
-	amdgpu_va_range_free(va_handle);
-	amdgpu_bo_free(bo);
-}
+#include "lib/amdgpu/amd_memory.h"
 
 static void amdgpu_cs_sync(amdgpu_context_handle context,
 			   unsigned int ip_type,
