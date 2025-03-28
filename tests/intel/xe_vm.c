@@ -880,7 +880,7 @@ static void xe_vm_bind_array_err(int fd, uint32_t vm, uint32_t exec_queue,
  *
  * SUBTEST: bind-array-enobufs
  * Functionality: bind exec_queues
- * Description: Test bind array which too large are trigger -ENOBUFs error
+ * Description: Test bind array that is deliberately oversized to intentionally trigger an -ENOBUFs error
  * Test category: functionality test
  *
  * SUBTEST: bind-array-exec_queue-twice
