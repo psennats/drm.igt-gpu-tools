@@ -13,6 +13,7 @@
 #include "lib/amdgpu/amd_gfx.h"
 #include "lib/amdgpu/amd_shaders.h"
 #include "lib/amdgpu/amd_dispatch.h"
+#include "lib/amdgpu/amd_user_queue.h"
 
 #define BUFFER_SIZE (8 * 1024)
 
@@ -67,14 +68,25 @@ static void amdgpu_memory_alloc(amdgpu_device_handle device)
  * AMDGPU_HW_IP_GFX
  * @param device
  */
-static void amdgpu_command_submission_gfx(amdgpu_device_handle device, bool ce_avails)
+static void amdgpu_command_submission_gfx(amdgpu_device_handle device,
+					  bool ce_avails,
+					  bool user_queue)
 {
+
 	/* write data using the CP */
-	amdgpu_command_submission_write_linear_helper(device, get_ip_block(device, AMDGPU_HW_IP_GFX), false);
+	amdgpu_command_submission_write_linear_helper(device,
+						      get_ip_block(device, AMDGPU_HW_IP_GFX),
+						      false, user_queue);
+
 	/* const fill using the CP */
-	amdgpu_command_submission_const_fill_helper(device, get_ip_block(device, AMDGPU_HW_IP_GFX));
+	amdgpu_command_submission_const_fill_helper(device,
+						    get_ip_block(device, AMDGPU_HW_IP_GFX),
+						    user_queue);
+
 	/* copy data using the CP */
-	amdgpu_command_submission_copy_linear_helper(device, get_ip_block(device, AMDGPU_HW_IP_GFX));
+	amdgpu_command_submission_copy_linear_helper(device,
+						     get_ip_block(device, AMDGPU_HW_IP_GFX),
+						     user_queue);
 	if (ce_avails) {
 		/* separate IB buffers for multi-IB submission */
 		amdgpu_command_submission_gfx_separate_ibs(device);
@@ -89,27 +101,41 @@ static void amdgpu_command_submission_gfx(amdgpu_device_handle device, bool ce_a
  * AMDGPU_HW_IP_COMPUTE
  * @param device
  */
-static void amdgpu_command_submission_compute(amdgpu_device_handle device)
+static void amdgpu_command_submission_compute(amdgpu_device_handle device, bool user_queue)
 {
 	/* write data using the CP */
-	amdgpu_command_submission_write_linear_helper(device, get_ip_block(device, AMDGPU_HW_IP_COMPUTE), false);
+	amdgpu_command_submission_write_linear_helper(device,
+						      get_ip_block(device, AMDGPU_HW_IP_COMPUTE),
+						      false, user_queue);
 	/* const fill using the CP */
-	amdgpu_command_submission_const_fill_helper(device, get_ip_block(device, AMDGPU_HW_IP_COMPUTE));
+	amdgpu_command_submission_const_fill_helper(device,
+						    get_ip_block(device, AMDGPU_HW_IP_COMPUTE),
+						    user_queue);
 	/* copy data using the CP */
-	amdgpu_command_submission_copy_linear_helper(device, get_ip_block(device, AMDGPU_HW_IP_COMPUTE));
+	amdgpu_command_submission_copy_linear_helper(device,
+						     get_ip_block(device, AMDGPU_HW_IP_COMPUTE),
+						     user_queue);
 	/* nop test */
-	amdgpu_command_submission_compute_nop(device);
+	amdgpu_command_submission_compute_nop(device, user_queue);
 }
 
 /**
  * AMDGPU_HW_IP_DMA
  * @param device
  */
-static void amdgpu_command_submission_sdma(amdgpu_device_handle device)
+static void amdgpu_command_submission_sdma(amdgpu_device_handle device, bool user_queue)
 {
-	amdgpu_command_submission_write_linear_helper(device,  get_ip_block(device, AMDGPU_HW_IP_DMA), false);
-	amdgpu_command_submission_const_fill_helper(device,  get_ip_block(device, AMDGPU_HW_IP_DMA));
-	amdgpu_command_submission_copy_linear_helper(device,  get_ip_block(device, AMDGPU_HW_IP_DMA));
+	amdgpu_command_submission_write_linear_helper(device,
+						      get_ip_block(device, AMDGPU_HW_IP_DMA),
+						      false, user_queue);
+
+	amdgpu_command_submission_const_fill_helper(device,
+						    get_ip_block(device, AMDGPU_HW_IP_DMA),
+						    user_queue);
+
+	amdgpu_command_submission_copy_linear_helper(device,
+						     get_ip_block(device, AMDGPU_HW_IP_DMA),
+						     user_queue);
 }
 
 /**
@@ -667,7 +693,7 @@ igt_main
 	igt_subtest_with_dynamic("cs-gfx-with-IP-GFX") {
 		if (arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("cs-gfx")
-			amdgpu_command_submission_gfx(device, info.hw_ip_version_major < 11);
+			amdgpu_command_submission_gfx(device, info.hw_ip_version_major < 11, false);
 		}
 	}
 
@@ -675,7 +701,7 @@ igt_main
 	igt_subtest_with_dynamic("cs-compute-with-IP-COMPUTE") {
 		if (arr_cap[AMD_IP_COMPUTE]) {
 			igt_dynamic_f("cs-compute")
-			amdgpu_command_submission_compute(device);
+			amdgpu_command_submission_compute(device, false);
 		}
 	}
 
@@ -693,7 +719,7 @@ igt_main
 	igt_subtest_with_dynamic("cs-sdma-with-IP-DMA") {
 		if (arr_cap[AMD_IP_DMA]) {
 			igt_dynamic_f("cs-sdma")
-			amdgpu_command_submission_sdma(device);
+			amdgpu_command_submission_sdma(device, false);
 		}
 	}
 

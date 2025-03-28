@@ -34,11 +34,13 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device,
 
 void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 						   const struct amdgpu_ip_block_version *ip_block,
-						   bool secure);
+						   bool secure, bool user_queue);
 
 void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
-						 const struct amdgpu_ip_block_version *ip_block);
+						 const struct amdgpu_ip_block_version *ip_block,
+						 bool user_queue);
 
 void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
-						 const struct amdgpu_ip_block_version *ip_block);
+						 const struct amdgpu_ip_block_version *ip_block,
+						 bool user_queue);
 #endif

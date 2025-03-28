@@ -5,10 +5,14 @@
  * Copyright 2023 Advanced Micro Devices, Inc.
  */
 
+#include <amdgpu.h>
 #include "lib/amdgpu/amd_memory.h"
 #include "lib/amdgpu/amd_sdma.h"
 #include "lib/amdgpu/amd_PM4.h"
 #include "lib/amdgpu/amd_command_submission.h"
+#include "lib/amdgpu/amd_user_queue.h"
+#include "ioctl_wrappers.h"
+
 
 /*
  *
@@ -28,82 +32,100 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 	uint64_t ib_result_mc_address;
 	struct amdgpu_cs_fence fence_status = {0};
 	amdgpu_va_handle va_handle;
+	bool user_queue = ring_context->user_queue;
 
 	amdgpu_bo_handle *all_res = alloca(sizeof(ring_context->resources[0]) * (ring_context->res_cnt + 1));
 
 	if (expect_failure) {
 		/* allocate IB */
-		r = amdgpu_bo_alloc_and_map(device, ring_context->write_length, 4096,
-					    AMDGPU_GEM_DOMAIN_GTT, 0,
-					    &ib_result_handle, &ib_result_cpu,
-					    &ib_result_mc_address, &va_handle);
+		r = amdgpu_bo_alloc_and_map_sync(device, ring_context->write_length, 4096,
+						 AMDGPU_GEM_DOMAIN_GTT, 0, AMDGPU_VM_MTYPE_UC,
+						 &ib_result_handle, &ib_result_cpu,
+						 &ib_result_mc_address, &va_handle,
+						 ring_context->timeline_syncobj_handle,
+						 ++ring_context->point, user_queue);
 	} else {
 		/* prepare CS */
 		igt_assert(ring_context->pm4_dw <= 1024);
 		/* allocate IB */
-		r = amdgpu_bo_alloc_and_map(device, 4096, 4096,
-					    AMDGPU_GEM_DOMAIN_GTT, 0,
-					    &ib_result_handle, &ib_result_cpu,
-					    &ib_result_mc_address, &va_handle);
-
-
+		r = amdgpu_bo_alloc_and_map_sync(device, 4096, 4096,
+						 AMDGPU_GEM_DOMAIN_GTT, 0, AMDGPU_VM_MTYPE_UC,
+						 &ib_result_handle, &ib_result_cpu,
+						 &ib_result_mc_address, &va_handle,
+						 ring_context->timeline_syncobj_handle,
+						 ++ring_context->point, user_queue);
 	}
 	igt_assert_eq(r, 0);
+
+	if (user_queue) {
+		r = amdgpu_timeline_syncobj_wait(device, ring_context->timeline_syncobj_handle,
+						 ring_context->point);
+		igt_assert_eq(r, 0);
+	}
 
 	/* copy PM4 packet to ring from caller */
 	ring_ptr = ib_result_cpu;
 	memcpy(ring_ptr, ring_context->pm4, ring_context->pm4_dw * sizeof(*ring_context->pm4));
 
-	ring_context->ib_info.ib_mc_address = ib_result_mc_address;
-	ring_context->ib_info.size = ring_context->pm4_dw;
-	if (ring_context->secure)
-		ring_context->ib_info.flags |= AMDGPU_IB_FLAGS_SECURE;
-
-	ring_context->ibs_request.ip_type = ip_type;
-	ring_context->ibs_request.ring = ring_context->ring_id;
-	ring_context->ibs_request.number_of_ibs = 1;
-	ring_context->ibs_request.ibs = &ring_context->ib_info;
-	ring_context->ibs_request.fence_info.handle = NULL;
-
-	memcpy(all_res, ring_context->resources, sizeof(ring_context->resources[0]) * ring_context->res_cnt);
-	all_res[ring_context->res_cnt] = ib_result_handle;
-
-	r = amdgpu_bo_list_create(device, ring_context->res_cnt+1, all_res,
-				  NULL, &ring_context->ibs_request.resources);
-	igt_assert_eq(r, 0);
-
-	/* submit CS */
-	r = amdgpu_cs_submit(ring_context->context_handle, 0, &ring_context->ibs_request, 1);
-	ring_context->err_codes.err_code_cs_submit = r;
-	if (expect_failure)
-		igt_info("amdgpu_cs_submit %d PID %d\n", r, getpid());
+	if (user_queue)
+		amdgpu_user_queue_submit(device, ring_context, ip_type, ib_result_mc_address);
 	else {
-		if (r != -ECANCELED && r != -ENODATA && r != -EHWPOISON) /* we allow ECANCELED, ENODATA or -EHWPOISON for good jobs temporally */
-			igt_assert_eq(r, 0);
+		ring_context->ib_info.ib_mc_address = ib_result_mc_address;
+		ring_context->ib_info.size = ring_context->pm4_dw;
+		if (ring_context->secure)
+			ring_context->ib_info.flags |= AMDGPU_IB_FLAGS_SECURE;
+
+		ring_context->ibs_request.ip_type = ip_type;
+		ring_context->ibs_request.ring = ring_context->ring_id;
+		ring_context->ibs_request.number_of_ibs = 1;
+		ring_context->ibs_request.ibs = &ring_context->ib_info;
+		ring_context->ibs_request.fence_info.handle = NULL;
+
+		memcpy(all_res, ring_context->resources,
+		       sizeof(ring_context->resources[0]) * ring_context->res_cnt);
+
+		all_res[ring_context->res_cnt] = ib_result_handle;
+
+		r = amdgpu_bo_list_create(device, ring_context->res_cnt + 1, all_res,
+					  NULL, &ring_context->ibs_request.resources);
+		igt_assert_eq(r, 0);
+
+		/* submit CS */
+		r = amdgpu_cs_submit(ring_context->context_handle, 0,
+				     &ring_context->ibs_request, 1);
+
+		ring_context->err_codes.err_code_cs_submit = r;
+		if (expect_failure)
+			igt_info("amdgpu_cs_submit %d PID %d\n", r, getpid());
+		else {
+			/* we allow ECANCELED, ENODATA or -EHWPOISON for good jobs temporally */
+			if (r != -ECANCELED && r != -ENODATA && r != -EHWPOISON)
+				igt_assert_eq(r, 0);
+		}
+
+		r = amdgpu_bo_list_destroy(ring_context->ibs_request.resources);
+		igt_assert_eq(r, 0);
+
+		fence_status.ip_type = ip_type;
+		fence_status.ip_instance = 0;
+		fence_status.ring = ring_context->ibs_request.ring;
+		fence_status.context = ring_context->context_handle;
+		fence_status.fence = ring_context->ibs_request.seq_no;
+
+		/* wait for IB accomplished */
+		r = amdgpu_cs_query_fence_status(&fence_status,
+						 AMDGPU_TIMEOUT_INFINITE,
+						 0, &expired);
+		ring_context->err_codes.err_code_wait_for_fence = r;
+		if (expect_failure) {
+			igt_info("EXPECT FAILURE amdgpu_cs_query_fence_status%d"
+				 "expired %d PID %d\n", r, expired, getpid());
+		} else {
+			/* we allow ECANCELED or ENODATA for good jobs temporally */
+			if (r != -ECANCELED && r != -ENODATA)
+				igt_assert_eq(r, 0);
+		}
 	}
-
-
-	r = amdgpu_bo_list_destroy(ring_context->ibs_request.resources);
-	igt_assert_eq(r, 0);
-
-	fence_status.ip_type = ip_type;
-	fence_status.ip_instance = 0;
-	fence_status.ring = ring_context->ibs_request.ring;
-	fence_status.context = ring_context->context_handle;
-	fence_status.fence = ring_context->ibs_request.seq_no;
-
-	/* wait for IB accomplished */
-	r = amdgpu_cs_query_fence_status(&fence_status,
-					 AMDGPU_TIMEOUT_INFINITE,
-					 0, &expired);
-	ring_context->err_codes.err_code_wait_for_fence = r;
-	if (expect_failure) {
-		igt_info("EXPECT FAILURE amdgpu_cs_query_fence_status %d expired %d PID %d\n", r,  expired, getpid());
-	} else {
-		if (r != -ECANCELED && r != -ENODATA) /* we allow ECANCELED or ENODATA for good jobs temporally */
-			igt_assert_eq(r, 0);
-	}
-
 	amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
 				 ib_result_mc_address, 4096);
 	return r;
@@ -111,10 +133,9 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 
 void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 						   const struct amdgpu_ip_block_version *ip_block,
-						   bool secure)
+						   bool secure, bool user_queue)
 
 {
-
 	const int sdma_write_length = 128;
 	const int pm4_dw = 256;
 
@@ -131,6 +152,7 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 	ring_context->secure = secure;
 	ring_context->pm4_size = pm4_dw;
 	ring_context->res_cnt = 1;
+	ring_context->user_queue = user_queue;
 	igt_assert(ring_context->pm4);
 
 	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &ring_context->hw_ip_info);
@@ -139,30 +161,51 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 	for (i = 0; secure && (i < 2); i++)
 		gtt_flags[i] |= AMDGPU_GEM_CREATE_ENCRYPTED;
 
-	r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
+	if (user_queue) {
+		amdgpu_user_queue_create(device, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
+		igt_assert_eq(r, 0);
+	}
 
-	igt_assert_eq(r, 0);
 
+
+/* Dont need but check with vitaly if for KMS also we need ring id or not */
 	for (ring_id = 0; (1 << ring_id) & ring_context->hw_ip_info.available_rings; ring_id++) {
 		loop = 0;
 		ring_context->ring_id = ring_id;
 		while (loop < 2) {
 			/* allocate UC bo for sDMA use */
-			r = amdgpu_bo_alloc_and_map(device,
-						    ring_context->write_length * sizeof(uint32_t),
-						    4096, AMDGPU_GEM_DOMAIN_GTT,
-						    gtt_flags[loop], &ring_context->bo,
-						    (void **)&ring_context->bo_cpu,
-						    &ring_context->bo_mc,
-						    &ring_context->va_handle);
+			r = amdgpu_bo_alloc_and_map_sync(device,
+							 ring_context->write_length *
+							 sizeof(uint32_t),
+							 4096, AMDGPU_GEM_DOMAIN_GTT,
+							 gtt_flags[loop],
+							 AMDGPU_VM_MTYPE_UC,
+							 &ring_context->bo,
+							 (void **)&ring_context->bo_cpu,
+							 &ring_context->bo_mc,
+							 &ring_context->va_handle,
+							 ring_context->timeline_syncobj_handle,
+							 ++ring_context->point, user_queue);
+
 			igt_assert_eq(r, 0);
 
+			if (user_queue) {
+				r = amdgpu_timeline_syncobj_wait(device,
+					ring_context->timeline_syncobj_handle,
+					ring_context->point);
+				igt_assert_eq(r, 0);
+			}
+
 			/* clear bo */
-			memset((void *)ring_context->bo_cpu, 0, ring_context->write_length * sizeof(uint32_t));
+			memset((void *)ring_context->bo_cpu, 0,
+			       ring_context->write_length * sizeof(uint32_t));
 
 			ring_context->resources[0] = ring_context->bo;
 
-			ip_block->funcs->write_linear(ip_block->funcs, ring_context, &ring_context->pm4_dw);
+			ip_block->funcs->write_linear(ip_block->funcs, ring_context,
+						      &ring_context->pm4_dw);
 
 			ring_context->ring_id = ring_id;
 
@@ -200,9 +243,14 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 	}
 	/* clean resources */
 	free(ring_context->pm4);
-	/* end of test */
-	r = amdgpu_cs_ctx_free(ring_context->context_handle);
-	igt_assert_eq(r, 0);
+
+	if (user_queue) {
+		amdgpu_user_queue_destroy(device, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_free(ring_context->context_handle);
+		igt_assert_eq(r, 0);
+	}
+
 	free(ring_context);
 }
 
@@ -211,9 +259,11 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
  *
  * @param device
  * @param ip_type
+ * @param user_queue
  */
 void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
-						 const struct amdgpu_ip_block_version *ip_block)
+						 const struct amdgpu_ip_block_version *ip_block,
+						 bool user_queue)
 {
 	const int sdma_write_length = 1024 * 1024;
 	const int pm4_dw = 256;
@@ -229,24 +279,42 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 	ring_context->secure = false;
 	ring_context->pm4_size = pm4_dw;
 	ring_context->res_cnt = 1;
+	ring_context->user_queue = user_queue;
 	igt_assert(ring_context->pm4);
 	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
-	igt_assert_eq(r, 0);
+	if (user_queue) {
+		amdgpu_user_queue_create(device, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
+		igt_assert_eq(r, 0);
+	}
+
 	for (ring_id = 0; (1 << ring_id) & ring_context->hw_ip_info.available_rings; ring_id++) {
 		/* prepare resource */
 		loop = 0;
 		ring_context->ring_id = ring_id;
 		while (loop < 2) {
 			/* allocate UC bo for sDMA use */
-			r = amdgpu_bo_alloc_and_map(device,
-					    ring_context->write_length, 4096,
-					    AMDGPU_GEM_DOMAIN_GTT,
-					    gtt_flags[loop], &ring_context->bo, (void **)&ring_context->bo_cpu,
-					    &ring_context->bo_mc, &ring_context->va_handle);
+			r = amdgpu_bo_alloc_and_map_sync(device, ring_context->write_length,
+							 4096, AMDGPU_GEM_DOMAIN_GTT,
+							 gtt_flags[loop],
+							 AMDGPU_VM_MTYPE_UC,
+							 &ring_context->bo,
+							 (void **)&ring_context->bo_cpu,
+							 &ring_context->bo_mc,
+							 &ring_context->va_handle,
+							 ring_context->timeline_syncobj_handle,
+							 ++ring_context->point, user_queue);
 			igt_assert_eq(r, 0);
+
+			if (user_queue) {
+				r = amdgpu_timeline_syncobj_wait(device,
+					ring_context->timeline_syncobj_handle,
+					ring_context->point);
+				igt_assert_eq(r, 0);
+			}
 
 			/* clear bo */
 			memset((void *)ring_context->bo_cpu, 0, ring_context->write_length);
@@ -270,9 +338,13 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 	/* clean resources */
 	free(ring_context->pm4);
 
-	/* end of test */
-	r = amdgpu_cs_ctx_free(ring_context->context_handle);
-	igt_assert_eq(r, 0);
+	if (user_queue) {
+		amdgpu_user_queue_destroy(device, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_free(ring_context->context_handle);
+		igt_assert_eq(r, 0);
+	}
+
 	free(ring_context);
 }
 
@@ -280,9 +352,11 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
  *
  * @param device
  * @param ip_type
+ * @param user_queue
  */
 void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
-						  const struct amdgpu_ip_block_version *ip_block)
+						  const struct amdgpu_ip_block_version *ip_block,
+						  bool user_queue)
 {
 	const int sdma_write_length = 1024;
 	const int pm4_dw = 256;
@@ -299,13 +373,18 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 	ring_context->secure = false;
 	ring_context->pm4_size = pm4_dw;
 	ring_context->res_cnt = 2;
+	ring_context->user_queue = user_queue;
 	igt_assert(ring_context->pm4);
 	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
 
 
-	r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
-	igt_assert_eq(r, 0);
+	if (user_queue) {
+		amdgpu_user_queue_create(device, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
+		igt_assert_eq(r, 0);
+	}
 
 	for (ring_id = 0; (1 << ring_id) & ring_context->hw_ip_info.available_rings; ring_id++) {
 		loop1 = loop2 = 0;
@@ -313,26 +392,49 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 	/* run 9 circle to test all mapping combination */
 		while (loop1 < 2) {
 			while (loop2 < 2) {
-			/* allocate UC bo1for sDMA use */
-				r = amdgpu_bo_alloc_and_map(device,
-						    ring_context->write_length, 4096,
-						    AMDGPU_GEM_DOMAIN_GTT,
-						    gtt_flags[loop1], &ring_context->bo,
-						    (void **)&ring_context->bo_cpu, &ring_context->bo_mc,
-						    &ring_context->va_handle);
+				/* allocate UC bo1for sDMA use */
+				r = amdgpu_bo_alloc_and_map_sync(device, ring_context->write_length,
+							4096, AMDGPU_GEM_DOMAIN_GTT,
+							gtt_flags[loop1],
+							AMDGPU_VM_MTYPE_UC,
+							&ring_context->bo,
+							(void **)&ring_context->bo_cpu,
+							&ring_context->bo_mc,
+							&ring_context->va_handle,
+							ring_context->timeline_syncobj_handle,
+							++ring_context->point, user_queue);
 				igt_assert_eq(r, 0);
+
+				if (user_queue) {
+					r = amdgpu_timeline_syncobj_wait(device,
+						ring_context->timeline_syncobj_handle,
+						ring_context->point);
+					igt_assert_eq(r, 0);
+				}
 
 				/* set bo_cpu */
 				memset((void *)ring_context->bo_cpu, ip_block->funcs->pattern, ring_context->write_length);
 
 				/* allocate UC bo2 for sDMA use */
-				r = amdgpu_bo_alloc_and_map(device,
-						    ring_context->write_length, 4096,
-						    AMDGPU_GEM_DOMAIN_GTT,
-						    gtt_flags[loop2], &ring_context->bo2,
-						    (void **)&ring_context->bo2_cpu, &ring_context->bo_mc2,
-						    &ring_context->va_handle2);
+				r = amdgpu_bo_alloc_and_map_sync(device,
+							ring_context->write_length,
+							4096, AMDGPU_GEM_DOMAIN_GTT,
+							gtt_flags[loop2],
+							AMDGPU_VM_MTYPE_UC,
+							&ring_context->bo2,
+							(void **)&ring_context->bo2_cpu,
+							&ring_context->bo_mc2,
+							&ring_context->va_handle2,
+							ring_context->timeline_syncobj_handle,
+							++ring_context->point, user_queue);
 				igt_assert_eq(r, 0);
+
+				if (user_queue) {
+					r = amdgpu_timeline_syncobj_wait(device,
+						ring_context->timeline_syncobj_handle,
+						ring_context->point);
+					igt_assert_eq(r, 0);
+				}
 
 				/* clear bo2_cpu */
 				memset((void *)ring_context->bo2_cpu, 0, ring_context->write_length);
@@ -357,11 +459,16 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 			loop1++;
 		}
 	}
+
 	/* clean resources */
 	free(ring_context->pm4);
 
-	/* end of test */
-	r = amdgpu_cs_ctx_free(ring_context->context_handle);
-	igt_assert_eq(r, 0);
+	if (user_queue) {
+		amdgpu_user_queue_destroy(device, ring_context, ip_block->type);
+	} else {
+		r = amdgpu_cs_ctx_free(ring_context->context_handle);
+		igt_assert_eq(r, 0);
+	}
+
 	free(ring_context);
 }

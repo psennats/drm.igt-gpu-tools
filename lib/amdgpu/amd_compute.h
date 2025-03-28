@@ -26,6 +26,6 @@
 #define AMD_COMPUTE_H
 
 
-void amdgpu_command_submission_compute_nop(amdgpu_device_handle device);
+void amdgpu_command_submission_compute_nop(amdgpu_device_handle device, bool user_queue);
 
 #endif

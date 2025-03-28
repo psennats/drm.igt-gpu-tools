@@ -341,12 +341,12 @@ igt_main
 	igt_describe("amdgpu sdma command submission write linear helper");
 	igt_subtest("sdma-write-linear-helper-secure")
 	amdgpu_command_submission_write_linear_helper(device,
-			get_ip_block(device, AMDGPU_HW_IP_DMA), is_secure);
+			get_ip_block(device, AMDGPU_HW_IP_DMA), is_secure, false);
 
 	igt_describe("amdgpu gfx command submission write linear helper");
 	igt_subtest("gfx-write-linear-helper-secure")
 	 amdgpu_command_submission_write_linear_helper(device,
-			get_ip_block(device, AMDGPU_HW_IP_GFX), is_secure);
+			get_ip_block(device, AMDGPU_HW_IP_GFX), is_secure, false);
 
 	/* dynamic test based on sdma_info.available rings */
 	igt_describe("amdgpu secure bounce");
