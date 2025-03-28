@@ -788,8 +788,10 @@ igt_main
 		}
 	}
 
+#ifdef AMDGPU_USERQ_ENABLED
 	arr_cap[AMD_IP_GFX] = 1;
 	arr_cap[AMD_IP_COMPUTE] = 1;
+
 	igt_describe("Check-GFX-CS-for-every-available-ring-works-for-write-const-fill-and-copy-operation-using-more-than-one-IB-and-shared-IB");
 	igt_subtest_with_dynamic("cs-gfx-with-IP-GFX-UMQ") {
 		if (arr_cap[AMD_IP_GFX]) {
@@ -813,6 +815,7 @@ igt_main
 			amdgpu_sync_dependency_test(device, true);
 		}
 	}
+#endif
 
 	igt_fixture {
 		amdgpu_device_deinitialize(device);

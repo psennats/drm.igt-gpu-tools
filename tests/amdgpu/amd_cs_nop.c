@@ -185,7 +185,7 @@ igt_main
 		for (e = engines; e->name; e++) {
 			igt_describe("Stressful-and-multiple-cs-of-nop-operations-using-multiple-processes-with-the-same-GPU-context");
 			igt_subtest_with_dynamic_f("cs-nops-with-%s-%s0", p->name, e->name) {
-				if (!arr_cap[e->ip_type]) {
+				if (arr_cap[e->ip_type]) {
 					igt_dynamic_f("cs-nop-with-%s-%s0", p->name, e->name)
 					nop_cs(device, context, e->name, e->ip_type, 0, 20,
 					       p->flags, 0);
@@ -194,8 +194,14 @@ igt_main
 		}
 	}
 
+#ifdef AMDGPU_USERQ_ENABLED
+	/*
+	 * TODO: Add a programmatic check to determine which IPs (gfx, compute, sdma)
+	 * are present for the user-mode queue and execute the test accordingly.
+	 */
 	arr_cap[AMDGPU_HW_IP_GFX] = 1;
 	arr_cap[AMDGPU_HW_IP_COMPUTE] = 1;
+
 	for (p = phase; p->name; p++) {
 		for (e = engines; e->name; e++) {
 			igt_describe("Stressful-and-multiple-cs-of-nop-operations-using-multiple-processes-with-the-same-GPU-context-UMQ");
@@ -208,6 +214,7 @@ igt_main
 			}
 		}
 	}
+#endif
 
 	igt_fixture {
 		amdgpu_cs_ctx_free(context);
