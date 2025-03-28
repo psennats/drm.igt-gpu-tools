@@ -170,7 +170,6 @@ struct amdgpu_ring_context {
 
 	uint32_t db_handle;
 	uint32_t queue_id;
-	uint32_t npkt;
 
 	uint32_t timeline_syncobj_handle;
 	uint64_t point;

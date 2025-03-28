@@ -126,30 +126,32 @@ void amdgpu_user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_co
 			      unsigned int ip_type, uint64_t mc_address)
 {
 	int r;
-	uint32_t *npkt = &ring_context->npkt;
-	uint32_t *queue_cpu = ring_context->queue_cpu;
 	uint32_t control = ring_context->pm4_dw;
 	uint32_t syncarray[1];
-
 	struct drm_amdgpu_userq_signal signal_data;
 
+
+	amdgpu_pkt_begin();
 	/* Prepare the Indirect IB to submit the IB to user queue */
-	queue_cpu[(*npkt)++] = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
-	queue_cpu[(*npkt)++] = lower_32_bits(mc_address);
-	queue_cpu[(*npkt)++] = upper_32_bits(mc_address);
+	amdgpu_pkt_add_dw(PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	amdgpu_pkt_add_dw(lower_32_bits(mc_address));
+	amdgpu_pkt_add_dw(upper_32_bits(mc_address));
 
 	if (ip_type == AMD_IP_GFX)
-		queue_cpu[(*npkt)++] = control | S_3F3_INHERIT_VMID_MQD_GFX(1);
+		amdgpu_pkt_add_dw(control | S_3F3_INHERIT_VMID_MQD_GFX(1));
 	else
-		queue_cpu[(*npkt)++] = control | S_3F3_VALID_COMPUTE(1)
-					       | S_3F3_INHERIT_VMID_MQD_COMPUTE(1);
+		amdgpu_pkt_add_dw(control | S_3F3_VALID_COMPUTE(1)
+					       | S_3F3_INHERIT_VMID_MQD_COMPUTE(1));
 
-	queue_cpu[(*npkt)++] = PACKET3(PACKET3_PROTECTED_FENCE_SIGNAL, 0);
+	amdgpu_pkt_add_dw(PACKET3(PACKET3_PROTECTED_FENCE_SIGNAL, 0));
+
 	/* empty dword is needed for fence signal pm4 */
-	++*npkt;
+	amdgpu_pkt_add_dw(0);
 
-	*ring_context->wptr_cpu = *npkt;
-	ring_context->doorbell_cpu[DOORBELL_INDEX] = *npkt;
+	amdgpu_pkt_end();
+
+	/* Update the door bell */
+	ring_context->doorbell_cpu[DOORBELL_INDEX] = *ring_context->wptr_cpu;
 
 	/* Add a fence packet for signal */
 	syncarray[0] = ring_context->timeline_syncobj_handle;
