@@ -27,11 +27,6 @@
 #define BO_ADDR		0x1a0000
 #define BO_SIZE		(1024*1024)
 
-enum injection_list_action {
-	INJECTION_LIST_ADD,
-	INJECTION_LIST_REMOVE,
-};
-
 static int fail_function_open(void)
 {
 	int debugfs_fail_function_dir_fd;
@@ -97,25 +92,34 @@ static bool fail_function_injection_enabled(void)
 	return true;
 }
 
-static void injection_list_do(enum injection_list_action action, const char function_name[])
+static void injection_list_add(const char function_name[])
 {
 	int dir;
 
 	dir = fail_function_open();
-	igt_assert_lte(0, dir);
 
-	switch(action) {
-	case INJECTION_LIST_ADD:
-		igt_assert_lte(0, igt_sysfs_printf(dir, "inject", "%s", function_name));
-		break;
-	case INJECTION_LIST_REMOVE:
-		igt_assert_lte(0, igt_sysfs_printf(dir, "inject", "!%s", function_name));
-		break;
-	default:
-		igt_assert(!"missing");
-	}
+	igt_assert_lte(0, dir);
+	igt_assert_lte(0, igt_sysfs_printf(dir, "inject", "%s", function_name));
 
 	close(dir);
+}
+
+static void injection_list_remove(const char function_name[])
+{
+	int dir;
+
+	dir = fail_function_open();
+
+	igt_assert_lte(0, dir);
+	igt_assert_lte(0, igt_sysfs_printf(dir, "inject", "!%s", function_name));
+
+	close(dir);
+}
+
+static void injection_list_clear(void)
+{
+	/* If nothing specified (‘’) injection list is cleared */
+	return injection_list_add("");
 }
 
 /*
@@ -140,8 +144,7 @@ static void setup_injection_fault(void)
 
 static void cleanup_injection_fault(int sig)
 {
-	/* If nothing specified (‘’) injection list is cleared */
-	injection_list_do(INJECTION_LIST_ADD, "");
+	injection_list_clear();
 }
 
 static void set_retval(const char function_name[], long long retval)
@@ -190,11 +193,11 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 		 strerror(-INJECT_ERRNO), INJECT_ERRNO, function_name);
 
 	ignore_faults_in_dmesg(function_name);
-	injection_list_do(INJECTION_LIST_ADD, function_name);
+	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_TRY_BIND);
 	igt_assert_eq(-errno, INJECT_ERRNO);
-	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+	injection_list_remove(function_name);
 }
 
 /**
@@ -219,10 +222,10 @@ exec_queue_create_fail(int fd, struct drm_xe_engine_class_instance *instance,
 	xe_exec_queue_destroy(fd, exec_queue_id);
 
 	ignore_faults_in_dmesg(function_name);
-	injection_list_do(INJECTION_LIST_ADD, function_name);
+	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id) != 0);
-	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+	injection_list_remove(function_name);
 
 	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id), 0);
 	xe_exec_queue_destroy(fd, exec_queue_id);
@@ -254,10 +257,10 @@ vm_create_fail(int fd, const char function_name[], unsigned int flags)
 	igt_assert_eq(simple_vm_create(fd, flags), 0);
 
 	ignore_faults_in_dmesg(function_name);
-	injection_list_do(INJECTION_LIST_ADD, function_name);
+	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(simple_vm_create(fd, flags) != 0);
-	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+	injection_list_remove(function_name);
 
 	igt_assert_eq(simple_vm_create(fd, flags), 0);
 }
@@ -317,10 +320,10 @@ vm_bind_fail(int fd, const char function_name[])
 	igt_assert_eq(simple_vm_bind(fd, vm), 0);
 
 	ignore_faults_in_dmesg(function_name);
-	injection_list_do(INJECTION_LIST_ADD, function_name);
+	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(simple_vm_bind(fd, vm) != 0);
-	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+	injection_list_remove(function_name);
 
 	igt_assert_eq(simple_vm_bind(fd, vm), 0);
 }
@@ -361,10 +364,10 @@ oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
 	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
 
 	ignore_faults_in_dmesg(function_name);
-	injection_list_do(INJECTION_LIST_ADD, function_name);
+	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert_lt(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config), 0);
-	injection_list_do(INJECTION_LIST_REMOVE, function_name);
+	injection_list_remove(function_name);
 
 	igt_assert_lt(0, intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config));
 	igt_assert(igt_sysfs_scanf(sysfs, path, "%" PRIu64, &config_id) == 1);
