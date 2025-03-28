@@ -192,6 +192,9 @@
 		 * 1 - pfp
 		 */
 
+#define PACKET3_INDIRECT_BUFFER                         0x3F
+#define PACKET3_PROTECTED_FENCE_SIGNAL                  0xd0
+
 #define	PACKET3_WRITE_DATA				0x37
 #define		WRITE_DATA_DST_SEL(x)                   ((x) << 8)
 		/* 0 - register
