@@ -189,13 +189,13 @@ void amdgpu_user_queue_destroy(amdgpu_device_handle device_handle, struct amdgpu
 	case AMD_IP_GFX:
 		amdgpu_bo_unmap_and_free_uq(device_handle, ctxt->csa.handle,
 					    ctxt->csa.va_handle,
-					    ctxt->csa.mc_addr, ctxt->dev_info.csa_size,
+					    ctxt->csa.mc_addr, ctxt->info.gfx.csa_size,
 					    ctxt->timeline_syncobj_handle, ++ctxt->point,
 					    0, 0);
 
 		amdgpu_bo_unmap_and_free_uq(device_handle, ctxt->shadow.handle,
 					    ctxt->shadow.va_handle,
-					    ctxt->shadow.mc_addr, ctxt->dev_info.shadow_size,
+					    ctxt->shadow.mc_addr, ctxt->info.gfx.shadow_size,
 					    ctxt->timeline_syncobj_handle, ++ctxt->point,
 					    0, 0);
 
@@ -219,7 +219,7 @@ void amdgpu_user_queue_destroy(amdgpu_device_handle device_handle, struct amdgpu
 	case AMD_IP_DMA:
 		amdgpu_bo_unmap_and_free_uq(device_handle, ctxt->csa.handle,
 					    ctxt->csa.va_handle,
-					    ctxt->csa.mc_addr, ctxt->dev_info.csa_size,
+					    ctxt->csa.mc_addr, ctxt->info.gfx.csa_size,
 					    ctxt->timeline_syncobj_handle, ++ctxt->point,
 					    0, 0);
 
@@ -268,8 +268,7 @@ void amdgpu_user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_
 		return;
 	}
 
-	r = amdgpu_query_info(device_handle, AMDGPU_INFO_DEV_INFO,
-			      sizeof(ctxt->dev_info), &ctxt->dev_info);
+	r = amdgpu_query_uq_fw_area_info(device_handle, AMD_IP_GFX, 0, &ctxt->info);
 	igt_assert_eq(r, 0);
 
 	r = amdgpu_cs_create_syncobj2(device_handle, 0, &ctxt->timeline_syncobj_handle);
@@ -307,8 +306,8 @@ void amdgpu_user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_
 
 	switch (type) {
 	case AMD_IP_GFX:
-		r = amdgpu_bo_alloc_and_map_uq(device_handle, ctxt->dev_info.shadow_size,
-					       ctxt->dev_info.shadow_alignment,
+		r = amdgpu_bo_alloc_and_map_uq(device_handle, ctxt->info.gfx.shadow_size,
+					       ctxt->info.gfx.shadow_alignment,
 					       AMDGPU_GEM_DOMAIN_GTT,
 					       gtt_flags,
 					       AMDGPU_VM_MTYPE_UC,
@@ -317,8 +316,8 @@ void amdgpu_user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_
 					       ctxt->timeline_syncobj_handle, ++ctxt->point);
 		igt_assert_eq(r, 0);
 
-		r = amdgpu_bo_alloc_and_map_uq(device_handle, ctxt->dev_info.csa_size,
-					       ctxt->dev_info.csa_alignment,
+		r = amdgpu_bo_alloc_and_map_uq(device_handle, ctxt->info.gfx.csa_size,
+					       ctxt->info.gfx.csa_alignment,
 					       AMDGPU_GEM_DOMAIN_GTT,
 					       gtt_flags,
 					       AMDGPU_VM_MTYPE_UC,
@@ -347,8 +346,8 @@ void amdgpu_user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_
 		break;
 
 	case AMD_IP_DMA:
-		r = amdgpu_bo_alloc_and_map_uq(device_handle, ctxt->dev_info.csa_size,
-					       ctxt->dev_info.csa_alignment,
+		r = amdgpu_bo_alloc_and_map_uq(device_handle, ctxt->info.gfx.csa_size,
+					       ctxt->info.gfx.csa_alignment,
 					       AMDGPU_GEM_DOMAIN_GTT,
 					       gtt_flags,
 					       AMDGPU_VM_MTYPE_UC,

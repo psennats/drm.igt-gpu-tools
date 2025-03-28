@@ -175,7 +175,7 @@ struct amdgpu_ring_context {
 	uint64_t point;
 	bool user_queue;
 
-	struct drm_amdgpu_info_device dev_info;
+	struct drm_amdgpu_info_uq_fw_areas info;
 };
 
 
