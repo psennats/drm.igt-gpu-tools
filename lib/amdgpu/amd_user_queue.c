@@ -8,8 +8,9 @@
 #include "amd_PM4.h"
 #include "ioctl_wrappers.h"
 
-void amdgpu_alloc_doorbell(amdgpu_device_handle device_handle, struct amdgpu_userq_bo *doorbell_bo,
-			   unsigned int size, unsigned int domain)
+static void amdgpu_alloc_doorbell(amdgpu_device_handle device_handle,
+				  struct amdgpu_userq_bo *doorbell_bo,
+				  unsigned int size, unsigned int domain)
 {
 	struct amdgpu_bo_alloc_request req = {0};
 	amdgpu_bo_handle buf_handle;
@@ -88,10 +89,12 @@ error_va_alloc:
 	return r;
 }
 
-void amdgpu_bo_unmap_and_free_uq(amdgpu_device_handle device_handle, amdgpu_bo_handle bo,
-			    amdgpu_va_handle va_handle, uint64_t mc_addr, uint64_t size,
-			    uint32_t timeline_syncobj_handle, uint64_t point,
-			    uint64_t syncobj_handles_array, uint32_t num_syncobj_handles)
+static void amdgpu_bo_unmap_and_free_uq(amdgpu_device_handle device_handle,
+					amdgpu_bo_handle bo, amdgpu_va_handle va_handle,
+					uint64_t mc_addr, uint64_t size,
+					uint32_t timeline_syncobj_handle,
+					uint64_t point, uint64_t syncobj_handles_array,
+					uint32_t num_syncobj_handles)
 {
 	amdgpu_bo_cpu_unmap(bo);
 	amdgpu_bo_va_op_raw2(device_handle, bo, 0, size, mc_addr, 0, AMDGPU_VA_OP_UNMAP,

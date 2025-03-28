@@ -34,19 +34,11 @@
 #define amdgpu_pkt_end() \
 	*ring_context->wptr_cpu += __num_dw_written
 
-void amdgpu_alloc_doorbell(amdgpu_device_handle device_handle, struct amdgpu_userq_bo *doorbell_bo,
-			   unsigned int size, unsigned int domain);
-
 int amdgpu_bo_alloc_and_map_uq(amdgpu_device_handle device_handle, unsigned int size,
 			       unsigned int alignment, unsigned int heap, uint64_t alloc_flags,
 			       uint64_t mapping_flags, amdgpu_bo_handle *bo, void **cpu,
 			       uint64_t *mc_address, amdgpu_va_handle *va_handle,
 			       uint32_t timeline_syncobj_handle, uint64_t point);
-
-void amdgpu_bo_unmap_and_free_uq(amdgpu_device_handle device_handle, amdgpu_bo_handle bo,
-				 amdgpu_va_handle va_handle, uint64_t mc_addr, uint64_t size,
-				 uint32_t timeline_syncobj_handle, uint64_t point,
-				 uint64_t syncobj_handles_array, uint32_t num_syncobj_handles);
 
 int amdgpu_timeline_syncobj_wait(amdgpu_device_handle device_handle,
 				 uint32_t timeline_syncobj_handle, uint64_t point);
