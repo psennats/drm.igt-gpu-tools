@@ -86,6 +86,14 @@ struct dynamic_test{
 	bool support_sdma;
 };
 
+struct amdgpu_userq_bo {
+	amdgpu_bo_handle handle;
+	amdgpu_va_handle va_handle;
+	uint64_t mc_addr;
+	uint64_t size;
+	void *ptr;
+};
+
 #define for_each_test(t, T) for(typeof(*T) *t = T; t->name; t++)
 
 /* set during execution */
@@ -141,6 +149,29 @@ struct amdgpu_ring_context {
 	struct amdgpu_cs_ib_info ib_info;     /* amdgpu_bo_list_create */
 	struct amdgpu_cs_request ibs_request; /* amdgpu_cs_query_fence_status */
 	struct amdgpu_cs_err_codes err_codes;
+
+	/* User queue resources */
+	struct  amdgpu_userq_bo queue;
+	struct  amdgpu_userq_bo shadow;
+	struct  amdgpu_userq_bo doorbell;
+	struct  amdgpu_userq_bo rptr;
+	struct  amdgpu_userq_bo wptr;
+	struct  amdgpu_userq_bo csa;
+	struct  amdgpu_userq_bo eop;
+
+	uint32_t *queue_cpu;
+	uint64_t *wptr_cpu;
+	uint64_t *doorbell_cpu;
+
+	uint32_t db_handle;
+	uint32_t queue_id;
+	uint32_t npkt;
+
+	uint32_t timeline_syncobj_handle;
+	uint64_t point;
+	bool user_queue;
+
+	struct drm_amdgpu_info_device dev_info;
 };
 
 
