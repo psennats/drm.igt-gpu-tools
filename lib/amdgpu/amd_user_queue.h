@@ -15,9 +15,24 @@
 #define PAGE_SIZE 4096
 #endif
 
-#define USERMODE_QUEUE_SIZE		(PAGE_SIZE * 256)   //In bytes
+#define USERMODE_QUEUE_SIZE		(PAGE_SIZE * 256)   //In bytes with total size as 1 Mbyte
 #define ALIGNMENT			4096
 #define DOORBELL_INDEX			4
+#define USERMODE_QUEUE_SIZE_DW		(USERMODE_QUEUE_SIZE >> 2)
+#define USERMODE_QUEUE_SIZE_DW_MASK	(USERMODE_QUEUE_SIZE_DW - 1)
+
+#define amdgpu_pkt_begin() uint32_t __num_dw_written = 0; \
+	uint32_t __ring_start = *ring_context->wptr_cpu & USERMODE_QUEUE_SIZE_DW_MASK;
+
+#define amdgpu_pkt_add_dw(value) do { \
+	*(ring_context->queue_cpu + \
+	((__ring_start + __num_dw_written) & USERMODE_QUEUE_SIZE_DW_MASK)) \
+	= value; \
+	__num_dw_written++;\
+} while (0)
+
+#define amdgpu_pkt_end() \
+	*ring_context->wptr_cpu += __num_dw_written
 
 void amdgpu_alloc_doorbell(amdgpu_device_handle device_handle, struct amdgpu_userq_bo *doorbell_bo,
 			   unsigned int size, unsigned int domain);
