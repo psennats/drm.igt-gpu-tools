@@ -47,6 +47,12 @@ static struct {
 	size_t num_dogs;
 } watchdogs;
 
+static void runner_gettime(struct timespec *tv)
+{
+	if (clock_gettime(CLOCK_BOOTTIME, tv))
+		clock_gettime(CLOCK_REALTIME, tv);
+}
+
 __attribute__((format(printf, 2, 3)))
 static void __logf__(FILE *stream, const char *fmt, ...)
 {
@@ -54,8 +60,7 @@ static void __logf__(FILE *stream, const char *fmt, ...)
 	struct timespec tv;
 	va_list ap;
 
-	if (clock_gettime(CLOCK_BOOTTIME, &tv))
-		clock_gettime(CLOCK_REALTIME, &tv);
+	runner_gettime(&tv);
 	fprintf(stream, "[%ld.%06ld] ", tv.tv_sec, tv.tv_nsec / 1000);
 
 	va_start(ap, fmt);
@@ -961,7 +966,7 @@ static int monitor_output(pid_t child,
 	bool socket_comms_used = false; /* whether the test actually uses comms */
 	bool results_received = false; /* whether we already have test results that might need overriding if we detect an abort condition */
 
-	igt_gettime(&time_beg);
+	runner_gettime(&time_beg);
 	time_last_activity = time_last_subtest = time_killed = time_beg;
 
 	if (errfd > nfds)
@@ -1024,7 +1029,7 @@ static int monitor_output(pid_t child,
 			return -1;
 		}
 
-		igt_gettime(&time_now);
+		runner_gettime(&time_now);
 
 		/* TODO: Refactor these handlers to their own functions */
 		if (outfd >= 0 && FD_ISSET(outfd, &set)) {
