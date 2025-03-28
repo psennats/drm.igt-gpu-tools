@@ -19,6 +19,15 @@
  *
  * SUBTEST: unprivileged-access
  * Description: Verify unprivileged open of a EU stall data stream fd
+ *
+ * SUBTEST: invalid-gt-id
+ * Description: Verify that invalid input GT ID fails the test
+ *
+ * SUBTEST: invalid-sampling-rate
+ * Description: Verify that invalid input sampling rate fails the test
+ *
+ * SUBTEST: invalid-event-report-count
+ * Description: Verify that invalid input event report count fails the test
  */
 
 #include <fcntl.h>
@@ -33,6 +42,9 @@
 
 #define OBSERVATION_PARANOID	"/proc/sys/dev/xe/observation_paranoid"
 
+#define NUM_DATA_ROWS(size)	((size) >> 6)
+
+#define MAX_XECORES		64
 #define NUM_ITERS_GPGPU_FILL	100
 #define DEFAULT_NUM_REPORTS	1
 #define DEFAULT_SAMPLE_RATE	(251 * 4)
@@ -281,6 +293,41 @@ static void set_fd_flags(int fd, int flags)
 
 	igt_assert_lte(0, old);
 	igt_assert_eq(0, fcntl(fd, F_SETFL, old | flags));
+}
+
+/*
+ * Verify that tests with invalid arguments fail.
+ */
+static void test_invalid_arguments(int drm_fd, uint8_t gt_id, uint32_t rate, uint32_t num_reports)
+{
+	uint64_t properties[] = {
+		DRM_XE_EU_STALL_PROP_GT_ID, gt_id,
+		DRM_XE_EU_STALL_PROP_SAMPLE_RATE, rate,
+		DRM_XE_EU_STALL_PROP_WAIT_NUM_REPORTS, num_reports,
+	};
+
+	struct xe_eu_stall_open_prop props = {
+		.num_properties = ARRAY_SIZE(properties) / 2,
+		.properties_ptr = to_user_pointer(properties),
+	};
+
+	xe_eu_stall_ioctl_err(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &props, EINVAL);
+}
+
+static void test_invalid_gt_id(int fd)
+{
+	test_invalid_arguments(fd, 255, DEFAULT_SAMPLE_RATE, DEFAULT_NUM_REPORTS);
+}
+
+static void test_invalid_sampling_rate(int fd)
+{
+	test_invalid_arguments(fd, 0, 251 * 10, DEFAULT_NUM_REPORTS);
+}
+
+static void test_invalid_event_report_count(int fd)
+{
+	test_invalid_arguments(fd, 0, DEFAULT_SAMPLE_RATE,
+			       NUM_DATA_ROWS(512 * 1024) * MAX_XECORES + 1);
 }
 
 static inline void enable_paranoid(void)
@@ -614,6 +661,18 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 	igt_describe("Verify that unprivileged open of a EU stall data fd fails");
 	igt_subtest("unprivileged-access")
 		test_non_privileged_access(drm_fd);
+
+	igt_describe("Verify that invalid input GT ID fails the test");
+	igt_subtest("invalid-gt-id")
+		test_invalid_gt_id(drm_fd);
+
+	igt_describe("Verify that invalid input sampling rate fails the test");
+	igt_subtest("invalid-sampling-rate")
+		test_invalid_sampling_rate(drm_fd);
+
+	igt_describe("Verify that invalid input event report count fails the test");
+	igt_subtest("invalid-event-report-count")
+		test_invalid_event_report_count(drm_fd);
 
 	igt_fixture {
 		if (output)
