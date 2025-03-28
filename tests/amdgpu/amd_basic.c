@@ -788,6 +788,8 @@ igt_main
 		}
 	}
 
+	arr_cap[AMD_IP_GFX] = 1;
+	arr_cap[AMD_IP_COMPUTE] = 1;
 	igt_describe("Check-GFX-CS-for-every-available-ring-works-for-write-const-fill-and-copy-operation-using-more-than-one-IB-and-shared-IB");
 	igt_subtest_with_dynamic("cs-gfx-with-IP-GFX-UMQ") {
 		if (arr_cap[AMD_IP_GFX]) {
