@@ -25,6 +25,8 @@
 
 #include "amd_memory.h"
 #include "amd_PM4.h"
+#include "amd_user_queue.h"
+
 /**
  *
  * @param device_handle
@@ -191,6 +193,23 @@ error_va_map:
 error_va_alloc:
 	amdgpu_bo_free(buf_handle);
 	return r;
+}
+
+int
+amdgpu_bo_alloc_and_map_sync(amdgpu_device_handle dev, unsigned int size,
+			     unsigned int alignment, unsigned int heap, uint64_t flags,
+			     uint64_t mapping_flags, amdgpu_bo_handle *bo, void **cpu,
+			     uint64_t *mc_address, amdgpu_va_handle *va_handle,
+			     uint32_t timeline_syncobj_handle, uint64_t point, bool sync)
+{
+	if (sync)
+		return amdgpu_bo_alloc_and_map_uq(dev, size, alignment, heap, flags,
+						  mapping_flags, bo, cpu,
+						  mc_address, va_handle,
+						  timeline_syncobj_handle, point);
+	else
+		return amdgpu_bo_alloc_and_map(dev, size, alignment, heap, flags,
+					       bo, cpu, mc_address, va_handle);
 }
 
 int
