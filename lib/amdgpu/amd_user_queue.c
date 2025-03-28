@@ -148,7 +148,16 @@ void amdgpu_user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_co
 	/* empty dword is needed for fence signal pm4 */
 	amdgpu_pkt_add_dw(0);
 
+#if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
+	asm volatile ("mfence" : : : "memory");
+#endif
+
+	/* Below call update the wptr address so will wait till all writes are completed */
 	amdgpu_pkt_end();
+
+#if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
+	asm volatile ("mfence" : : : "memory");
+#endif
 
 	/* Update the door bell */
 	ring_context->doorbell_cpu[DOORBELL_INDEX] = *ring_context->wptr_cpu;
