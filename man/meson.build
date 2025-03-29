@@ -17,6 +17,7 @@ manpages = [
 	'intel_upload_blit_large_map',
 	'intel_upload_blit_small',
 	'intel_vbt_decode',
+	'lsgpu',
 ]
 
 defs_rst = configure_file(input : 'defs.rst.in',
