@@ -83,6 +83,7 @@ test_progs = [
 intel_i915_xe_progs = [
 	'api_intel_allocator',
 	'intel_hwmon',
+	'intel_sysfs_debugfs',
 ]
 
 intel_i915_progs = [
