@@ -2,6 +2,7 @@
 # This file is for non-Xe tests only
 ###############################################
 igt@xe.*
+igt@.*@xe.*
 
 igt@meta_test(@.*)?
 
