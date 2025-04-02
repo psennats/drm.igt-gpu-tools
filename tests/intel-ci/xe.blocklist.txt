@@ -20,6 +20,7 @@ igt@gen.*
 igt@i915_.*
 igt@perf.*
 igt@sysfs_.*
+igt@.*@i915.*
 ##################################################################
 # Exclude mock DRM KUnit from IGT, as those already run at build
 # time on Intel CI
