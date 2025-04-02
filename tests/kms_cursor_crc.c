@@ -95,6 +95,16 @@
  * @max-size:              Max supported size
  */
 
+/**
+ * SUBTEST: async-cursor-crc-framebuffer-change
+ * Description: Validate cursor IOCTLs tearing via framebuffer changes.
+ */
+
+/**
+ * SUBTEST: async-cursor-crc-position-change
+ * Description: Validate cursor IOCTLs tearing via cursor position change.
+ */
+
 IGT_TEST_DESCRIPTION(
    "Use the display CRC support to validate cursor plane functionality. "
    "The test will position the cursor plane either fully onscreen, "
@@ -116,6 +126,11 @@ enum cursor_buffers {
 	SWCOMPARISONBUFFER1,
 	SWCOMPARISONBUFFER2,
 	MAXCURSORBUFFER
+};
+
+enum cursor_change {
+	FIRSTIMAGE,
+	SECONDIMAGE
 };
 
 typedef struct {
@@ -146,6 +161,7 @@ typedef struct {
 	double alpha;
 	int vblank_wait_count; /* because of msm */
 	cursorarea oldcursorarea[MAXCURSORBUFFER];
+	struct igt_fb timed_fb[2];
 } data_t;
 
 static bool extended;
@@ -669,6 +685,78 @@ static void test_cursor_transparent(data_t *data)
 	data->alpha = 1.0;
 }
 
+static void do_timed_cursor_fb_change(data_t *data, enum cursor_change change)
+{
+	if (change == FIRSTIMAGE) {
+		igt_plane_set_fb(data->cursor, &data->timed_fb[0]);
+		igt_plane_set_position(data->cursor,
+				       data->left + data->cursor_max_w - 10,
+				       data->bottom - data->cursor_max_h - 10);
+	} else {
+		igt_plane_set_fb(data->cursor, &data->timed_fb[1]);
+	}
+}
+
+static void do_timed_cursor_fb_pos_change(data_t *data, enum cursor_change change)
+{
+	if (change == FIRSTIMAGE) {
+		igt_plane_set_fb(data->cursor, &data->timed_fb[0]);
+		igt_plane_set_position(data->cursor,
+				       data->left + data->cursor_max_w - 10,
+				       data->bottom - data->cursor_max_h - 10);
+	} else {
+		igt_plane_set_position(data->cursor,
+				       data->left + data->cursor_max_w + 20,
+				       data->bottom - data->cursor_max_h + 20);
+	}
+}
+
+static void timed_cursor_changes(data_t *data, void (changefunc)(data_t *, enum cursor_change))
+{
+	igt_crc_t crc1, crc2;
+
+	/* Legacy cursor API does not guarantee that the cursor update happens at vBlank.
+	 * So, not assuming that this happens across all platforms, the test requires
+	 * Intel plaforms.
+	 */
+	igt_require_intel(data->drm_fd);
+
+	data->cursor = igt_output_get_plane_type(data->output, DRM_PLANE_TYPE_CURSOR);
+	changefunc(data, FIRSTIMAGE);
+
+	igt_display_commit(&data->display);
+
+	/* Extra vblank wait is because nonblocking cursor ioctl */
+	igt_wait_for_vblank_count(data->drm_fd,
+				  data->display.pipes[data->pipe].crtc_offset,
+				  data->vblank_wait_count);
+
+	igt_pipe_crc_get_current(data->drm_fd, data->pipe_crc, &crc1);
+
+	/* get the screen refresh rate, then wait for vblank, and
+	 * wait for 1/5 of time of screen refresh and change image.
+	 * change it mid screen to validate that the change happens
+	 * at the end of the current frame.
+	 */
+	usleep(1.0f / data->refresh / 5.0f * 1e6);
+
+	changefunc(data, SECONDIMAGE);
+	igt_display_commit(&data->display);
+	igt_pipe_crc_get_current(data->drm_fd, data->pipe_crc, &crc2);
+
+	igt_assert_crc_equal(&crc1, &crc2);
+}
+
+static void test_crc_cursors(data_t *data)
+{
+	timed_cursor_changes(data, do_timed_cursor_fb_change);
+}
+
+static void test_crc_pos_cursors(data_t *data)
+{
+	timed_cursor_changes(data, do_timed_cursor_fb_pos_change);
+}
+
 static void test_cursor_opaque(data_t *data)
 {
 	data->alpha = 1.0;
@@ -1008,6 +1096,57 @@ static void run_tests_on_pipe(data_t *data)
 	}
 
 	igt_fixture {
+		igt_create_color_fb(data->drm_fd, data->cursor_max_w, data->cursor_max_h,
+				DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_LINEAR,
+				1.f, 1.f, 1.f, &data->timed_fb[0]);
+
+		igt_create_color_fb(data->drm_fd, data->cursor_max_w, data->cursor_max_h,
+				DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_LINEAR,
+				1.f, 0.f, 0.f, &data->timed_fb[1]);
+	}
+
+	igt_describe("Validate CRC with two cursors");
+	igt_subtest_with_dynamic("async-cursor-crc-framebuffer-change") {
+		for_each_pipe_with_single_output(&data->display, pipe, data->output) {
+			if (execution_constraint(pipe))
+				continue;
+
+			data->pipe = pipe;
+
+			if (!valid_pipe_output_combo(data))
+				continue;
+
+			igt_dynamic_f("pipe-%s-%s",
+					  kmstest_pipe_name(pipe),
+					  data->output->name)
+				run_test(data, test_crc_cursors,
+					  data->cursor_max_w, data->cursor_max_h);
+		}
+	}
+
+	igt_describe("Validate CRC with two cursors and cursor position change");
+	igt_subtest_with_dynamic("async-cursor-crc-position-change") {
+		for_each_pipe_with_single_output(&data->display, pipe, data->output) {
+			if (execution_constraint(pipe))
+				continue;
+
+			data->pipe = pipe;
+
+			if (!valid_pipe_output_combo(data))
+				continue;
+
+			igt_dynamic_f("pipe-%s-%s",
+					  kmstest_pipe_name(pipe),
+					  data->output->name)
+				run_test(data, test_crc_pos_cursors,
+					  data->cursor_max_w, data->cursor_max_h);
+		}
+	}
+
+	igt_fixture {
+		igt_remove_fb(data->drm_fd, &data->timed_fb[0]);
+		igt_remove_fb(data->drm_fd, &data->timed_fb[1]);
+
 		create_cursor_fb(data, data->cursor_max_w, data->cursor_max_h);
 	}
 
