@@ -6777,6 +6777,14 @@ bool igt_check_bigjoiner_support(igt_display_t *display)
 				return false;
 			}
 
+			for (int j = 0; j < pipes_in_use; j++) {
+				if (pipes[j].idx == pipes[i].idx + 1) {
+					igt_info("pipe-%s: Next pipe is already assigned to another output.\n",
+						 kmstest_pipe_name(pipes[j].idx));
+					return false;
+				}
+			}
+
 			if (!display->pipes[pipes[i].idx + 1].enabled) {
 				igt_info("Consecutive pipe-%s: Fused-off, couldn't be used as a Bigjoiner Secondary.\n",
 					 kmstest_pipe_name(display->pipes[pipes[i].idx + 1].pipe));
