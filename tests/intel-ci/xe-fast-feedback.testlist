@@ -7,6 +7,11 @@ igt@fbdev@nullptr
 igt@fbdev@read
 igt@fbdev@write
 
+igt@intel_sysfs_debugfs@xe-base
+igt@intel_sysfs_debugfs@xe-debugfs-read-all-entries
+igt@intel_sysfs_debugfs@xe-forcewake
+igt@intel_sysfs_debugfs@xe-gt
+igt@intel_sysfs_debugfs@xe-sysfs-read-all-entries
 igt@kms_addfb_basic@addfb25-4-tiled
 igt@kms_addfb_basic@addfb25-bad-modifier
 igt@kms_addfb_basic@addfb25-modifier-no-flag
@@ -72,9 +77,6 @@ igt@xe_create@create-execqueues-noleak
 igt@xe_create@create-execqueues-leak
 igt@xe_create@create-invalid-mbz
 igt@xe_create@create-massive-size
-igt@xe_debugfs@base
-igt@xe_debugfs@gt
-igt@xe_debugfs@forcewake
 igt@xe_dma_buf_sync@export-dma-buf-once-write-sync
 igt@xe_dma_buf_sync@export-dma-buf-once-read-sync
 igt@xe_dma_buf_sync@export-dma-buf-once-read-write-sync

@@ -8,4 +8,4 @@ igt@xe_module_load
 #
 # Blocked because of abort
 #
-igt@xe_debugfs@gt
+igt@intel_sysfs_debugfs@xe-gt

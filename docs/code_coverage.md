@@ -162,23 +162,23 @@ For each script, the igt_runner passes just one parameter: the results
 directory + the test name.
 
 For instance, if it is needed to run a test called
-`debugfs_test (read_all_entries)` using `code_cov_capture`
+`intel_sysfs_debugfs (i915-debugfs-read-all-entries)` using `code_cov_capture`
 parameter, e. g.:
 
 ```
-$ echo "igt@debugfs_test@read_all_entries" > my.testlist
+$ echo "igt@intel_sysfs_debugfs@i915-debugfs-read-all-entries" > my.testlist
 $ ./scripts/run-tests.sh -T my.testlist -k ~/linux -c code_cov_capture -P
 Found test list: "/basedir/igt/build/tests/test-list.txt"
-[31410.499969] [1/1] debugfs_test (read_all_entries)
+[31410.499969] [1/1] intel_sysfs_debugfs (i915-debugfs-read-all-entries)
 [31411.060446] Storing code coverage results...
-[31418.01]     Code coverage wrote to /basedir/igt/results/code_cov/debugfs_test_read_all_entries.info
+[31418.01]     Code coverage wrote to /basedir/igt/results/code_cov/intel_sysfs_debugfs_i915_debugfs_read_all_entries.info
 Done.
 ```
 
 The script will be called as:
 
 ```
-code_cov_capture results/code_cov/debugfs_test_read_all_entries
+code_cov_capture results/code_cov/intel_sysfs_debugfs_i915_debugfs_read_all_entries
 ```
 
 Please notice that any character that it is not a number nor a letter at the
@@ -376,7 +376,7 @@ OUT_DIR="${HOME}/results"
 
 mkdir -p $OUT_DIR/html
 
-echo "igt@debugfs_test@read_all_entries" > $TESTLIST
+echo "igt@intel_sysfs_debugfs@i915-debugfs-read-all-entries" > $TESTLIST
 echo "igt@core_auth@basic-auth" >> $TESTLIST
 echo "igt@gem_exec_basic@basic" >> $TESTLIST
 
@@ -401,8 +401,8 @@ genhtml -q -s --legend --branch-coverage $OUT_DIR/results.info
 Running such script produces the following output:
 
 ```
-[3622.993304] [1/3] debugfs_test (read_all_entries)
-[3631.95]     Code coverage wrote to results/code_cov/debugfs_test_read_all_entries.info
+[3622.993304] [1/3] intel_sysfs_debugfs (i915-debugfs-read-all-entries)
+[3631.95]     Code coverage wrote to results/code_cov/intel_sysfs_debugfs_i915_debugfs_read_all_entries.info
 [3626.217016] Storing code coverage results...
 [3631.957998] [2/3] core_auth (basic-auth)
 [3638.03]     Code coverage wrote to results/code_cov/core_auth_basic_auth.info
@@ -419,7 +419,7 @@ core_auth_basic_auth.info:
 Ignored......: non-drm headers and source files where none of its code ran.
 Source files.: 23.27% (165 of 709 total), 29.57% (165 of 558 filtered)
 
-debugfs_test_read_all_entries.info:
+intel_sysfs_debugfs_i915_debugfs_read_all_entries.info:
   lines......: 19.3% (20266 of 104802 lines)
   functions..: 17.5% (1922 of 10971 functions)
   branches...: 12.7% (9462 of 74555 branches)

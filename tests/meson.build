@@ -88,7 +88,6 @@ intel_i915_xe_progs = [
 
 intel_i915_progs = [
 	'api_intel_bb',
-	'debugfs_test',
 	'drm_fdinfo',
 	'gen3_mixed_blits',
 	'gen3_render_linear_blits',
@@ -281,7 +280,6 @@ intel_xe_progs = [
 	'xe_compute_preempt',
 	'xe_copy_basic',
 	'xe_dma_buf_sync',
-	'xe_debugfs',
 	'xe_drm_fdinfo',
 	'xe_eu_stall',
 	'xe_evict',

@@ -5,7 +5,7 @@
     "files": [ "*.c", "../core_auth.c", "../core_getclient.c",
                "../core_getstats.c", "../core_getversion.c",
                "../core_hotunplug.c", "../core_setmaster.c",
-               "../core_setmaster_vs_auth.c", "../debugfs_test.c",
+               "../core_setmaster_vs_auth.c",
                "../device_reset.c", "../dmabuf.c",
                "../drm_import_export.c", "../drm_mm.c",
                "../dumb_buffer.c", "../prime_busy.c", "../prime_mmap.c",

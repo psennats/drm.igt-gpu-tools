@@ -3,9 +3,6 @@ igt@i915_module_load@load
 
 # Keep alphabetically sorted by default
 igt@core_auth@basic-auth
-igt@debugfs_test@read_all_entries
-igt@debugfs_test@basic-hwmon
-igt@debugfs_test@sysfs
 igt@fbdev@eof
 igt@fbdev@info
 igt@fbdev@nullptr
@@ -55,6 +52,9 @@ igt@i915_getparams_basic@basic-eu-total
 igt@i915_getparams_basic@basic-subslice-total
 igt@i915_hangman@error-state-basic
 igt@i915_pciid
+igt@intel_hwmon
+igt@intel_sysfs_debugfs@i915-debugfs-read-all-entries
+igt@intel_sysfs_debugfs@i915-sysfs-read-all-entries
 igt@kms_addfb_basic@addfb25-4-tiled
 igt@kms_addfb_basic@addfb25-bad-modifier
 igt@kms_addfb_basic@addfb25-framebuffer-vs-set-tiling

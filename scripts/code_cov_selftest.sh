@@ -13,7 +13,7 @@ if [ -z "$IGT_KERNEL_TREE" ] ; then
         exit 1
 fi
 
-TEST="igt@debugfs_test@read_all_entries"
+TEST="igt@intel_sysfs_debugfs@i915-debugfs-read-all-entries"
 
 TESTLIST="my_tests.testlist"
 GATHER="scripts/code_cov_gather_on_test.py"
