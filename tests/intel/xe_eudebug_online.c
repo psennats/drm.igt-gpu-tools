@@ -1020,12 +1020,11 @@ static struct intel_bb *xe_bb_create_on_offset(int fd, uint32_t exec_queue, uint
 	return ibb;
 }
 
-static size_t get_bb_size(int flags)
+static size_t get_bb_size(int fd, struct gpgpu_shader *shader)
 {
-	if ((flags & SHADER_CACHING_SRAM) || (flags & SHADER_CACHING_VRAM))
-		return 32768;
+	size_t shader_size = shader->size * sizeof(uint32_t);
 
-	return 4096;
+	return ALIGN(shader_size, PAGE_SIZE) + xe_cs_prefetch_size(fd);
 }
 
 static uint64_t get_memory_region(int fd, int flags, int region_bitmask)
@@ -1044,7 +1043,7 @@ static void run_online_client(struct xe_eudebug_client *c)
 	int threads = get_number_of_threads(c->flags);
 	const uint64_t target_offset = 0x1a000000;
 	const uint64_t bb_offset = 0x1b000000;
-	const size_t bb_size = get_bb_size(c->flags);
+	size_t bb_size;
 	struct online_debug_data *data = c->ptr;
 	struct drm_xe_engine_class_instance hwe = data->hwe;
 	struct drm_xe_ext_set_property ext = {
@@ -1075,6 +1074,9 @@ static void run_online_client(struct xe_eudebug_client *c)
 	igt_assert(metadata[1]);
 
 	fd = xe_eudebug_client_open_driver(c);
+
+	shader = get_shader(fd, c->flags);
+	bb_size = get_bb_size(fd, shader);
 
 	/* Additional memory for steering control */
 	if (c->flags & SHADER_LOOP || c->flags & SHADER_SINGLE_STEP || c->flags & SHADER_PAGEFAULT)
@@ -1109,7 +1111,6 @@ static void run_online_client(struct xe_eudebug_client *c)
 	intel_bb_set_lr_mode(ibb, true);
 
 	sip = get_sip(fd, c->flags);
-	shader = get_shader(fd, c->flags);
 
 	igt_nsec_elapsed(&ts);
 	gpgpu_shader_exec(ibb, buf, w_dim.x, w_dim.y, shader, sip, 0, 0);
