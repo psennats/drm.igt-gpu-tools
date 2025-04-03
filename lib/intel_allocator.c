@@ -1535,9 +1535,10 @@ static void __xe_op_bind(struct ahnd_info *ainfo, uint32_t sync_in, uint32_t syn
 			igt_map_remove(ainfo->bind_map, &obj->handle,
 				       map_entry_free_func);
 	}
-	pthread_mutex_unlock(&ainfo->bind_map_mutex);
 
 	xe_bind_unbind_async(ainfo->fd, ainfo->vm, 0, &obj_list, sync_in, sync_out);
+
+	pthread_mutex_unlock(&ainfo->bind_map_mutex);
 
 	igt_list_for_each_entry_safe(entry, tmp, &obj_list, link) {
 		igt_list_del(&entry->link);
