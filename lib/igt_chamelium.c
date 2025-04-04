@@ -1878,7 +1878,7 @@ static void compared_frames_dump(cairo_surface_t *reference,
 	}
 
 	if (!capture_crc) {
-		chamelium_do_calculate_fb_crc(reference, &local_capture_crc);
+		chamelium_do_calculate_fb_crc(capture, &local_capture_crc);
 		capture_crc = &local_capture_crc;
 	}
 
