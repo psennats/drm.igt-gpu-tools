@@ -342,19 +342,19 @@ static bool test_pipe_limited_range_ctm(data_t *data,
 		{ 0.0, 0.0, limited_result }
 	};
 	color_t red_green_blue_full[] = {
-		{ 0.5, 0.0, 0.0 },
-		{ 0.0, 0.5, 0.0 },
-		{ 0.0, 0.0, 0.5 }
+		{ 1.0, 0.0, 0.0 },
+		{ 0.0, 1.0, 0.0 },
+		{ 0.0, 0.0, 1.0 }
 	};
 	double ctm[] = { 1.0, 0.0, 0.0,
-			0.0, 1.0, 0.0,
-			0.0, 0.0, 1.0 };
+			 0.0, 1.0, 0.0,
+			 0.0, 0.0, 1.0 };
 	gamma_lut_t *degamma_linear, *gamma_linear;
 	igt_output_t *output = data->output;
 	drmModeModeInfo *mode = data->mode;
-	struct igt_fb fb_modeset, fb, fbref;
-	struct chamelium_frame_dump *frame_limited;
-	int fb_id, fb_modeset_id, fbref_id;
+	struct igt_fb fb0, fb1;
+	struct chamelium_frame_dump *frame_limited, *frame_full;
+	int fb_id0, fb_id1;
 	bool ret = false;
 
 	igt_require(igt_pipe_obj_has_prop(primary->pipe, IGT_CRTC_CTM));
@@ -365,48 +365,49 @@ static bool test_pipe_limited_range_ctm(data_t *data,
 	igt_output_set_pipe(output, primary->pipe->pipe);
 
 	/* Create a framebuffer at the size of the output. */
-	fb_id = igt_create_fb(data->drm_fd,
-			      mode->hdisplay,
-			      mode->vdisplay,
-			      DRM_FORMAT_XRGB8888,
-			      DRM_FORMAT_MOD_LINEAR,
-			      &fb);
-	igt_assert(fb_id);
+	fb_id0 = igt_create_fb(data->drm_fd,
+			       mode->hdisplay,
+			       mode->vdisplay,
+			       DRM_FORMAT_XRGB8888,
+			       DRM_FORMAT_MOD_LINEAR,
+			       &fb0);
+	igt_assert(fb_id0);
 
-	fb_modeset_id = igt_create_fb(data->drm_fd,
-				      mode->hdisplay,
-				      mode->vdisplay,
-				      DRM_FORMAT_XRGB8888,
-				      DRM_FORMAT_MOD_LINEAR,
-				      &fb_modeset);
-	igt_assert(fb_modeset_id);
-
-	fbref_id = igt_create_fb(data->drm_fd,
-				 mode->hdisplay,
-				 mode->vdisplay,
-				 DRM_FORMAT_XRGB8888,
-				 DRM_FORMAT_MOD_LINEAR,
-				 &fbref);
-	igt_assert(fbref_id);
-
-	igt_plane_set_fb(primary, &fb_modeset);
+	fb_id1 = igt_create_fb(data->drm_fd,
+		               mode->hdisplay,
+			       mode->vdisplay,
+			       DRM_FORMAT_XRGB8888,
+			       DRM_FORMAT_MOD_LINEAR,
+			       &fb1);
+	igt_assert(fb_id1);
 
 	set_degamma(data, primary->pipe, degamma_linear);
 	set_gamma(data, primary->pipe, gamma_linear);
 	set_ctm(primary->pipe, ctm);
 
+	/* Set the output into full range. */
 	igt_output_set_prop_value(output,
 				  IGT_CONNECTOR_BROADCAST_RGB,
 				  BROADCAST_RGB_FULL);
-	paint_rectangles(data, mode, red_green_blue_limited, &fb);
-	igt_plane_set_fb(primary, &fb);
+	paint_rectangles(data, mode, red_green_blue_limited, &fb0);
+	igt_plane_set_fb(primary, &fb0);
 	igt_display_commit(&data->display);
+
+	chamelium_capture(data->chamelium, port, 0, 0, 0, 0, 1);
+	frame_full =
+		chamelium_read_captured_frame(data->chamelium, 0);
 
 	/* Set the output into limited range. */
 	igt_output_set_prop_value(output,
 				  IGT_CONNECTOR_BROADCAST_RGB,
 				  BROADCAST_RGB_16_235);
-	paint_rectangles(data, mode, red_green_blue_full, &fb);
+	paint_rectangles(data, mode, red_green_blue_full, &fb1);
+	igt_plane_set_fb(primary, &fb1);
+	igt_display_commit(&data->display);
+
+	chamelium_capture(data->chamelium, port, 0, 0, 0, 0, 1);
+	frame_limited =
+		chamelium_read_captured_frame(data->chamelium, 0);
 
 	/* And reset.. */
 	igt_output_set_prop_value(output,
@@ -414,18 +415,11 @@ static bool test_pipe_limited_range_ctm(data_t *data,
 				  BROADCAST_RGB_FULL);
 	igt_plane_set_fb(primary, NULL);
 	igt_output_set_pipe(output, PIPE_NONE);
-	chamelium_capture(data->chamelium, port, 0, 0, 0, 0, 1);
-	frame_limited =
-		chamelium_read_captured_frame(data->chamelium, 0);
 
-
-	/* Verify that the framebuffer reference of the software
-	 * computed output is equal to the frame dump of the CTM
-	 * matrix transformation output.
-	 */
-	ret = chamelium_frame_match_or_dump(data->chamelium, port,
-					    frame_limited, &fbref,
-					    CHAMELIUM_CHECK_ANALOG);
+	/* Verify frame dumps are equal. */
+	ret = chamelium_frame_match_or_dump_frame_pair(data->chamelium, port,
+						       frame_full, frame_limited,
+						       CHAMELIUM_CHECK_ANALOG);
 
 	free_lut(gamma_linear);
 	free_lut(degamma_linear);
