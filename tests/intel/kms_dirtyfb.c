@@ -386,7 +386,7 @@ igt_main
 
 					/* FBC Disp_ver 8 and below supports only I915_FORMAT_MOD_X_TILED */
 					if (data.feature == FEATURE_FBC &&
-					    intel_display_ver(intel_get_drm_devid(data.drm_fd) <= 8))
+					    intel_display_ver(intel_get_drm_devid(data.drm_fd)) <= 8)
 						data.modifier = I915_FORMAT_MOD_X_TILED;
 					else
 						data.modifier = DRM_FORMAT_MOD_LINEAR;
