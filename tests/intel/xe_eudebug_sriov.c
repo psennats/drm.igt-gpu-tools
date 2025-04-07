@@ -37,6 +37,9 @@ static bool has_vf_enable_eudebug_attr(int fd, unsigned int vf_num)
 
 /**
  * SUBTEST: deny-eudebug
+ * Mega feature: EUdebug
+ * Sub-category: EUdebug framework
+ * Functionality: EU debug and SR-IOV
  * Description:
  *	Check that eudebug toggle is not available for VFs, and that enabling
  *	eudebug with VFs enabled is not permitted.
@@ -74,6 +77,9 @@ static void test_deny_eudebug(int fd)
 
 /**
  * SUBTEST: deny-sriov
+ * Mega feature: EUdebug
+ * Sub-category: EUdebug framework
+ * Functionality: EU debug and SR-IOV
  * Description:
  *	Check that VFs cannot be enabled when eudebug is enabled.
  */

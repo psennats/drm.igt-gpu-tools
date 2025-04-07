@@ -7,7 +7,7 @@
  * TEST: Tests for eudebug online functionality
  * Category: Core
  * Mega feature: EUdebug
- * Sub-category: EUdebug tests
+ * Sub-category: EUdebug online
  * Functionality: eu kernel debug
  * Test category: functionality test
  */
@@ -1430,23 +1430,27 @@ static void pagefault_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: basic-breakpoint
+ * Functionality: EU attention event
  * Description:
  *	Check whether KMD sends attention events
  *	for workload in debug mode stopped on breakpoint.
  *
  * SUBTEST: breakpoint-not-in-debug-mode
+ * Functionality: EU attention event
  * Description:
  *	Check whether KMD resets the GPU when it spots an attention
  *	coming from workload not in debug mode.
  *
  * SUBTEST: stopped-thread
+ * Functionality: EU attention event
  * Description:
  *	Hits breakpoint on runalone workload and
  *	reads attention for fixed time.
  *
  * SUBTEST: resume-%s
+ * Functionality: EU control
  * Description:
- *	Resumes stopped on a breakpoint workload
+ *	Workload stopped on a breakpoint is resumed
  *	with granularity of %arg[1].
  *
  *
@@ -1479,6 +1483,7 @@ static void test_basic_online(int fd, struct drm_xe_engine_class_instance *hwe, 
 
 /**
  * SUBTEST: set-breakpoint
+ * Functionality: dynamic breakpoint
  * Description:
  *	Checks for attention after setting a dynamic breakpoint in the ufence event.
  */
@@ -1511,6 +1516,7 @@ static void test_set_breakpoint_online(int fd, struct drm_xe_engine_class_instan
 
 /**
  * SUBTEST: set-breakpoint-sigint-debugger
+ * Functionality: SIGINT
  * Description:
  *	A variant of set-breakpoint that sends SIGINT to the debugger thread with random timing
  *	and checks if nothing breaks, exercising the scenario multiple times.
@@ -1603,11 +1609,13 @@ static void test_set_breakpoint_online_sigint_debugger(int fd,
 
 /**
  * SUBTEST: pagefault-read
+ * Functionality: page faults
  * Description:
  *     Check whether KMD sends pagefault event for workload in debug mode that
  *     triggers a read pagefault.
  *
  * SUBTEST: pagefault-write
+ * Functionality: page faults
  * Description:
  *     Check whether KMD sends pagefault event for workload in debug mode that
  *     triggers a write pagefault.
@@ -1646,6 +1654,7 @@ static void test_pagefault_online(int fd, struct drm_xe_engine_class_instance *h
 
 /**
  * SUBTEST: preempt-breakpoint
+ * Functionality: EUdebug preemption timeout
  * Description:
  *	Verify that eu debugger disables preemption timeout to
  *	prevent reset of workload stopped on breakpoint.
@@ -1691,6 +1700,7 @@ static void test_preemption(int fd, struct drm_xe_engine_class_instance *hwe)
 
 /**
  * SUBTEST: reset-with-attention
+ * Functionality: EUdebug preemption timeout
  * Description:
  *	Check whether GPU is usable after resetting with attention raised
  *	(stopped on breakpoint) by running the same workload again.
@@ -1728,12 +1738,14 @@ static void test_reset_with_attention_online(int fd, struct drm_xe_engine_class_
 
 /**
  * SUBTEST: interrupt-all
+ * Functionality: EU control
  * Description:
  *	Schedules EU workload which should last about a few seconds, then
  *	interrupts all threads, checks whether attention event came, and
  *	resumes stopped threads back.
  *
  * SUBTEST: interrupt-all-set-breakpoint
+ * Functionality: dynamic breakpoint
  * Description:
  *	Schedules EU workload which should last about a few seconds, then
  *	interrupts all threads, once attention event come it sets breakpoint on
@@ -1815,12 +1827,14 @@ static void reset_debugger_log(struct xe_eudebug_debugger *d)
 
 /**
  * SUBTEST: interrupt-other-debuggable
+ * Functionality: EU control
  * Description:
  *	Schedules EU workload in runalone mode with never ending loop, while
  *	it is not under debug, tries to interrupt all threads using the different
  *	client attached to debugger.
  *
  * SUBTEST: interrupt-other
+ * Functionality: EU control
  * Description:
  *	Schedules EU workload with a never ending loop and, while it is not
  *	configured for debugging, tries to interrupt all threads using the client
@@ -1909,6 +1923,7 @@ static void test_interrupt_other(int fd, struct drm_xe_engine_class_instance *hw
 
 /**
  * SUBTEST: tdctl-parameters
+ * Functionality: EU control
  * Description:
  *	Schedules EU workload which should last about a few seconds, then
  *	checks negative scenarios of EU_THREADS ioctl usage, interrupts all threads,
@@ -2061,6 +2076,7 @@ static void eu_attention_debugger_detach_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: interrupt-reconnect
+ * Functionality: reopen connection
  * Description:
  *	Schedules EU workload which should last about a few seconds,
  *	interrupts all threads and detaches debugger when attention is
@@ -2134,12 +2150,14 @@ static void test_interrupt_reconnect(int fd, struct drm_xe_engine_class_instance
 
 /**
  * SUBTEST: single-step
+ * Functionality: EU control
  * Description:
  *	Schedules EU workload with 16 nops after breakpoint, then single-steps
  *	through the shader, advances all threads each step, checking if all
  *	threads advanced every step.
  *
  * SUBTEST: single-step-one
+ * Functionality: EU control
  * Description:
  *	Schedules EU workload with 16 nops after breakpoint, then single-steps
  *	through the shader, advances one thread each step, checking if one
@@ -2191,6 +2209,7 @@ static void eu_attention_debugger_ndetach_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: debugger-reopen
+ * Functionality: reopen connection
  * Description:
  *	Check whether the debugger is able to reopen the connection and
  *	capture the events of already running client.
@@ -2221,6 +2240,7 @@ static void test_debugger_reopen(int fd, struct drm_xe_engine_class_instance *hw
 
 /**
  * SUBTEST: writes-caching-%s-bb-%s-target-%s
+ * Functionality: cache coherency
  * Description:
  *	Write incrementing values to 2-page-long target surface, poisoning the data one breakpoint
  *	before each write instruction and restoring it when the poisoned instruction breakpoint
@@ -2346,12 +2366,14 @@ static uint64_t timespecs_diff_us(struct timespec *ts1, struct timespec *ts2)
 
 /**
  * SUBTEST: breakpoint-many-sessions-single-tile
+ * Functionality: multisession
  * Description:
  *	Schedules EU workload with preinstalled breakpoint on every compute engine
  *	available on the tile. Checks if the contexts hit breakpoint in sequence
  *	and resumes them.
  *
  * SUBTEST: breakpoint-many-sessions-tiles
+ * Functionality: multisession multiTile
  * Description:
  *	Schedules EU workload with preinstalled breakpoint on selected compute
  *      engines, with one per tile. Checks if each context hit breakpoint and

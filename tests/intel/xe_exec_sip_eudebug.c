@@ -217,22 +217,34 @@ xe_sysfs_get_job_timeout_ms(int fd, struct drm_xe_engine_class_instance *eci)
 
 /**
  * SUBTEST: wait-writesip-nodebug
+ * Sub-category: EUdebug HW
+ * Functionality: EU debugger SIP interaction
  * Description: verify that we don't enter SIP after wait with debugging disabled.
  *
  * SUBTEST: breakpoint-writesip-nodebug
+ * Sub-category: EUdebug HW
+ * Functionality: EU debugger SIP interaction
  * Description: verify that we don't enter SIP after hitting breakpoint in shader
  *		when debugging is disabled.
  *
  * SUBTEST: breakpoint-writesip
+ * Sub-category: EUdebug HW
+ * Functionality: EU debugger SIP interaction
  * Description: Test that we enter SIP after hitting breakpoint in shader.
  *
  * SUBTEST: breakpoint-writesip-twice
+ * Sub-category: EUdebug HW
+ * Functionality: EU debugger SIP interaction
  * Description: Test twice that we enter SIP after hitting breakpoint in shader.
  *
  * SUBTEST: breakpoint-waitsip
+ * Sub-category: EUdebug HW
+ * Functionality: EU debugger SIP interaction
  * Description: Test that we reset after seeing the attention without the debugger.
  *
  * SUBTEST: breakpoint-waitsip-heavy
+ * Sub-category: EUdebug HW
+ * Functionality: EU debugger SIP interaction
  * Description:
  *	Test that we reset after seeing the attention from heavy SIP, that resembles
  *	the production one, without the debugger.

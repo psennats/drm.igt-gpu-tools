@@ -7,7 +7,7 @@
  * TEST: Test EU Debugger functionality
  * Category: Core
  * Mega feature: EUdebug
- * Sub-category: EUdebug tests
+ * Sub-category: EUdebug framework
  * Functionality: eu debugger framework
  * Test category: functionality test
  */
@@ -28,6 +28,7 @@
 
 /**
  * SUBTEST: sysfs-toggle
+ * Functionality: enable
  * Description:
  *	Exercise the debugger enable/disable sysfs toggle logic
  */
@@ -542,6 +543,7 @@ static int __debug_connect(int fd, int *debugfd, struct drm_xe_eudebug_connect *
 
 /**
  * SUBTEST: basic-connect
+ * Functionality: attach
  * Description:
  *	Exercise XE_EUDEBUG_CONNECT ioctl with passing
  *	valid and invalid params.
@@ -622,6 +624,7 @@ static void switch_user(__uid_t uid, __gid_t gid)
 
 /**
  * SUBTEST: connect-user
+ * Functionality: attach
  * Description:
  *	Verify unprivileged XE_EUDEBUG_CONNECT ioctl.
  *	Check:
@@ -758,6 +761,7 @@ static void test_connect_user(int fd)
 
 /**
  * SUBTEST: basic-close
+ * Functionality: attach
  * Description:
  *	Test whether eudebug can be reattached after closure.
  */
@@ -786,6 +790,7 @@ static void test_close(int fd)
 
 /**
  * SUBTEST: basic-read-event
+ * Functionality: events
  * Description:
  *	Synchronously exercise eu debugger event polling and reading.
  */
@@ -881,50 +886,59 @@ static void test_read_event(int fd)
 
 /**
  * SUBTEST: basic-client
+ * Functionality: attach
  * Description:
  *	Attach the debugger to process which opens and closes xe drm client.
  *
  * SUBTEST: basic-client-th
+ * Functionality: attach
  * Description:
  *	Create client basic resources (vms) in multiple threads
  *
  * SUBTEST: multiple-sessions
+ * Functionality: multisessions
  * Description:
  *	Simultaneously attach many debuggers to many processes.
  *	Each process opens and closes xe drm client and creates few resources.
  *
- * SUBTEST: basic-%s
+ * SUBTEST: basic-exec-queues
+ * Functionality: exec queues events
  * Description:
- *	Attach the debugger to process which creates and destroys a few %arg[1].
+ *	Attach the debugger to process which creates and destroys a few exec-queues.
+ *
+ * SUBTEST: basic-vms
+ * Functionality: VM events
+ * Description:
+ *	Attach the debugger to process which creates and destroys a few vms.
  *
  * SUBTEST: basic-vm-bind
+ * Functionality: VM bind event
  * Description:
  *	Attach the debugger to a process that performs synchronous vm bind
  *	and vm unbind.
  *
  * SUBTEST: basic-vm-bind-vm-destroy
+ * Functionality: VM bind event
  * Description:
  *	Attach the debugger to a process that performs vm bind, and destroys
  *	the vm without unbinding. Make sure that we don't get unbind events.
  *
  * SUBTEST: basic-vm-bind-extended
+ * Functionality: VM bind event
  * Description:
  *	Attach the debugger to a process that performs bind, bind array, rebind,
  *	partial unbind, unbind and unbind all operations.
  *
  * SUBTEST: multigpu-basic-client
+ * Functionality: attach multiGPU
  * Description:
  *	Attach the debugger to process which opens and closes xe drm client on all Xe devices.
  *
  * SUBTEST: multigpu-basic-client-many
+ * Functionality: attach multiGPU
  * Description:
  *	Simultaneously attach many debuggers to many processes on all Xe devices.
  *	Each process opens and closes xe drm client and creates few resources.
- *
- * arg[1]:
- *
- * @vms: vms
- * @exec-queues: exec queues
  */
 
 static void test_basic_sessions(int fd, unsigned int flags, int count, bool match_opposite)
@@ -951,22 +965,26 @@ static void test_basic_sessions(int fd, unsigned int flags, int count, bool matc
 
 /**
  * SUBTEST: basic-vm-bind-discovery
+ * Functionality: VM bind event
  * Description:
  *	Attach the debugger to a process that performs vm-bind before attaching
  *	and check if the discovery process reports it.
  *
  * SUBTEST: basic-vm-bind-metadata-discovery
+ * Functionality: VM bind metadata
  * Description:
  *	Attach the debugger to a process that performs vm-bind with metadata attached
  *	before attaching and check if the discovery process reports it.
  *
  * SUBTEST: basic-vm-bind-vm-destroy-discovery
+ * Functionality: VM bind event
  * Description:
  *	Attach the debugger to a process that performs vm bind, and destroys
  *	the vm without unbinding before attaching. Make sure that we don't get
  *	any bind/unbind and vm create/destroy events.
  *
  * SUBTEST: basic-vm-bind-extended-discovery
+ * Functionality: VM bind event
  * Description:
  *	Attach the debugger to a process that performs bind, bind array, rebind,
  *	partial unbind, and unbind all operations before attaching. Ensure that
@@ -1077,6 +1095,7 @@ static void run_discovery_client(struct xe_eudebug_client *c)
 
 /**
  * SUBTEST: discovery-%s
+ * Functionality: event discovery
  * Description: Race discovery against %arg[1] and the debugger dettach.
  *
  * arg[1]:
@@ -1562,12 +1581,14 @@ static void vm_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: basic-vm-access
+ * Functionality: VM access
  * Description:
  *      Exercise XE_EUDEBUG_VM_OPEN with pread and pwrite into the
  *      vm fd, concerning many different offsets inside the vm,
  *      and many virtual addresses of the vm_bound object.
  *
  * SUBTEST: basic-vm-access-userptr
+ * Functionality: VM access
  * Description:
  *      Exercise XE_EUDEBUG_VM_OPEN with pread and pwrite into the
  *      vm fd, concerning many different offsets inside the vm,
@@ -1713,11 +1734,13 @@ static void vm_trigger_access_parameters(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: basic-vm-access-parameters
+ * Functionality: VM access
  * Description:
  *      Check negative scenarios of VM_OPEN ioctl and pread/pwrite usage
  *      with bo backing storage.
  *
  * SUBTEST: basic-vm-access-parameters-userptr
+ * Functionality: VM access
  * Description:
  *      Check negative scenarios of VM_OPEN ioctl and pread/pwrite usage
  *      with userptr backing storage.
@@ -1845,6 +1868,7 @@ static void metadata_read_on_vm_bind_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: read-metadata
+ * Functionality: metadata
  * Description:
  *      Exercise DRM_XE_EUDEBUG_IOCTL_READ_METADATA and debug metadata create|destroy events.
  */
@@ -1857,6 +1881,7 @@ static void test_metadata_read(int fd, unsigned int flags, int num_clients)
 
 /**
  * SUBTEST: attach-debug-metadata
+ * Functionality: metadata
  * Description:
  *      Read debug metadata when vm_bind has it attached.
  */
@@ -2073,19 +2098,23 @@ static int wait_for_ufence_events(struct ufence_priv *priv, int timeout_ms)
 
 /**
  * SUBTEST: basic-vm-bind-ufence
+ * Functionality: VM bind event
  * Description:
  *      Give user fence in application and check if ufence ack works
  *
  * SUBTEST: basic-vm-bind-ufence-delay-ack
+ * Functionality: VM bind event
  * Description:
  *	Give user fence in application and check if delayed ufence ack works
  *
  * SUBTEST: basic-vm-bind-ufence-reconnect
+ * Functionality: VM bind event
  * Description:
  *	Give user fence in application, hold it, drop the debugger connection and check if anything
  *	breaks. Expect that held acks are released when connection is dropped.
  *
  * SUBTEST: basic-vm-bind-ufence-sigint-client
+ * Functionality: SIGINT
  * Description:
  *	Give user fence in application, hold it, send SIGINT to client and check if anything breaks.
  */
@@ -2395,6 +2424,7 @@ static void vm_bind_clear_ack_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: vm-bind-clear
+ * Functionality: memory access
  * Description:
  *      Check that fresh buffers we vm_bind into the ppGTT are always clear.
  */
@@ -2610,6 +2640,7 @@ static void vma_ufence_trigger(struct xe_eudebug_debugger *d,
 
 /**
  * SUBTEST: vma-ufence
+ * Functionality: check ufence blocking
  * Description:
  *      Intercept vm bind after receiving ufence event, then access target vm and write to it.
  *      Then check on client side if the write was successful.
@@ -2647,6 +2678,7 @@ static void test_vma_ufence(int fd, unsigned int flags)
 
 /**
  * SUBTEST: basic-exec-queues-enable
+ * Functionality: exec queues events
  * Description:
  *      Test the exec queue property of enabling eudebug
  */
