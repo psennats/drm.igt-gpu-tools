@@ -361,6 +361,11 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
 
+		igt_require_pipe_crc(data.drm_fd);
+
+		igt_display_require(&data.display, data.drm_fd);
+		igt_display_require_output(&data.display);
+
 		if (is_intel_device(data.drm_fd))
 			data.devid = intel_get_drm_devid(data.drm_fd);
 
@@ -371,11 +376,6 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 		igt_assert(ret == 0 || errno == EINVAL);
 
 		kmstest_set_vt_graphics_mode();
-
-		igt_require_pipe_crc(data.drm_fd);
-
-		igt_display_require(&data.display, data.drm_fd);
-		igt_display_require_output(&data.display);
 
 		/* Get active pipes. */
 		last_pipe = 0;
