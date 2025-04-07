@@ -307,17 +307,17 @@ igt_main
 
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
 
+		igt_display_require(&data.display, data.drm_fd);
+		igt_require(data.display.is_atomic);
+		igt_display_require_output(&data.display);
+		display = &data.display;
+
 		ret = drmGetCap(data.drm_fd, DRM_CAP_CURSOR_WIDTH, &data.max_curw);
 		igt_assert(ret == 0 || errno == EINVAL);
 		ret = drmGetCap(data.drm_fd, DRM_CAP_CURSOR_HEIGHT, &data.max_curh);
 		igt_assert(ret == 0 || errno == EINVAL);
 
 		kmstest_set_vt_graphics_mode();
-
-		igt_display_require(&data.display, data.drm_fd);
-		igt_require(data.display.is_atomic);
-		igt_display_require_output(&data.display);
-		display = &data.display;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
