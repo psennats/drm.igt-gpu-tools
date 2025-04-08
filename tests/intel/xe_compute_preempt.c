@@ -40,13 +40,18 @@ test_compute_preempt(int fd, struct drm_xe_engine_class_instance *hwe, bool thre
 	igt_require_f(run_intel_compute_kernel_preempt(fd, hwe, threadgroup_preemption), "GPU not supported\n");
 }
 
+#define CONTEXT_MB 100
+
 igt_main
 {
 	int xe;
 	struct drm_xe_engine_class_instance *hwe;
+	uint64_t ram_mb;
 
-	igt_fixture
+	igt_fixture {
 		xe = drm_open_driver(DRIVER_XE);
+		ram_mb = igt_get_avail_ram_mb();
+	}
 
 	igt_subtest_with_dynamic("compute-preempt") {
 		xe_for_each_engine(xe, hwe) {
@@ -64,13 +69,16 @@ igt_main
 				continue;
 
 			igt_dynamic_f("engine-%s", xe_engine_class_string(hwe->engine_class)) {
-				uint16_t dev_id = intel_get_drm_devid(xe);
 				int child_count;
 
-				if (IS_PANTHERLAKE(dev_id))
-					child_count = 50;
-				else
-					child_count = 100;
+				/*
+				 * Get half of ram / 2, then divide by
+				 * CONTEXT_MB * 2 (long and short) job
+				 */
+				child_count = ram_mb / 2 / CONTEXT_MB / 2;
+
+				igt_debug("RAM: %zd, child count: %d\n",
+					  ram_mb, child_count);
 
 				test_compute_preempt(xe, hwe, false);
 				igt_fork(child, child_count)
