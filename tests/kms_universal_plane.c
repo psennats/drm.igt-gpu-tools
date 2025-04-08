@@ -703,6 +703,16 @@ cursor_leak_test_pipe(data_t *data, enum pipe pipe, igt_output_t *output)
 			    COMMIT_ATOMIC : COMMIT_LEGACY);
 	cursor_leak_test_fini(data, output, &background_fb, cursor_fb);
 
+	/* Since unpinning of cursor fb occurs during vblank in xe, we need
+	 * to wait atleast 1 vblank for driver to remove cursor fb. We need
+	 * 1 additional vblank because vblank event is scheduled before
+	 * unpinning. Therefore add 2 vblank wait to ensure that all
+	 * cursor-related framebuffers can be removed before counting the
+	 * framebuffer.
+	 */
+	if (is_xe_device(data->drm_fd))
+		igt_wait_for_vblank_count(data->drm_fd, data->display.pipes[pipe].crtc_offset, 2);
+
 	/* We should be back to the same framebuffer count as when we started */
 	count2 = intel_gem_fb_count(data);
 
