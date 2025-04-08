@@ -29,6 +29,12 @@
  * Description:
  *      Exercise multiple walker mid thread preemption scenario
  *
+ * SUBTEST: compute-preempt-many-all-ram
+ * GPU requirement: LNL, PTL
+ * Description:
+ *      Exercise multiple walker mid thread preemption scenario consuming
+ *      whole ram only when there's swap on the machine
+ *
  * SUBTEST: compute-threadgroup-preempt
  * GPU requirement: LNL, PTL
  * Description:
@@ -46,11 +52,12 @@ igt_main
 {
 	int xe;
 	struct drm_xe_engine_class_instance *hwe;
-	uint64_t ram_mb;
+	uint64_t ram_mb, swap_mb;
 
 	igt_fixture {
 		xe = drm_open_driver(DRIVER_XE);
 		ram_mb = igt_get_avail_ram_mb();
+		swap_mb = igt_get_total_swap_mb();
 	}
 
 	igt_subtest_with_dynamic("compute-preempt") {
@@ -76,6 +83,33 @@ igt_main
 				 * CONTEXT_MB * 2 (long and short) job
 				 */
 				child_count = ram_mb / 2 / CONTEXT_MB / 2;
+
+				igt_debug("RAM: %zd, child count: %d\n",
+					  ram_mb, child_count);
+
+				test_compute_preempt(xe, hwe, false);
+				igt_fork(child, child_count)
+					test_compute_preempt(xe, hwe, false);
+				igt_waitchildren();
+			}
+		}
+	}
+
+	igt_subtest_with_dynamic("compute-preempt-many-all-ram") {
+		igt_require(swap_mb > CONTEXT_MB * 10);
+
+		xe_for_each_engine(xe, hwe) {
+			if (hwe->engine_class != DRM_XE_ENGINE_CLASS_COMPUTE)
+				continue;
+
+			igt_dynamic_f("engine-%s", xe_engine_class_string(hwe->engine_class)) {
+				int child_count;
+
+				/*
+				 * Get whole ram, then divide by
+				 * CONTEXT_MB * 2 (long and short) job
+				 */
+				child_count = ram_mb / CONTEXT_MB / 2;
 
 				igt_debug("RAM: %zd, child count: %d\n",
 					  ram_mb, child_count);
