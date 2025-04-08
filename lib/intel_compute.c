@@ -46,7 +46,7 @@
 #define OFFSET_STATE_SIP			0xFFFF0000
 
 #define USER_FENCE_VALUE			0xdeadbeefdeadbeefull
-
+#define MAGIC_LOOP_STOP			0x12341234
 /*
  * TGP  - ThreadGroup Preemption
  * WMTP - Walker Mid Thread Preemption
@@ -1874,6 +1874,8 @@ bool xe_run_intel_compute_kernel_on_engine(int fd,
  * @short_kernel_size: size of @short_kernel
  * @sip_kernel: WMTP sip kernel which does save restore during preemption
  * @sip_kernel_size: size of @sip_kernel
+ * @loop_kernel: loop kernel binary stoppable by cpu write
+ * @loop_kernel_size: size of @loop_kernel
  */
 static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel,
 					unsigned int long_kernel_size,
@@ -1881,6 +1883,8 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 					unsigned int short_kernel_size,
 					const unsigned char *sip_kernel,
 					unsigned int sip_kernel_size,
+					const unsigned char *loop_kernel,
+					unsigned int loop_kernel_size,
 					struct drm_xe_engine_class_instance *eci,
 					bool threadgroup_preemption)
 {
@@ -1937,6 +1941,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	size_t bo_size_short = sizeof(*bo_sync_short);
 	uint32_t bo_short = 0;
 	int64_t timeout_short = 1;
+	bool use_loop_kernel = loop_kernel && !threadgroup_preemption;
 
 	if (threadgroup_preemption)
 		long_kernel_loop_count = TGP_long_kernel_loop_count;
@@ -1975,7 +1980,10 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	bo_sync_short->sync = 0;
 	sync_short.addr = ADDR_SYNC2;
 
-	bo_dict_long[0].size = ALIGN(long_kernel_size, 0x1000);
+	if (use_loop_kernel)
+		bo_dict_long[0].size = ALIGN(loop_kernel_size, 0x1000);
+	else
+		bo_dict_long[0].size = ALIGN(long_kernel_size, 0x1000);
 	bo_dict_short[0].size = ALIGN(short_kernel_size, 0x1000);
 
 	bo_dict_long[10].size = ALIGN(sip_kernel_size, 0x1000);
@@ -1984,7 +1992,10 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	bo_execenv_bind(&execenv_long, bo_dict_long, XE2_BO_PREEMPT_DICT_ENTRIES);
 	bo_execenv_bind(&execenv_short, bo_dict_short, XE2_BO_PREEMPT_DICT_ENTRIES);
 
-	memcpy(bo_dict_long[0].data, long_kernel, long_kernel_size);
+	if (use_loop_kernel)
+		memcpy(bo_dict_long[0].data, loop_kernel, loop_kernel_size);
+	else
+		memcpy(bo_dict_long[0].data, long_kernel, long_kernel_size);
 	memcpy(bo_dict_short[0].data, short_kernel, short_kernel_size);
 
 	memcpy(bo_dict_long[10].data, sip_kernel, sip_kernel_size);
@@ -2024,13 +2035,22 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 				    OFFSET_INDIRECT_DATA_START, OFFSET_KERNEL, OFFSET_STATE_SIP, false);
 
 	xe_exec_sync(fd, execenv_long.exec_queue, ADDR_BATCH, &sync_long, 1);
+
+	/* Wait until multiple LR jobs will start to occupy gpu */
+	if (use_loop_kernel)
+		sleep(1);
+
 	xe_exec_sync(fd, execenv_short.exec_queue, ADDR_BATCH, &sync_short, 1);
 
 	xe_wait_ufence(fd, &bo_sync_short->sync, USER_FENCE_VALUE, execenv_short.exec_queue,
 		       INT64_MAX);
+
 	/* Check that the long kernel has not completed yet */
 	igt_assert_neq(0, __xe_wait_ufence(fd, &bo_sync_long->sync, USER_FENCE_VALUE,
 					   execenv_long.exec_queue, &timeout_short));
+	if (use_loop_kernel)
+		((int *)bo_dict_long[4].data)[0] = MAGIC_LOOP_STOP;
+
 	xe_wait_ufence(fd, &bo_sync_long->sync, USER_FENCE_VALUE, execenv_long.exec_queue,
 		       INT64_MAX);
 
@@ -2040,7 +2060,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	munmap(bo_sync_short, bo_size_short);
 	gem_close(fd, bo_short);
 
-	for (int i = 0; i < SIZE_DATA; i++) {
+	for (int i = use_loop_kernel ? 1 : 0; i < SIZE_DATA; i++) {
 		float input = input_data[i];
 		float output = output_data[i];
 		float expected_output = input * input;
@@ -2067,9 +2087,11 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 			 */
 			igt_assert(f1 > long_kernel_loop_count);
 		} else {
-			if (f1 != long_kernel_loop_count)
-				igt_debug("[%4d] f1: %f != %u\n", i, f1, long_kernel_loop_count);
-			igt_assert(f1 == long_kernel_loop_count);
+			if (!loop_kernel) {
+				if (f1 != long_kernel_loop_count)
+					igt_debug("[%4d] f1: %f != %u\n", i, f1, long_kernel_loop_count);
+				igt_assert(f1 == long_kernel_loop_count);
+			}
 		}
 	}
 
@@ -2088,6 +2110,8 @@ static const struct {
 			     unsigned int short_kernel_size,
 			     const unsigned char *sip_kernel,
 			     unsigned int sip_kernel_size,
+			     const unsigned char *loop_kernel,
+			     unsigned int loop_kernel_size,
 			     struct drm_xe_engine_class_instance *eci,
 			     bool threadgroup_preemption);
 	uint32_t compat;
@@ -2149,6 +2173,8 @@ static bool __run_intel_compute_kernel_preempt(int fd,
 							  kernels->kernel, kernels->size,
 							  kernels->sip_kernel,
 							  kernels->sip_kernel_size,
+							  kernels->loop_kernel,
+							  kernels->loop_kernel_size,
 							  eci,
 							  threadgroup_preemption);
 

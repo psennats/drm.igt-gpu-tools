@@ -31,6 +31,8 @@ struct intel_compute_kernels {
 	const unsigned char *sip_kernel;
 	unsigned int long_kernel_size;
 	const unsigned char *long_kernel;
+	unsigned int loop_kernel_size;
+	const unsigned char *loop_kernel;
 };
 
 /**
