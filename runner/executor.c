@@ -615,6 +615,16 @@ void close_outputs(int *fds)
 	}
 }
 
+static void fsync_outputs(int *fds)
+{
+	int i;
+
+	for (i = 0; i < _F_LAST; i++) {
+		if (fds[i] >= 0)
+			fsync(fds[i]);
+	}
+}
+
 const char *get_out_filename(int fid)
 {
 	if (fid >= 0 && fid < _F_LAST)
@@ -1871,14 +1881,19 @@ static int execute_next_entry(struct execute_state *state,
 out_kmsgfd:
 	close(kmsgfd);
 out_pipe:
-	close_outputs(outputs);
 	close(outpipe[0]);
 	close(outpipe[1]);
 	close(errpipe[0]);
 	close(errpipe[1]);
+	if (settings->sync)
+		fsync_outputs(outputs);
 	close_outputs(outputs);
 out_dirfd:
+	if (settings->sync)
+		fsync(dirfd);
 	close(dirfd);
+	if (settings->sync)
+		fsync(resdirfd);
 
 	return result;
 }
