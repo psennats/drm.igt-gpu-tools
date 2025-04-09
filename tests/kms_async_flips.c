@@ -209,6 +209,14 @@ static void require_monotonic_timestamp(int fd)
 	igt_require_f(ret == 1, "Monotonic timestamps not supported\n");
 }
 
+static void require_atomic_async_cap(data_t *data)
+{
+	int ret = igt_has_drm_cap(data->drm_fd, DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP);
+
+	igt_require_f(ret >= 0, "Atomic async flip cap doesn't exist in this kernel\n");
+	igt_require_f(ret == 1, "Atomic async flip not supported by this driver\n");
+}
+
 static void test_init(data_t *data)
 {
 	drmModeModeInfo *mode;
@@ -689,6 +697,9 @@ static void run_test(data_t *data, void (*test)(data_t *))
 {
 	igt_display_t *display = &data->display;
 
+	if (data->atomic_path)
+		require_atomic_async_cap(data);
+
 	for_each_pipe_with_valid_output(display, data->pipe, data->output) {
 		igt_display_reset(display);
 
@@ -714,6 +725,9 @@ static void run_test(data_t *data, void (*test)(data_t *))
 
 static void run_test_with_modifiers(data_t *data, void (*test)(data_t *))
 {
+	if (data->atomic_path)
+		require_atomic_async_cap(data);
+
 	for_each_pipe_with_valid_output(&data->display, data->pipe, data->output) {
 		test_init(data);
 
