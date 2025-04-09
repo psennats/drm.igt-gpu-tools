@@ -234,6 +234,12 @@ static void test_init(data_t *data)
 	data->plane = igt_output_get_plane_type(data->output, DRM_PLANE_TYPE_PRIMARY);
 }
 
+static void test_init_ops(data_t *data)
+{
+	data->alternate_sync_async = false;
+	data->atomic_path = false;
+}
+
 static void test_init_fbs(data_t *data)
 {
 	int i;
@@ -785,8 +791,7 @@ igt_main
 
 		igt_describe("Wait for page flip events in between successive asynchronous flips");
 		igt_subtest_with_dynamic("async-flip-with-page-flip-events") {
-			data.alternate_sync_async = false;
-			data.atomic_path = false;
+			test_init_ops(&data);
 			if (is_intel_device(data.drm_fd))
 				run_test_with_modifiers(&data, test_async_flip);
 			else
@@ -796,7 +801,7 @@ igt_main
 		igt_describe("Wait for page flip events in between successive "
 			     "asynchronous flips using atomic path");
 		igt_subtest_with_dynamic("async-flip-with-page-flip-events-atomic") {
-			data.alternate_sync_async = false;
+			test_init_ops(&data);
 			data.atomic_path = true;
 			if (is_intel_device(data.drm_fd))
 				run_test_with_modifiers(&data, test_async_flip);
@@ -806,13 +811,14 @@ igt_main
 
 		igt_describe("Alternate between sync and async flips");
 		igt_subtest_with_dynamic("alternate-sync-async-flip") {
+			test_init_ops(&data);
 			data.alternate_sync_async = true;
-			data.atomic_path = false;
 			run_test(&data, test_async_flip);
 		}
 
 		igt_describe("Alternate between sync and async flips using atomic path");
 		igt_subtest_with_dynamic("alternate-sync-async-flip-atomic") {
+			test_init_ops(&data);
 			data.alternate_sync_async = true;
 			data.atomic_path = true;
 			run_test(&data, test_async_flip);
@@ -821,13 +827,14 @@ igt_main
 		igt_describe("Verify that the async flip timestamp does not "
 			     "coincide with either previous or next vblank");
 		igt_subtest_with_dynamic("test-time-stamp") {
-			data.atomic_path = false;
+			test_init_ops(&data);
 			run_test(&data, test_timestamp);
 		}
 
 		igt_describe("Verify that the async flip timestamp does not coincide "
 			     "with either previous or next vblank with atomic path");
 		igt_subtest_with_dynamic("test-time-stamp-atomic") {
+			test_init_ops(&data);
 			data.atomic_path = true;
 			run_test(&data, test_timestamp);
 		}
@@ -835,6 +842,7 @@ igt_main
 
 	igt_describe("Verify that the DRM_IOCTL_MODE_CURSOR passes after async flip");
 	igt_subtest_with_dynamic("test-cursor") {
+		test_init_ops(&data);
 		/*
 		 * Intel's PSR2 selective fetch adds other planes to state when
 		 * necessary, causing the async flip to fail because async flip is not
@@ -844,13 +852,13 @@ igt_main
 			      "PSR2 sel fetch causes cursor to be added to primary plane "
 			      "pages flips and async flip is not supported in cursor\n");
 
-		data.atomic_path = false;
 		run_test(&data, test_cursor);
 	}
 
 	igt_describe("Verify that the DRM_IOCTL_MODE_CURSOR passes after "
 		     "async flip with atomic commit");
 	igt_subtest_with_dynamic("test-cursor-atomic") {
+		test_init_ops(&data);
 		/*
 		 * Intel's PSR2 selective fetch adds other planes to state when
 		 * necessary, causing the async flip to fail because async flip is not
@@ -865,6 +873,7 @@ igt_main
 
 	igt_describe("Negative case to verify if changes in fb are rejected from kernel as expected");
 	igt_subtest_with_dynamic("invalid-async-flip") {
+		test_init_ops(&data);
 		/* TODO: support more vendors */
 		igt_require(is_intel_device(data.drm_fd));
 		igt_require(igt_display_has_format_mod(&data.display, DRM_FORMAT_XRGB8888,
@@ -872,13 +881,13 @@ igt_main
 		igt_require(igt_display_has_format_mod(&data.display, DRM_FORMAT_XRGB8888,
 						       I915_FORMAT_MOD_Y_TILED));
 
-		data.atomic_path = false;
 		run_test(&data, test_invalid);
 	}
 
 	igt_describe("Negative case to verify if changes in fb are rejected "
 		     "from kernel as expected when async flip is done using atomic path");
 	igt_subtest_with_dynamic("invalid-async-flip-atomic") {
+		test_init_ops(&data);
 		data.atomic_path = true;
 		/* TODO: support more vendors */
 		igt_require(is_intel_device(data.drm_fd));
@@ -892,16 +901,17 @@ igt_main
 
 	igt_describe("Use CRC to verify async flip scans out the correct framebuffer");
 	igt_subtest_with_dynamic("crc") {
+		test_init_ops(&data);
 		/* Devices without CRC can't run this test */
 		igt_require_pipe_crc(data.drm_fd);
 
-		data.atomic_path = false;
 		run_test(&data, test_crc);
 	}
 
 	igt_describe("Use CRC to verify async flip scans out the correct framebuffer "
 		     "with atomic commit");
 	igt_subtest_with_dynamic("crc-atomic") {
+		test_init_ops(&data);
 		/* Devices without CRC can't run this test */
 		igt_require_pipe_crc(data.drm_fd);
 
@@ -911,6 +921,7 @@ igt_main
 
 	igt_describe("Verify the async flip functionality after suspend and resume cycle");
 	igt_subtest_with_dynamic("async-flip-suspend-resume") {
+		test_init_ops(&data);
 		data.suspend_resume = true;
 		run_test(&data, test_async_flip);
 	}
