@@ -85,6 +85,9 @@
  *
  * SUBTEST: async-flip-suspend-resume
  * Description: Verify the async flip functionality with suspend and resume cycle
+ *
+ * SUBTEST: overlay-atomic
+ * Description: Verify overlay planes with async flips in atomic API
  */
 
 #define CURSOR_POS 128
@@ -105,12 +108,14 @@ typedef struct {
 	uint32_t crtc_id;
 	uint32_t refresh_rate;
 	struct igt_fb bufs[NUM_FBS];
+	struct igt_fb bufs_overlay[NUM_FBS];
 	igt_display_t display;
 	igt_output_t *output;
 	unsigned long flip_timestamp_us;
 	double flip_interval;
 	uint64_t modifier;
 	igt_plane_t *plane;
+	igt_plane_t *plane_overlay;
 	igt_pipe_crc_t *pipe_crc;
 	igt_crc_t ref_crc;
 	int flip_count;
@@ -122,6 +127,7 @@ typedef struct {
 	bool allow_fail;
 	struct buf_ops *bops;
 	bool atomic_path;
+	bool overlay_path;
 } data_t;
 
 static void flip_handler(int fd_, unsigned int sequence, unsigned int tv_sec,
@@ -217,6 +223,25 @@ static void require_atomic_async_cap(data_t *data)
 	igt_require_f(ret == 1, "Atomic async flip not supported by this driver\n");
 }
 
+static void require_overlay_flip_support(data_t *data)
+{
+	struct igt_fb *bufs = data->bufs_overlay;
+	igt_plane_t *plane = data->plane_overlay;
+	int flags = DRM_MODE_PAGE_FLIP_EVENT;
+
+	igt_plane_set_fb(plane, &bufs[0]);
+
+	igt_require_f(!igt_display_try_commit_atomic(&data->display, flags, data),
+		      "Overlay planes not supported\n");
+
+	flags |= DRM_MODE_PAGE_FLIP_ASYNC;
+
+	igt_plane_set_fb(plane, &bufs[1]);
+
+	igt_require_f(!igt_display_try_commit_atomic(&data->display, flags, data),
+		      "Async flip for overlay planes not supported\n");
+}
+
 static void test_init(data_t *data)
 {
 	drmModeModeInfo *mode;
@@ -232,12 +257,15 @@ static void test_init(data_t *data)
 	igt_output_set_pipe(data->output, data->pipe);
 
 	data->plane = igt_output_get_plane_type(data->output, DRM_PLANE_TYPE_PRIMARY);
+	if (data->overlay_path)
+		data->plane_overlay = igt_output_get_plane_type(data->output, DRM_PLANE_TYPE_OVERLAY);
 }
 
 static void test_init_ops(data_t *data)
 {
 	data->alternate_sync_async = false;
 	data->atomic_path = false;
+	data->overlay_path = false;
 }
 
 static void test_init_fbs(data_t *data)
@@ -252,22 +280,40 @@ static void test_init_fbs(data_t *data)
 	width = mode->hdisplay;
 	height = mode->vdisplay;
 
+	/* if the modifier or the output changed, we need to recreate the buffers */
 	if (prev_output_id != data->output->id ||
 	    prev_modifier != data->modifier) {
 		prev_output_id = data->output->id;
 		prev_modifier = data->modifier;
 
-		if (data->bufs[0].fb_id) {
+		if (data->bufs[0].fb_id)
 			for (i = 0; i < NUM_FBS; i++)
 				igt_remove_fb(data->drm_fd, &data->bufs[i]);
-		}
 
+		if (data->bufs_overlay[0].fb_id)
+			for (i = 0; i < NUM_FBS; i++)
+				igt_remove_fb(data->drm_fd, &data->bufs_overlay[i]);
+	}
+
+	if (!data->bufs[0].fb_id)
 		for (i = 0; i < NUM_FBS; i++)
 			make_fb(data, &data->bufs[i], width, height, i);
-	}
 
 	igt_plane_set_fb(data->plane, &data->bufs[0]);
 	igt_plane_set_size(data->plane, width, height);
+
+	if (!data->bufs_overlay[0].fb_id && data->overlay_path) {
+		for (i = 0; i < NUM_FBS; i++)
+			make_fb(data, &data->bufs_overlay[i], width, height, i);
+
+		igt_plane_set_fb(data->plane_overlay, &data->bufs_overlay[0]);
+		igt_plane_set_size(data->plane_overlay, width, height);
+	}
+
+	/* remove unused buffers */
+	if (data->bufs_overlay[0].fb_id && !data->overlay_path)
+		for (i = 0; i < NUM_FBS; i++)
+			igt_remove_fb(data->drm_fd, &data->bufs_overlay[i]);
 }
 
 static bool async_flip_needs_extra_frame(data_t *data)
@@ -295,12 +341,17 @@ static bool async_flip_needs_extra_frame(data_t *data)
 static int perform_flip(data_t *data, int frame, int flags)
 {
 	int ret;
+	igt_plane_t *plane;
+	struct igt_fb *bufs;
+
+	plane = data->overlay_path ? data->plane_overlay : data->plane;
+	bufs = data->overlay_path ? data->bufs_overlay : data->bufs;
 
 	if (!data->atomic_path) {
 		ret = drmModePageFlip(data->drm_fd, data->crtc_id,
-				      data->bufs[frame % NUM_FBS].fb_id, flags, data);
+				     bufs[frame % NUM_FBS].fb_id, flags, data);
 	} else {
-		igt_plane_set_fb(data->plane, &data->bufs[frame % NUM_FBS]);
+		igt_plane_set_fb(plane, &bufs[frame % NUM_FBS]);
 		ret = igt_display_try_commit_atomic(&data->display, flags, data);
 	}
 
@@ -315,6 +366,9 @@ static void test_async_flip(data_t *data)
 	int suspend_time = RUN_TIME / 2;
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
+
+	if (data->overlay_path)
+		require_overlay_flip_support(data);
 
 	gettimeofday(&start, NULL);
 	frame = 1;
@@ -824,6 +878,15 @@ igt_main
 			run_test(&data, test_async_flip);
 		}
 
+		igt_describe("Verify overlay planes with async flips in atomic API");
+		igt_subtest_with_dynamic("overlay-atomic") {
+			test_init_ops(&data);
+			igt_require(is_amdgpu_device(data.drm_fd));
+			data.atomic_path = true;
+			data.overlay_path = true;
+			run_test(&data, test_async_flip);
+		}
+
 		igt_describe("Verify that the async flip timestamp does not "
 			     "coincide with either previous or next vblank");
 		igt_subtest_with_dynamic("test-time-stamp") {
@@ -927,8 +990,10 @@ igt_main
 	}
 
 	igt_fixture {
-		for (i = 0; i < NUM_FBS; i++)
+		for (i = 0; i < NUM_FBS; i++) {
 			igt_remove_fb(data.drm_fd, &data.bufs[i]);
+			igt_remove_fb(data.drm_fd, &data.bufs_overlay[i]);
+		}
 
 		if (is_intel_device(data.drm_fd))
 			buf_ops_destroy(data.bops);
