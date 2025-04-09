@@ -203,8 +203,10 @@ static void make_fb(data_t *data, struct igt_fb *fb,
 
 static void require_monotonic_timestamp(int fd)
 {
-	igt_require_f(igt_has_drm_cap(fd, DRM_CAP_TIMESTAMP_MONOTONIC),
-		      "Monotonic timestamps not supported\n");
+	int ret = igt_has_drm_cap(fd, DRM_CAP_TIMESTAMP_MONOTONIC);
+
+	igt_require_f(ret >= 0, "Monotonic timestamps cap doesn't exist in this kernel\n");
+	igt_require_f(ret == 1, "Monotonic timestamps not supported\n");
 }
 
 static void test_init(data_t *data)
@@ -747,13 +749,16 @@ igt_main
 	int i;
 
 	igt_fixture {
+		int ret;
+
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
 		kmstest_set_vt_graphics_mode();
 		igt_display_require(&data.display, data.drm_fd);
 		igt_display_require_output(&data.display);
 
-		igt_require_f(igt_has_drm_cap(data.drm_fd, DRM_CAP_ASYNC_PAGE_FLIP),
-			      "Async Flip is not supported\n");
+		ret = igt_has_drm_cap(data.drm_fd, DRM_CAP_ASYNC_PAGE_FLIP);
+		igt_require_f(ret >= 0, "Async page flip cap doesn't exist in this kernel\n");
+		igt_require_f(ret == 1, "Async page flip is not supported\n");
 
 		if (is_intel_device(data.drm_fd))
 			data.bops = buf_ops_create(data.drm_fd);

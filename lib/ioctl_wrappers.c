@@ -1285,17 +1285,24 @@ int __kms_addfb(int fd, uint32_t handle,
  * @fd: Open DRM file descriptor.
  * @capability: DRM capability
  *
- * This helper verifies if the passed capability is
- * supported by the kernel
+ * This helper verifies if the passed capability is supported by the kernel.
+ * This function asserts in case of a bad file descriptor.
  *
- * Returns: Whether the capability is supported or not.
+ * Returns: negative value if error (e.g. cap does not exist), 0 if cap is
+ * not supported, 1 if cap is supported.
  */
-bool igt_has_drm_cap(int fd, uint64_t capability)
+int igt_has_drm_cap(int fd, uint64_t capability)
 {
-	struct drm_get_cap cap = { .capability = capability };
+	uint64_t value = 0;
+	int ret;
 
-	igt_assert(drmIoctl(fd, DRM_IOCTL_GET_CAP, &cap) == 0);
-	return cap.value;
+	ret = drmGetCap(fd, capability, &value);
+	if (ret) {
+		igt_assert_neq(errno, EBADF);
+		return -errno;
+	}
+
+	return value ? 1 : 0;
 }
 
 /**
