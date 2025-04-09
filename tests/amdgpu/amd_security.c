@@ -354,6 +354,18 @@ igt_main
 	amdgpu_secure_bounce(device, fd, &sdma_info, get_ip_block(device,
 			AMDGPU_HW_IP_DMA), is_secure);
 
+#ifdef AMDGPU_USERQ_ENABLED
+	igt_describe("amdgpu gfx command submission write linear helper with user queue");
+	igt_subtest("gfx-write-linear-helper-secure-umq")
+	amdgpu_command_submission_write_linear_helper(device,
+			get_ip_block(device, AMDGPU_HW_IP_GFX), is_secure, true);
+
+	igt_describe("amdgpu compute command submission write linear helper with user queue");
+	igt_subtest("compute-write-linear-helper-secure-umq")
+	amdgpu_command_submission_write_linear_helper(device,
+			get_ip_block(device, AMDGPU_HW_IP_COMPUTE), is_secure, true);
+#endif
+
 	igt_fixture {
 		amdgpu_device_deinitialize(device);
 		drm_close_driver(fd);
