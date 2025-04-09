@@ -2294,6 +2294,7 @@ static void test_polling_small_buf(void)
 	errno = 0;
 	ret = read(stream_fd, buf, sizeof(buf));
 	igt_assert_eq(ret, -1);
+	get_stream_status(stream_fd);
 	igt_assert_eq(errno, ENOSPC);
 
 	/* Poll with 0 timeout and expect POLLIN flag to be set */
@@ -2568,6 +2569,7 @@ test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 	errno = 0;
 	ret = read(stream_fd, buf, sizeof(buf));
 	igt_assert_eq(ret, -1);
+	get_stream_status(stream_fd);
 	igt_assert_eq(errno, EINVAL);
 
 	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
@@ -2584,6 +2586,7 @@ test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
 	/* Ensure num_reports can be read */
 	while ((ret = read(stream_fd, buf, sizeof(buf))) < 0 && errno == EINTR)
 		;
+	get_stream_status(stream_fd);
 	igt_assert_eq(ret, sizeof(buf));
 
 	__perf_close(stream_fd);
@@ -2727,6 +2730,7 @@ test_non_sampling_read_error(void)
 
 	ret = read(stream_fd, buf, sizeof(buf));
 	igt_assert_eq(ret, -1);
+	get_stream_status(stream_fd);
 	igt_assert_eq(errno, EINVAL);
 
 	__perf_close(stream_fd);
@@ -2768,6 +2772,7 @@ test_disabled_read_error(void)
 
 	ret = read(stream_fd, buf, sizeof(buf));
 	igt_assert_eq(ret, -1);
+	get_stream_status(stream_fd);
 	igt_assert_eq(errno, EINVAL);
 
 	__perf_close(stream_fd);
@@ -2786,6 +2791,7 @@ test_disabled_read_error(void)
 
 	ret = read(stream_fd, buf, sizeof(buf));
 	igt_assert_eq(ret, -1);
+	get_stream_status(stream_fd);
 	igt_assert_eq(errno, EINVAL);
 
 	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
