@@ -281,6 +281,8 @@ void amdgpu_user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_
 		return;
 	}
 
+	if (ctxt->secure)
+		gtt_flags |= AMDGPU_GEM_CREATE_ENCRYPTED;
 	r = amdgpu_query_uq_fw_area_info(device_handle, AMD_IP_GFX, 0, &ctxt->info);
 	igt_assert_eq(r, 0);
 
