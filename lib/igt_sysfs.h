@@ -183,14 +183,6 @@ int xe_sysfs_get_num_tiles(int xe_device);
 char *xe_sysfs_engine_path(int xe_device, int gt, int class, char *path, int pathlen);
 int xe_sysfs_engine_open(int xe_device, int gt, int class);
 
-enum xe_sysfs_driver_action {
-	XE_SYSFS_DRIVER_BIND,
-	XE_SYSFS_DRIVER_TRY_BIND,
-	XE_SYSFS_DRIVER_REBIND,
-};
-
-int xe_sysfs_driver_do(int xe_device, char pci_slot[], enum xe_sysfs_driver_action action);
-
 bool xe_sysfs_engine_class_get_property(int xe_device, int gt, uint16_t class, const char *property,
 					uint32_t *value);
 bool xe_sysfs_engine_class_set_property(int xe_device, int gt, uint16_t class, const char *property,
