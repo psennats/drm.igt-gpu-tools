@@ -15,6 +15,16 @@
  *		unrepresentable intervals.
  * Test category: negative test
  *
+ * SUBTEST: %s-invalid-string
+ * Description: Test to check if %s arg[1] schedule parameter checks for
+ *		invalid string values.
+ * Test category: negative test
+ *
+ * SUBTEST: %s-invalid-large-string
+ * Description: Test to check if %s arg[1] schedule parameter checks for
+ *		large invalid strings (4k).
+ * Test category: negative test
+ *
  * SUBTEST: %s-min-max
  * Description: Test to check if %s arg[1] schedule parameter checks for
  *		min max values.
@@ -38,6 +48,47 @@
 
 #include "xe_drm.h"
 #include "xe/xe_query.h"
+
+#define STR_LENGTH 4096
+
+/**
+ * generate_random_string:
+ * @str: pointer to string buffer that will be having random string generated.
+ * @length: length of string to generate.
+ *
+ * Generates random string that will always contain non-numerical characters.
+ */
+static void generate_random_string(char *str, size_t length)
+{
+	int type = 0;
+	int digit_count = 0;
+	int max_digits = length / 4;
+	int loop_count = length - 1;
+
+	for (size_t i = 0; i < loop_count; i++) {
+		if (digit_count >= max_digits)
+			type = rand() % 2;
+		else
+			type = rand() % 3;
+
+		switch (type) {
+		case 0:
+			str[i] = 'A' + (rand() % 26);
+			break;
+		case 1:
+			str[i] = 'a' + (rand() % 26);
+			break;
+		case 2:
+			str[i] = '0' + (rand() % 10);
+			digit_count++;
+			break;
+		default:
+			str[i] = '_';
+			break;
+		}
+	}
+	str[length - 1] = '\0';
+}
 
 static void test_invalid(int xe, int engine, const char **property,
 			 uint16_t class, int gt)
@@ -121,6 +172,52 @@ static void test_min_max(int xe, int engine, const char **property,
 	igt_assert_eq(set, default_max);
 }
 
+static void test_invalid_string(int xe, int engine, const char **property,
+				 uint16_t class, int gt)
+{
+	unsigned int saved, set;
+	static const char invalid_input[] = "999abc";
+
+	for (int i = 0; i < 3; i++) {
+		igt_assert_eq(igt_sysfs_scanf(engine, property[i], "%u", &saved), 1);
+		igt_info("Initial %s: %u\n", property[i], saved);
+		/* Assert if the invalid write is returning negative error */
+		igt_assert_lt(igt_sysfs_printf(engine, property[i], "%s",
+			      invalid_input), 0);
+
+		igt_assert_eq(igt_sysfs_scanf(engine, property[i], "%u", &set), 1);
+		/* Check if the values are unchanged. */
+		igt_assert_eq(set, saved);
+	}
+}
+
+static void test_invalid_large_string(int xe, int engine, const char **property,
+				       uint16_t class, int gt)
+{
+	unsigned int saved, set;
+	char *random_str;
+
+	random_str = (char *)malloc(sizeof(char) * (STR_LENGTH));
+	igt_assert_f(random_str, "Memory allocation failed\n");
+
+	generate_random_string(random_str, STR_LENGTH);
+	igt_debug("Generated random string: %.10s...\n", random_str);
+
+	for (int i = 0; i < 3; i++) {
+		igt_assert_eq(igt_sysfs_scanf(engine, property[i], "%u", &saved), 1);
+		igt_info("Initial %s: %u\n", property[i], saved);
+
+		/* Assert if the invalid write is returning negative error */
+		igt_assert_lt(igt_sysfs_printf(engine, property[i], "%s",
+			      random_str), 0);
+
+		igt_assert_eq(igt_sysfs_scanf(engine, property[i], "%u", &set), 1);
+		/* Check if the values are unchanged. */
+		igt_assert_eq(set, saved);
+	}
+	free(random_str);
+}
+
 #define MAX_GTS 8
 igt_main
 {
@@ -129,6 +226,8 @@ igt_main
 		void (*fn)(int, int, const char **, uint16_t, int);
 	} tests[] = {
 		{ "invalid", test_invalid },
+		{ "invalid-string", test_invalid_string },
+		{ "invalid-large-string", test_invalid_large_string },
 		{ "min-max", test_min_max },
 		{ }
 	};
