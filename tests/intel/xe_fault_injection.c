@@ -481,8 +481,6 @@ igt_main
 	igt_fixture {
 		close(sysfs);
 		drm_close_driver(fd);
-		xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_BIND);
+		igt_kmod_bind("xe", pci_slot);
 	}
-
-
 }
