@@ -672,7 +672,6 @@ int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 		return 0;
 
 	while ((de = readdir(dir))) {
-		int devfd;
 		bool ret;
 
 		if (de->d_type != DT_LNK || !isdigit(de->d_name[0]))
@@ -681,13 +680,8 @@ int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 		if (pci_device && strcmp(pci_device, de->d_name) != 0)
 			continue;
 
-		devfd = openat(dirfd(dir), de->d_name, O_RDONLY | O_CLOEXEC);
-		igt_assert(devfd >= 0);
-
-		ret = igt_sysfs_set(devfd, "driver/unbind", de->d_name);
+		ret = igt_sysfs_set(dirfd(dir), "unbind", de->d_name);
 		igt_assert(ret);
-
-		close(devfd);
 	}
 
 	closedir(dir);
