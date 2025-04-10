@@ -690,6 +690,8 @@ int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 		close(devfd);
 	}
 
+	closedir(dir);
+
 	return 0;
 }
 
