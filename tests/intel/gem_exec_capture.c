@@ -658,7 +658,7 @@ static bool needs_recoverable_ctx(int fd)
 		return false;
 
 	devid = intel_get_drm_devid(fd);
-	return gem_has_lmem(fd) ||  intel_graphics_ver(devid) > IP_VER(12, 0);
+	return intel_graphics_ver(devid) > IP_VER(12, 10);
 }
 
 #define find_first_available_engine(fd, ctx, e, saved) \
