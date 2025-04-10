@@ -228,7 +228,11 @@ igt_main
 
 		force_wedged(fd);
 		igt_assert_neq(simple_ioctl(fd), 0);
-		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
+
+		drm_close_driver(fd);
+		igt_kmod_rebind("xe", pci_slot);
+		fd = drm_open_driver(DRIVER_XE);
+
 		igt_assert_eq(simple_ioctl(fd), 0);
 		xe_for_each_engine(fd, hwe)
 			simple_exec(fd, hwe);
@@ -266,7 +270,10 @@ igt_main
 		 * Rebind the device and ensure proper operation is restored
 		 * for all engines.
 		 */
-		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
+		drm_close_driver(fd);
+		igt_kmod_rebind("xe", pci_slot);
+		fd = drm_open_driver(DRIVER_XE);
+
 		igt_assert_eq(simple_ioctl(fd), 0);
 		xe_for_each_engine(fd, hwe)
 			simple_exec(fd, hwe);
@@ -299,8 +306,7 @@ igt_main
 		}
 
 		/* Tests might have failed, force a rebind before exiting */
-		fd = xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_REBIND);
-
 		drm_close_driver(fd);
+		igt_kmod_rebind("xe", pci_slot);
 	}
 }
