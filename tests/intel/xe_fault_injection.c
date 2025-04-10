@@ -195,7 +195,9 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 	ignore_faults_in_dmesg(function_name);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
-	xe_sysfs_driver_do(fd, pci_slot, XE_SYSFS_DRIVER_TRY_BIND);
+
+	igt_kmod_bind("xe", pci_slot);
+
 	igt_assert_eq(-errno, INJECT_ERRNO);
 	injection_list_remove(function_name);
 }
