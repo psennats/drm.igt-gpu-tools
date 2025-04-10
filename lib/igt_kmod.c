@@ -666,6 +666,17 @@ int igt_kmod_bind(const char *mod_name, const char *pci_device)
 }
 
 /**
+ * igt_kmod_rebind: Unbind driver from devices and bind it again
+ * @mod_name: name of the module to rebind
+ * @pci_device: device to rebind to
+ */
+int igt_kmod_rebind(const char *mod_name, const char *pci_device)
+{
+	return igt_kmod_unbind(mod_name, pci_device) ||
+		igt_kmod_bind(mod_name, pci_device);
+}
+
+/**
  * igt_intel_driver_unload:
  *
  * Unloads an Intel driver and its dependencies.

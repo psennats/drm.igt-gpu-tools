@@ -39,6 +39,8 @@ int igt_kmod_unload(const char *mod_name);
 int igt_kmod_unbind(const char *mod_name, const char *pci_device);
 __attribute__((nonnull)) int igt_kmod_bind(const char *mod_name,
 					   const char *pci_device);
+__attribute__((nonnull)) int igt_kmod_rebind(const char *mod_name,
+					     const char *pci_device);
 
 int igt_audio_driver_unload(char **whom);
 
