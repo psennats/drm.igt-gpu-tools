@@ -667,7 +667,7 @@ int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 
 	dir = opendir(path);
 
-	/* Module may be loaded, but without any device bound */
+	/* Module not loaded, nothing to unbind */
 	if (!dir)
 		return 0;
 
