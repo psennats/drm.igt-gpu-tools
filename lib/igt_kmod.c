@@ -598,9 +598,7 @@ int __igt_intel_driver_unload(char **who, const char *driver)
 }
 
 /**
- * igt_kmod_unbind:
- *
- * Unbind driver from devices. Currently supports only PCI bus
+ * igt_kmod_unbind: Unbind driver from devices. Currently supports only PCI bus
  * @mod_name: name of the module to unbind
  * @pci_device: if provided, unbind only this device, otherwise unbind all devices
  */
@@ -637,6 +635,34 @@ int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 	closedir(dir);
 
 	return 0;
+}
+
+/**
+ * igt_kmod_bind: Bind driver to device
+ * @mod_name: name of the module to rebind
+ * @pci_device: device to bind
+ *
+ * Module should already be loaded
+ */
+int igt_kmod_bind(const char *mod_name, const char *pci_device)
+{
+	char path[PATH_MAX];
+	int dirlen, dirfd;
+	int ret;
+
+	dirlen = snprintf(path, sizeof(path), "/sys/module/%s/drivers/pci:%s/",
+			  mod_name, mod_name);
+	igt_assert(dirlen < sizeof(path));
+
+	dirfd = open(path, O_RDONLY | O_CLOEXEC);
+	if (dirfd < 0)
+		return dirfd;
+
+	ret = igt_sysfs_set(dirfd, "bind", pci_device);
+
+	close(dirfd);
+
+	return ret;
 }
 
 /**
