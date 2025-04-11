@@ -734,6 +734,17 @@ static const char * const i2c_speed_str[] = {
 	[3] = "1 MHz",
 };
 
+static const char * const control_type_str[] = {
+	[0] = "PMIC pin",
+	[1] = "LPSS PWM",
+	[2] = "PWM from Display Engine/Aux Default",
+	[3] = "PWM From LCD Panel",
+	[4] = "Panel driver interface",
+	[5] = "Legacy VESA eDP AUX Interface",
+	[6] = "PWM from Display Engine/VESA eDP1.5 SCR AUX Interface",
+	[7] = "PWM from Display Engine/Custom eDP AUX Interface",
+};
+
 static void dump_backlight_info(struct context *context,
 				const struct bdb_block *block)
 {
@@ -782,7 +793,8 @@ static void dump_backlight_info(struct context *context,
 
 		control = &backlight->backlight_control[i];
 
-		printf("\t\tControl type: %u\n", control->type);
+		printf("\t\tControl type: %s (%u)\n",
+		       to_str(control_type_str, control->type), control->type);
 		printf("\t\tController: %u\n", control->controller);
 
 		if (context->bdb->version < 234)
