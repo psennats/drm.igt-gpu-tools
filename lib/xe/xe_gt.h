@@ -23,4 +23,6 @@ int xe_gt_fill_engines_by_class(int fd, int gt, int class,
 				struct drm_xe_engine_class_instance eci[static XE_MAX_ENGINE_INSTANCE]);
 int xe_gt_count_engines_by_class(int fd, int gt, int class);
 
+int xe_gt_set_freq(int fd, int gt_id, const char *freq_name, uint32_t freq);
+uint32_t xe_gt_get_freq(int fd, int gt_id, const char *freq_name);
 #endif

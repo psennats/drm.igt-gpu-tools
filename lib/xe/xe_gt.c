@@ -4,6 +4,7 @@
  */
 
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/stat.h>
 
 #include "igt_core.h"
@@ -240,4 +241,67 @@ int xe_gt_count_engines_by_class(int fd, int gt, int class)
 			n++;
 
 	return n;
+}
+
+/**
+ * xe_gt_set_freq:
+ * @fd: pointer to xe drm fd
+ * @gt_id: GT id
+ * @freq_name: which GT freq(min, max) to change
+ * @freq: value of freq to set
+ *
+ * Set GT min/max frequency. Function will assert if the sysfs node is
+ * not found.
+ *
+ * Return: success or failure
+ */
+int xe_gt_set_freq(int fd, int gt_id, const char *freq_name, uint32_t freq)
+{
+	int ret = -EAGAIN;
+	char freq_attr[NAME_MAX];
+	int gt_fd;
+
+	snprintf(freq_attr, sizeof(freq_attr), "freq0/%s_freq", freq_name);
+	gt_fd = xe_sysfs_gt_open(fd, gt_id);
+	igt_assert_lte(0, gt_fd);
+
+	while (ret == -EAGAIN)
+		ret = igt_sysfs_printf(gt_fd, freq_attr, "%u", freq);
+
+	close(gt_fd);
+
+	return ret;
+}
+
+/**
+ * xe_gt_get_freq:
+ * @fd: pointer to xe drm fd
+ * @gt_id: GT id
+ * @freq_name: which GT freq(min, max, act, cur) to read
+ *
+ * Read the min/max/act/cur/rp0/rpn/rpe GT frequencies. Function will
+ * assert if the sysfs node is not found.
+ *
+ * Return: GT frequency value
+ */
+uint32_t xe_gt_get_freq(int fd, int gt_id, const char *freq_name)
+{
+	uint32_t freq;
+	int err = -EAGAIN;
+	char freq_attr[NAME_MAX];
+	int gt_fd;
+
+	snprintf(freq_attr, sizeof(freq_attr), "freq0/%s_freq", freq_name);
+	gt_fd = xe_sysfs_gt_open(fd, gt_id);
+	igt_assert_lte(0, gt_fd);
+
+	while (err == -EAGAIN)
+		err = igt_sysfs_scanf(gt_fd, freq_attr, "%u", &freq);
+
+	igt_assert_eq(err, 1);
+
+	igt_debug("gt%d: %s freq %u\n", gt_id, freq_name, freq);
+	close(gt_fd);
+
+	return freq;
 }
