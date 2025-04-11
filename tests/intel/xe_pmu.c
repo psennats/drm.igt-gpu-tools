@@ -376,6 +376,94 @@ static void test_gt_c6_idle(int xe, unsigned int gt)
 	close(pmu_fd);
 }
 
+/**
+ * SUBTEST: gt-frequency
+ * Description: Validate we can collect accurate frequency PMU stats
+ *		while running a workload.
+ */
+static void test_gt_frequency(int fd, struct drm_xe_engine_class_instance *eci)
+{
+	struct xe_cork *cork = NULL;
+	uint64_t end[2], start[2];
+	unsigned long config_rq_freq, config_act_freq;
+	double min[2], max[2];
+	uint32_t gt = eci->gt_id;
+	uint32_t orig_min = xe_gt_get_freq(fd, eci->gt_id, "min");
+	uint32_t orig_max = xe_gt_get_freq(fd, eci->gt_id, "max");
+	uint32_t vm;
+	int pmu_fd[2];
+
+	config_rq_freq = get_event_config(gt, NULL, "gt-requested-frequency");
+	pmu_fd[0] = open_group(fd, config_rq_freq, -1);
+
+	config_act_freq = get_event_config(gt, NULL, "gt-actual-frequency");
+	pmu_fd[1] = open_group(fd, config_act_freq, pmu_fd[0]);
+
+	vm = xe_vm_create(fd, 0, 0);
+
+	cork = xe_cork_create_opts(fd, eci, vm, 1, 1);
+	xe_cork_sync_start(fd, cork);
+
+	/*
+	 * Set GPU to min frequency and read PMU counters.
+	 */
+	igt_assert(xe_gt_set_freq(fd, gt, "max", orig_min) > 0);
+	igt_assert(xe_gt_get_freq(fd, gt, "max") == orig_min);
+
+	pmu_read_multi(pmu_fd[0], 2, start);
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	pmu_read_multi(pmu_fd[0], 2, end);
+
+	min[0] = (end[0] - start[0]);
+	min[1] = (end[1] - start[1]);
+
+	/*
+	 * Set GPU to max frequency and read PMU counters.
+	 */
+	igt_assert(xe_gt_set_freq(fd, gt, "max", orig_max) > 0);
+	igt_assert(xe_gt_get_freq(fd, gt, "max") == orig_max);
+	igt_assert(xe_gt_set_freq(fd, gt, "min", orig_max) > 0);
+	igt_assert(xe_gt_get_freq(fd, gt, "min") == orig_max);
+
+	pmu_read_multi(pmu_fd[0], 2, start);
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	pmu_read_multi(pmu_fd[0], 2, end);
+
+	max[0] = (end[0] - start[0]);
+	max[1] = (end[1] - start[1]);
+
+	xe_cork_sync_end(fd, cork);
+
+	/*
+	 * Restore min/max.
+	 */
+	igt_assert(xe_gt_set_freq(fd, gt, "min", orig_min) > 0);
+	igt_assert(xe_gt_get_freq(fd, gt, "min") == orig_min);
+
+	igt_info("Minimum frequency: requested %.1f, actual %.1f\n",
+		 min[0], min[1]);
+	igt_info("Maximum frequency: requested %.1f, actual %.1f\n",
+		 max[0], max[1]);
+
+	close(pmu_fd[0]);
+	close(pmu_fd[1]);
+
+	if (cork)
+		xe_cork_destroy(fd, cork);
+
+	xe_vm_destroy(fd, vm);
+
+	close(pmu_fd[0]);
+	close(pmu_fd[1]);
+
+	assert_within_epsilon(min[0], orig_min, tolerance);
+	/*
+	 * On thermally throttled devices we cannot be sure maximum frequency
+	 * can be reached so use larger tolerance downwards.
+	 */
+	assert_within_epsilon_up_down(max[0], orig_max, tolerance, 0.15f);
+}
+
 static unsigned int enable_and_provision_vfs(int fd)
 {
 	unsigned int gt, num_vfs;
@@ -425,6 +513,35 @@ static void disable_vfs(int fd)
 
 	igt_abort_on_f(autoprobe != igt_sriov_is_driver_autoprobe_enabled(fd),
 		       "Failed to restore sriov_drivers_autoprobe value\n");
+}
+
+static void stash_gt_freq(int fd, uint32_t **stash_min, uint32_t **stash_max)
+{
+	int num_gts, gt;
+
+	num_gts = xe_number_gt(fd);
+
+	*stash_min = (uint32_t *) malloc(sizeof(uint32_t) * num_gts);
+	*stash_max = (uint32_t *) malloc(sizeof(uint32_t) * num_gts);
+
+	igt_skip_on(*stash_min == NULL || *stash_max == NULL);
+
+	xe_for_each_gt(fd, gt) {
+		*stash_min[gt] = xe_gt_get_freq(fd, gt, "min");
+		*stash_max[gt] = xe_gt_get_freq(fd, gt, "max");
+	}
+}
+
+static void restore_gt_freq(int fd, uint32_t *stash_min, uint32_t *stash_max)
+{
+	int gt;
+
+	xe_for_each_gt(fd, gt) {
+		xe_gt_set_freq(fd, gt, "max", stash_max[gt]);
+		xe_gt_set_freq(fd, gt, "min", stash_min[gt]);
+	}
+	free(stash_min);
+	free(stash_max);
 }
 
 igt_main
@@ -480,6 +597,36 @@ igt_main
 
 		igt_fixture
 			disable_vfs(fd);
+	}
+
+	igt_subtest_group {
+		bool has_freq0_node, needs_freq_restore = false;
+		uint32_t *stash_min, *stash_max;
+
+		igt_fixture {
+			has_freq0_node = xe_sysfs_gt_has_node(fd, 0, "freq0");
+		}
+
+		igt_describe("Validate PMU GT freq measured is within the tolerance");
+		igt_subtest_with_dynamic("gt-frequency") {
+			igt_skip_on(!has_freq0_node);
+			stash_gt_freq(fd, &stash_min, &stash_max);
+			needs_freq_restore = true;
+			xe_for_each_gt(fd, gt) {
+				igt_dynamic_f("gt%u", gt)
+				xe_for_each_engine(fd, eci) {
+					if (gt == eci->gt_id) {
+						test_gt_frequency(fd, eci);
+						break;
+					}
+				}
+			}
+		}
+
+		igt_fixture {
+			if (needs_freq_restore)
+				restore_gt_freq(fd, stash_min, stash_max);
+		}
 	}
 
 	igt_fixture {
