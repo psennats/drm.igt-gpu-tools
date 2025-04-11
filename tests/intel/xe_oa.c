@@ -4736,9 +4736,11 @@ igt_main
 		__for_one_hwe_in_oag(hwe)
 			test_oa_exponents(hwe);
 
-	igt_subtest_with_dynamic("buffer-fill")
+	igt_subtest_with_dynamic("buffer-fill") {
+		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
 		__for_one_hwe_in_oag(hwe)
 			test_buffer_fill(hwe);
+	}
 
 	/**
 	 * SUBTEST: buffer-size
@@ -4747,13 +4749,16 @@ igt_main
 	igt_subtest_with_dynamic("buffer-size") {
 		long k = random() % num_buf_sizes;
 
+		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
 		__for_one_hwe_in_oag_w_arg(hwe, buf_sizes[k].name)
 			test_non_zero_reason(hwe, buf_sizes[k].size);
 	}
 
-	igt_subtest_with_dynamic("non-zero-reason")
+	igt_subtest_with_dynamic("non-zero-reason") {
+		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
 		__for_one_hwe_in_oag(hwe)
 			test_non_zero_reason(hwe, 0);
+	}
 
 	igt_subtest("disabled-read-error")
 		test_disabled_read_error();
