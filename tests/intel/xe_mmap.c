@@ -340,6 +340,24 @@ static void test_small_bar(int fd)
 	gem_close(fd, bo);
 }
 
+static int
+__xe_query(int fd, struct drm_xe_device_query *q)
+{
+	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, q))
+		return -errno;
+	return 0;
+}
+
+static int
+__xe_query_items(int fd, uint32_t *items, uint32_t n_items)
+{
+	struct drm_xe_device_query q = {
+		.size = n_items,
+		.data = to_user_pointer(items),
+	};
+	return __xe_query(fd, &q);
+}
+
 static void assert_caching(int fd, uint64_t placement, uint32_t flags,
 			   uint16_t cpu_caching, bool fail)
 {
@@ -359,7 +377,16 @@ static void assert_caching(int fd, uint64_t placement, uint32_t flags,
 	map = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, mmo);
 	igt_assert(map != MAP_FAILED);
 	map[0] = 0xdeadbeaf;
+	munmap(map, size);
 	gem_close(fd, handle);
+
+	/* Adding a Read-Only page check exercise */
+	map = mmap(0, size, PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+	igt_assert(map != MAP_FAILED);
+	igt_assert_eq(0, mprotect(map, size, PROT_READ));
+	igt_assert_lt(__xe_query_items(fd, map, 1), 0);
+	munmap(map, size);
+
 }
 
 /**
