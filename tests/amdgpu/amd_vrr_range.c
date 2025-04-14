@@ -22,6 +22,7 @@
 
 #include "igt.h"
 #include "igt_sysfs.h"
+#include "igt_device.h"
 #include "igt_amd.h"
 #include <fcntl.h>
 
@@ -30,7 +31,7 @@ IGT_TEST_DESCRIPTION("Test EDID parsing and debugfs reporting on Freesync displa
 /* Maximumm pipes on any AMD ASIC. */
 #define MAX_PIPES 6
 #define EDID_SIZE 256
-#define EDID_PATH "/sys/class/drm/card0-%s/edid"
+#define EDID_PATH "/sys/class/drm/card%d-%s/edid"
 
 /* Common test data. */
 struct vrr_range {
@@ -295,7 +296,7 @@ static bool find_vrr_range_from_edid(data_t *data, igt_output_t *output)
 
 	/* Get EDID */
 	igt_assert(snprintf(edid_path, PATH_MAX, EDID_PATH,
-			   output->name) < PATH_MAX);
+			   igt_device_get_card_index(data->fd), output->name) < PATH_MAX);
 
 	fd = open(edid_path, O_RDONLY);
 	if (fd == -1)
