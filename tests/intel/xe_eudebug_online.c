@@ -38,6 +38,7 @@
 #define TARGET_IN_VRAM			(1 << 13)
 #define SHADER_PAGEFAULT_READ		(1 << 14)
 #define SHADER_PAGEFAULT_WRITE		(1 << 15)
+#define FAULTABLE_VM			(1 << 16)
 #define TRIGGER_UFENCE_SET_BREAKPOINT	(1 << 24)
 #define TRIGGER_RESUME_SINGLE_WALK	(1 << 25)
 #define TRIGGER_RESUME_PARALLEL_WALK	(1 << 26)
@@ -1100,7 +1101,8 @@ static void run_online_client(struct xe_eudebug_client *c)
 							   2 * sizeof(**metadata), metadata[1]);
 
 	vm_flags = DRM_XE_VM_CREATE_FLAG_LR_MODE;
-	vm_flags |= c->flags & SHADER_PAGEFAULT ? DRM_XE_VM_CREATE_FLAG_FAULT_MODE : 0;
+	vm_flags |= c->flags & (SHADER_PAGEFAULT | FAULTABLE_VM) ?
+			DRM_XE_VM_CREATE_FLAG_FAULT_MODE : 0;
 
 	create.vm_id = xe_eudebug_client_vm_create(c, fd, vm_flags, 0);
 
@@ -1487,12 +1489,19 @@ static void test_basic_online(int fd, struct drm_xe_engine_class_instance *hwe, 
  * Functionality: dynamic breakpoint
  * Description:
  *	Checks for attention after setting a dynamic breakpoint in the ufence event.
+ *
+ * SUBTEST: set-breakpoint-faultable
+ * Functionality: dynamic breakpoint with FAULTABLE_VM
+ * Description:
+ *	Faultable variation of test set-breakpoint.
  */
 
 static void test_set_breakpoint_online(int fd, struct drm_xe_engine_class_instance *hwe, int flags)
 {
 	struct xe_eudebug_session *s;
 	struct online_debug_data *data;
+
+	igt_require(!(flags & FAULTABLE_VM) || !xe_supports_faults(fd));
 
 	data = online_debug_data_create(hwe);
 	s = xe_eudebug_session_create(fd, run_online_client, flags, data);
@@ -1752,12 +1761,19 @@ static void test_reset_with_attention_online(int fd, struct drm_xe_engine_class_
  *	interrupts all threads, once attention event come it sets breakpoint on
  *	the very next instruction and resumes stopped threads back. It expects
  *	that every thread hits the breakpoint.
+ *
+ * SUBTEST: interrupt-all-set-breakpoint-faultable
+ * Functionality: dynamic breakpoint with FAULTABLE_VM
+ * Description:
+ *	Faultable variation of test interrupt-all-set-breakpoint.
  */
 static void test_interrupt_all(int fd, struct drm_xe_engine_class_instance *hwe, int flags)
 {
 	struct xe_eudebug_session *s;
 	struct online_debug_data *data;
 	uint32_t val;
+
+	igt_require(!(flags & FAULTABLE_VM) || !xe_supports_faults(fd));
 
 	data = online_debug_data_create(hwe);
 	s = xe_eudebug_session_create(fd, run_online_client, flags, data);
@@ -2544,6 +2560,10 @@ igt_main
 	test_gt_render_or_compute("set-breakpoint", fd, hwe)
 		test_set_breakpoint_online(fd, hwe, SHADER_NOP | TRIGGER_UFENCE_SET_BREAKPOINT);
 
+	test_gt_render_or_compute("set-breakpoint-faultable", fd, hwe)
+		test_set_breakpoint_online(fd, hwe,
+					   SHADER_NOP | TRIGGER_UFENCE_SET_BREAKPOINT | FAULTABLE_VM);
+
 	test_gt_render_or_compute("set-breakpoint-sigint-debugger", fd, hwe)
 		test_set_breakpoint_online_sigint_debugger(fd, hwe,
 							   SHADER_NOP | TRIGGER_UFENCE_SET_BREAKPOINT);
@@ -2585,6 +2605,9 @@ igt_main
 
 	test_gt_render_or_compute("interrupt-all-set-breakpoint", fd, hwe)
 		test_interrupt_all(fd, hwe, SHADER_LOOP | TRIGGER_RESUME_SET_BP);
+
+	test_gt_render_or_compute("interrupt-all-set-breakpoint-faultable", fd, hwe)
+		test_interrupt_all(fd, hwe, SHADER_LOOP | TRIGGER_RESUME_SET_BP | FAULTABLE_VM);
 
 	test_gt_render_or_compute("tdctl-parameters", fd, hwe)
 		test_tdctl_parameters(fd, hwe, SHADER_LOOP);
