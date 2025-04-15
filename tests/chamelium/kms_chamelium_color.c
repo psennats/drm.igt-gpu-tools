@@ -31,6 +31,7 @@
  */
 
 #include "kms_color_helper.h"
+#include "kms_chamelium_helper.h"
 
 /**
  * SUBTEST: degamma
@@ -736,13 +737,29 @@ igt_main
 
 		if (!data.port_count)
 			igt_skip("No ports connected\n");
+
 		/*
-		 * We don't cause any harm by plugging
-		 * discovered ports, just incase they are not plugged
-		 * we currently skip in test_setup
+		 * The behavior differs based on the availability of port mappings:
+		 * - When using port mappings (chamelium_read_port_mappings),
+		 *   ports are not plugged
+		 * - During autodiscovery, all ports are plugged at the end.
+		 *
+		 * This quick workaround (unplug, plug, and re-probe the connectors)
+		 * prevents any ports from being unintentionally skipped in test_setup.
 		 */
-		for( i = 0; i < data.port_count; i++)
+		for (i = 0; i < data.port_count; i++) {
+			struct udev_monitor *mon;
+			int timeout = CHAMELIUM_HOTPLUG_TIMEOUT;
+			chamelium_unplug(data.chamelium, data.ports[i]);
+			mon = igt_watch_uevents();
 			chamelium_plug(data.chamelium, data.ports[i]);
+			igt_assert(chamelium_wait_for_hotplug(mon, &timeout));
+			igt_cleanup_uevents(mon);
+			igt_assert_f(chamelium_reprobe_connector(&data.display,
+								 data.chamelium,
+								 data.ports[i]) == DRM_MODE_CONNECTED,
+								 "Output not connected\n");
+		}
 
 		kmstest_set_vt_graphics_mode();
 	}
