@@ -490,6 +490,10 @@ test_aperture_limit(uint32_t region, uint64_t size)
 	uint64_t size1 = (gem_mappable_aperture_size(fd) * 7) / 8;
 	uint64_t size2 = (gem_mappable_aperture_size(fd) * 3) / 8;
 
+	igt_require(gem_has_mappable_ggtt(fd));
+	igt_require(size1 >= size2);
+	igt_require(size2 >= size);
+
 	handle1 = gem_create(fd, size1);
 	dma_buf_fd1 = prime_handle_to_fd_for_mmap(fd, handle1);
 	igt_assert(errno == 0);
