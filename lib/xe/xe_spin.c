@@ -125,6 +125,20 @@ void xe_spin_init(struct xe_spin *spin, struct xe_spin_opts *opts)
 		spin->batch[b++] = ticks_delta_addr >> 32;
 	}
 
+	if (opts->mem_copy) {
+		spin->batch[b++] = MEM_COPY_CMD;
+		spin->batch[b++] = opts->mem_copy->src->width - 1;
+		spin->batch[b++] = opts->mem_copy->src->height - 1;
+		spin->batch[b++] = opts->mem_copy->src->pitch - 1;
+		spin->batch[b++] = opts->mem_copy->dst->pitch - 1;
+		spin->batch[b++] = opts->mem_copy->src_offset;
+		spin->batch[b++] = opts->mem_copy->src_offset << 32;
+		spin->batch[b++] = opts->mem_copy->dst_offset;
+		spin->batch[b++] = opts->mem_copy->dst_offset << 32;
+		spin->batch[b++] = opts->mem_copy->src->mocs_index << XE2_MEM_COPY_MOCS_SHIFT |
+				   opts->mem_copy->dst->mocs_index;
+	}
+
 	spin->batch[b++] = MI_COND_BATCH_BUFFER_END | MI_DO_COMPARE | 2;
 	spin->batch[b++] = 0;
 	spin->batch[b++] = end_addr;

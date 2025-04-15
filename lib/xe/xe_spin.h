@@ -14,6 +14,7 @@
 
 #include "xe_query.h"
 #include "lib/igt_dummyload.h"
+#include "lib/intel_blt.h"
 
 /* Wrapper to integrate with igt_dummyload, aka igt_spin */
 igt_spin_t *xe_spin_create(int fd, const struct igt_spin_factory *opt);
@@ -25,10 +26,27 @@ void xe_spin_free(int fd, struct igt_spin *spin);
  */
 
 /**
+ * struct xe_spin_mem_copy
+ * @src: source BLT object
+ * @dst: destination BLT object
+ * @src_offset: source offset
+ * @dst_offset: destination offset
+ *
+ * Used to perform memory copy with the spinner.
+ */
+struct xe_spin_mem_copy {
+	struct blt_mem_object *src;
+	struct blt_mem_object *dst;
+	uint64_t src_offset;
+	uint64_t dst_offset;
+};
+
+/**
  * struct xe_spin_opts
  * @addr: offset of spinner within vm
  * @preempt: allow spinner to be preempted or not
  * @ctx_ticks: number of ticks after which spinner is stopped, applied if > 0
+ * @mem_copy: container of objects used for memory copy (optional)
  *
  * Used to initialize struct xe_spin spinner behavior.
  */
@@ -37,6 +55,7 @@ struct xe_spin_opts {
 	bool preempt;
 	uint32_t ctx_ticks;
 	bool write_timestamp;
+	struct xe_spin_mem_copy *mem_copy;
 };
 
 /* Mapped GPU object */
