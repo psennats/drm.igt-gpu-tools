@@ -1794,10 +1794,7 @@ bool xe_eudebug_enable(int fd, bool enable)
 	bool old = false;
 	int ret = __xe_eudebug_enable_getset(fd, &old, &enable);
 
-	if (ret) {
-		igt_skip_on(enable);
-		old = false;
-	}
+	igt_skip_on(ret);
 
 	return old;
 }
