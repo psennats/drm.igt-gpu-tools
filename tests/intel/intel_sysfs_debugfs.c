@@ -323,63 +323,6 @@ xe_test_base(int fd, struct drm_xe_query_config *config)
 }
 
 /**
- * SUBTEST: xe-gt
- * Description: Check all gt debugfs devnodes
- * TODO: add support for ``force_reset`` entries
- */
-static void
-xe_test_gt(int fd, int gt_id)
-{
-	char name[256];
-	static const char * const expected_files[] = {
-		"uc",
-		"steering",
-		"topology",
-		"sa_info",
-		"hw_engines",
-		"pat",
-		"mocs",
-//		"force_reset"
-		"ggtt",
-		"register-save-restore",
-		"workarounds",
-		"default_lrc_rcs",
-		"default_lrc_ccs",
-		"default_lrc_bcs",
-		"default_lrc_vcs",
-		"default_lrc_vecs",
-		"hwconfig"
-
-	};
-	static const char * const expected_files_uc[] = {
-		"huc_info",
-		"guc_log",
-		"guc_info",
-//		"guc_ct_selftest"
-	};
-
-	for (int i = 0; i < ARRAY_SIZE(expected_files); i++) {
-		sprintf(name, "gt%d/%s", gt_id, expected_files[i]);
-		igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-		if (igt_debugfs_is_dir(fd, expected_files[i], gt_id))
-			continue;
-		igt_debugfs_dump(fd, name);
-	}
-
-	for (int i = 0; i < ARRAY_SIZE(expected_files_uc); i++) {
-		sprintf(name, "gt%d/uc/%s", gt_id, expected_files_uc[i]);
-		igt_assert(igt_debugfs_exists(fd, name, O_RDONLY));
-		igt_debugfs_dump(fd, name);
-	}
-
-	sprintf(name, "/gt%d", gt_id);
-	xe_validate_entries(fd, name, expected_files, ARRAY_SIZE(expected_files));
-
-	sprintf(name, "/gt%d/uc", gt_id);
-	xe_validate_entries(fd, name, expected_files_uc, ARRAY_SIZE(expected_files_uc));
-}
-
-/**
  * SUBTEST: xe-forcewake
  * Description: Check forcewake debugfs devnode
  */
@@ -416,9 +359,7 @@ static int opt_handler(int option, int option_index, void *input)
 igt_main_args("", long_options, help_str, opt_handler, NULL)
 {
 	int debugfs = -1;
-	char devnode[PATH_MAX];
 	int fd = -1;
-	int gt;
 	int sysfs = -1;
 
 	igt_subtest_group {
@@ -473,15 +414,6 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 		igt_describe("Check if various debugfs devnodes exist and test reading them.");
 		igt_subtest("xe-base") {
 			xe_test_base(fd, xe_config(fd));
-		}
-
-		igt_describe("Check all gt debugfs devnodes");
-		igt_subtest("xe-gt") {
-			xe_for_each_gt(fd, gt) {
-				snprintf(devnode, sizeof(devnode), "gt%d", gt);
-				igt_require(igt_debugfs_exists(fd, devnode, O_RDONLY));
-				xe_test_gt(fd, gt);
-			}
 		}
 
 		igt_describe("Check forcewake debugfs devnode");

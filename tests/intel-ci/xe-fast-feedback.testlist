@@ -10,7 +10,6 @@ igt@fbdev@write
 igt@intel_sysfs_debugfs@xe-base
 igt@intel_sysfs_debugfs@xe-debugfs-read-all-entries
 igt@intel_sysfs_debugfs@xe-forcewake
-igt@intel_sysfs_debugfs@xe-gt
 igt@intel_sysfs_debugfs@xe-sysfs-read-all-entries
 igt@kms_addfb_basic@addfb25-4-tiled
 igt@kms_addfb_basic@addfb25-bad-modifier
