@@ -502,7 +502,7 @@ test_aperture_limit(uint32_t region, uint64_t size)
 	fill_bo_cpu(ptr1, size);
 	igt_assert(memcmp(ptr1, pattern, sizeof(pattern)) == 0);
 
-	handle2 = gem_create(fd, size1);
+	handle2 = gem_create(fd, size2);
 	dma_buf_fd2 = prime_handle_to_fd_for_mmap(fd, handle2);
 	igt_assert(errno == 0);
 	ptr2 = mmap(NULL, size2, PROT_READ | PROT_WRITE, MAP_SHARED, dma_buf_fd2, 0);
