@@ -57,6 +57,8 @@ struct user_execenv {
 	unsigned int kernel_size;
 	/** @skip_results_check: do not verify correctness of the results if true */
 	bool skip_results_check;
+	/** @array_size: size of input and output arrays */
+	uint32_t array_size;
 };
 
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
