@@ -159,7 +159,7 @@ void xe_spin_init(struct xe_spin *spin, struct xe_spin_opts *opts)
  */
 bool xe_spin_started(struct xe_spin *spin)
 {
-	return spin->start != 0;
+	return READ_ONCE(spin->start) != 0;
 }
 
 /**
@@ -176,7 +176,7 @@ void xe_spin_wait_started(struct xe_spin *spin)
 
 void xe_spin_end(struct xe_spin *spin)
 {
-	spin->end = 0;
+	WRITE_ONCE(spin->end, 0);
 }
 
 /**
