@@ -324,7 +324,7 @@ static void test_invalid_modeset_two_joiner(data_t *data,
 	igt_output_t *output;
 	igt_plane_t *primary[INVALID_TEST_OUTPUT];
 	igt_fb_t fb[INVALID_TEST_OUTPUT];
-	drmModeModeInfo *mode;
+	drmModeModeInfo mode;
 
 	available_pipe_mask = BIT(data->n_pipes) - 1;
 	outputs = force_joiner ? data->non_big_joiner_output :
@@ -341,15 +341,24 @@ static void test_invalid_modeset_two_joiner(data_t *data,
 
 		for (j = 0; j < INVALID_TEST_OUTPUT; j++) {
 			output = outputs[j];
+
+			if (!force_joiner) {
+				igt_require_f(bigjoiner_mode_found(data->drm_fd, output->config.connector, max_dotclock, &mode),
+							  "No big joiner mode found on output %s\n", output->name);
+				igt_output_override_mode(output, &mode);
+			} else {
+				mode = *igt_output_get_mode(output);
+			}
+
 			igt_output_set_pipe(output, data->pipe_seq[i + j]);
-			mode = igt_output_get_mode(output);
 			igt_info("Assigning pipe %s to %s with mode %dx%d@%d%s",
 				 kmstest_pipe_name(data->pipe_seq[i + j]),
-				 igt_output_name(output), mode->hdisplay,
-				 mode->vdisplay, mode->vrefresh,
+				 igt_output_name(output), mode.hdisplay,
+				 mode.vdisplay, mode.vrefresh,
 				 j == INVALID_TEST_OUTPUT - 1 ? "\n" : ", ");
 			primary[j] = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
-			igt_create_pattern_fb(data->drm_fd, mode->hdisplay, mode->vdisplay, DRM_FORMAT_XRGB8888,
+			igt_create_pattern_fb(data->drm_fd, mode.hdisplay, mode.vdisplay,
+					      DRM_FORMAT_XRGB8888,
 					      DRM_FORMAT_MOD_LINEAR, &fb[j]);
 			igt_plane_set_fb(primary[j], &fb[j]);
 		}
@@ -370,7 +379,7 @@ static void test_joiner_on_last_pipe(data_t *data, bool force_joiner)
 	igt_output_t *output;
 	igt_plane_t *primary;
 	igt_fb_t fb;
-	drmModeModeInfo *mode;
+	drmModeModeInfo mode;
 
 	len = force_joiner ? data->non_big_joiner_output_count : data->big_joiner_output_count;
 	outputs = force_joiner ? data->non_big_joiner_output : data->big_joiner_output;
@@ -379,15 +388,24 @@ static void test_joiner_on_last_pipe(data_t *data, bool force_joiner)
 		igt_display_reset(&data->display);
 		igt_display_commit2(&data->display, COMMIT_ATOMIC);
 		output = outputs[i];
+
+		if (!force_joiner) {
+			igt_require_f(bigjoiner_mode_found(data->drm_fd, output->config.connector, max_dotclock, &mode),
+						  "No big joiner mode found on output %s\n", output->name);
+			igt_output_override_mode(output, &mode);
+		} else {
+			mode = *igt_output_get_mode(output);
+		}
+
 		igt_output_set_pipe(output, data->pipe_seq[data->n_pipes - 1]);
-		mode = igt_output_get_mode(output);
 		igt_info(" Assigning pipe %s to %s with mode %dx%d@%d\n",
 				 kmstest_pipe_name(data->pipe_seq[data->n_pipes - 1]),
-				 igt_output_name(output), mode->hdisplay,
-				 mode->vdisplay, mode->vrefresh);
+				 igt_output_name(output), mode.hdisplay,
+				 mode.vdisplay, mode.vrefresh);
 		primary = igt_output_get_plane_type(output, DRM_PLANE_TYPE_PRIMARY);
-		igt_create_pattern_fb(data->drm_fd, mode->hdisplay, mode->vdisplay, DRM_FORMAT_XRGB8888,
-							  DRM_FORMAT_MOD_LINEAR, &fb);
+		igt_create_pattern_fb(data->drm_fd, mode.hdisplay, mode.vdisplay,
+				      DRM_FORMAT_XRGB8888,
+				      DRM_FORMAT_MOD_LINEAR, &fb);
 		igt_plane_set_fb(primary, &fb);
 		ret = igt_display_try_commit2(&data->display, COMMIT_ATOMIC);
 		igt_plane_set_fb(primary, NULL);
