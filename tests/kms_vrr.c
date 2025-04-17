@@ -124,6 +124,24 @@ typedef struct vtest_ns {
 	uint64_t max;
 } vtest_ns_t;
 
+typedef struct tolerance_config{
+	int min_rate;	/* Min refresh rate in Hz */
+	int max_rate;	/* Max refresh rate in Hz */
+	int tolerance;	/* Tolerance in Hz */
+} tolerance_config_t;
+
+/*
+ * Tolerance values are determined based on predefined ranges
+ * ≤ 120 Hz: +/- 1
+ * 121-240 Hz: +/- 10
+ * > 240 Hz: +/- 20
+ */
+tolerance_config_t tolerance_table[] = {
+	{1, 120, 1},
+	{121, 240, 10},
+	{241, INT_MAX, 20}
+};
+
 typedef struct data {
 	igt_display_t display;
 	int drm_fd;
@@ -410,6 +428,58 @@ do_flip(data_t *data, igt_fb_t *fb)
 	igt_reset_timeout();
 }
 
+static void
+calculate_tolerance(uint64_t *threshold_hi, uint64_t *threshold_lo, uint64_t rates_ns)
+{
+	uint32_t refresh_rate = NSECS_PER_SEC / rates_ns;
+
+	if (refresh_rate <= 0)
+		return;
+
+	/*
+	 * Current IGT implementation follows this sequence:
+	 * 1. Perform a page flip (`do_flip`).
+	 * 2. Wait for the flip completion event.
+	 * 3. Compare the timestamp of the flip completion event with the previous frame’s
+	 *    completion timestamp.
+	 * 4. Adjust CPU cycle burning based on the relative frame time.
+	 * 5. Tolerance Check: Determine if the flip completion time falls within
+	 *    the acceptable range.
+	 *
+	 * We set a tolerance value as the acceptable range of time within which a
+	 * flip completion event should occur. If a flip completes too early or too
+	 * late, it is marked as out of tolerance.
+	 * As a result, additional CPU cycles are burned to match the `target_ns`.
+	 * Even if the next frame is on time, the total frame time now includes:
+	 * Burned CPU cycle time (from the previous frame) + Flip completion event time.
+	 * This leads to miscalculation, causing **false out-of-range detections**.
+	 * The impact is more significant on High Refresh Rate (HRR) panels, where:
+	 * The allowed tolerance window is smaller and more correction time is required.
+	 * i.e. for 210hz (4.762ms), allowed range is 209hz(4.784ms) to 211hz(4.739ms).
+	 * This comes just 23 microsecond tolerance, which is much lesser
+	 * for accounting HW/SW latency, CPU burn cycle latency and correction logic
+	 * applied in igt for validation.
+	 *
+	 * To address this implement a Bucketing Strategy:
+	 * Provide a small tolerance buffer to allow IGT tests to account for correction.
+	 * Based on range of asked refresh rate. This prevents excessive failures due to minor
+	 * timing adjustments.
+	 */
+	for (int i = 0; i < ARRAY_SIZE(tolerance_table); i++) {
+		if (refresh_rate >= tolerance_table[i].min_rate &&
+		    refresh_rate <= tolerance_table[i].max_rate) {
+			*threshold_hi =
+				NSECS_PER_SEC / (((float)NSECS_PER_SEC / rates_ns) +
+							tolerance_table[i].tolerance);
+			*threshold_lo =
+				NSECS_PER_SEC / (((float)NSECS_PER_SEC / rates_ns) -
+							tolerance_table[i].tolerance);
+
+			return;
+		}
+	}
+}
+
 /*
  * Flips at the given rate and measures against the expected value.
  * Returns the pass rate as a percentage from 0 - 100.
@@ -439,9 +509,7 @@ flip_and_measure(data_t *data, igt_output_t *output, enum pipe pipe,
 		else
 			exp_rate_ns = vtest_ns.max;
 
-		/* Allow ~1 Hz deviation for different reasons causing delay. */
-		threshold_hi[i] = NSECS_PER_SEC / (((float)NSECS_PER_SEC / exp_rate_ns) + 1);
-		threshold_lo[i] = NSECS_PER_SEC / (((float)NSECS_PER_SEC / exp_rate_ns) - 1);
+		calculate_tolerance(&threshold_hi[i], &threshold_lo[i], exp_rate_ns);
 
 		igt_info("Requested rate[%d]: %"PRIu64" ns, Expected rate between: %"PRIu64" ns to %"PRIu64" ns\n",
 				i, rates_ns[i], threshold_hi[i], threshold_lo[i]);
@@ -496,6 +564,15 @@ flip_and_measure(data_t *data, igt_output_t *output, enum pipe pipe,
 		wait_ns = ((diff_ns + rate_ns - 1) / rate_ns) * rate_ns;
 		wait_ns -= diff_ns;
 		target_ns = event_ns + wait_ns;
+
+		/*
+		 * FIXME: This logic makes next immediate frame time calculation
+		 * in inconsistent state, even if next flip comes on correct time,
+		 * it will be marked as fail due to time difference from previous
+		 * flip. Needs to reset at every cycle for correct measurement.
+		 * Once this is corrected, igt/test can ask for more stricter pass
+		 * criteria.
+		 */
 
 		while (get_time_ns() < target_ns - 10);
 	}
