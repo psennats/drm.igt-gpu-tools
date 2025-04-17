@@ -118,6 +118,7 @@ struct amdgpu_ring_context {
 	uint32_t *pm4;		/* data of the packet */
 	uint32_t pm4_size;	/* max allocated packet size */
 	bool secure;		/* secure or not */
+	uint32_t priority;	/* user queue priority */
 
 	uint64_t bo_mc;		/* GPU address of first buffer */
 	uint64_t bo_mc2;	/* GPU address for p4 packet */
