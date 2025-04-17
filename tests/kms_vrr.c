@@ -511,8 +511,10 @@ flip_and_measure(data_t *data, igt_output_t *output, enum pipe pipe,
 
 		calculate_tolerance(&threshold_hi[i], &threshold_lo[i], exp_rate_ns);
 
-		igt_info("Requested rate[%d]: %"PRIu64" ns, Expected rate between: %"PRIu64" ns to %"PRIu64" ns\n",
-				i, rates_ns[i], threshold_hi[i], threshold_lo[i]);
+		igt_info("Requested rate[%d]: %" PRIu64 " ns (%.2f Hz), Expected rate between: %" PRIu64 " ns (%.2f Hz) to %" PRIu64 " ns (%.2f Hz)\n",
+			 i, rates_ns[i], (float)NSECS_PER_SEC / rates_ns[i], threshold_hi[i],
+			 (float)NSECS_PER_SEC / threshold_hi[i], threshold_lo[i],
+			 (float)NSECS_PER_SEC / threshold_lo[i]);
 	}
 
 	/* Align with the flip completion event to speed up convergence. */
@@ -537,8 +539,9 @@ flip_and_measure(data_t *data, igt_output_t *output, enum pipe pipe,
 		 */
 		event_ns = get_kernel_event_ns(data, DRM_EVENT_FLIP_COMPLETE);
 
-		igt_debug("event_ns - last_event_ns: %"PRIu64"\n",
-						(event_ns - last_event_ns));
+		igt_debug("event_ns - last_event_ns: %" PRIu64 " (%.2f Hz)\n",
+			  event_ns - last_event_ns,
+			  (float)NSECS_PER_SEC / (event_ns - last_event_ns));
 
 		/*
 		 * Check if the difference between the two flip timestamps
