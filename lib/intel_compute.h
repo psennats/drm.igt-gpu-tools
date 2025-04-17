@@ -59,6 +59,10 @@ struct user_execenv {
 	bool skip_results_check;
 	/** @array_size: size of input and output arrays */
 	uint32_t array_size;
+	/** @input_addr: override default address of the input array if provided */
+	uint64_t input_addr;
+	/** @output_addr: override default address of the output array if provided */
+	uint64_t output_addr;
 };
 
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
