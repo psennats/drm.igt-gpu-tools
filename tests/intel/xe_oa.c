@@ -380,9 +380,11 @@ static void set_fd_flags(int fd, int flags)
 static u32 get_stream_status(int fd)
 {
 	struct drm_xe_oa_stream_status status;
+	int _e = errno;
 
 	do_ioctl(fd, DRM_XE_OBSERVATION_IOCTL_STATUS, &status);
 	igt_debug("oa status %llx\n", status.oa_status);
+	errno = _e;
 
 	return status.oa_status;
 }
