@@ -2505,7 +2505,8 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 	while (total_len < buf_size &&
 	       ((len = read(stream_fd, &buf[total_len], buf_size - total_len)) > 0 ||
 		(len == -1 && (errno == EINTR || errno == EIO)))) {
-		if (errno == EIO) {
+		/* Assert only for default OA buffer size */
+		if (errno == EIO && !oa_buffer_size) {
 			oa_status = get_stream_status(stream_fd);
 			igt_assert(!(oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW));
 		}
