@@ -139,6 +139,9 @@ static void nop_cs(amdgpu_device_handle device,
 
 	amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
 				 ib_result_mc_address, 4096);
+	if (user_queue)
+		amdgpu_user_queue_destroy(device, ring_context, ip_type);
+
 	free(ring_context);
 }
 
