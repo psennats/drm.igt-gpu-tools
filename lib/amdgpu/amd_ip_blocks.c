@@ -1022,6 +1022,7 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struc
 	char cmd[256];
 	FILE *fp;
 	char buffer[128];
+	char buffer2[128];
 
 	char *token, *buf;
 	char reset_mask[32];
@@ -1047,6 +1048,7 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struc
 	buf = fgets(buffer, sizeof(buffer)-1, fp);
 
 	if (buf != NULL) {
+		strcpy(buffer2, buffer);
 		token = strtok(buf, " \n");
 		while (token != NULL) {
 			for (i = 0; reset_arr[i].name != NULL; i++) {
@@ -1062,11 +1064,12 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struc
 		igt_kmsg("***FAILURE fgets %s LINE %d FILE %s\n",
 				buffer, __LINE__, __FILE__);
 	}
-	if (mask == reset_type)
+	if (mask & reset_type)
 		enable = true;
 	else
-		igt_kmsg("***FAILURE mask found 0x%x requested 0x%x operation is not supported LINE %d FILE %s\n",
-				mask, reset_type, __LINE__, __FILE__);
+		igt_kmsg("***FAILURE mask found 0x%x(%s) requested 0x%x operation %s is not supported LINE %d FILE %s\n",
+				mask, buffer2, reset_type, ip_type == AMD_IP_GFX ? "GFX": ip_type == AMD_IP_COMPUTE ? "COMPUTE" : "SDMA",
+						__LINE__, __FILE__);
 
 	pclose(fp);
 
