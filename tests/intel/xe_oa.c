@@ -629,8 +629,11 @@ oa_tick_delta(const uint32_t *report1,
 	      const uint32_t *report0,
 	      enum intel_xe_oa_format_name format)
 {
+	struct oa_format fmt = get_oa_format(format);
+	uint32_t width = fmt.report_hdr_64bit ? 64 : 32;
+
 	return elapsed_delta(read_report_ticks(report1, format),
-			     read_report_ticks(report0, format), 32);
+			     read_report_ticks(report0, format), width);
 }
 
 static void
