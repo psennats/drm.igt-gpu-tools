@@ -26,7 +26,9 @@
 #define INJECT_ERRNO	-ENOMEM
 #define BO_ADDR		0x1a0000
 #define BO_SIZE		(1024*1024)
+#define INJECT_ITERATIONS	100
 
+int32_t inject_iters_raw;
 struct fault_injection_params {
 	/* @probability: Likelihood of failure injection, in percent. */
 	uint32_t probability;
@@ -239,6 +241,38 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 }
 
 /**
+ * SUBTEST: probe-fail-guc-%s
+ * Description: inject an error in the injectable function %arg[1] then reprobe driver
+ * Functionality: fault
+ *
+ * arg[1]:
+ * @xe_guc_mmio_send_recv:     Inject an error when calling xe_guc_mmio_send_recv
+ * @xe_guc_ct_send_recv:       Inject an error when calling xe_guc_ct_send_recv
+ */
+static void probe_fail_guc(int fd, char pci_slot[], const char function_name[],
+               struct fault_injection_params *fault_params)
+{
+	int iter_start = 0, iter_end = 0, iter = 0;
+
+	igt_assert(fault_params);
+
+	/* inject_iters_raw will have zero if unset / set to <=0 or malformed.
+	   When set to > 0 it will have iteration number and will run single n-th
+	   iteration only.
+	*/
+	iter = inject_iters_raw;
+	iter_start = iter ? : 0;
+	iter_end = iter ? iter + 1 : INJECT_ITERATIONS;
+	igt_debug("Injecting error for %d - %d iterations\n", iter_start, iter_end);
+	for (int i = iter_start; i < iter_end; i++) {
+		fault_params->space = i;
+		setup_injection_fault(fault_params);
+		inject_fault_probe(fd, pci_slot, function_name);
+		igt_kmod_unbind("xe", pci_slot);
+	}
+}
+
+/**
  * SUBTEST: exec-queue-create-fail-%s
  * Description: inject an error in function %arg[1] used in exec queue create IOCTL to make it fail
  * Functionality: fault
@@ -412,10 +446,35 @@ oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
 	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
 }
 
-igt_main
+static int opt_handler(int opt, int opt_index, void *data)
+{
+	int in_param;
+	switch (opt) {
+	case 'I':
+		/* Update to 0 if not exported / -ve value */
+		in_param = atoi(optarg);
+		if (!in_param || in_param <= 0 || in_param > INJECT_ITERATIONS)
+			inject_iters_raw = 0;
+		else
+			inject_iters_raw = in_param;
+		break;
+	default:
+		return IGT_OPT_HANDLER_ERROR;
+	}
+
+	return IGT_OPT_HANDLER_SUCCESS;
+}
+
+const char *help_str =
+	"  -I\tIf set, an error will be injected at specific function call.\n\
+	If not set, an error will be injected in every possible function call\
+	starting from first up to 100.";
+
+igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 {
 	int fd, sysfs;
 	struct drm_xe_engine_class_instance *hwe;
+	struct fault_injection_params fault_params;
 	static uint32_t devid;
 	char pci_slot[NAME_MAX];
 	const struct section {
@@ -474,6 +533,12 @@ igt_main
 		{ }
 	};
 
+	const struct section guc_fail_functions[] = {
+		{ "xe_guc_mmio_send_recv" },
+		{ "xe_guc_ct_send_recv" },
+		{ }
+	};
+
 	igt_fixture {
 		igt_require(fail_function_injection_enabled());
 		fd = drm_open_driver(DRIVER_XE);
@@ -515,6 +580,13 @@ igt_main
 	for (const struct section *s = probe_fail_functions; s->name; s++)
 		igt_subtest_f("inject-fault-probe-function-%s", s->name)
 			inject_fault_probe(fd, pci_slot, s->name);
+
+	for (const struct section *s = guc_fail_functions; s->name; s++)
+		igt_subtest_f("probe-fail-guc-%s", s->name) {
+			memcpy(&fault_params, &default_fault_params,
+					sizeof(struct fault_injection_params));
+			probe_fail_guc(fd, pci_slot, s->name, &fault_params);
+		}
 
 	igt_fixture {
 		close(sysfs);
