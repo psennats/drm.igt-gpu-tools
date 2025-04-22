@@ -968,6 +968,117 @@ accumulator_print(struct accumulator *accumulator, const char *title)
 		igt_debug("\tC%u = %"PRIu64"\n", i, deltas[idx++]);
 }
 
+
+/*
+ * pec_sanity_check_reports() uses the following properties of the TestOa
+ * metric set with the "576B_PEC64LL" or XE_OA_FORMAT_PEC64u64 format. See
+ * e.g. lib/xe/oa-configs/oa-lnl.xml.
+ *
+ * If pec[] is the array of pec qwords following the report header (Bspec
+ * 60942) then we have:
+ *
+ *	pec[2]  : test_event1_cycles
+ *	pec[3]  : test_event1_cycles_xecore0
+ *	pec[4]  : test_event1_cycles_xecore1
+ *	pec[5]  : test_event1_cycles_xecore2
+ *	pec[6]  : test_event1_cycles_xecore3
+ *	pec[21] : test_event1_cycles_xecore4
+ *	pec[22] : test_event1_cycles_xecore5
+ *	pec[23] : test_event1_cycles_xecore6
+ *	pec[24] : test_event1_cycles_xecore7
+ *
+ * test_event1_cycles_xecore* increment with every clock, so they increment
+ * the same as gpu_ticks in report headers in successive reports. And
+ * test_event1_cycles increment by 'gpu_ticks * num_xecores'.
+ *
+ * These equations are not exact due to fluctuations, but are precise when
+ * averaged over long periods.
+ */
+static void pec_sanity_check_one(const u32 *report)
+{
+	int xecore_idx[] = {3, 4, 5, 6, 21, 22, 23, 24};
+	u64 first, *pec = (u64 *)(report + 8);
+
+	igt_debug("\ttest_event1_cycles: %#lx\n", pec[2]);
+	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++)
+		igt_debug("\ttest_event1_cycles_xecore %d: %#lx\n", i, pec[xecore_idx[i]]);
+
+	/* Compare against the first non-zero test_event1_cycles_xecore* */
+	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
+		first = pec[xecore_idx[i]];
+		if (first)
+			break;
+	}
+
+	/* test_event1_cycles_xecore* should be within an epsilon of each other */
+	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
+		int n = xecore_idx[i];
+
+		igt_debug("n %d: pec[n] %#lx, first %#lx\n", n, pec[n], first);
+		/* 0 value for pec[xecore_idx[i]] indicates missing xecore */
+		if (pec[n])
+			assert_within_epsilon(pec[n], first, 0.1);
+	}
+
+	igt_debug("first * num_xecores: %#lx, pec[2] %#lx\n",
+		  first * intel_xe_perf->devinfo.n_eu_sub_slices, pec[2]);
+	/* test_event1_cycles should be close to (test_event1_cycles_xecore* * num_xecores) */
+	assert_within_epsilon(first * intel_xe_perf->devinfo.n_eu_sub_slices, pec[2], 0.1);
+}
+
+static void pec_sanity_check_two(const u32 *report0, const u32 *report1,
+				 struct intel_xe_perf_metric_set *set)
+{
+	u64 tick_delta = oa_tick_delta(report1, report0, set->perf_oa_format);
+	int xecore_idx[] = {3, 4, 5, 6, 21, 22, 23, 24};
+	u64 *pec0 = (u64 *)(report0 + 8);
+	u64 *pec1 = (u64 *)(report1 + 8);
+
+	igt_debug("tick delta = %#lx\n", tick_delta);
+
+	/* Difference in test_event1_cycles_xecore* values should be close to tick_delta */
+	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
+		int n = xecore_idx[i];
+
+		igt_debug("n %d: pec1[n] - pec0[n] %#lx, tick delta %#lx\n",
+			  n, pec1[n] - pec0[n], tick_delta);
+		/* 0 value for pec[xecore_idx[i]] indicates missing xecore */
+		if (pec1[n] && pec0[n])
+			assert_within_epsilon(pec1[n] - pec0[n], tick_delta, 0.1);
+		/* Same test_event1_cycles_xecore* should be present in all reports */
+		if (pec1[n])
+			igt_assert(pec0[n]);
+	}
+
+	igt_debug("pec1[2] - pec0[2] %#lx, tick_delta * num_xecores: %#lx\n",
+		  pec1[2] - pec0[2], tick_delta * intel_xe_perf->devinfo.n_eu_sub_slices);
+	/* Difference in test_event1_cycles should be close to (tick_delta * num_xecores) */
+	assert_within_epsilon(pec1[2] - pec0[2],
+			      tick_delta * intel_xe_perf->devinfo.n_eu_sub_slices, 0.1);
+}
+
+/* Sanity check Xe2+ PEC reports. Note: report format must be @set->perf_oa_format */
+static void pec_sanity_check_reports(const u32 *report0, const u32 *report1,
+				     struct intel_xe_perf_metric_set *set)
+{
+	if (igt_run_in_simulation() || intel_graphics_ver(devid) < IP_VER(20, 0)) {
+		igt_debug("%s: Skip checking PEC reports in simulation or Xe1\n", __func__);
+		return;
+	}
+
+	if (strcmp(set->name, "TestOa")) {
+		igt_debug("%s: Can't check reports for metric set %s\n", __func__, set->name);
+		return;
+	}
+
+	dump_report(report0, set->perf_raw_size, "pec_report0");
+	dump_report(report1, set->perf_raw_size, "pec_report1");
+
+	pec_sanity_check_one(report0);
+	pec_sanity_check_one(report1);
+	pec_sanity_check_two(report0, report1, set);
+}
+
 /* The TestOa metric set is designed so */
 static void
 sanity_check_reports(const uint32_t *oa_report0, const uint32_t *oa_report1,
@@ -1591,6 +1702,9 @@ static void test_oa_formats(const struct drm_xe_engine_class_instance *hwe)
 
 		print_reports(oa_report0, oa_report1, i);
 		sanity_check_reports(oa_report0, oa_report1, i);
+
+		if (i == metric_set(hwe)->perf_oa_format)
+			pec_sanity_check_reports(oa_report0, oa_report1, metric_set(hwe));
 	}
 }
 
@@ -2531,8 +2645,14 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 
 		igt_assert_neq(reason, 0);
 
-		if (last_report)
+		/*
+		 * Only check for default OA buffer size, since non-default
+		 * sizes can drop reports due to buffer overrun.
+		 */
+		if (!oa_buffer_size && last_report) {
 			sanity_check_reports(last_report, report, fmt);
+			pec_sanity_check_reports(last_report, report, metric_set(hwe));
+		}
 
 		last_report = report;
 	}
@@ -4372,9 +4492,12 @@ static void mmap_check_reports(void *oa_vaddr, uint32_t oa_size,
 			continue;
 
 		timer_reports++;
-		if (timer_reports >= 3)
+		if (timer_reports >= 3) {
 			sanity_check_reports(reports - 2 * report_words,
 					     reports - report_words, fmt);
+			pec_sanity_check_reports(reports - 2 * report_words,
+						 reports - report_words, metric_set(hwe));
+		}
 	}
 
 	igt_assert(timer_reports >= 3);
