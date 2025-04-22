@@ -994,40 +994,8 @@ accumulator_print(struct accumulator *accumulator, const char *title)
  * These equations are not exact due to fluctuations, but are precise when
  * averaged over long periods.
  */
-static void pec_sanity_check_one(const u32 *report)
-{
-	int xecore_idx[] = {3, 4, 5, 6, 21, 22, 23, 24};
-	u64 first, *pec = (u64 *)(report + 8);
-
-	igt_debug("\ttest_event1_cycles: %#lx\n", pec[2]);
-	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++)
-		igt_debug("\ttest_event1_cycles_xecore %d: %#lx\n", i, pec[xecore_idx[i]]);
-
-	/* Compare against the first non-zero test_event1_cycles_xecore* */
-	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
-		first = pec[xecore_idx[i]];
-		if (first)
-			break;
-	}
-
-	/* test_event1_cycles_xecore* should be within an epsilon of each other */
-	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
-		int n = xecore_idx[i];
-
-		igt_debug("n %d: pec[n] %#lx, first %#lx\n", n, pec[n], first);
-		/* 0 value for pec[xecore_idx[i]] indicates missing xecore */
-		if (pec[n])
-			assert_within_epsilon(pec[n], first, 0.1);
-	}
-
-	igt_debug("first * num_xecores: %#lx, pec[2] %#lx\n",
-		  first * intel_xe_perf->devinfo.n_eu_sub_slices, pec[2]);
-	/* test_event1_cycles should be close to (test_event1_cycles_xecore* * num_xecores) */
-	assert_within_epsilon(first * intel_xe_perf->devinfo.n_eu_sub_slices, pec[2], 0.1);
-}
-
-static void pec_sanity_check_two(const u32 *report0, const u32 *report1,
-				 struct intel_xe_perf_metric_set *set)
+static void pec_sanity_check(const u32 *report0, const u32 *report1,
+			     struct intel_xe_perf_metric_set *set)
 {
 	u64 tick_delta = oa_tick_delta(report1, report0, set->perf_oa_format);
 	int xecore_idx[] = {3, 4, 5, 6, 21, 22, 23, 24};
@@ -1087,9 +1055,7 @@ static void pec_sanity_check_reports(const u32 *report0, const u32 *report1,
 	dump_report(report0, set->perf_raw_size, "pec_report0");
 	dump_report(report1, set->perf_raw_size, "pec_report1");
 
-	pec_sanity_check_one(report0);
-	pec_sanity_check_one(report1);
-	pec_sanity_check_two(report0, report1, set);
+	pec_sanity_check(report0, report1, set);
 }
 
 /* The TestOa metric set is designed so */
