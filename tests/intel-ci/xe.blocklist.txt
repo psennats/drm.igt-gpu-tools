@@ -92,6 +92,7 @@ igt@kms_sysfs_edid_timing
 # KMS: Non-Intel tests
 ##################################################################
 igt@kms_cursor_legacy@modeset-atomic-cursor-hotspot
+igt@kms_async_flips@overlay-atomic
 ##################################################################
 # SR-IOV tests too stressful or time-consuming
 # to execute all dynamic subtests at once.
