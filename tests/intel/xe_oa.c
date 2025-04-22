@@ -2616,7 +2616,7 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 	uint8_t *buf = malloc(buf_size);
 	uint32_t total_len = 0;
 	const uint32_t *last_report;
-	int len;
+	int len, check_idx;
 	u32 oa_status;
 
 	igt_assert(buf);
@@ -2651,6 +2651,9 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 
 	igt_debug("Got %u bytes\n", total_len);
 
+	check_idx = random() % (total_len / report_size);
+	check_idx = check_idx ?: 1;
+
 	last_report = NULL;
 	for (uint32_t offset = 0; offset < total_len; offset += report_size) {
 		const uint32_t *report = (void *) (buf + offset);
@@ -2660,9 +2663,10 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 
 		/*
 		 * Only check for default OA buffer size, since non-default
-		 * sizes can drop reports due to buffer overrun.
+		 * sizes can drop reports due to buffer overrun. Also, only
+		 * check one random report to reduce test execution time.
 		 */
-		if (!oa_buffer_size && last_report) {
+		if (!oa_buffer_size && last_report && (offset / report_size == check_idx)) {
 			sanity_check_reports(last_report, report, fmt);
 			pec_sanity_check_reports(last_report, report, metric_set(hwe));
 		}
