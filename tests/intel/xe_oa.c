@@ -1034,6 +1034,19 @@ static void pec_sanity_check_two(const u32 *report0, const u32 *report1,
 	u64 *pec0 = (u64 *)(report0 + 8);
 	u64 *pec1 = (u64 *)(report1 + 8);
 
+	/*
+	 * Empirical testing revealed that when reports of different types/reasons are
+	 * intermixed, this throws off gpu_ticks and test_event1_cycles_xecore* in PEC
+	 * data, causing test failures. To avoid this, restrict testing to only
+	 * timer/periodic reports.
+	 */
+	if (strcmp(read_report_reason(report0), "timer") ||
+	    strcmp(read_report_reason(report1), "timer")) {
+		igt_debug("Only checking timer reports: %s->%s\n",
+		  read_report_reason(report0), read_report_reason(report1));
+		return;
+	}
+
 	igt_debug("tick delta = %#lx\n", tick_delta);
 
 	/* Difference in test_event1_cycles_xecore* values should be close to tick_delta */
