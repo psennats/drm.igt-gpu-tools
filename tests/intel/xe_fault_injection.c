@@ -224,9 +224,10 @@ static void set_retval(const char function_name[], long long retval)
  * @xe_wa_init:				xe_wa_init
  * @xe_wopcm_init:			xe_wopcm_init
  */
-static void
+static int
 inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 {
+	int err = 0;
 	igt_info("Injecting error \"%s\" (%d) in function \"%s\"\n",
 		 strerror(-INJECT_ERRNO), INJECT_ERRNO, function_name);
 
@@ -236,8 +237,10 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 
 	igt_kmod_bind("xe", pci_slot);
 
-	igt_assert_eq(-errno, INJECT_ERRNO);
+	err = -errno;
 	injection_list_remove(function_name);
+
+	return err;
 }
 
 /**
@@ -579,7 +582,8 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 
 	for (const struct section *s = probe_fail_functions; s->name; s++)
 		igt_subtest_f("inject-fault-probe-function-%s", s->name)
-			inject_fault_probe(fd, pci_slot, s->name);
+			igt_assert_eq(INJECT_ERRNO, inject_fault_probe(fd,
+						pci_slot, s->name));
 
 	for (const struct section *s = guc_fail_functions; s->name; s++)
 		igt_subtest_f("probe-fail-guc-%s", s->name) {
