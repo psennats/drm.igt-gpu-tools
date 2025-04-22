@@ -4352,8 +4352,8 @@ static void mmap_wait_for_periodic_reports(void *oa_vaddr, uint32_t n,
 	}
 }
 
-static void check_reports(void *oa_vaddr, uint32_t oa_size,
-			  const struct drm_xe_engine_class_instance *hwe)
+static void mmap_check_reports(void *oa_vaddr, uint32_t oa_size,
+			       const struct drm_xe_engine_class_instance *hwe)
 {
 	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
 	uint64_t fmt = test_set->perf_oa_format;
@@ -4385,7 +4385,7 @@ static void check_reports_from_mapped_buffer(const struct drm_xe_engine_class_in
 	vaddr = map_oa_buffer(&size);
 
 	mmap_wait_for_periodic_reports(vaddr, 10, hwe);
-	check_reports(vaddr, size, hwe);
+	mmap_check_reports(vaddr, size, hwe);
 
 	munmap(vaddr, size);
 }
@@ -4414,7 +4414,7 @@ static void closed_fd_and_unmapped_access(const struct drm_xe_engine_class_insta
 	vaddr = map_oa_buffer(&size);
 
 	mmap_wait_for_periodic_reports(vaddr, 10, hwe);
-	check_reports(vaddr, size, hwe);
+	mmap_check_reports(vaddr, size, hwe);
 
 	munmap(vaddr, size);
 	__perf_close(stream_fd);
