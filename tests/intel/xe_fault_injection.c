@@ -422,6 +422,7 @@ oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
 	uint32_t mux_regs[] = { SAMPLE_MUX_REG, 0x0 };
 	struct drm_xe_oa_config config;
 	const char *uuid = "01234567-0123-0123-0123-0123456789ab";
+	int ret;
 
 	snprintf(path, sizeof(path), "metrics/%s/id", uuid);
 	/* Destroy previous configuration if present */
@@ -434,7 +435,10 @@ oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
 	config.n_regs = 1;
 	config.regs_ptr = to_user_pointer(mux_regs);
 
-	igt_assert_lt(0, intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config));
+	ret = intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config);
+	igt_skip_on_f(ret == -1 && errno == ENODEV, "Xe OA interface not available\n");
+
+	igt_assert_lt(0, ret);
 	igt_assert(igt_sysfs_scanf(sysfs, path, "%" PRIu64, &config_id) == 1);
 	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
 
