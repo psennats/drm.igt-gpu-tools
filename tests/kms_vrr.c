@@ -64,6 +64,7 @@
  *
  * SUBTEST: seamless-rr-switch-drrs
  * Description: Test to switch RR seamlessly without modeset.
+ * Mega feature: General Display Features
  *
  * SUBTEST: seamless-rr-switch-virtual
  * Description: Test to create a Virtual Mode in VRR range and switch to it
