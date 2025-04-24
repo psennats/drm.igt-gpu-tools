@@ -194,6 +194,9 @@ static void wait_flip_event(data_t *data)
 static uint64_t default_modifier(data_t *data)
 {
 	if (igt_display_has_format_mod(&data->display, DRM_FORMAT_XRGB8888,
+				       I915_FORMAT_MOD_4_TILED))
+		return I915_FORMAT_MOD_4_TILED;
+	else if (igt_display_has_format_mod(&data->display, DRM_FORMAT_XRGB8888,
 				       I915_FORMAT_MOD_X_TILED))
 		return I915_FORMAT_MOD_X_TILED;
 	else
