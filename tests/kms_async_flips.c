@@ -45,7 +45,7 @@
  * Description: Verify the async flip functionality and the fps during async flips
  *              Alternate between sync and async flips
  *
- * SUBTEST: async-flip-with-page-flip-events
+ * SUBTEST: async-flip-with-page-flip-events-tiled
  * Description: Verify the async flip functionality and the fps during async flips
  *              Wait for page flip events in between successive asynchronous flips
  *
@@ -66,7 +66,7 @@
  * SUBTEST: alternate-sync-async-flip-atomic
  * Description: Verify the async flip functionality and the fps during async flips using atomic path
  *
- * SUBTEST: async-flip-with-page-flip-events-atomic
+ * SUBTEST: async-flip-with-page-flip-events-tiled-atomic
  * Description: Wait for page flip events in between successive asynchronous flips using atomic path
  *
  * SUBTEST: test-time-stamp-atomic
@@ -88,6 +88,14 @@
  *
  * SUBTEST: overlay-atomic
  * Description: Verify overlay planes with async flips in atomic API
+ *
+ * SUBTEST: async-flip-with-page-flip-events-linear
+ * Description: Verify the async flip functionality and the fps during async flips
+ *		with linear modifier
+ *
+ * SUBTEST: async-flip-with-page-flip-events-linear-atomic
+ * Description: Verify the async flip functionality and the fps during async flips
+ *		with linear modifier in Atomic API
  */
 
 #define CURSOR_POS 128
@@ -128,6 +136,7 @@ typedef struct {
 	struct buf_ops *bops;
 	bool atomic_path;
 	bool overlay_path;
+	bool linear_modifier;
 } data_t;
 
 static void flip_handler(int fd_, unsigned int sequence, unsigned int tv_sec,
@@ -266,6 +275,7 @@ static void test_init_ops(data_t *data)
 	data->alternate_sync_async = false;
 	data->atomic_path = false;
 	data->overlay_path = false;
+	data->linear_modifier = false;
 }
 
 static void test_init_fbs(data_t *data)
@@ -768,8 +778,14 @@ static void run_test(data_t *data, void (*test)(data_t *))
 			continue;
 
 		test_init(data);
-		data->allow_fail = false;
-		data->modifier = default_modifier(data);
+
+		if (data->linear_modifier && is_intel_device(data->drm_fd))
+			data->allow_fail = true;
+		else
+			data->allow_fail = false;
+
+		data->modifier = data->linear_modifier ? DRM_FORMAT_MOD_LINEAR : default_modifier(data);
+
 		igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(data->pipe), data->output->name) {
 			/*
 			 * FIXME: joiner+async flip is busted currently in KMD.
@@ -792,15 +808,20 @@ static void run_test_with_modifiers(data_t *data, void (*test)(data_t *))
 		test_init(data);
 
 		for (int i = 0; i < data->plane->format_mod_count; i++) {
+			uint64_t modifier = data->plane->modifiers[i];
+
 			if (data->plane->formats[i] != DRM_FORMAT_XRGB8888)
 				continue;
 
+			if (modifier == DRM_FORMAT_MOD_LINEAR)
+				continue;
+
 			data->allow_fail = true;
-			data->modifier = data->plane->modifiers[i];
+			data->modifier = modifier;
 
 			igt_dynamic_f("pipe-%s-%s-%s", kmstest_pipe_name(data->pipe),
 				      data->output->name,
-				      igt_fb_modifier_name(data->modifier)) {
+				      igt_fb_modifier_name(modifier)) {
 				      /*
 				       * FIXME: joiner+async flip is busted currently in KMD.
 				       * Remove this check once the issues are fixed in KMD.
@@ -844,23 +865,35 @@ igt_main
 			require_monotonic_timestamp(data.drm_fd);
 
 		igt_describe("Wait for page flip events in between successive asynchronous flips");
-		igt_subtest_with_dynamic("async-flip-with-page-flip-events") {
+		igt_subtest_with_dynamic("async-flip-with-page-flip-events-tiled") {
 			test_init_ops(&data);
-			if (is_intel_device(data.drm_fd))
-				run_test_with_modifiers(&data, test_async_flip);
-			else
-				run_test(&data, test_async_flip);
+			igt_require(is_intel_device(data.drm_fd));
+			run_test_with_modifiers(&data, test_async_flip);
 		}
 
 		igt_describe("Wait for page flip events in between successive "
 			     "asynchronous flips using atomic path");
-		igt_subtest_with_dynamic("async-flip-with-page-flip-events-atomic") {
+		igt_subtest_with_dynamic("async-flip-with-page-flip-events-tiled-atomic") {
 			test_init_ops(&data);
 			data.atomic_path = true;
-			if (is_intel_device(data.drm_fd))
-				run_test_with_modifiers(&data, test_async_flip);
-			else
-				run_test(&data, test_async_flip);
+			igt_require(is_intel_device(data.drm_fd));
+			run_test_with_modifiers(&data, test_async_flip);
+		}
+
+		igt_describe("Wait for page flip events in between successive asynchronous "
+			     "flips with linear modifiers");
+		igt_subtest_with_dynamic("async-flip-with-page-flip-events-linear") {
+			test_init_ops(&data);
+			data.linear_modifier = true;
+			run_test(&data, test_async_flip);
+		}
+
+		igt_describe("Wait for page flip events in between successive asynchronous "
+			     "flips using atomic path with linear modifiers");
+		igt_subtest_with_dynamic("async-flip-with-page-flip-events-linear-atomic") {
+			test_init_ops(&data);
+			data.linear_modifier = true;
+			run_test(&data, test_async_flip);
 		}
 
 		igt_describe("Alternate between sync and async flips");
