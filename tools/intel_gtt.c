@@ -86,7 +86,14 @@ static uint64_t get_phys(uint32_t pt_offset)
 			break;
 		case 8:
 		case 9:
-			phys = phys & 0x7ffffff000;
+		case 10:
+		case 11:
+		case 12:
+		case 20:
+			if (intel_graphics_ver(devid) >= IP_VER(12, 70))
+				phys = phys & 0x3ffffffff000;
+			else
+				phys = phys & 0x7ffffff000;
 			break;
 		default:
 			fprintf(stderr, "Unsupported platform\n");
