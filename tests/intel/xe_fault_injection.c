@@ -16,6 +16,7 @@
 #include "igt.h"
 #include "igt_device.h"
 #include "igt_kmod.h"
+#include "igt_sriov_device.h"
 #include "igt_sysfs.h"
 #include "lib/igt_syncobj.h"
 #include "lib/intel_pat.h"
@@ -484,18 +485,20 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 	struct fault_injection_params fault_params;
 	static uint32_t devid;
 	char pci_slot[NAME_MAX];
+	bool is_vf_device;
 	const struct section {
 		const char *name;
 		unsigned int flags;
+		bool pf_only;
 	} probe_fail_functions[] = {
 		{ "wait_for_lmem_ready" },
 		{ "xe_add_hw_engine_class_defaults" },
 		{ "xe_device_create" },
 		{ "xe_device_probe_early" },
 		{ "xe_ggtt_init_early" },
-		{ "xe_guc_ads_init" },
+		{ "xe_guc_ads_init", 0, true },
 		{ "xe_guc_ct_init" },
-		{ "xe_guc_log_init" },
+		{ "xe_guc_log_init", 0, true },
 		{ "xe_guc_relay_init" },
 		{ "xe_mmio_probe_early" },
 		{ "xe_pcode_probe_early" },
@@ -504,7 +507,7 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 		{ "xe_tile_init_early" },
 		{ "xe_uc_fw_init" },
 		{ "xe_wa_init" },
-		{ "xe_wopcm_init" },
+		{ "xe_wopcm_init", 0, true },
 		{ }
 	};
 	const struct section vm_create_fail_functions[] = {
@@ -554,6 +557,7 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 		igt_device_get_pci_slot_name(fd, pci_slot);
 		setup_injection_fault(&default_fault_params);
 		igt_install_exit_handler(cleanup_injection_fault);
+		is_vf_device = intel_is_vf_device(fd);
 	}
 
 	for (const struct section *s = vm_create_fail_functions; s->name; s++)
@@ -585,9 +589,15 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 	}
 
 	for (const struct section *s = probe_fail_functions; s->name; s++)
-		igt_subtest_f("inject-fault-probe-function-%s", s->name)
-			igt_assert_eq(INJECT_ERRNO, inject_fault_probe(fd,
-						pci_slot, s->name));
+		igt_subtest_f("inject-fault-probe-function-%s", s->name) {
+			bool should_pass = s->pf_only && is_vf_device;
+			int err;
+
+			err = inject_fault_probe(fd, pci_slot, s->name);
+
+			igt_assert_eq(should_pass ? 0 : INJECT_ERRNO, err);
+			igt_kmod_unbind("xe", pci_slot);
+		}
 
 	for (const struct section *s = guc_fail_functions; s->name; s++)
 		igt_subtest_f("probe-fail-guc-%s", s->name) {
