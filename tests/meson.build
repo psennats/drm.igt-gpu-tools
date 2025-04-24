@@ -295,6 +295,7 @@ intel_xe_progs = [
 	'xe_exec_reset',
 	'xe_exec_sip',
 	'xe_exec_store',
+	'xe_exec_system_allocator',
 	'xe_exec_threads',
 	'xe_exercise_blt',
 	'xe_fault_injection',
