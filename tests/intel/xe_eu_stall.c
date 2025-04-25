@@ -14,8 +14,14 @@
  * SUBTEST: non-blocking-read
  * Description: Verify non-blocking read of EU stall data during a workload run
  *
+ * SUBTEST: non-blocking-re-enable
+ * Description: Run non-blocking read test twice with disable and enable between the runs
+ *
  * SUBTEST: blocking-read
  * Description: Verify blocking read of EU stall data during a workload run
+ *
+ * SUBTEST: blocking-re-enable
+ * Description: Run blocking read test twice with disable and enable between the runs
  *
  * SUBTEST: unprivileged-access
  * Description: Verify unprivileged open of a EU stall data stream fd
@@ -460,13 +466,13 @@ static void print_eu_stall_data(uint32_t devid, uint8_t *buf, size_t size)
  * while the parent process reads the stall counters data, disables EU stall
  * counters once the workload completes execution.
  */
-static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read)
+static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int iter)
 {
-	uint32_t num_samples = 0, num_drops = 0;
+	uint32_t num_samples, num_drops;
 	struct igt_helper_process work_load = {};
 	struct sigaction sa = { 0 };
 	int ret, flags, stream_fd;
-	uint64_t total_size = 0;
+	uint64_t total_size;
 	uint8_t *buf;
 
 	uint64_t properties[] = {
@@ -520,7 +526,7 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read)
 		flags = O_CLOEXEC;
 
 	set_fd_flags(stream_fd, flags);
-
+enable:
 	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
 
 	sa.sa_handler = sighandler;
@@ -540,6 +546,9 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read)
 			_exit(run_gpgpu_fill(drm_fd, devid));
 		}
 	}
+	total_size = 0;
+	num_samples = 0;
+	num_drops = 0;
 	/* Parent process reads the EU stall counters data */
 	do {
 		if (!blocking_read) {
@@ -574,14 +583,16 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read)
 	igt_info("Number of samples: %u\n", num_samples);
 	igt_info("Number of drops reported: %u\n", num_drops);
 
-	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
-
-	close(stream_fd);
-	free(buf);
-
 	ret = wait_child(&work_load);
 	igt_assert_f(ret == 0, "waitpid() - ret: %d, errno: %d\n", ret, errno);
 	igt_assert_f(num_samples, "No EU stalls detected during the workload\n");
+
+	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
+	if (--iter)
+		goto enable;
+
+	close(stream_fd);
+	free(buf);
 }
 
 static int opt_handler(int opt, int opt_index, void *data)
@@ -650,12 +661,22 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 
 	igt_describe("Verify non-blocking read of EU stall data during a workload run");
 	igt_subtest("non-blocking-read") {
-		test_eustall(drm_fd, devid, !blocking_read);
+		test_eustall(drm_fd, devid, !blocking_read, 1);
+	}
+
+	igt_describe("Run non-blocking read test twice with disable and enable between the runs");
+	igt_subtest("non-blocking-re-enable") {
+		test_eustall(drm_fd, devid, !blocking_read, 2);
 	}
 
 	igt_describe("Verify blocking read of EU stall data during a workload run");
 	igt_subtest("blocking-read") {
-		test_eustall(drm_fd, devid, blocking_read);
+		test_eustall(drm_fd, devid, blocking_read, 1);
+	}
+
+	igt_describe("Run blocking read test twice with disable and enable between the runs");
+	igt_subtest("blocking-re-enable") {
+		test_eustall(drm_fd, devid, blocking_read, 2);
 	}
 
 	igt_describe("Verify that unprivileged open of a EU stall data fd fails");
