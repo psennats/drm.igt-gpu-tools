@@ -440,18 +440,6 @@ void *xe_bo_map(int fd, uint32_t bo, size_t size)
 	return __xe_bo_map(fd, bo, size, PROT_WRITE);
 }
 
-void *xe_bo_map_fixed(int fd, uint32_t bo, size_t size, uint64_t addr)
-{
-	uint64_t mmo;
-	void *map;
-
-	mmo = xe_bo_mmap_offset(fd, bo);
-	map = mmap((void *)addr, size, PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, mmo);
-	igt_assert(map != MAP_FAILED);
-
-	return map;
-}
-
 void *xe_bo_mmap_ext(int fd, uint32_t bo, size_t size, int prot)
 {
 	return __xe_bo_map(fd, bo, size, prot);
