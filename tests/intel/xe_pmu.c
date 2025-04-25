@@ -527,8 +527,8 @@ static void stash_gt_freq(int fd, uint32_t **stash_min, uint32_t **stash_max)
 	igt_skip_on(*stash_min == NULL || *stash_max == NULL);
 
 	xe_for_each_gt(fd, gt) {
-		*stash_min[gt] = xe_gt_get_freq(fd, gt, "min");
-		*stash_max[gt] = xe_gt_get_freq(fd, gt, "max");
+		(*stash_min)[gt] = xe_gt_get_freq(fd, gt, "min");
+		(*stash_max)[gt] = xe_gt_get_freq(fd, gt, "max");
 	}
 }
 
