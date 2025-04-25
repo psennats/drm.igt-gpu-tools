@@ -37,7 +37,6 @@ struct igt_facts_config {
 	bool enabled;
 	bool disable_udev;
 };
-extern struct igt_facts_config igt_facts_config;
 
 void igt_facts_lists_init(void);
 void igt_facts(const char *last_test);
