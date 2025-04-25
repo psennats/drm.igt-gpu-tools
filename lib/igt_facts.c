@@ -85,7 +85,7 @@ static void igt_facts_log(const char *last_test, const char *name,
 	char *uptime = NULL;
 	const char *before_tests = "before any test";
 
-	if (old_value == NULL && new_value == NULL)
+	if (!old_value && !new_value)
 		return;
 
 	if (clock_gettime(CLOCK_BOOTTIME, &uptime_ts) != 0)
@@ -97,7 +97,7 @@ static void igt_facts_log(const char *last_test, const char *name,
 		 uptime_ts.tv_nsec / 1000);
 
 	/* New fact */
-	if (old_value == NULL && new_value != NULL) {
+	if (!old_value && new_value) {
 		igt_info("[%s] [FACT %s] new: %s: %s\n",
 			 uptime,
 			 last_test ? last_test : before_tests,
@@ -107,7 +107,7 @@ static void igt_facts_log(const char *last_test, const char *name,
 	}
 
 	/* Update fact */
-	if (old_value != NULL && new_value != NULL) {
+	if (old_value && new_value) {
 		igt_info("[%s] [FACT %s] changed: %s: %s -> %s\n",
 			 uptime,
 			 last_test ? last_test : before_tests,
@@ -118,7 +118,7 @@ static void igt_facts_log(const char *last_test, const char *name,
 	}
 
 	/* Deleted fact */
-	if (old_value != NULL && new_value == NULL) {
+	if (old_value && !new_value) {
 		igt_info("[%s] [FACT %s] deleted: %s: %s\n",
 			 uptime,
 			 last_test ? last_test : before_tests,
@@ -213,7 +213,7 @@ static bool igt_facts_list_add(const char *name,
 	igt_fact *new_fact = NULL, *old_fact = NULL;
 	bool logged = false;
 
-	if (name == NULL || value == NULL)
+	if (!name || !value)
 		return false;
 
 	old_fact = igt_facts_list_get(name, head);
@@ -228,7 +228,7 @@ static bool igt_facts_list_add(const char *name,
 	}
 
 	new_fact = malloc(sizeof(igt_fact));
-	if (new_fact == NULL)
+	if (!new_fact)
 		return false;
 
 	new_fact->name = strdup(name);
@@ -523,7 +523,7 @@ static void igt_facts_scan_pci_drm_cards(const char *last_test)
 		 * If the device has '-' in the name, contine
 		 */
 		if (strncmp(drm_name, "card", 4) != 0 ||
-		    strchr(drm_name, '-') != NULL) {
+		    strchr(drm_name, '-')) {
 			udev_device_unref(drm_dev);
 			continue;
 		}
@@ -586,7 +586,7 @@ static void igt_facts_scan_kernel_taints(const char *last_test)
 
 	igt_facts_list_mark(head);
 
-	while ((reason = igt_explain_taints(&taints)) != NULL) {
+	while ((reason = igt_explain_taints(&taints))) {
 		/* Cut at the ':' to get only the taint name */
 		taint_name = strtok(strdup(reason), ":");
 		if (!taint_name)
@@ -677,18 +677,18 @@ static void igt_facts_test_add_get(struct igt_list_head *head)
 	const char *last_test = NULL;
 
 	ret = igt_facts_list_add(name, value, last_test, head);
-	igt_assert(ret == true);
+	igt_assert(ret);
 
 	/* Assert that there is one element in the linked list */
 	igt_assert_eq(igt_list_length(head), 1);
 
 	/* Assert that the element in the linked list is the one we added */
 	fact = igt_facts_list_get(name, head);
-	igt_assert(fact != NULL);
+	igt_assert(fact);
 	igt_assert_eq(strcmp(fact->name, name), 0);
 	igt_assert_eq(strcmp(fact->value, value), 0);
-	igt_assert(fact->present == true);
-	igt_assert(fact->last_test == NULL);
+	igt_assert(fact->present);
+	igt_assert(!fact->last_test);
 }
 
 /**
@@ -730,11 +730,11 @@ static void igt_facts_test_mark_and_sweep(struct igt_list_head *head)
 	/* Assert that the two updated elements are present */
 	fact = igt_facts_list_get(name1, head);
 	igt_assert(fact != NULL);
-	igt_assert(fact->present == true);
+	igt_assert(fact->present);
 
 	fact = igt_facts_list_get(name2, head);
 	igt_assert(fact != NULL);
-	igt_assert(fact->present == true);
+	igt_assert(fact->present);
 
 	/* Assert that the third element was deleted */
 	fact = igt_facts_list_get(name3, head);
@@ -764,9 +764,9 @@ void igt_facts_test(void)
 	igt_facts_test_add_get(&igt_facts_list_pci_gpu_head);
 
 	/* Assert that igt_facts_list_mark_and_sweep() cleans up the list */
-	igt_assert(igt_list_empty(&igt_facts_list_pci_gpu_head) == false);
+	igt_assert(!igt_list_empty(&igt_facts_list_pci_gpu_head));
 	igt_facts_list_mark_and_sweep(&igt_facts_list_pci_gpu_head);
-	igt_assert(igt_list_empty(&igt_facts_list_pci_gpu_head) == true);
+	igt_assert(igt_list_empty(&igt_facts_list_pci_gpu_head));
 
 	/* Test the mark and sweep pattern used to delete elements
 	 * from the list
