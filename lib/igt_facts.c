@@ -537,6 +537,10 @@ static void igt_facts_scan_pci_drm_cards(const char *last_test)
 								 "address");
 			if (!pci_addr)
 				pci_addr = udev_device_get_sysname(pci_dev);
+			if (!pci_addr) {
+				udev_device_unref(drm_dev);
+				continue;
+			}
 		} else {
 			/* Some GPUs are platform devices. Ignore them. */
 			pci_addr = NULL;
