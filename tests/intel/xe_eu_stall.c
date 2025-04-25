@@ -39,6 +39,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include "igt.h"
@@ -645,6 +646,7 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 {
 	int drm_fd;
 	uint32_t devid;
+	struct stat sb;
 	bool blocking_read = true;
 
 	igt_fixture {
@@ -653,6 +655,7 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 		devid = intel_get_drm_devid(drm_fd);
 		igt_require(IS_PONTEVECCHIO(devid) || intel_graphics_ver(devid) >= IP_VER(20, 0));
 		igt_require_f(igt_get_gpgpu_fillfunc(devid), "no gpgpu-fill function\n");
+		igt_require_f(!stat(OBSERVATION_PARANOID, &sb), "no observation_paranoid file\n");
 		if (output_file) {
 			output = fopen(output_file, "w");
 			igt_require(output);
