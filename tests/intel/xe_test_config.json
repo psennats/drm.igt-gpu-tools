@@ -71,8 +71,16 @@
         },
         "GPU excluded platform": {
             "_properties_": {
-                "description": "Provides a list of GPUs not capable of running the subtest (or the test as a hole)."
-            }
+                "description": "Provides a list of GPUs not capable of running the subtest (or the test as a whole).",
+		"update-from-file": {
+		    "include-type": "regex-ignorecase",
+		    "include": [
+			{ "LNL": "../intel-ci/xe.lnl.core.blocklist.txt" },
+			{ "BMG": "../intel-ci/xe.bmg.core.blocklist.txt" },
+			{ "all": "../intel-ci/xe.blocklist.txt" }
+		    ]
+		}
+	    }
         },
         "GPU requirement": {
             "_properties_": {
