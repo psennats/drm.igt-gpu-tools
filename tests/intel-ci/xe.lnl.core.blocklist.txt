@@ -1,0 +1,85 @@
+##################################################################
+# Tests NA for Native
+##################################################################
+igt@.*iov.*
+##################################################################
+# KMS - Display related tests
+# Other Display specific tests
+##################################################################
+igt@.*kms.*
+igt@testdisplay
+igt@xe_pat@display-vs-wb-transient
+igt@fbdev@.*
+##################################################################
+# Expected skip as platform has no vram support
+##################################################################
+igt@xe_create@create-big-vram
+igt@xe_evict@.*
+igt@xe_evict_ccs@.*
+igt@xe_mmap@small-bar
+igt@xe_mmap@vram$
+igt@xe_noexec_ping_pong
+igt@xe_pm@d3-mmap-vram
+igt@xe_pm@d3hot-mmap-vram
+igt@xe_sysfs_tile@physical_vram_size_bytes
+##################################################################
+# No d3cold support for LNL
+##################################################################
+igt@xe_pm@.*d3cold.*
+##################################################################
+# Expected skip, S3 is not supported on the platform
+##################################################################
+igt@xe_gt_freq@freq_suspend
+igt@xe_pm@s3.*
+igt@xe_pm_residency@cpg-basic
+##################################################################
+# Hwmon feature isn't applicable for Integrated Platforms
+##################################################################
+igt@intel_hwmon@.*
+##################################################################
+# Expected Skip for xe2+ paltforms
+##################################################################
+igt@xe_media_fill@media-fill
+igt@xe_pat@pat-index-xehpc
+igt@xe_pat@pat-index-xelp
+igt@xe_pat@pat-index-xelpg
+##################################################################
+# Expected skip on xe1 & xe2 Platforms
+##################################################################
+igt@xe_pat@pat-index-xe3p-xpc
+##################################################################
+# Expected skip on integrated platforms
+##################################################################
+igt@.*@.*multigpu.*
+igt@xe_peer2peer@.*
+#######################################################
+# Expected behavior - CCS mode enabled only for platforms
+# which have more than 1 COMPUTE ENGINE instance per tile.
+##################################################################
+igt@xe_compute@ccs-mode-basic
+igt@xe_compute@ccs-mode-compute-kernel
+##################################################################
+# Expected skips as tests are xe-internal specific
+##################################################################
+igt@xe_vm@.*export.*
+##################################################################
+# Tests not applicable for the platform
+##################################################################
+igt@xe_evict@.*multiqueue.*
+igt@xe_exec_multi_queue@.*
+igt@.*@.*-multi_queue
+igt@.*@.*multi-queue.*
+##################################################################
+# Kernel support not available
+##################################################################
+igt@xe_eudebug@.*
+igt@xe_eudebug_online@.*
+igt@xe_exec_sip@.*
+igt@xe_exec_sip_eudebug@.*
+igt@xe_live_ktest@xe_eudebug
+##################################################################
+# Expected Skip as per the current behaviour
+##################################################################
+igt@xe_oa@oa-tlb-invalidate
+igt@xe_oa@unprivileged-single-ctx-counters
+##################################################################
