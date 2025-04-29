@@ -374,12 +374,15 @@ struct aligned_alloc_type {
 static struct aligned_alloc_type __aligned_alloc(size_t alignment, size_t size)
 {
 	struct aligned_alloc_type aligned_alloc_type;
+	uint64_t addr;
 
 	aligned_alloc_type.__ptr = mmap(NULL, alignment + size, PROT_NONE, MAP_PRIVATE |
 					MAP_ANONYMOUS, -1, 0);
 	igt_assert(aligned_alloc_type.__ptr != MAP_FAILED);
 
-	aligned_alloc_type.ptr = (void *)ALIGN((uint64_t)aligned_alloc_type.__ptr, alignment);
+	addr = to_user_pointer(aligned_alloc_type.__ptr);
+	addr = ALIGN(addr, (uint64_t)alignment);
+	aligned_alloc_type.ptr = from_user_pointer(addr);
 	aligned_alloc_type.size = size;
 	aligned_alloc_type.__size = size + alignment;
 
