@@ -28,6 +28,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+uint64_t igt_get_meminfo(const char *field);
+
 /* These are separate to allow easier testing when porting, see the comment at
  * the bottom of intel_os.c. */
 uint64_t igt_get_total_ram_mb(void);

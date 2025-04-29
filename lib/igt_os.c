@@ -100,6 +100,49 @@ static uint64_t get_meminfo(const char *info, const char *tag)
 }
 
 /**
+ * igt_get_meminfo:
+ * @field: name of meminfo field to get the value of
+ *
+ * Returns:
+ * The value of the meminfo field @field
+ */
+uint64_t igt_get_meminfo(const char *field)
+{
+	uint64_t retval;
+	char *info;
+	char *query;
+	int fd;
+
+	fd = open("/proc", O_RDONLY);
+	info = igt_sysfs_get(fd, "meminfo");
+	close(fd);
+
+	if (!info) {
+		igt_warn("Could not open /proc/meminfo");
+		return 0;
+	}
+
+	/*
+	 * In get_meminfo, it is expected that the provided tag ends in a colon (:).
+	 * If the colon is missing, the search will fail to find the meminfo field.
+	 * Userspace should not be required to provide this extra colon in the
+	 * meminfo field name, so append it silently to the provided name before
+	 * passing it to get_meminfo.
+	 */
+	query = malloc(strlen(field) + 1);
+	if (!query) {
+		igt_warn("Failed to alloc search query");
+		return 0;
+	}
+	sprintf(query, "%s:", field);
+
+	retval = get_meminfo(info, query);
+	free(query);
+
+	return retval;
+}
+
+/**
  * igt_get_avail_ram_mb:
  *
  * Returns:
