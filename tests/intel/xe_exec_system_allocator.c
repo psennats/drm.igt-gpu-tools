@@ -967,6 +967,12 @@ struct test_exec_data {
 	uint32_t expected_data;
 };
 
+static void igt_require_hugepages(void)
+{
+	igt_skip_on_f(!igt_get_meminfo("HugePages_Total"),
+		      "Huge pages not reserved by the kernel!\n");
+}
+
 static void
 test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	  int n_exec_queues, int n_execs, size_t bo_size,
@@ -1007,6 +1013,9 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 
 	if (flags & EVERY_OTHER_CHECK && odd(n_execs))
 		return;
+
+	if (flags & HUGE_PAGE)
+		igt_require_hugepages();
 
 	if (flags & EVERY_OTHER_CHECK)
 		igt_assert(flags & MREMAP);
@@ -1442,6 +1451,9 @@ threads(int fd, int n_exec_queues, int n_execs, size_t bo_size,
 	if ((FILE_BACKED | FORK_READ) & flags)
 		return;
 
+	if (flags & HUGE_PAGE)
+		igt_require_hugepages();
+
 	xe_for_each_engine(fd, hwe)
 		++n_engines;
 
@@ -1552,6 +1564,9 @@ processes(int fd, int n_exec_queues, int n_execs, size_t bo_size,
 
 	if (flags & FORK_READ)
 		return;
+
+	if (flags & HUGE_PAGE)
+		igt_require_hugepages();
 
 	map_fd = open(sync_file, O_RDWR | O_CREAT, 0x666);
 	posix_fallocate(map_fd, 0, sizeof(*pdata));
