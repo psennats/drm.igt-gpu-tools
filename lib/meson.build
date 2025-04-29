@@ -166,7 +166,7 @@ if libdrm_amdgpu.found()
 		'amdgpu/amd_cp_dma.c',
 		'amdgpu/amd_mem_leak.c',
 		'amdgpu/amd_mmd_shared.c',
-		'amdgpu/amd_user_queue.c'
+		'amdgpu/amd_userq.c'
 	]
 	if libdrm_amdgpu.version().version_compare('> 2.4.99')
 		lib_sources +=[ 'amdgpu/amd_dispatch.c',]

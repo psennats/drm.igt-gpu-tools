@@ -10,7 +10,7 @@
 #include "lib/amdgpu/amd_sdma.h"
 #include "lib/amdgpu/amd_PM4.h"
 #include "lib/amdgpu/amd_command_submission.h"
-#include "lib/amdgpu/amd_user_queue.h"
+#include "lib/amdgpu/amd_userq.h"
 #include "ioctl_wrappers.h"
 
 

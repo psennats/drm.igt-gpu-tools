@@ -25,7 +25,7 @@
 #include "amd_PM4.h"
 #include "amd_memory.h"
 #include "amd_compute.h"
-#include "amd_user_queue.h"
+#include "amd_userq.h"
 
 /**
  *

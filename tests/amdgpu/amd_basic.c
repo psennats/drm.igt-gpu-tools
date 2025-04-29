@@ -13,7 +13,7 @@
 #include "lib/amdgpu/amd_gfx.h"
 #include "lib/amdgpu/amd_shaders.h"
 #include "lib/amdgpu/amd_dispatch.h"
-#include "lib/amdgpu/amd_user_queue.h"
+#include "lib/amdgpu/amd_userq.h"
 
 #define BUFFER_SIZE (8 * 1024)
 
