@@ -976,6 +976,23 @@ is_rings_available(amdgpu_device_handle device_handle, uint32_t mask,
 	return  hw_ip_info.available_rings & mask;
 }
 
+void asic_userq_readiness(amdgpu_device_handle device_handle, bool arr[AMD_IP_MAX])
+{
+	int r, i;
+	enum amd_ip_block_type ip;
+	struct drm_amdgpu_info_device dev_info = {0};
+
+	r = amdgpu_query_info(device_handle, AMDGPU_INFO_DEV_INFO,
+			      sizeof(dev_info), &dev_info);
+	igt_assert_eq(r, 0);
+
+	if (!dev_info.userq_ip_mask)
+		return;
+
+	for (i = 0, ip = AMD_IP_GFX; ip < AMD_IP_MAX; ip++)
+		arr[i++] = dev_info.userq_ip_mask & (1 << ip);
+}
+
 /**
  * asic_rings_readness:
  * @device handle: handle to driver internal information
