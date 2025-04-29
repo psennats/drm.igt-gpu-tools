@@ -315,6 +315,7 @@ igt_main
 	struct drm_amdgpu_info_hw_ip  sdma_info = {};
 	int r, fd = -1;
 	bool is_secure = true;
+	bool userq_arr_cap[AMD_IP_MAX] = {0};
 
 	igt_fixture {
 		uint32_t major, minor;
@@ -331,6 +332,7 @@ igt_main
 		igt_assert_eq(r, 0);
 		r = amdgpu_query_hw_ip_info(device, AMDGPU_HW_IP_DMA, 0, &sdma_info);
 		igt_assert_eq(r, 0);
+		asic_userq_readiness(device, userq_arr_cap);
 		igt_skip_on(!is_security_tests_enable(device, &gpu_info, major, minor));
 	}
 
@@ -355,15 +357,18 @@ igt_main
 			AMDGPU_HW_IP_DMA), is_secure);
 
 #ifdef AMDGPU_USERQ_ENABLED
+
 	igt_describe("amdgpu gfx command submission write linear helper with user queue");
 	igt_subtest("gfx-write-linear-helper-secure-umq")
-	amdgpu_command_submission_write_linear_helper(device,
-			get_ip_block(device, AMDGPU_HW_IP_GFX), is_secure, true);
+	if (userq_arr_cap[AMD_IP_GFX])
+		amdgpu_command_submission_write_linear_helper(device,
+				get_ip_block(device, AMDGPU_HW_IP_GFX), is_secure, true);
 
 	igt_describe("amdgpu compute command submission write linear helper with user queue");
 	igt_subtest("compute-write-linear-helper-secure-umq")
-	amdgpu_command_submission_write_linear_helper(device,
-			get_ip_block(device, AMDGPU_HW_IP_COMPUTE), is_secure, true);
+	if (userq_arr_cap[AMD_IP_COMPUTE])
+		amdgpu_command_submission_write_linear_helper(device,
+				get_ip_block(device, AMDGPU_HW_IP_COMPUTE), is_secure, true);
 #endif
 
 	igt_fixture {
