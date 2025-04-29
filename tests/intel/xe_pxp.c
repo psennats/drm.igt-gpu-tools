@@ -1140,9 +1140,23 @@ static void termination_tests(int fd, bool pxp_supported, drmModeResPtr res,
 		}
 }
 
+int xe_fd = -1;
+
+static void exit_handler(int sig)
+{
+	/*
+	 * PXP can interact with some operations (e.g. suspend/resume), which
+	 * could impact the behavior of other tests if they unknowingly start
+	 * when PXP is already active. Therefore, let's make sure PXP is
+	 * de-activated before we exit.
+	 */
+	trigger_termination(xe_fd, PXP_TERMINATION_IRQ);
+	drm_close_driver(xe_fd);
+	usleep(50 * 1000); /* give time for the termination to be processed */
+}
+
 igt_main
 {
-	int xe_fd = -1;
 	bool pxp_supported = true;
 	drmModeResPtr res;
 
@@ -1151,6 +1165,8 @@ igt_main
 		igt_require(xe_has_engine_class(xe_fd, DRM_XE_ENGINE_CLASS_RENDER));
 		pxp_supported = is_pxp_hw_supported(xe_fd);
 		res = drmModeGetResources(xe_fd);
+		if (pxp_supported)
+			igt_install_exit_handler(exit_handler);
 	}
 
 	igt_subtest_group {
@@ -1215,6 +1231,7 @@ igt_main
 
 	igt_fixture {
 		drmModeFreeResources(res);
-		close(xe_fd);
+		if (!pxp_supported)
+			drm_close_driver(xe_fd);
 	}
 }
