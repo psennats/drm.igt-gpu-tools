@@ -3959,12 +3959,106 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 	__perf_close(stream_fd);
 }
 
+static void
+__test_mmio_triggered_reports_read(struct drm_xe_engine_class_instance *hwe)
+{
+	struct intel_xe_perf_metric_set *test_set = default_test_set;
+	uint64_t properties[] = {
+		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
+		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
+		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
+	};
+	struct intel_xe_oa_open_prop param = {
+		.num_properties = sizeof(properties) / 16,
+		.properties_ptr = to_user_pointer(properties),
+	};
+	size_t format_size = get_oa_format(test_set->perf_oa_format).size;
+	struct intel_buf src, dst;
+	uint32_t mmio_triggered_reports = 0;
+	struct buf_ops *bops;
+	struct intel_bb *ibb;
+	uint32_t context, vm;
+	uint8_t *buf = calloc(1, default_oa_buffer_size);
+	int len, total_len = 0;
+
+	bops = buf_ops_create(drm_fd);
+
+	scratch_buf_init(bops, &src, rc_width, rc_height, 0xff0000ff);
+	scratch_buf_init(bops, &dst, rc_width, rc_height, 0x00ff00ff);
+
+	vm = xe_vm_create(drm_fd, 0, 0);
+	context = xe_exec_queue_create(drm_fd, vm, hwe, 0);
+	igt_assert(context);
+	ibb = intel_bb_create_with_context(drm_fd, context, vm, NULL, BATCH_SZ);
+
+	stream_fd = __perf_open(drm_fd, &param, false);
+	set_fd_flags(stream_fd, O_CLOEXEC);
+
+	emit_mmio_triggered_report(ibb, 0xc0ffee11);
+
+	if (render_copy)
+		render_copy(ibb,
+			    &src, 0, 0, rc_width, rc_height,
+			    &dst, 0, 0);
+
+	emit_mmio_triggered_report(ibb, 0xc0ffee22);
+
+	intel_bb_flush_render(ibb);
+	intel_bb_sync(ibb);
+
+	while (total_len < default_oa_buffer_size && mmio_triggered_reports < 2 &&
+		((len = read(stream_fd, &buf[total_len], format_size)) > 0 ||
+		(len == -1 && (errno == EINTR || errno == EIO)))) {
+		uint32_t *report = (void *)&buf[total_len];
+
+		if (len != format_size)
+			continue;
+
+		if (!report_reason(report))
+			mmio_triggered_reports++;
+
+		if (get_oa_format(test_set->perf_oa_format).report_hdr_64bit) {
+			u64 *report64 = (u64 *)report;
+
+			igt_debug("hdr: %016"PRIx64" %016"PRIx64" %016"PRIx64" %016"PRIx64"\n",
+				  report64[0], report64[1], report64[2], report64[3]);
+			if (!report_reason(report))
+				igt_assert(report64[2] == 0xc0ffee11 || report64[2] == 0xc0ffee22);
+		} else {
+			igt_debug("hdr: %08x %08x %08x %08x\n",
+				  report[0], report[1], report[2], report[3]);
+			if (!report_reason(report))
+				igt_assert(report[2] == 0xc0ffee11 || report[2] == 0xc0ffee22);
+		}
+
+		if (len > 0)
+			total_len += len;
+	}
+
+	igt_assert_eq(mmio_triggered_reports, 2);
+
+	intel_buf_close(bops, &src);
+	intel_buf_close(bops, &dst);
+	intel_bb_destroy(ibb);
+	xe_exec_queue_destroy(drm_fd, context);
+	xe_vm_destroy(drm_fd, vm);
+	buf_ops_destroy(bops);
+	free(buf);
+	__perf_close(stream_fd);
+}
+
 /**
  * SUBTEST: mmio-triggered-reports
  * Description: Test MMIO trigger functionality
+ *
+ * SUBTEST: mmio-triggered-reports-read
+ * Description: Test MMIO trigger functionality with read system call
  */
 static void
-test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
+test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe,
+			    bool with_read)
 {
 	struct igt_helper_process child = {};
 	int ret;
@@ -3973,7 +4067,10 @@ test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 	igt_fork_helper(&child) {
 		igt_drop_root();
 
-		__test_mmio_triggered_reports(hwe);
+		if (with_read)
+			__test_mmio_triggered_reports_read(hwe);
+		else
+			__test_mmio_triggered_reports(hwe);
 	}
 	ret = igt_wait_helper(&child);
 	write_u64_file("/proc/sys/dev/xe/observation_paranoid", 1);
@@ -4894,7 +4991,13 @@ igt_main
 		igt_subtest_with_dynamic("mmio-triggered-reports") {
 			igt_require(HAS_OA_MMIO_TRIGGER(devid));
 			__for_one_hwe_in_oag(hwe)
-				test_mmio_triggered_reports(hwe);
+				test_mmio_triggered_reports(hwe, false);
+		}
+
+		igt_subtest_with_dynamic("mmio-triggered-reports-read") {
+			igt_require(HAS_OA_MMIO_TRIGGER(devid));
+			__for_one_hwe_in_oag(hwe)
+				test_mmio_triggered_reports(hwe, true);
 		}
 	}
 
