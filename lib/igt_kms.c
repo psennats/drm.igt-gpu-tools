@@ -5046,6 +5046,36 @@ bool igt_override_all_active_output_modes_to_fit_bw(igt_display_t *display)
 	return __override_all_active_output_modes_to_fit_bw(display, outputs, n_outputs, 0);
 }
 
+/*
+ * igt_fit_modes_in_bw :
+ * @display: a pointer to an #igt_display_t structure
+ *
+ * Tries atomic TEST_ONLY commit; if it fails, overrides
+ * output modes to fit bandwidth.
+ *
+ * Returns: true if a valid mode combination is found or the commit succeeds,
+ * false otherwise.
+ */
+bool igt_fit_modes_in_bw(igt_display_t *display)
+{
+	int ret;
+
+	ret = igt_display_try_commit_atomic(display,
+					    DRM_MODE_ATOMIC_TEST_ONLY |
+					    DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+	if (ret != 0) {
+		bool found;
+
+		found = igt_override_all_active_output_modes_to_fit_bw(display);
+		if (!found) {
+			igt_debug("No valid mode combo found for modeset\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
  * igt_pipe_refresh:
  * @display: a pointer to an #igt_display_t structure
