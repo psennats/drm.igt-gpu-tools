@@ -971,6 +971,8 @@ static void igt_require_hugepages(void)
 {
 	igt_skip_on_f(!igt_get_meminfo("HugePages_Total"),
 		      "Huge pages not reserved by the kernel!\n");
+	igt_skip_on_f(!igt_get_meminfo("HugePages_Free"),
+		      "No huge pages available!\n");
 }
 
 static void
