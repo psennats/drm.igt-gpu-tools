@@ -474,6 +474,7 @@ static unsigned int enable_and_provision_vfs(int fd)
 
 	igt_require(igt_sriov_is_pf(fd));
 	igt_require(igt_sriov_get_enabled_vfs(fd) == 0);
+	xe_sriov_require_default_scheduling_attributes(fd);
 	autoprobe = igt_sriov_is_driver_autoprobe_enabled(fd);
 
 	/* Enable VF's */
