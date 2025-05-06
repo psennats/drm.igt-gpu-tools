@@ -500,12 +500,15 @@ static unsigned int enable_and_provision_vfs(int fd)
 	return num_vfs;
 }
 
-static void disable_vfs(int fd)
+static void unprovision_and_disable_vfs(int fd)
 {
-	unsigned int gt;
+	unsigned int gt, num_vfs = igt_sriov_get_enabled_vfs(fd);
 
-	xe_for_each_gt(fd, gt)
+	xe_for_each_gt(fd, gt) {
 		xe_sriov_set_sched_if_idle(fd, gt, 0);
+		for (int fn = 0; fn <= num_vfs; fn++)
+			xe_sriov_set_exec_quantum_ms(fd, fn, gt, 0);
+	}
 
 	igt_sriov_disable_vfs(fd);
 	/* abort to avoid execution of next tests with enabled VFs */
@@ -599,7 +602,7 @@ igt_main
 		}
 
 		igt_fixture
-			disable_vfs(fd);
+			unprovision_and_disable_vfs(fd);
 	}
 
 	igt_subtest_group {
