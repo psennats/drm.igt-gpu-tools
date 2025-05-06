@@ -504,14 +504,14 @@ static void test_plane_position_2_display(data_t *data, enum pipe pipe1, enum pi
 	for_each_connected_output_local((display), (output)) \
 		for_each_if(igt_pipe_connector_valid((pipe), (output)))
 
-static void run_2_display_test(data_t *data, uint64_t modifier)
+static void run_2_display_test(data_t *data, uint64_t modifier, const char *name)
 {
 	enum pipe pipe1, pipe2;
 	igt_output_t *output1, *output2;
 	igt_display_t *display = &data->display;
 
-	if (!igt_display_has_format_mod(display, DRM_FORMAT_XRGB8888, modifier))
-		return;
+	igt_skip_on_f(!igt_display_has_format_mod(display, DRM_FORMAT_XRGB8888, modifier),
+		      "%s modifier is not supported\n", name);
 
 	igt_display_reset(display);
 
@@ -547,14 +547,14 @@ static void run_2_display_test(data_t *data, uint64_t modifier)
 	}
 }
 
-static void run_test(data_t *data, uint64_t modifier)
+static void run_test(data_t *data, uint64_t modifier, const char *name)
 {
 	enum pipe pipe;
 	igt_output_t *output;
 	igt_display_t *display = &data->display;
 
-	if (!igt_display_has_format_mod(display, DRM_FORMAT_XRGB8888, modifier))
-		return;
+	igt_skip_on_f(!igt_display_has_format_mod(display, DRM_FORMAT_XRGB8888, modifier),
+		      "%s modifier is not supported\n", name);
 
 	for_each_pipe_with_valid_output(display, pipe, output) {
 		igt_display_reset(display);
@@ -647,7 +647,7 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 			     "reflected immediately after each commit.");
 
 		igt_subtest_with_dynamic(subtests[i].name)
-			run_test(&data, subtests[i].modifier);
+			run_test(&data, subtests[i].modifier, subtests[i].name);
 	}
 
 	for (int i = 0; i < ARRAY_SIZE(subtests); i++) {
@@ -660,7 +660,7 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 
 			igt_require(valid_outputs > 1);
 
-			run_2_display_test(&data, subtests[i].modifier);
+			run_2_display_test(&data, subtests[i].modifier, subtests[i].name);
 		}
 	}
 
