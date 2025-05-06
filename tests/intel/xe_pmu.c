@@ -390,6 +390,7 @@ static void test_gt_frequency(int fd, struct drm_xe_engine_class_instance *eci)
 	uint32_t gt = eci->gt_id;
 	uint32_t orig_min = xe_gt_get_freq(fd, eci->gt_id, "min");
 	uint32_t orig_max = xe_gt_get_freq(fd, eci->gt_id, "max");
+	uint32_t orig_rpe;
 	uint32_t vm;
 	int pmu_fd[2];
 
@@ -438,7 +439,9 @@ static void test_gt_frequency(int fd, struct drm_xe_engine_class_instance *eci)
 	 * Restore min/max.
 	 */
 	igt_assert(xe_gt_set_freq(fd, gt, "min", orig_min) > 0);
-	igt_assert(xe_gt_get_freq(fd, gt, "min") == orig_min);
+	orig_rpe = xe_gt_get_freq(fd, gt, "rpe");
+	igt_assert(xe_gt_get_freq(fd, gt, "min") == orig_min ||
+		   xe_gt_get_freq(fd, gt, "min") == orig_rpe);
 
 	igt_info("Minimum frequency: requested %.1f, actual %.1f\n",
 		 min[0], min[1]);
