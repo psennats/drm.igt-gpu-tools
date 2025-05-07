@@ -21,6 +21,7 @@ benchmark_progs = [
 	'kms_vblank',
 	'prime_lookup',
 	'vgem_mmap',
+        'xe_blt',
 	'xe_create',
 	'xe_exec_ctx',
 ]
