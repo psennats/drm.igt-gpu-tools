@@ -133,7 +133,7 @@ void amdgpu_user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_co
 	uint32_t control = ring_context->pm4_dw;
 	uint32_t syncarray[1];
 	struct drm_amdgpu_userq_signal signal_data;
-
+	uint64_t timeout = ring_context->time_out ? ring_context->time_out : INT64_MAX;
 
 	amdgpu_pkt_begin();
 	/* Prepare the Indirect IB to submit the IB to user queue */
@@ -179,7 +179,7 @@ void amdgpu_user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_co
 	r = amdgpu_userq_signal(device, &signal_data);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_cs_syncobj_wait(device, &ring_context->timeline_syncobj_handle, 1, INT64_MAX,
+	r = amdgpu_cs_syncobj_wait(device, &ring_context->timeline_syncobj_handle, 1, timeout,
 				   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, NULL);
 	igt_assert_eq(r, 0);
 }

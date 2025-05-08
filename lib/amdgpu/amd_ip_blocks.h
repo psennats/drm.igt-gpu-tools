@@ -175,6 +175,7 @@ struct amdgpu_ring_context {
 	uint32_t timeline_syncobj_handle;
 	uint64_t point;
 	bool user_queue;
+	uint64_t time_out;
 
 	struct drm_amdgpu_info_uq_fw_areas info;
 };
