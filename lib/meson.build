@@ -115,6 +115,7 @@ lib_sources = [
 	'igt_hook.c',
 	'xe/xe_gt.c',
 	'xe/xe_ioctl.c',
+	'xe/xe_legacy.c',
 	'xe/xe_mmio.c',
 	'xe/xe_query.c',
 	'xe/xe_spin.c',

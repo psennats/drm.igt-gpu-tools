@@ -22,10 +22,12 @@
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_gt.h"
+#include "xe/xe_legacy.h"
 #include "xe/xe_spin.h"
 #include <string.h>
 
 #define SYNC_OBJ_SIGNALED	(0x1 << 0)
+#define LEGACY_MODE_ADDR	0x1a0000
 
 /**
  * SUBTEST: spin
@@ -304,139 +306,7 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
  *
  * SUBTEST: close-execqueues-close-fd
  * Description: Test close exec_queues close fd
- */
-
-static void
-test_legacy_mode(int fd, struct drm_xe_engine_class_instance *eci,
-		 int n_exec_queues, int n_execs, unsigned int flags)
-{
-	uint32_t vm;
-	uint64_t addr = 0x1a0000;
-	struct drm_xe_sync sync[2] = {
-		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
-		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
-	};
-	struct drm_xe_exec exec = {
-		.num_batch_buffer = 1,
-		.num_syncs = 2,
-		.syncs = to_user_pointer(sync),
-	};
-	uint32_t exec_queues[MAX_N_EXECQUEUES];
-	uint32_t syncobjs[MAX_N_EXECQUEUES];
-	size_t bo_size;
-	uint32_t bo = 0;
-	struct {
-		struct xe_spin spin;
-		uint32_t batch[16];
-		uint64_t pad;
-		uint32_t data;
-	} *data;
-	struct xe_spin_opts spin_opts = { .preempt = false };
-	int i, b;
-
-	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
-
-	if (flags & CLOSE_FD)
-		fd = drm_open_driver(DRIVER_XE);
-
-	vm = xe_vm_create(fd, 0, 0);
-	bo_size = sizeof(*data) * n_execs;
-	bo_size = xe_bb_size(fd, bo_size);
-
-	bo = xe_bo_create(fd, vm, bo_size,
-			  vram_if_possible(fd, eci->gt_id),
-			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
-	data = xe_bo_map(fd, bo, bo_size);
-
-	for (i = 0; i < n_exec_queues; i++) {
-		exec_queues[i] = xe_exec_queue_create(fd, vm, eci, 0);
-		syncobjs[i] = syncobj_create(fd, 0);
-	};
-
-	sync[0].handle = syncobj_create(fd, 0);
-	xe_vm_bind_async(fd, vm, 0, bo, 0, addr, bo_size, sync, 1);
-
-	for (i = 0; i < n_execs; i++) {
-		uint64_t base_addr = flags & CAT_ERROR && !i ?
-			addr + bo_size * 128 : addr;
-		uint64_t batch_offset = (char *)&data[i].batch - (char *)data;
-		uint64_t batch_addr = base_addr + batch_offset;
-		uint64_t spin_offset = (char *)&data[i].spin - (char *)data;
-		uint64_t sdi_offset = (char *)&data[i].data - (char *)data;
-		uint64_t sdi_addr = base_addr + sdi_offset;
-		uint64_t exec_addr;
-		int e = i % n_exec_queues;
-
-		if (!i) {
-			spin_opts.addr = base_addr + spin_offset;
-			xe_spin_init(&data[i].spin, &spin_opts);
-			exec_addr = spin_opts.addr;
-		} else {
-			b = 0;
-			data[i].batch[b++] = MI_STORE_DWORD_IMM_GEN4;
-			data[i].batch[b++] = sdi_addr;
-			data[i].batch[b++] = sdi_addr >> 32;
-			data[i].batch[b++] = 0xc0ffee;
-			data[i].batch[b++] = MI_BATCH_BUFFER_END;
-			igt_assert(b <= ARRAY_SIZE(data[i].batch));
-
-			exec_addr = batch_addr;
-		}
-
-		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
-		sync[1].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-		sync[1].handle = syncobjs[e];
-
-		exec.exec_queue_id = exec_queues[e];
-		exec.address = exec_addr;
-		if (e != i)
-			 syncobj_reset(fd, &syncobjs[e], 1);
-		xe_exec(fd, &exec);
-
-		if (!i && !(flags & CAT_ERROR))
-			xe_spin_wait_started(&data[i].spin);
-	}
-
-	if (flags & GT_RESET)
-		xe_force_gt_reset_async(fd, eci->gt_id);
-
-	if (flags & CLOSE_FD) {
-		if (flags & CLOSE_EXEC_QUEUES) {
-			for (i = 0; i < n_exec_queues; i++)
-				xe_exec_queue_destroy(fd, exec_queues[i]);
-		}
-		drm_close_driver(fd);
-		/* FIXME: wait for idle */
-		usleep(150000);
-		return;
-	}
-
-	for (i = 0; i < n_exec_queues && n_execs; i++)
-		igt_assert(syncobj_wait(fd, &syncobjs[i], 1, INT64_MAX, 0,
-					NULL));
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-
-	sync[0].flags |= DRM_XE_SYNC_FLAG_SIGNAL;
-	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-
-	if (!(flags & GT_RESET)) {
-		for (i = 1; i < n_execs; i++)
-			igt_assert_eq(data[i].data, 0xc0ffee);
-	}
-
-	syncobj_destroy(fd, sync[0].handle);
-	for (i = 0; i < n_exec_queues; i++) {
-		syncobj_destroy(fd, syncobjs[i]);
-		xe_exec_queue_destroy(fd, exec_queues[i]);
-	}
-
-	munmap(data, bo_size);
-	gem_close(fd, bo);
-	xe_vm_destroy(fd, vm);
-}
-
-/**
+ *
  * SUBTEST: cm-cat-error
  * Description: Test compute mode cat-error
  *
@@ -783,24 +653,29 @@ igt_main
 
 	igt_subtest("cat-error")
 		xe_for_each_engine(fd, hwe)
-			test_legacy_mode(fd, hwe, 2, 2, CAT_ERROR);
+			xe_legacy_test_mode(fd, hwe, 2, 2, CAT_ERROR,
+					    LEGACY_MODE_ADDR, false);
 
 	igt_subtest("gt-reset")
 		xe_for_each_engine(fd, hwe)
-			test_legacy_mode(fd, hwe, 2, 2, GT_RESET);
+			xe_legacy_test_mode(fd, hwe, 2, 2, GT_RESET,
+					    LEGACY_MODE_ADDR, false);
 
 	igt_subtest("close-fd-no-exec")
 		xe_for_each_engine(fd, hwe)
-			test_legacy_mode(-1, hwe, 16, 0, CLOSE_FD);
+			xe_legacy_test_mode(-1, hwe, 16, 0, CLOSE_FD,
+					    LEGACY_MODE_ADDR, false);
 
 	igt_subtest("close-fd")
 		xe_for_each_engine(fd, hwe)
-			test_legacy_mode(-1, hwe, 16, 256, CLOSE_FD);
+			xe_legacy_test_mode(-1, hwe, 16, 256, CLOSE_FD,
+					    LEGACY_MODE_ADDR, false);
 
 	igt_subtest("close-execqueues-close-fd")
 		xe_for_each_engine(fd, hwe)
-			test_legacy_mode(-1, hwe, 16, 256, CLOSE_FD |
-					 CLOSE_EXEC_QUEUES);
+			xe_legacy_test_mode(-1, hwe, 16, 256, CLOSE_FD |
+					    CLOSE_EXEC_QUEUES,
+					    LEGACY_MODE_ADDR, false);
 
 	igt_subtest("cm-cat-error")
 		xe_for_each_engine(fd, hwe)
