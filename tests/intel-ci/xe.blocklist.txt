@@ -37,7 +37,8 @@ igt@xe_live_ktest@xe_bo_shrink
 # Exclude all other non-Xe tests
 ##################################################################
 igt@debugfs.*
-igt@device_reset.*
+igt@device_reset@.*cold.*
+igt@device_reset@.*reset-bound
 igt@drm_read.*
 igt@dumb.*
 igt@prime_.*
