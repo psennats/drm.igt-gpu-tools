@@ -37,14 +37,14 @@ igt@xe_live_ktest@xe_bo_shrink
 # Exclude all other non-Xe tests
 ##################################################################
 igt@debugfs.*
-igt@device_reset
-igt@drm_read
+igt@device_reset.*
+igt@drm_read.*
 igt@dumb.*
 igt@prime_.*
-igt@sw_sync
+igt@sw_sync.*
 igt@syncobj_.*
-igt@template
-igt@tools_test
+igt@template.*
+igt@tools_test.*
 ##################################################################
 # KMS: Pipe E to Pipe P are not available on Intel hardware,
 # hence can't use more than 4 displays.
