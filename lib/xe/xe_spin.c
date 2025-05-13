@@ -126,11 +126,38 @@ void xe_spin_init(struct xe_spin *spin, struct xe_spin_opts *opts)
 	}
 
 	if (opts->mem_copy) {
+		uint32_t src_width, src_pitch, dst_width, dst_pitch;
+
+		src_width = opts->mem_copy->src->width;
+		src_pitch = opts->mem_copy->src->pitch;
+		dst_width = opts->mem_copy->dst->width;
+		dst_pitch = opts->mem_copy->dst->pitch;
+
+		if (src_width > dst_width) {
+			igt_warn("src width must be <= dst width\n");
+			src_width = dst_width;
+		}
+
+		if (src_width > SZ_256K) {
+			igt_warn("src width must be less than 256K, limiting it\n");
+			src_width = SZ_256K;
+		}
+
+		if (src_pitch > SZ_256K) {
+			igt_warn("src pitch must be less than 256K, limiting it\n");
+			src_pitch = SZ_256K;
+		}
+
+		if (dst_pitch > SZ_256K) {
+			igt_warn("dst pitch must be less than 256K, limiting it\n");
+			dst_pitch = SZ_256K;
+		}
+
 		spin->batch[b++] = MEM_COPY_CMD;
-		spin->batch[b++] = opts->mem_copy->src->width - 1;
-		spin->batch[b++] = opts->mem_copy->src->height - 1;
-		spin->batch[b++] = opts->mem_copy->src->pitch - 1;
-		spin->batch[b++] = opts->mem_copy->dst->pitch - 1;
+		spin->batch[b++] = src_width - 1;
+		spin->batch[b++] = 1;  /* for byte copying this is ignored */
+		spin->batch[b++] = src_pitch - 1;
+		spin->batch[b++] = dst_pitch - 1;
 		spin->batch[b++] = opts->mem_copy->src_offset;
 		spin->batch[b++] = opts->mem_copy->src_offset << 32;
 		spin->batch[b++] = opts->mem_copy->dst_offset;
