@@ -57,10 +57,10 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 
 	blt_mem_init(fd, &mem);
-	blt_set_mem_object(&mem.src, src_handle, size, 0, width, height,
+	blt_set_mem_object(&mem.src, src_handle, size, width, width, height,
 			   region, src_mocs, DEFAULT_PAT_INDEX, M_LINEAR,
 			   COMPRESSION_DISABLED);
-	blt_set_mem_object(&mem.dst, dst_handle, size, 0, width, height,
+	blt_set_mem_object(&mem.dst, dst_handle, size, width, width, height,
 			   region, dst_mocs, DEFAULT_PAT_INDEX, M_LINEAR,
 			   COMPRESSION_DISABLED);
 	mem.src.ptr = xe_bo_map(fd, src_handle, size);
@@ -108,7 +108,7 @@ mem_set(int fd, uint32_t dst_handle, const intel_ctx_t *ctx, uint32_t size,
 
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 	blt_mem_init(fd, &mem);
-	blt_set_mem_object(&mem.dst, dst_handle, size, 0, width, height, region,
+	blt_set_mem_object(&mem.dst, dst_handle, size, width, width, height, region,
 			   dst_mocs, DEFAULT_PAT_INDEX, M_LINEAR, COMPRESSION_DISABLED);
 	mem.dst.ptr = xe_bo_map(fd, dst_handle, size);
 	blt_set_batch(&mem.bb, bb, bb_size, region);
