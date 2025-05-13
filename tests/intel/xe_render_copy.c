@@ -445,7 +445,7 @@ static void mem_copy_busy(int fd, struct drm_xe_engine_class_instance *hwe, uint
 			  uint64_t ahnd, uint32_t region, struct xe_spin **spin,
 			  pthread_mutex_t *lock_init_spin)
 {
-	uint32_t copy_size = SZ_4M;
+	uint32_t copy_size = SZ_256K;
 	/* Keep below 5 s timeout */
 	uint64_t duration_ns = NSEC_PER_SEC * 4.5;
 	intel_ctx_t *ctx;
@@ -468,10 +468,10 @@ static void mem_copy_busy(int fd, struct drm_xe_engine_class_instance *hwe, uint
 	/* Create source and destination objects used for the copy */
 	src_handle = xe_bo_create(fd, 0, copy_size, region, 0);
 	dst_handle = xe_bo_create(fd, 0, copy_size, region, 0);
-	blt_set_mem_object(mem_copy.src, src_handle, copy_size, 0, width, height, region,
+	blt_set_mem_object(mem_copy.src, src_handle, copy_size, width, width, height, region,
 			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX,
 			   M_LINEAR, COMPRESSION_DISABLED);
-	blt_set_mem_object(mem_copy.dst, dst_handle, copy_size, 0, width, height, region,
+	blt_set_mem_object(mem_copy.dst, dst_handle, copy_size, width, width, height, region,
 			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX,
 			   M_LINEAR, COMPRESSION_DISABLED);
 	mem_copy.src->ptr = xe_bo_map(fd, src_handle, copy_size);
