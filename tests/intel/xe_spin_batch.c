@@ -318,7 +318,7 @@ static void xe_spin_fixed_duration(int fd, int gt, int class, int flags)
 static void xe_spin_mem_copy_region(int fd, struct drm_xe_engine_class_instance *hwe,
 				    uint32_t region)
 {
-	uint32_t copy_size = SZ_4M;
+	uint32_t copy_size = SZ_256K;
 	uint64_t duration_ns = NSEC_PER_SEC / 10;
 	intel_ctx_t *ctx;
 	uint32_t vm, exec_queue;
@@ -349,10 +349,10 @@ static void xe_spin_mem_copy_region(int fd, struct drm_xe_engine_class_instance 
 	/* Create source and destination objects used for the copy */
 	src_handle = xe_bo_create(fd, 0, copy_size, region, 0);
 	dst_handle = xe_bo_create(fd, 0, copy_size, region, 0);
-	blt_set_mem_object(mem_copy.src, src_handle, copy_size, 0, width, height, region,
+	blt_set_mem_object(mem_copy.src, src_handle, copy_size, width, width, height, region,
 			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX,
 			   M_LINEAR, COMPRESSION_DISABLED);
-	blt_set_mem_object(mem_copy.dst, dst_handle, copy_size, 0, width, height, region,
+	blt_set_mem_object(mem_copy.dst, dst_handle, copy_size, width, width, height, region,
 			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX,
 			   M_LINEAR, COMPRESSION_DISABLED);
 	mem_copy.src->ptr = xe_bo_map(fd, src_handle, copy_size);
