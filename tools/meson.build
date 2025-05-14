@@ -30,6 +30,7 @@ tools_progs = [
 	'intel_gpu_time',
 	'intel_gtt',
 	'intel_guc_logger',
+	'intel_hdcp',
 	'intel_infoframes',
 	'intel_lid',
 	'intel_opregion_decode',
