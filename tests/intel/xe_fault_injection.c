@@ -123,22 +123,6 @@ static void injection_list_add(const char function_name[])
 	close(dir);
 }
 
-static void injection_list_append(const char function_name[])
-{
-	int dir, fd, ret;
-
-	dir = fail_function_open();
-	igt_assert_lte(0, dir);
-
-	fd = openat(dir, "inject", O_WRONLY | O_APPEND);
-	ret = write(fd, function_name, strlen(function_name));
-
-	close(fd);
-	close(dir);
-
-	igt_assert_lte(0, ret);
-}
-
 static void injection_list_remove(const char function_name[])
 {
 	int dir;
@@ -252,10 +236,6 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
 
 	ignore_faults_in_dmesg(function_name);
 	injection_list_add(function_name);
-	if (!strcmp(function_name, "xe_guc_ct_send_recv") ||
-	    !strcmp(function_name, "xe_guc_mmio_send_recv"))
-		injection_list_append("xe_should_fail_ct_dead_capture");
-
 	set_retval(function_name, INJECT_ERRNO);
 
 	igt_kmod_bind("xe", pci_slot);
@@ -293,8 +273,6 @@ static void probe_fail_guc(int fd, char pci_slot[], const char function_name[],
 	for (int i = iter_start; i < iter_end; i++) {
 		fault_params->space = i;
 		setup_injection_fault(fault_params);
-		/* Clear the injection list  */
-		injection_list_clear();
 		inject_fault_probe(fd, pci_slot, function_name);
 		igt_kmod_unbind("xe", pci_slot);
 	}
