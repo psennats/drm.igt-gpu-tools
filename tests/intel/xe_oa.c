@@ -4970,6 +4970,7 @@ igt_main
 	}
 
 	igt_subtest_with_dynamic("non-zero-reason") {
+		igt_require(!igt_run_in_simulation());
 		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
 		__for_one_hwe_in_oag(hwe)
 			test_non_zero_reason(hwe, 0);
