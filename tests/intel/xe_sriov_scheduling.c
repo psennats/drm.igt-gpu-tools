@@ -241,6 +241,25 @@ static void subm_set_init_sync_method(struct subm_set *set, enum subm_sync_metho
 		pthread_barrier_init(&set->barrier, NULL, set->ndata);
 }
 
+static void subm_set_close_handles(struct subm_set *set)
+{
+	struct subm *s;
+	int i;
+
+	if (!set->ndata)
+		return;
+
+	for (i = 0; i < set->ndata; ++i) {
+		s = &set->data[i].subm;
+
+		if (s->fd != -1) {
+			subm_fini(s);
+			drm_close_driver(s->fd);
+			s->fd = -1;
+		}
+	}
+}
+
 static void subm_set_fini(struct subm_set *set)
 {
 	int i;
@@ -248,15 +267,15 @@ static void subm_set_fini(struct subm_set *set)
 	if (!set->ndata)
 		return;
 
-	for (i = 0; i < set->ndata; ++i) {
-		igt_stats_fini(&set->data[i].stats.samples);
-		subm_fini(&set->data[i].subm);
-		drm_close_driver(set->data[i].subm.fd);
-	}
-	subm_set_free_data(set);
-
 	if (set->sync_method == SYNC_BARRIER)
 		pthread_barrier_destroy(&set->barrier);
+
+	subm_set_close_handles(set);
+
+	for (i = 0; i < set->ndata; ++i)
+		igt_stats_fini(&set->data[i].stats.samples);
+
+	subm_set_free_data(set);
 }
 
 struct init_vf_ids_opts {
@@ -602,6 +621,7 @@ static void throughput_ratio(int pf_fd, int num_vfs, const struct subm_opts *opt
 
 	/* dispatch spinners, wait for results */
 	subm_set_dispatch_and_wait_threads(set);
+	subm_set_close_handles(set);
 
 	/* verify results */
 	compute_common_time_frame_stats(set);
@@ -696,6 +716,7 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 
 	/* dispatch spinners, wait for results */
 	subm_set_dispatch_and_wait_threads(set);
+	subm_set_close_handles(set);
 
 	/* verify results */
 	for (int n = 0; n < set->ndata; ++n) {
