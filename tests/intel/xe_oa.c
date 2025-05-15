@@ -445,7 +445,7 @@ static struct drm_xe_engine_class_instance *oa_unit_engine(int fd, int n)
 		oau = (struct drm_xe_oa_unit *)poau;
 
 		if (i == n) {
-			hwe = &oau->eci[random() % oau->num_engines];
+			hwe = oau->num_engines ? &oau->eci[random() % oau->num_engines] : NULL;
 			break;
 		}
 		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
