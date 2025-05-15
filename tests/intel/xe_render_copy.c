@@ -697,6 +697,10 @@ igt_main_args("dpiW:H:", NULL, help_str, opt_handler, NULL)
 
 	igt_fixture {
 		xe = drm_open_driver(DRIVER_XE);
+
+		/* As some cards don't have render, we should skip these. */
+		igt_require(xe_has_engine_class(xe, DRM_XE_ENGINE_CLASS_RENDER));
+
 		bops = buf_ops_create(xe);
 		srand(time(NULL));
 		set = xe_get_memory_region_set(xe, DRM_XE_MEM_REGION_CLASS_SYSMEM);
