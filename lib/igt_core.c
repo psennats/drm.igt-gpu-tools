@@ -82,7 +82,9 @@
 #include "runnercomms.h"
 
 #define UNW_LOCAL_ONLY
+#ifdef HAVE_LIBUNWIND
 #include <libunwind.h>
+#endif
 #include <elfutils/libdwfl.h>
 
 #ifdef HAVE_LIBGEN_H
@@ -375,6 +377,9 @@ static int _igt_dynamic_tests_executed = -1;
 
 static void print_backtrace(void)
 {
+#ifndef HAVE_LIBUNWIND
+	igt_info("backtrace not implemented\n");
+#else
 	unw_cursor_t cursor;
 	unw_context_t uc;
 	int stack_num = 0;
@@ -432,6 +437,7 @@ static void print_backtrace(void)
 
 	if (dwfl)
 		dwfl_end(dwfl);
+#endif
 }
 
 __attribute__((format(printf, 2, 3)))
@@ -2078,6 +2084,7 @@ static void write_stderr(const char *str)
 	__write_stderr(str, strlen(str));
 }
 
+#ifdef HAVE_LIBUNWIND
 static const char hex[] = "0123456789abcdef";
 
 static void
@@ -2230,9 +2237,13 @@ xprintf(const char *fmt, ...)
 	xprintfmt(fmt, ap);
 	va_end(ap);
 }
+#endif /* HAVE_LIBUNWIND */
 
 static void print_backtrace_sig_safe(void)
 {
+#ifndef HAVE_LIBUNWIND
+	igt_info("backtrace not implemented\n");
+#else
 	unw_cursor_t cursor;
 	unw_context_t uc;
 	int stack_num = 0;
@@ -2252,6 +2263,7 @@ static void print_backtrace_sig_safe(void)
 				(unsigned int) off);
 
 	}
+#endif
 }
 
 void __igt_fail_assert(const char *domain, const char *file, const int line,

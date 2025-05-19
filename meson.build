@@ -147,6 +147,9 @@ else
 endif
 
 libunwind = dependency('libunwind', required : get_option('libunwind'))
+if libunwind.found()
+	config.set('HAVE_LIBUNWIND', 1)
+endif
 build_info += 'With libunwind: @0@'.format(libunwind.found())
 
 libdw = dependency('libdw', required : true)
