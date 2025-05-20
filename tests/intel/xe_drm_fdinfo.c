@@ -48,6 +48,9 @@
  * SUBTEST: utilization-single-full-load
  * Description: Check that each engine shows full load
  *
+ * SUBTEST: utilization-single-full-load-while-active
+ * Description: Check that each engine shows full load whle active
+ *
  * SUBTEST: utilization-single-full-load-isolation
  * Description: Check that each engine load does not spill over to other drm clients
  *
@@ -70,6 +73,7 @@ IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine u
 
 /* flag masks */
 #define TEST_WITH_LOAD		(1 << 0)
+#define TEST_WHILE_ACTIVE	(1 << 0)
 #define TEST_ISOLATION		(1 << 2)
 #define TEST_VIRTUAL		(1 << 3)
 #define TEST_PARALLEL		(1 << 4)
@@ -454,11 +458,14 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 		read_engine_cycles(new_fd, pceu1[1]);
 
 	usleep(batch_duration_usec);
-	end_cork(fd, cork);
+	if (!(flags & TEST_WHILE_ACTIVE))
+		end_cork(fd, cork);
 
 	read_engine_cycles(fd, pceu2[0]);
 	if (flags & TEST_ISOLATION)
 		read_engine_cycles(new_fd, pceu2[1]);
+
+	end_cork(fd, cork);
 
 	expected_load = flags & TEST_WITH_LOAD ?
 	       EXPECTED_LOAD_FULL : EXPECTED_LOAD_IDLE;
@@ -691,7 +698,8 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 		read_engine_cycles(fd_spill, pceu_spill[0]);
 
 	usleep(batch_duration_usec);
-	end_cork(fd, cork);
+	if (!(flags & TEST_WHILE_ACTIVE))
+		end_cork(fd, cork);
 
 	read_engine_cycles(fd, pceu[1]);
 	if (flags & TEST_ISOLATION)
@@ -766,6 +774,13 @@ igt_main
 		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
 			utilization_single(xe, hwe, 0);
+	}
+
+	igt_subtest("utilization-single-full-load-while-active") {
+		require_engine_utilization_data(xe);
+		xe_for_each_engine(xe, hwe)
+			utilization_single(xe, hwe,
+					   TEST_WITH_LOAD | TEST_WHILE_ACTIVE);
 	}
 
 	igt_subtest("utilization-single-full-load") {
