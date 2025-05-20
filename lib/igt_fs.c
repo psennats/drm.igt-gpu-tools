@@ -21,9 +21,10 @@
  * IN THE SOFTWARE.
  *
  */
-
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "igt_fs.h"
@@ -93,4 +94,50 @@ ssize_t igt_writen(int fd, const char *buf, size_t len)
 		total += ret;
 	} while (total != len);
 	return total ?: ret;
+}
+
+/**
+ * igt_fs_create_dir: creates and opens directory
+ * @fd: file descriptor of parent directory
+ * @name: name of the directory to create
+ * @mode: permissions for the directory
+ *
+ * creates a directory under parent directory and returns
+ * the fd
+ *
+ * Returns: directory fd on success, -errno otherwise
+ */
+int igt_fs_create_dir(int fd, const char *name, mode_t mode)
+{
+	int ret;
+	int dirfd;
+
+	ret = mkdirat(fd, name, mode);
+	if (ret)
+		return -errno;
+
+	dirfd = openat(fd, name, O_DIRECTORY);
+	if (dirfd < 0)
+		return -errno;
+
+	return dirfd;
+}
+
+/**
+ * igt_fs_remove_directory: removes directory
+ * @fd: fd of parent directory
+ * @name: name of directory to remove
+ *
+ * removes directory under parent directory
+ *
+ * Returns: 0 on success, -errno otherwise
+ */
+int igt_fs_remove_dir(int fd, const char *name)
+{
+	int ret = unlinkat(fd, name, AT_REMOVEDIR);
+
+	if (ret)
+		return -errno;
+
+	return 0;
 }

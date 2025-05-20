@@ -27,6 +27,8 @@
 
 #include <stdio.h>
 
+int igt_fs_create_dir(int fd, const char *name, mode_t mode);
+int igt_fs_remove_dir(int fd, const char *name);
 ssize_t igt_readn(int fd, char *buf, size_t len);
 ssize_t igt_writen(int fd, const char *buf, size_t len);
 
