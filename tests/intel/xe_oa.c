@@ -2520,7 +2520,6 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 	char *buf = malloc(1024);
 	bool overflow_seen;
 	u32 oa_status;
-	int len;
 
 	igt_debug("oa_period %s\n", pretty_print_oa_period(oa_period));
 	stream_fd = __perf_open(drm_fd, &param, true /* prevent_pm */);
@@ -2535,16 +2534,22 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 
 	errno = 0;
 	/* Read 0 bytes repeatedly until you see an EIO */
-	while ((len = read(stream_fd, buf, 0)) == -1 && (errno == EINTR || errno == ENOSPC)) {
+	while (-1 == read(stream_fd, buf, 0)) {
+		if (errno == EIO) {
+			oa_status = get_stream_status(stream_fd);
+			overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
+			if (overflow_seen)
+				break;
+		}
 		usleep(100);
 	}
-	igt_assert_eq(len, -1);
-	igt_assert_eq(errno, EIO);
+	igt_assert(overflow_seen);
 
-	/* Ensure buffer overflowed */
+	/* Make sure the buffer overflow is cleared */
+	read(stream_fd, buf, 0);
 	oa_status = get_stream_status(stream_fd);
 	overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
-	igt_assert(overflow_seen);
+	igt_assert_eq(overflow_seen, 0);
 
 	__perf_close(stream_fd);
 }
