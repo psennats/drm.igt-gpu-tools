@@ -24,6 +24,14 @@
  * SUBTEST: engine-activity-load
  * Description: Test to validate engine activity stats by running a workload
  *
+ * SUBTEST: engine-activity-single-load
+ * Description: Test to validate engine activity by running workload on one engine and check if
+ *		all other engines are idle
+ *
+ * SUBTEST: engine-activity-single-load-idle
+ * Description: Test to validate engine activity by running workload and trailing idle on one engine
+ *		and check if all other engines are idle
+ *
  * SUBTEST: all-fn-engine-activity-load
  * Description: Test to validate engine activity by running load on all functions simultaneously
  *
@@ -51,6 +59,7 @@
 /* flag masks */
 #define TEST_LOAD		BIT(0)
 #define TEST_TRAILING_IDLE	BIT(1)
+#define TEST_IDLE		BIT(2)
 
 const double tolerance = 0.1;
 static char xe_device[NAME_MAX];
@@ -165,6 +174,29 @@ static void end_cork(int fd, struct xe_cork *cork)
 		xe_cork_sync_end(fd, cork);
 }
 
+static void check_all_engines(int num_engines, int *flag, uint64_t *before, uint64_t *after)
+{
+	uint64_t engine_active_ticks, engine_total_ticks;
+	int engine_idx = 0;
+
+	for (int idx = 0; idx < num_engines * 2; idx += 2) {
+		engine_idx = idx >> 1;
+
+		engine_active_ticks = after[idx] - before[idx];
+		engine_total_ticks = after[idx + 1] - before[idx + 1];
+
+		igt_debug("[%d] Engine active ticks: after %ld, before %ld delta %ld\n", engine_idx,
+			  after[idx], before[idx], engine_active_ticks);
+		igt_debug("[%d] Engine total ticks: after %ld, before %ld delta %ld\n", engine_idx,
+			  after[idx + 1], before[idx + 1], engine_total_ticks);
+
+		if (flag[engine_idx] == TEST_LOAD)
+			assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
+		else if (flag[engine_idx] == TEST_IDLE)
+			assert_within_epsilon(engine_active_ticks, 0.0f, tolerance);
+	}
+}
+
 static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 {
 	uint64_t config, engine_active_ticks, engine_total_ticks, before[2], after[2];
@@ -213,6 +245,62 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 		assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
 	else
 		igt_assert(!engine_active_ticks);
+}
+
+static void engine_activity_load_single(int fd, int num_engines,
+					struct drm_xe_engine_class_instance *eci,
+					unsigned int flags)
+{
+	uint64_t ahnd, before[2 * num_engines], after[2 * num_engines], config;
+	struct drm_xe_engine_class_instance *eci_;
+	struct xe_cork *cork = NULL;
+	int pmu_fd[num_engines * 2], flag[num_engines];
+	int idx = 0, engine_idx;
+	uint32_t vm;
+
+	pmu_fd[0] = -1;
+	xe_for_each_engine(fd, eci_) {
+		engine_idx = idx >> 1;
+		flag[engine_idx] = TEST_IDLE;
+
+		if (eci_->engine_class == eci->engine_class &&
+		    eci_->engine_instance == eci->engine_instance)
+			flag[engine_idx] = TEST_LOAD;
+
+		config = get_event_config(eci_->gt_id, eci_, "engine-active-ticks");
+		pmu_fd[idx++] = open_group(fd, config, pmu_fd[0]);
+
+		config = get_event_config(eci_->gt_id, eci_, "engine-total-ticks");
+		pmu_fd[idx++] = open_group(fd, config, pmu_fd[0]);
+	}
+
+	vm = xe_vm_create(fd, 0, 0);
+	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);
+	if (flags & TEST_LOAD) {
+		cork = xe_cork_create_opts(fd, eci, vm, 1, 1, .ahnd = ahnd);
+		xe_cork_sync_start(fd, cork);
+	}
+
+	pmu_read_multi(pmu_fd[0], 2 * num_engines, before);
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	if (flags & TEST_TRAILING_IDLE)
+		end_cork(fd, cork);
+	pmu_read_multi(pmu_fd[0], 2 * num_engines, after);
+
+	end_cork(fd, cork);
+
+	if (cork)
+		xe_cork_destroy(fd, cork);
+
+	xe_vm_destroy(fd, vm);
+	put_ahnd(ahnd);
+
+	for (idx = 0; idx < num_engines * 2; idx += 2) {
+		close(pmu_fd[idx]);
+		close(pmu_fd[idx + 1]);
+	}
+
+	check_all_engines(num_engines, flag, before, after);
 }
 
 static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *eci, int num_fns)
@@ -550,12 +638,13 @@ static void restore_gt_freq(int fd, uint32_t *stash_min, uint32_t *stash_max)
 
 igt_main
 {
-	int fd, gt;
+	int fd, gt, num_engines;
 	struct drm_xe_engine_class_instance *eci;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
 		xe_perf_device(fd, xe_device, sizeof(xe_device));
+		num_engines = xe_number_engines(fd);
 	}
 
 	igt_describe("Validate PMU gt-c6 residency counters when idle");
@@ -576,6 +665,14 @@ igt_main
 	igt_describe("Validate engine activity with workload");
 	test_each_engine("engine-activity-load", fd, eci)
 		engine_activity(fd, eci, TEST_LOAD);
+
+	igt_describe("Validate engine activity of all engines when one engine is loaded");
+	test_each_engine("engine-activity-single-load", fd, eci)
+		engine_activity_load_single(fd, num_engines, eci, TEST_LOAD);
+
+	igt_describe("Validate engine activity of all engines with one engine loaded and trailing idle");
+	test_each_engine("engine-activity-single-load-idle", fd, eci)
+		engine_activity_load_single(fd, num_engines, eci, TEST_LOAD | TEST_TRAILING_IDLE);
 
 	igt_subtest_group {
 		unsigned int num_fns;
