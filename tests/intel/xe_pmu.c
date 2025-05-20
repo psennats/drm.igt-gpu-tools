@@ -40,6 +40,13 @@
  * Description: Test to validate engine activity by running workload on all engines
  *		simultaneously and trailing idle
  *
+ * SUBTEST: engine-activity-most-load
+ * Description: Test to validate engine activity by running workload on all engines except one
+ *
+ * SUBTEST: engine-activity-most-load-idle
+ * Description: Test to validate engine activity by running workload and trailing idle on all engines
+ * 		except one
+ *
  * SUBTEST: all-fn-engine-activity-load
  * Description: Test to validate engine activity by running load on all functions simultaneously
  *
@@ -307,6 +314,63 @@ static void engine_activity_load_single(int fd, int num_engines,
 		close(pmu_fd[idx]);
 		close(pmu_fd[idx + 1]);
 	}
+
+	check_all_engines(num_engines, flag, before, after);
+}
+
+static void engine_activity_load_most(int fd, int num_engines, struct drm_xe_engine_class_instance *eci,
+				      unsigned int flags)
+{
+	uint64_t ahnd, config, before[2 * num_engines], after[2 * num_engines];
+	struct drm_xe_engine_class_instance *eci_;
+	struct xe_cork *cork[num_engines];
+	int pmu_fd[num_engines * 2], flag[num_engines];
+	int idx = 0, engine_idx = 0;
+	uint32_t vm;
+
+	pmu_fd[0] = -1;
+	vm = xe_vm_create(fd, 0, 0);
+	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);
+
+	xe_for_each_engine(fd, eci_) {
+		engine_idx = idx >> 1;
+		flag[engine_idx] = TEST_LOAD;
+
+		if (eci_->engine_class == eci->engine_class &&
+		    eci_->engine_instance == eci->engine_instance) {
+			flag[engine_idx] = TEST_IDLE;
+			cork[engine_idx] = NULL;
+		} else {
+			cork[engine_idx] = xe_cork_create_opts(fd, eci_, vm, 1, 1, .ahnd = ahnd);
+			xe_cork_sync_start(fd, cork[engine_idx]);
+		}
+
+		config = get_event_config(eci_->gt_id, eci_, "engine-active-ticks");
+		pmu_fd[idx++] = open_group(fd, config, pmu_fd[0]);
+
+		config = get_event_config(eci_->gt_id, eci_, "engine-total-ticks");
+		pmu_fd[idx++] = open_group(fd, config, pmu_fd[0]);
+	}
+
+	pmu_read_multi(pmu_fd[0], 2 * num_engines, before);
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+	if (flags & TEST_TRAILING_IDLE) {
+		for (idx = 0; idx < num_engines; idx++)
+			end_cork(fd, cork[engine_idx]);
+	}
+	pmu_read_multi(pmu_fd[0], 2 * num_engines, after);
+
+	for (idx = 0; idx < num_engines * 2; idx += 2) {
+		engine_idx = idx >> 1;
+		end_cork(fd, cork[engine_idx]);
+		if (cork[engine_idx])
+			xe_cork_destroy(fd, cork[engine_idx]);
+		close(pmu_fd[idx]);
+		close(pmu_fd[idx + 1]);
+	}
+
+	xe_vm_destroy(fd, vm);
+	put_ahnd(ahnd);
 
 	check_all_engines(num_engines, flag, before, after);
 }
@@ -730,6 +794,14 @@ igt_main
 	igt_describe("Validate engine activity of all engines with one engine loaded and trailing idle");
 	test_each_engine("engine-activity-single-load-idle", fd, eci)
 		engine_activity_load_single(fd, num_engines, eci, TEST_LOAD | TEST_TRAILING_IDLE);
+
+	igt_describe("Validate engine activity when all except one engine is loaded");
+	test_each_engine("engine-activity-most-load", fd, eci)
+		engine_activity_load_most(fd, num_engines, eci, TEST_LOAD);
+
+	igt_describe("Validate engine activity when all except one engine is loaded and trailing idle");
+	test_each_engine("engine-activity-most-load-idle", fd, eci)
+		engine_activity_load_most(fd, num_engines, eci, TEST_LOAD | TEST_TRAILING_IDLE);
 
 	igt_describe("Validate engine activity by loading all engines simultaenously");
 	igt_subtest("engine-activity-all-load")
