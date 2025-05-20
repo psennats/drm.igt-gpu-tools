@@ -46,7 +46,7 @@
 #include "igt_core.h"
 #include "igt_sysfs.h"
 #include "igt_device.h"
-#include "igt_io.h"
+#include "igt_fs.h"
 #include "intel_chipset.h"
 #include "xe/xe_query.h"
 

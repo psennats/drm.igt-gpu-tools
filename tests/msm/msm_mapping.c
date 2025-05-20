@@ -28,8 +28,8 @@
 #include <sys/stat.h>
 
 #include "igt.h"
+#include "igt_fs.h"
 #include "igt_msm.h"
-#include "igt_io.h"
 
 /*
  * Tests to ensure various kernel controlled buffers are mapped with the

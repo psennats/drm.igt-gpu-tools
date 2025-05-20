@@ -25,8 +25,8 @@
 #include <glob.h>
 
 #include "igt.h"
+#include "igt_fs.h"
 #include "igt_msm.h"
-#include "igt_io.h"
 
 static struct msm_device *dev;
 static struct msm_bo *scratch_bo;

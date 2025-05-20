@@ -26,15 +26,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "igt_io.h"
+#include "igt_fs.h"
 
 /**
- * SECTION:igt_io
- * @short_description: Helpers for file I/O
- * @title: io
- * @include: igt_io.h
+ * SECTION:igt_fs
+ * @short_description: Helpers for file operations
+ * @title: fs
+ * @include: igt_fs.h
  *
- * This library provides helpers for file I/O
+ * This library provides helpers for file operations
  */
 
 /**

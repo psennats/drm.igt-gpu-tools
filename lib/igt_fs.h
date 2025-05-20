@@ -22,12 +22,12 @@
  *
  */
 
-#ifndef __IGT_IO_H__
-#define __IGT_IO_H__
+#ifndef __IGT_FS_H__
+#define __IGT_FS_H__
 
 #include <stdio.h>
 
 ssize_t igt_readn(int fd, char *buf, size_t len);
 ssize_t igt_writen(int fd, const char *buf, size_t len);
 
-#endif /* __IGT_IO_H__ */
+#endif /* __IGT_FS_H__ */
