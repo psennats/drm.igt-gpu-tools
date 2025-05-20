@@ -423,6 +423,12 @@ check_results(struct pceu_cycles *s1, struct pceu_cycles *s2,
 	}
 }
 
+static void end_cork(int fd, struct xe_cork *cork)
+{
+	if (cork && !cork->ended)
+		xe_cork_sync_end(fd, cork);
+}
+
 static void
 utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned int flags)
 {
@@ -450,7 +456,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 
 	usleep(batch_duration_usec);
 	if (flags & TEST_TRAILING_IDLE)
-		xe_cork_sync_end(fd, cork);
+		end_cork(fd, cork);
 
 	read_engine_cycles(fd, pceu2[0]);
 	if (flags & TEST_ISOLATION)
@@ -497,7 +503,7 @@ utilization_single_destroy_queue(int fd, struct drm_xe_engine_class_instance *hw
 	usleep(batch_duration_usec);
 
 	/* destroy queue before sampling again */
-	xe_cork_sync_end(fd, cork);
+	end_cork(fd, cork);
 	timestamp = cork->spin->timestamp;
 	xe_cork_destroy(fd, cork);
 
@@ -526,7 +532,7 @@ utilization_others_idle(int fd, struct drm_xe_engine_class_instance *hwe)
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	xe_cork_sync_end(fd, cork);
+	end_cork(fd, cork);
 	read_engine_cycles(fd, pceu2);
 
 	xe_for_each_engine_class(class) {
@@ -568,10 +574,8 @@ utilization_others_full_load(int fd, struct drm_xe_engine_class_instance *hwe)
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	xe_for_each_engine_class(class) {
-		if (cork[class])
-			xe_cork_sync_end(fd, cork[class]);
-	}
+	xe_for_each_engine_class(class)
+		end_cork(fd, cork[class]);
 
 	read_engine_cycles(fd, pceu2);
 
@@ -613,10 +617,8 @@ utilization_all_full_load(int fd)
 
 	read_engine_cycles(fd, pceu1);
 	usleep(batch_duration_usec);
-	xe_for_each_engine_class(class) {
-		if (cork[class])
-			xe_cork_sync_end(fd, cork[class]);
-	}
+	xe_for_each_engine_class(class)
+		end_cork(fd, cork[class]);
 
 	read_engine_cycles(fd, pceu2);
 
@@ -692,7 +694,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 
 	usleep(batch_duration_usec);
 	if (flags & TEST_TRAILING_IDLE)
-		xe_cork_sync_end(fd, cork);
+		end_cork(fd, cork);
 
 	read_engine_cycles(fd, pceu[1]);
 	if (flags & TEST_ISOLATION)
