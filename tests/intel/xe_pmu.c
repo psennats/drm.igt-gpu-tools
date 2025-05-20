@@ -10,6 +10,31 @@
  * Mega feature: Performance Monitoring Unit
  * Sub-category: Telemetry
  * Test category: Functional tests
+ *
+ * SUBTEST: gt-c6-idle
+ * Description: Basic residency test to validate idle residency
+ *		measured over a time interval is within the tolerance
+ *
+ * SUBTEST: engine-activity-idle
+ * Description: Test to validate engine activity shows no load when idle
+ *
+ * SUBTEST: engine-activity-load-idle
+ * Description: Test to validate engine activity with full load and trailing idle
+ *
+ * SUBTEST: engine-activity-load
+ * Description: Test to validate engine activity stats by running a workload
+ *
+ * SUBTEST: all-fn-engine-activity-load
+ * Description: Test to validate engine activity by running load on all functions simultaneously
+ *
+ * SUBTEST: fn-engine-activity-load
+ * Description: Test to validate engine activity by running load on a function
+ *
+ * SUBTEST: fn-engine-activity-sched-if-idle
+ * Description: Test to validate engine activity by running load on a function
+ *
+ * SUBTEST: gt-frequency
+ * Description: Validate we can collect accurate frequency PMU stats while running a workload.
  */
 
 #include "igt.h"
@@ -140,18 +165,6 @@ static void end_cork(int fd, struct xe_cork *cork)
 		xe_cork_sync_end(fd, cork);
 }
 
-/**
- * SUBTEST: engine-activity-idle
- * Description: Test to validate engine activity shows no load when idle
- *
- * SUBTEST: engine-activity-load-idle
- * Description: Test to validate engine activity with full load followed by
- *		trailing idle
- *
- * SUBTEST: engine-activity-load
- * Description: Test to validate engine activity stats by running a workload and
- *              reading engine active ticks and engine total ticks PMU counters
- */
 static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 {
 	uint64_t config, engine_active_ticks, engine_total_ticks, before[2], after[2];
@@ -202,10 +215,6 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 		igt_assert(!engine_active_ticks);
 }
 
-/**
- * SUBTEST: all-fn-engine-activity-load
- * Description: Test to validate engine activity by running load on all functions simultaneously
- */
 static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *eci, int num_fns)
 {
 	uint64_t config, engine_active_ticks, engine_total_ticks;
@@ -273,13 +282,6 @@ static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *
 	}
 }
 
-/**
- * SUBTEST: fn-engine-activity-load
- * Description: Test to validate engine activity by running load on a function
- *
- * SUBTEST: fn-engine-activity-sched-if-idle
- * Description: Test to validate engine activity by running load on a function
- */
 static void engine_activity_fn(int fd, struct drm_xe_engine_class_instance *eci, int function)
 {
 	uint64_t config, engine_active_ticks, engine_total_ticks, before[2], after[2];
@@ -343,11 +345,6 @@ static void engine_activity_fn(int fd, struct drm_xe_engine_class_instance *eci,
 		assert_within_epsilon(busy_percent, exec_quantum_ratio, tolerance);
 }
 
-/**
- * SUBTEST: gt-c6-idle
- * Description: Basic residency test to validate idle residency
- *		measured over a time interval is within the tolerance
- */
 static void test_gt_c6_idle(int xe, unsigned int gt)
 {
 	int pmu_fd;
@@ -381,11 +378,6 @@ static void test_gt_c6_idle(int xe, unsigned int gt)
 	close(pmu_fd);
 }
 
-/**
- * SUBTEST: gt-frequency
- * Description: Validate we can collect accurate frequency PMU stats
- *		while running a workload.
- */
 static void test_gt_frequency(int fd, struct drm_xe_engine_class_instance *eci)
 {
 	struct xe_cork *cork = NULL;
