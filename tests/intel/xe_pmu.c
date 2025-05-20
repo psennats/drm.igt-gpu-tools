@@ -134,6 +134,12 @@ static uint64_t get_event_config_fn(unsigned int gt, int function,
 	return get_event_config(gt, eci, event) | add_format_config("function", function);
 }
 
+static void end_cork(int fd, struct xe_cork *cork)
+{
+	if (cork && !cork->ended)
+		xe_cork_sync_end(fd, cork);
+}
+
 /**
  * SUBTEST: engine-activity-idle
  * Description: Test to validate engine activity shows no load when idle
@@ -169,11 +175,10 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 	pmu_read_multi(pmu_fd[0], 2, before);
 	usleep(SLEEP_DURATION * USEC_PER_SEC);
 	if (flags & TEST_TRAILING_IDLE)
-		xe_cork_sync_end(fd, cork);
+		end_cork(fd, cork);
 	pmu_read_multi(pmu_fd[0], 2, after);
 
-	if ((flags & TEST_LOAD) && !cork->ended)
-		xe_cork_sync_end(fd, cork);
+	end_cork(fd, cork);
 
 	engine_active_ticks = after[0] - before[0];
 	engine_total_ticks = after[1] - before[1];
@@ -244,7 +249,7 @@ static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *
 		int idx = i * 2;
 
 		f = &fn[i];
-		xe_cork_sync_end(f->fd, f->cork);
+		end_cork(f->fd, f->cork);
 		engine_active_ticks = after[idx] - before[idx];
 		engine_total_ticks = after[idx + 1] - before[idx + 1];
 
@@ -305,7 +310,7 @@ static void engine_activity_fn(int fd, struct drm_xe_engine_class_instance *eci,
 	usleep(SLEEP_DURATION * USEC_PER_SEC);
 	pmu_read_multi(pmu_fd[0], 2, after);
 
-	xe_cork_sync_end(fn_fd, cork);
+	end_cork(fn_fd, cork);
 
 	engine_active_ticks = after[0] - before[0];
 	engine_total_ticks = after[1] - before[1];
@@ -433,7 +438,7 @@ static void test_gt_frequency(int fd, struct drm_xe_engine_class_instance *eci)
 	max[0] = (end[0] - start[0]);
 	max[1] = (end[1] - start[1]);
 
-	xe_cork_sync_end(fd, cork);
+	end_cork(fd, cork);
 
 	/*
 	 * Restore min/max.
