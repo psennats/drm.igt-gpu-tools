@@ -70,7 +70,6 @@ IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine u
 
 /* flag masks */
 #define TEST_BUSY		(1 << 0)
-#define TEST_TRAILING_IDLE	(1 << 1)
 #define TEST_ISOLATION		(1 << 2)
 #define TEST_VIRTUAL		(1 << 3)
 #define TEST_PARALLEL		(1 << 4)
@@ -455,8 +454,7 @@ utilization_single(int fd, struct drm_xe_engine_class_instance *hwe, unsigned in
 		read_engine_cycles(new_fd, pceu1[1]);
 
 	usleep(batch_duration_usec);
-	if (flags & TEST_TRAILING_IDLE)
-		end_cork(fd, cork);
+	end_cork(fd, cork);
 
 	read_engine_cycles(fd, pceu2[0]);
 	if (flags & TEST_ISOLATION)
@@ -693,8 +691,7 @@ utilization_multi(int fd, int gt, int class, unsigned int flags)
 		read_engine_cycles(fd_spill, pceu_spill[0]);
 
 	usleep(batch_duration_usec);
-	if (flags & TEST_TRAILING_IDLE)
-		end_cork(fd, cork);
+	end_cork(fd, cork);
 
 	read_engine_cycles(fd, pceu[1]);
 	if (flags & TEST_ISOLATION)
@@ -774,13 +771,13 @@ igt_main
 	igt_subtest("utilization-single-full-load") {
 		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
-			utilization_single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE);
+			utilization_single(xe, hwe, TEST_BUSY);
 	}
 
 	igt_subtest("utilization-single-full-load-isolation") {
 		require_engine_utilization_data(xe);
 		xe_for_each_engine(xe, hwe)
-			utilization_single(xe, hwe, TEST_BUSY | TEST_TRAILING_IDLE | TEST_ISOLATION);
+			utilization_single(xe, hwe, TEST_BUSY | TEST_ISOLATION);
 	}
 
 	igt_subtest("utilization-single-full-load-destroy-queue") {
@@ -821,8 +818,7 @@ igt_main
 				xe_for_each_engine_class(class)
 					utilization_multi(xe, gt, class,
 							  s->flags |
-							  TEST_BUSY |
-							  TEST_TRAILING_IDLE);
+							  TEST_BUSY);
 		}
 
 		igt_subtest_f("%s-utilization-single-full-load-isolation",
@@ -833,7 +829,6 @@ igt_main
 					utilization_multi(xe, gt, class,
 							  s->flags |
 							  TEST_BUSY |
-							  TEST_TRAILING_IDLE |
 							  TEST_ISOLATION);
 		}
 	}
