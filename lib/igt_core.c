@@ -378,7 +378,7 @@ static int _igt_dynamic_tests_executed = -1;
 static void print_backtrace(void)
 {
 #ifndef HAVE_LIBUNWIND
-	igt_info("backtrace not implemented\n");
+	igt_info("Stack trace: not implemented\n");
 #else
 	unw_cursor_t cursor;
 	unw_context_t uc;
@@ -2242,7 +2242,7 @@ xprintf(const char *fmt, ...)
 static void print_backtrace_sig_safe(void)
 {
 #ifndef HAVE_LIBUNWIND
-	igt_info("backtrace not implemented\n");
+	igt_info("Stack trace: not implemented\n");
 #else
 	unw_cursor_t cursor;
 	unw_context_t uc;
