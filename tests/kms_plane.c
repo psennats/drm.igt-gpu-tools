@@ -1029,7 +1029,7 @@ static bool skip_format_mod(data_t *data,
 	return false;
 }
 
-static bool test_format_plane(data_t *data, enum pipe pipe,
+static void test_format_plane(data_t *data, enum pipe pipe,
 			      igt_output_t *output, igt_plane_t *plane, igt_fb_t *primary_fb)
 {
 	struct igt_fb fb = {};
@@ -1046,7 +1046,7 @@ static bool test_format_plane(data_t *data, enum pipe pipe,
 	 * No clamping test for cursor plane
 	 */
 	if (data->crop != 0 && plane->type == DRM_PLANE_TYPE_CURSOR)
-		return true;
+		return;
 
 	igt_vec_init(&tested_formats, sizeof(struct format_mod));
 
@@ -1059,7 +1059,7 @@ static bool test_format_plane(data_t *data, enum pipe pipe,
 	} else {
 		if (!plane->drm_plane) {
 			igt_debug("Only legacy cursor ioctl supported, skipping cursor plane\n");
-			return true;
+			return;
 		}
 		do_or_die(drmGetCap(data->drm_fd, DRM_CAP_CURSOR_WIDTH, &width));
 		do_or_die(drmGetCap(data->drm_fd, DRM_CAP_CURSOR_HEIGHT, &height));
@@ -1149,7 +1149,7 @@ static bool test_format_plane(data_t *data, enum pipe pipe,
 
 	igt_vec_fini(&tested_formats);
 
-	return result;
+	igt_assert_f(result, "At least one CRC mismatch happened\n");
 }
 
 static bool skip_plane(data_t *data, igt_plane_t *plane)
@@ -1195,7 +1195,6 @@ test_pixel_formats(data_t *data, enum pipe pipe)
 	struct igt_fb primary_fb;
 	igt_plane_t *primary;
 	drmModeModeInfo *mode;
-	bool result;
 	igt_output_t *output = data->output;
 	igt_plane_t *plane;
 
@@ -1225,12 +1224,11 @@ test_pixel_formats(data_t *data, enum pipe pipe)
 
 	set_legacy_lut(data, pipe, LUT_MASK);
 
-	result = true;
 	for_each_plane_on_pipe(&data->display, pipe, plane) {
 		if (skip_plane(data, plane))
 			continue;
 		igt_dynamic_f("pipe-%s-plane-%u", kmstest_pipe_name(pipe), plane->index)
-			result &= test_format_plane(data, pipe, output, plane, &primary_fb);
+			test_format_plane(data, pipe, output, plane, &primary_fb);
 	}
 
 	test_fini(data);
@@ -1242,8 +1240,6 @@ test_pixel_formats(data_t *data, enum pipe pipe)
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
 	igt_remove_fb(data->drm_fd, &primary_fb);
-
-	igt_assert_f(result, "At least one CRC mismatch happened\n");
 }
 
 static void test_planar_settings(data_t *data)
