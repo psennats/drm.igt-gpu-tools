@@ -767,8 +767,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 			 struct drm_xe_engine_class_instance *eci,
 			 struct user_execenv *user)
 {
-#define BO_DICT_ENTRIES 7
-	struct bo_dict_entry bo_dict[BO_DICT_ENTRIES] = {
+	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INDIRECT_OBJECT_BASE + OFFSET_KERNEL,
 		  .name = "kernel" },
 		{ .addr = ADDR_DYNAMIC_STATE_BASE,
@@ -793,6 +792,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
 	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
 	uint16_t devid = intel_get_drm_devid(fd);
+	int entries = ARRAY_SIZE(bo_dict);
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -801,7 +801,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, BO_DICT_ENTRIES);
+	bo_execenv_bind(&execenv, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
@@ -851,7 +851,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 			igt_assert_eq_double(output, expected_output);
 	}
 
-	bo_execenv_unbind(&execenv, bo_dict, BO_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
 }
 
@@ -1062,8 +1062,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 			      struct drm_xe_engine_class_instance *eci,
 			      struct user_execenv *user)
 {
-#define XEHP_BO_DICT_ENTRIES 9
-	struct bo_dict_entry bo_dict[XEHP_BO_DICT_ENTRIES] = {
+	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
 		  .name = "instr state base"},
 		{ .addr = ADDR_DYNAMIC_STATE_BASE,
@@ -1092,6 +1091,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	float *input_data, *output_data;
 	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
 	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
+	int entries = ARRAY_SIZE(bo_dict);
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1100,7 +1100,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, XEHP_BO_DICT_ENTRIES);
+	bo_execenv_bind(&execenv, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
@@ -1146,7 +1146,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 			igt_assert_eq_double(output, expected_output);
 	}
 
-	bo_execenv_unbind(&execenv, bo_dict, XEHP_BO_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
 }
 
@@ -1299,8 +1299,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 			       struct drm_xe_engine_class_instance *eci,
 			       struct user_execenv *user)
 {
-#define XEHPC_BO_DICT_ENTRIES 6
-	struct bo_dict_entry bo_dict[XEHPC_BO_DICT_ENTRIES] = {
+	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
 		  .name = "instr state base"},
 		{ .addr = ADDR_GENERAL_STATE_BASE + OFFSET_INDIRECT_DATA_START,
@@ -1320,6 +1319,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	float *input_data, *output_data;
 	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
 	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
+	int entries = ARRAY_SIZE(bo_dict);
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1328,7 +1328,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[2].size = size_input(execenv.array_size);
 	bo_dict[3].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, XEHPC_BO_DICT_ENTRIES);
+	bo_execenv_bind(&execenv, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	xehpc_create_indirect_data(bo_dict[1].data, bind_input_addr, bind_output_addr,
@@ -1371,7 +1371,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 			igt_assert_eq_double(output, expected_output);
 	}
 
-	bo_execenv_unbind(&execenv, bo_dict, XEHPC_BO_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
 }
 
@@ -1692,8 +1692,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 			       struct drm_xe_engine_class_instance *eci,
 			       struct user_execenv *user)
 {
-#define XELPG_BO_DICT_ENTRIES 9
-	struct bo_dict_entry bo_dict[XELPG_BO_DICT_ENTRIES] = {
+	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
 		  .name = "instr state base"},
 		{ .addr = ADDR_DYNAMIC_STATE_BASE,
@@ -1724,6 +1723,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 	float *input_data, *output_data;
 	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
 	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
+	int entries = ARRAY_SIZE(bo_dict);
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1732,7 +1732,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, XELPG_BO_DICT_ENTRIES);
+	bo_execenv_bind(&execenv, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 
@@ -1780,7 +1780,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 			igt_assert_eq_double(output, expected_output);
 	}
 
-	bo_execenv_unbind(&execenv, bo_dict, XELPG_BO_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
 }
 
@@ -1797,8 +1797,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 				struct drm_xe_engine_class_instance *eci,
 				struct user_execenv *user)
 {
-#define XE2_BO_DICT_ENTRIES 10
-	struct bo_dict_entry bo_dict[XE2_BO_DICT_ENTRIES] = {
+	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
 		  .name = "instr state base"},
 		{ .addr = ADDR_DYNAMIC_STATE_BASE,
@@ -1832,6 +1831,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 	float *input_data, *output_data;
 	uint64_t bind_input_addr = (user && user->input_addr) ? user->input_addr : ADDR_INPUT;
 	uint64_t bind_output_addr = (user && user->output_addr) ? user->output_addr : ADDR_OUTPUT;
+	int entries = ARRAY_SIZE(bo_dict);
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
@@ -1840,7 +1840,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, XE2_BO_DICT_ENTRIES);
+	bo_execenv_bind(&execenv, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
@@ -1888,7 +1888,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 			igt_assert_eq_double(output, expected_output);
 	}
 
-	bo_execenv_unbind(&execenv, bo_dict, XE2_BO_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
 }
 
@@ -2067,8 +2067,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 					struct drm_xe_engine_class_instance *eci,
 					bool threadgroup_preemption)
 {
-#define XE2_BO_PREEMPT_DICT_ENTRIES 11
-	struct bo_dict_entry bo_dict_long[XE2_BO_PREEMPT_DICT_ENTRIES] = {
+	struct bo_dict_entry bo_dict_long[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
 		  .name = "instr state base"},
 		{ .addr = ADDR_DYNAMIC_STATE_BASE,
@@ -2101,19 +2100,20 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 		  .name = "sip kernel"},
 	};
 
-	struct bo_dict_entry bo_dict_short[XE2_BO_PREEMPT_DICT_ENTRIES];
+	struct bo_dict_entry bo_dict_short[ARRAY_SIZE(bo_dict_long)];
 	struct bo_execenv execenv_short, execenv_long;
 	float *input_short, *output_short, *input_long;
 	unsigned int long_kernel_loop_count = 0;
 	int64_t timeout_one_ns = 1;
 	bool use_loop_kernel = loop_kernel && !threadgroup_preemption;
+	int entries = ARRAY_SIZE(bo_dict_long);
 
 	if (threadgroup_preemption)
 		long_kernel_loop_count = TGP_long_kernel_loop_count;
 	else
 		long_kernel_loop_count = WMTP_long_kernel_loop_count;
 
-	for (int i = 0; i < XE2_BO_PREEMPT_DICT_ENTRIES; ++i)
+	for (int i = 0; i < entries; ++i)
 		bo_dict_short[i] = bo_dict_long[i];
 
 	bo_execenv_create(fd, &execenv_short, eci, NULL);
@@ -2125,8 +2125,8 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 		bo_dict_long[0].size = ALIGN(long_kernel_size, 0x1000);
 	bo_dict_short[0].size = ALIGN(short_kernel_size, 0x1000);
 
-	bo_execenv_bind(&execenv_long, bo_dict_long, XE2_BO_PREEMPT_DICT_ENTRIES);
-	bo_execenv_bind(&execenv_short, bo_dict_short, XE2_BO_PREEMPT_DICT_ENTRIES);
+	bo_execenv_bind(&execenv_long, bo_dict_long, entries);
+	bo_execenv_bind(&execenv_short, bo_dict_short, entries);
 
 	if (use_loop_kernel)
 		memcpy(bo_dict_long[0].data, loop_kernel, loop_kernel_size);
@@ -2187,8 +2187,8 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 
 	bo_execenv_sync(&execenv_long);
 
-	bo_execenv_unbind(&execenv_short, bo_dict_short, XE2_BO_PREEMPT_DICT_ENTRIES);
-	bo_execenv_unbind(&execenv_long, bo_dict_long, XE2_BO_PREEMPT_DICT_ENTRIES);
+	bo_execenv_unbind(&execenv_short, bo_dict_short, entries);
+	bo_execenv_unbind(&execenv_long, bo_dict_long, entries);
 
 	bo_execenv_destroy(&execenv_short);
 	bo_execenv_destroy(&execenv_long);
