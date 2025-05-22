@@ -122,6 +122,36 @@ static void bo_check_square(float *input, float *output, int size)
 	}
 }
 
+static float *get_input_data(const struct bo_execenv *execenv,
+			     const struct user_execenv *user,
+			     void *data)
+{
+	float *input_data;
+
+	if (user && user->input_addr) {
+		input_data = from_user_pointer(user->input_addr);
+	} else {
+		input_data = (float *) data;
+		bo_randomize(input_data, execenv->array_size);
+	}
+
+	return input_data;
+}
+
+static float *get_output_data(const struct bo_execenv *execenv,
+			      const struct user_execenv *user,
+			      void *data)
+{
+	float *output_data;
+
+	if (user && user->output_addr)
+		output_data = from_user_pointer(user->output_addr);
+	else
+		output_data = (float *) data;
+
+	return output_data;
+}
+
 static void bo_execenv_create(int fd, struct bo_execenv *execenv,
 			      struct drm_xe_engine_class_instance *eci,
 			      struct user_execenv *user)
@@ -809,20 +839,8 @@ static void compute_exec(int fd, const unsigned char *kernel,
 	create_indirect_data(bo_dict[3].data, bind_input_addr, bind_output_addr,
 			     IS_DG1(devid) ? 0x200 : 0x40, execenv.array_size);
 
-	if (user && user->input_addr) {
-		input_data = from_user_pointer(user->input_addr);
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
-
-		for (int i = 0; i < execenv.array_size; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = from_user_pointer(user->output_addr);
-	else
-		output_data = (float *) bo_dict[5].data;
+	input_data = get_input_data(&execenv, user, bo_dict[4].data);
+	output_data = get_output_data(&execenv, user, bo_dict[5].data);
 
 	if (IS_DG1(devid))
 		dg1_compute_exec_compute(bo_dict[6].data,
@@ -1109,20 +1127,8 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 				  execenv.array_size);
 	xehp_create_surface_state(bo_dict[7].data, bind_input_addr, bind_output_addr);
 
-	if (user && user->input_addr) {
-		input_data = from_user_pointer(user->input_addr);
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
-
-		for (int i = 0; i < execenv.array_size; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = from_user_pointer(user->output_addr);
-	else
-		output_data = (float *) bo_dict[5].data;
+	input_data = get_input_data(&execenv, user, bo_dict[4].data);
+	output_data = get_output_data(&execenv, user, bo_dict[5].data);
 
 	xehp_compute_exec_compute(bo_dict[8].data,
 				  ADDR_GENERAL_STATE_BASE,
@@ -1334,20 +1340,8 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	xehpc_create_indirect_data(bo_dict[1].data, bind_input_addr, bind_output_addr,
 				   execenv.array_size);
 
-	if (user && user->input_addr) {
-		input_data = from_user_pointer(user->input_addr);
-	} else {
-		input_data = (float *) bo_dict[2].data;
-		srand(time(NULL));
-
-		for (int i = 0; i < execenv.array_size; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = from_user_pointer(user->output_addr);
-	else
-		output_data = (float *) bo_dict[3].data;
+	input_data = get_input_data(&execenv, user, bo_dict[2].data);
+	output_data = get_output_data(&execenv, user, bo_dict[3].data);
 
 	xehpc_compute_exec_compute(bo_dict[5].data,
 				   ADDR_GENERAL_STATE_BASE,
@@ -1742,20 +1736,8 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 				   execenv.array_size);
 	xehp_create_surface_state(bo_dict[7].data, bind_input_addr, bind_output_addr);
 
-	if (user && user->input_addr) {
-		input_data = from_user_pointer(user->input_addr);
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
-
-		for (int i = 0; i < execenv.array_size; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = from_user_pointer(user->output_addr);
-	else
-		output_data = (float *) bo_dict[5].data;
+	input_data = get_input_data(&execenv, user, bo_dict[4].data);
+	output_data = get_output_data(&execenv, user, bo_dict[5].data);
 
 	xelpg_compute_exec_compute(bo_dict[8].data,
 				   ADDR_GENERAL_STATE_BASE,
@@ -1849,20 +1831,8 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 				   execenv.array_size);
 	xehp_create_surface_state(bo_dict[7].data, bind_input_addr, bind_output_addr);
 
-	if (user && user->input_addr) {
-		input_data = from_user_pointer(user->input_addr);
-	} else {
-		input_data = (float *) bo_dict[4].data;
-		srand(time(NULL));
-
-		for (int i = 0; i < execenv.array_size; i++)
-			input_data[i] = rand() / (float)RAND_MAX;
-	}
-
-	if (user && user->output_addr)
-		output_data = from_user_pointer(user->output_addr);
-	else
-		output_data = (float *) bo_dict[5].data;
+	input_data = get_input_data(&execenv, user, bo_dict[4].data);
+	output_data = get_output_data(&execenv, user, bo_dict[5].data);
 
 	xe2lpg_compute_exec_compute(bo_dict[8].data,
 				    ADDR_GENERAL_STATE_BASE,
