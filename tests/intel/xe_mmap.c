@@ -430,15 +430,14 @@ igt_main
 		uint32_t *ptr;
 
 		igt_require(is_pci_membarrier_supported(fd));
-		xe = drm_open_driver(DRIVER_XE);
-		srand(time(0));
+		xe = drm_reopen_driver(fd);
 		i = rand() % (PAGE_SIZE / sizeof(*ptr));
 		igt_fork(child, 1)
 			test_pci_membarrier_parallel(xe, child, i);
 		test_pci_membarrier_parallel(fd, -1, i);
 		igt_waitchildren();
 
-		close(xe);
+		drm_close_driver(xe);
 	}
 
 	igt_subtest("pci-membarrier-bad-pagesize") {
