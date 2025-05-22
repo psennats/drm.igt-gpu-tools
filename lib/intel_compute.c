@@ -89,6 +89,12 @@ struct bo_execenv {
 	uint32_t exec_queue;
 	uint32_t array_size;
 
+	/* Xe user-fence */
+	uint32_t bo;
+	size_t bo_size;
+	struct bo_sync *bo_sync;
+	struct drm_xe_sync sync;
+
 	/* i915 part */
 	struct drm_i915_gem_execbuffer2 execbuf;
 	struct drm_i915_gem_exec_object2 *obj;
@@ -266,46 +272,67 @@ static void bo_execenv_unbind(struct bo_execenv *execenv,
 	}
 }
 
-static void bo_execenv_exec(struct bo_execenv *execenv, uint64_t start_addr)
+static void __bo_execenv_exec(struct bo_execenv *execenv, uint64_t start_addr)
 {
 	int fd = execenv->fd;
 
 	if (execenv->driver == INTEL_DRIVER_XE) {
 		uint32_t exec_queue = execenv->exec_queue;
-		struct bo_sync *bo_sync;
-		size_t bo_size = sizeof(*bo_sync);
-		uint32_t bo = 0;
-		struct drm_xe_sync sync = {
-			.type = DRM_XE_SYNC_TYPE_USER_FENCE,
-			.flags = DRM_XE_SYNC_FLAG_SIGNAL,
-			.timeline_value = USER_FENCE_VALUE,
-		};
+		size_t bo_size = ALIGN(sizeof(struct bo_sync),
+				       xe_get_default_alignment(fd));
 
-		bo_size = xe_bb_size(fd, bo_size);
-		bo = xe_bo_create(fd, execenv->vm, bo_size, vram_if_possible(fd, 0),
-				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
-		bo_sync = xe_bo_map(fd, bo, bo_size);
-		sync.addr = to_user_pointer(&bo_sync->sync);
-		xe_vm_bind_async(fd, execenv->vm, 0, bo, 0, ADDR_SYNC, bo_size, &sync, 1);
-		xe_wait_ufence(fd, &bo_sync->sync, USER_FENCE_VALUE, exec_queue, INT64_MAX);
+		execenv->bo_size = bo_size;
+		execenv->bo = xe_bo_create(fd, execenv->vm, bo_size, vram_if_possible(fd, 0),
+					   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+		execenv->bo_sync = xe_bo_map(fd, execenv->bo, bo_size);
+		execenv->sync.type = DRM_XE_SYNC_TYPE_USER_FENCE;
+		execenv->sync.flags = DRM_XE_SYNC_FLAG_SIGNAL;
+		execenv->sync.timeline_value = USER_FENCE_VALUE;
+		execenv->sync.addr = to_user_pointer(&execenv->bo_sync->sync);
+		xe_vm_bind_async(fd, execenv->vm, 0, execenv->bo, 0, ADDR_SYNC,
+				 bo_size, &execenv->sync, 1);
+		xe_wait_ufence(fd, &execenv->bo_sync->sync, USER_FENCE_VALUE,
+			       exec_queue, INT64_MAX);
 
-		sync.addr = ADDR_SYNC;
-		bo_sync->sync = 0;
+		execenv->sync.addr = ADDR_SYNC;
+		execenv->bo_sync->sync = 0;
 
-		xe_exec_sync(fd, exec_queue, start_addr, &sync, 1);
-		xe_wait_ufence(fd, &bo_sync->sync, USER_FENCE_VALUE, exec_queue, INT64_MAX);
+		xe_exec_sync(fd, exec_queue, start_addr, &execenv->sync, 1);
+	} else {
+		struct drm_i915_gem_execbuffer2 *execbuf = &execenv->execbuf;
 
-		munmap(bo_sync, bo_size);
-		gem_close(fd, bo);
+		execbuf->flags = I915_EXEC_RENDER;
+		gem_execbuf(fd, execbuf);
+	}
+}
+
+static void bo_execenv_sync(struct bo_execenv *execenv)
+{
+	int fd = execenv->fd;
+
+	if (execenv->driver == INTEL_DRIVER_XE) {
+		xe_wait_ufence(fd, &execenv->bo_sync->sync,
+			       USER_FENCE_VALUE, execenv->exec_queue, INT64_MAX);
+		munmap(execenv->bo_sync, execenv->bo_size);
+		gem_close(fd, execenv->bo);
 	} else {
 		struct drm_i915_gem_execbuffer2 *execbuf = &execenv->execbuf;
 		struct drm_i915_gem_exec_object2 *obj = execenv->obj;
 		int num_objects = execbuf->buffer_count;
 
-		execbuf->flags = I915_EXEC_RENDER;
-		gem_execbuf(fd, execbuf);
 		gem_sync(fd, obj[num_objects - 1].handle); /* batch handle */
 	}
+}
+
+static void bo_execenv_exec_async(struct bo_execenv *execenv, uint64_t start_addr)
+{
+	__bo_execenv_exec(execenv, start_addr);
+}
+
+static void bo_execenv_exec(struct bo_execenv *execenv, uint64_t start_addr)
+{
+	bo_execenv_exec_async(execenv, start_addr);
+	bo_execenv_sync(execenv);
 }
 
 static uint32_t size_thread_group_x(uint32_t work_size)
