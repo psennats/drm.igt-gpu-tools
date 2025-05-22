@@ -11,6 +11,8 @@
  * Functionality: mmap
  */
 
+#include <fcntl.h>
+
 #include "igt.h"
 
 #include "xe_drm.h"
@@ -401,6 +403,16 @@ static bool is_pci_membarrier_supported(int fd)
 	return (igt_ioctl(fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &mmo) == 0);
 }
 
+static void prepare_pci_membarrier_test(int fd, int *fw_ptr)
+{
+	if (*fw_ptr > 0)
+		return;
+
+	igt_require(is_pci_membarrier_supported(fd));
+	*fw_ptr = igt_debugfs_open(fd, "forcewake_all", O_RDONLY);
+	igt_assert_lte(0, *fw_ptr);
+}
+
 igt_main
 {
 	int fd;
@@ -419,30 +431,42 @@ igt_main
 		test_mmap(fd, vram_memory(fd, 0) | system_memory(fd),
 			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
-	igt_subtest("pci-membarrier") {
-		igt_require(is_pci_membarrier_supported(fd));
-		test_pci_membarrier(fd);
-	}
+	igt_subtest_group {
+		int fw_handle = -1;
 
-	igt_subtest("pci-membarrier-parallel") {
-		int xe;
-		unsigned int i;
-		uint32_t *ptr;
+		igt_subtest("pci-membarrier") {
+			prepare_pci_membarrier_test(fd, &fw_handle);
+			test_pci_membarrier(fd);
+		}
 
-		igt_require(is_pci_membarrier_supported(fd));
-		xe = drm_reopen_driver(fd);
-		i = rand() % (PAGE_SIZE / sizeof(*ptr));
-		igt_fork(child, 1)
-			test_pci_membarrier_parallel(xe, child, i);
-		test_pci_membarrier_parallel(fd, -1, i);
-		igt_waitchildren();
+		igt_subtest("pci-membarrier-parallel") {
+			int xe;
+			unsigned int i;
+			uint32_t *ptr;
 
-		drm_close_driver(xe);
-	}
+			xe = drm_reopen_driver(fd);
+			i = rand() % (PAGE_SIZE / sizeof(*ptr));
+			prepare_pci_membarrier_test(fd, &fw_handle);
+			igt_fork(child, 1)
+				test_pci_membarrier_parallel(xe, child, i);
+			test_pci_membarrier_parallel(fd, -1, i);
+			igt_waitchildren();
 
-	igt_subtest("pci-membarrier-bad-pagesize") {
-		igt_require(is_pci_membarrier_supported(fd));
-		test_bad_pagesize_for_pcimem(fd);
+			drm_close_driver(xe);
+		}
+
+		igt_subtest("pci-membarrier-bad-pagesize") {
+			prepare_pci_membarrier_test(fd, &fw_handle);
+			test_bad_pagesize_for_pcimem(fd);
+		}
+
+		igt_subtest("pci-membarrier-bad-object") {
+			prepare_pci_membarrier_test(fd, &fw_handle);
+			test_bad_object_for_pcimem(fd);
+		}
+
+		igt_fixture
+			close(fw_handle);
 	}
 
 	igt_subtest("bad-flags")
@@ -454,10 +478,6 @@ igt_main
 	igt_subtest("bad-object")
 		test_bad_object(fd);
 
-	igt_subtest("pci-membarrier-bad-object") {
-		igt_require(is_pci_membarrier_supported(fd));
-		test_bad_object_for_pcimem(fd);
-	}
 
 	igt_subtest("small-bar") {
 		igt_require(xe_visible_vram_size(fd, 0));
