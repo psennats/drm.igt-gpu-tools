@@ -743,7 +743,9 @@ static void test_mocs_suspend_resume(device_t device, enum igt_suspend_state s_s
 		igt_debug("Running on GT%d\n", gt);
 
 		sprintf(path, "gt%d/mocs", gt);
-		igt_assert(igt_debugfs_exists(device.fd_xe, path, O_RDONLY));
+		igt_require_f(igt_debugfs_exists(device.fd_xe, path, O_RDONLY),
+			      "Failed to open required debugfs entry: %s\n", path);
+
 		igt_debugfs_dump(device.fd_xe, path);
 		igt_debugfs_read(device.fd_xe, path, mocs_content_pre);
 

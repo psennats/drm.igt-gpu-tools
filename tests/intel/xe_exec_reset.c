@@ -597,19 +597,22 @@ static void
 gt_mocs_reset(int fd, int gt)
 {
 	char path[256];
+	char *mocs_content_pre, *mocs_contents_post;
+
+	sprintf(path, "gt%d/mocs", gt);
+	igt_require_f(igt_debugfs_exists(fd, path, O_RDONLY),
+		      "Failed to open required debugfs entry: %s\n", path);
 
 	/* Mocs debugfs contents before and after GT reset.
 	 * Allocate memory to store 10k characters sufficient enough
 	 * to store global mocs and lncf mocs data.
 	 */
-	char *mocs_content_pre = (char *)malloc(10000 * sizeof(char));
-	char *mocs_contents_post = (char *)malloc(10000 * sizeof(char));
+	mocs_content_pre = (char *)malloc(10000 * sizeof(char));
+	mocs_contents_post = (char *)malloc(10000 * sizeof(char));
 
 	igt_assert(mocs_content_pre);
 	igt_assert(mocs_contents_post);
 
-	sprintf(path, "gt%d/mocs", gt);
-	igt_assert(igt_debugfs_exists(fd, path, O_RDONLY));
 	igt_debugfs_dump(fd, path);
 	igt_debugfs_read(fd, path, mocs_content_pre);
 
