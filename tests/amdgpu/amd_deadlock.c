@@ -180,6 +180,7 @@ igt_main
 		}
 	}
 #ifdef AMDGPU_USERQ_ENABLED
+#ifdef AMDGPU_DISABLE_USERQTEST
 	igt_describe("Test-GPU-reset-by-access-umq-gfx-illegal-reg");
 	igt_subtest_with_dynamic("amdgpu-umq-gfx-illegal-reg-access") {
 		if (userq_arr_cap[AMD_IP_GFX] &&
@@ -189,6 +190,7 @@ igt_main
 					AMDGPU_HW_IP_GFX, &pci, true);
 		}
 	}
+#endif
 #endif
 	igt_fixture {
 		amdgpu_device_deinitialize(device);

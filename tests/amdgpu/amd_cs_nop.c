@@ -200,6 +200,7 @@ igt_main
 	}
 
 #ifdef AMDGPU_USERQ_ENABLED
+#ifdef AMDGPU_DISABLE_USERQTEST
 	for (p = phase; p->name; p++) {
 		for (e = engines; e->name; e++) {
 			igt_describe("Stressful-and-multiple-cs-of-nop-operations-using-multiple-processes-with-the-same-GPU-context-UMQ");
@@ -212,6 +213,7 @@ igt_main
 			}
 		}
 	}
+#endif
 #endif
 
 	igt_fixture {

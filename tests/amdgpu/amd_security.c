@@ -357,7 +357,7 @@ igt_main
 			AMDGPU_HW_IP_DMA), is_secure);
 
 #ifdef AMDGPU_USERQ_ENABLED
-
+#ifdef AMDGPU_DISABLE_USERQTEST
 	igt_describe("amdgpu gfx command submission write linear helper with user queue");
 	igt_subtest("gfx-write-linear-helper-secure-umq")
 	if (userq_arr_cap[AMD_IP_GFX])
@@ -369,6 +369,7 @@ igt_main
 	if (userq_arr_cap[AMD_IP_COMPUTE])
 		amdgpu_command_submission_write_linear_helper(device,
 				get_ip_block(device, AMDGPU_HW_IP_COMPUTE), is_secure, true);
+#endif
 #endif
 
 	igt_fixture {
