@@ -1846,7 +1846,7 @@ try_again_after_invalidate:
 		map = mmap(from_user_pointer(addr), bo_size, PROT_READ |
 			    PROT_WRITE, MAP_SHARED | MAP_FIXED |
 			    MAP_ANONYMOUS, -1, 0);
-		igt_assert(data != MAP_FAILED);
+		igt_assert(map != MAP_FAILED);
 		goto try_again_after_invalidate;
 	}
 
