@@ -30,31 +30,17 @@
  */
 bool has_xe_gt_reset(int fd)
 {
-	char reset_sysfs_path[100];
-	struct stat st;
+	int reset_fd;
 	int gt;
-	int reset_sysfs_fd = -1;
-	int sysfs_fd = -1;
 
-	igt_assert_eq(fstat(fd, &st), 0);
-	sysfs_fd = igt_sysfs_open(fd);
-
-	igt_assert(sysfs_fd != -1);
 	xe_for_each_gt(fd, gt) {
-		sprintf(reset_sysfs_path, "/sys/kernel/debug/dri/%d/gt%d/force_reset",
-				minor(st.st_rdev), gt);
-		reset_sysfs_fd = openat(sysfs_fd, reset_sysfs_path, O_RDONLY);
-
-		if (reset_sysfs_fd == -1) {
-			close(sysfs_fd);
-			return 0;
-		}
-
-		close(reset_sysfs_fd);
+		reset_fd = igt_debugfs_gt_open(fd, gt, "force_reset", O_WRONLY);
+		if (reset_fd == -1)
+			return false;
+		close(reset_fd);
 	}
 
-	close(sysfs_fd);
-	return 1;
+	return true;
 }
 
 static void xe_force_gt_reset(int fd, int gt, bool sync)
