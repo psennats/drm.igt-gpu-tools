@@ -83,8 +83,8 @@ static void ignore_faults_in_dmesg(const char function_name[])
 	if (function_is_part_of_guc(function_name)) {
 		strcat(regex, "|GT[0-9a-fA-F]*: GuC init failed with -ENOMEM");
 		strcat(regex, "|GT[0-9a-fA-F]*: Failed to initialize uC .-ENOMEM");
-		strcat(regex, "|GT[0-9a-fA-F]*: Failed to enable GuC CT	.-ENOMEM");
-		strcat(regex, "|GT[0-9a-fA-F]*: GuC PC query task state failed:	-ENOMEM");
+		strcat(regex, "|GT[0-9a-fA-F]*: Failed to enable GuC CT .-ENOMEM");
+		strcat(regex, "|GT[0-9a-fA-F]*: GuC PC query task state failed: -ENOMEM");
 	}
 
 	igt_emit_ignore_dmesg_regex(regex);
