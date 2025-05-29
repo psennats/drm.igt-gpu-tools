@@ -210,6 +210,33 @@ void edid_get_mfg(const struct edid *edid, char out[static 3])
 	out[2] = (edid->mfg_id[1] & 0x1F) + '@';
 }
 
+void edid_get_monitor_name(const struct edid *edid, char *name, size_t name_size)
+{
+	const struct detailed_timing *dt;
+	const struct detailed_non_pixel *np;
+	const struct detailed_data_string *ds;
+	size_t i;
+
+	assert(name_size > 0);
+	name[0] = '\0';
+
+	for (i = 0; i < DETAILED_TIMINGS_LEN; i++) {
+		dt = &edid->detailed_timings[i];
+		np = &dt->data.other_data;
+
+		if (np->type != EDID_DETAIL_MONITOR_NAME)
+			continue;
+
+		ds = &np->data.string;
+		strncpy(name, ds->str, name_size - 1);
+		name[name_size - 1] = '\0';
+		igt_debug("Monitor name: %s\n", name);
+		return;
+	}
+	igt_debug("No monitor name found in EDID\n");
+	name[0] = '\0';
+}
+
 static void edid_set_mfg(struct edid *edid, const char mfg[static 3])
 {
 	edid->mfg_id[0] = (mfg[0] - '@') << 2 | (mfg[1] - '@') >> 3;

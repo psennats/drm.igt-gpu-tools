@@ -456,5 +456,6 @@ void *dispid_block_tiled(void *ptr,
 			 int htile, int vtile,
 			 int hsize, int vsize,
 			 const char *topology_id);
+void edid_get_monitor_name(const struct edid *edid, char *name, size_t name_size);
 
 #endif

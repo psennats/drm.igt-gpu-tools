@@ -94,6 +94,7 @@ lib_sources = [
 	'igt_draw.c',
 	'igt_list.c',
 	'igt_map.c',
+	'igt_panel.c',
 	'igt_pm.c',
 	'igt_dummyload.c',
 	'igt_store.c',
