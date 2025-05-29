@@ -36,6 +36,7 @@ if libdrm_amdgpu.found()
 			  'amd_uvd_enc',
 			  'amd_vce_enc',
 			  'amd_vcn',
+			  'amd_vcn_queue',
 			  'amd_vm',
 			  'amd_vrr_range',
 			  'amd_mall',
