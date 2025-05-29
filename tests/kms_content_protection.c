@@ -36,9 +36,11 @@
 #include <sys/stat.h>
 #include <libudev.h>
 #include "igt.h"
+#include "igt_edid.h"
 #include "igt_sysfs.h"
 #include "igt_kms.h"
 #include "igt_kmod.h"
+#include "igt_panel.h"
 
 /**
  * SUBTEST: lic-type-0
@@ -127,6 +129,20 @@ __u8 facsimile_srm[] = {
 	0xE9, 0xF0, 0x59, 0x95, 0xA3, 0x7A, 0x3B, 0xFE, 0xE0, 0x9C, 0x76, 0xDD,
 	0x83, 0xAA, 0xC2, 0x5B, 0x24, 0xB3, 0x36, 0x84, 0x94, 0x75, 0x34, 0xDB,
 	0x10, 0x9E, 0x3B, 0x23, 0x13, 0xD8, 0x7A, 0xC2, 0x30, 0x79, 0x84};
+
+/**
+ * List of Panels that should be excluded from hdcp tests
+ *
+ * This array is used to identify and handle scenarios where the test is
+ * executed on dummy monitors, such as those found on shard machines.
+ * Since these dummy monitors are not real and always the test is not consistent,
+ * the test is skipped in such cases to avoid false negatives or
+ * irrelevant test results.
+ */
+static const char *const hdcp_blocklist[] = {
+	"DPF90435", /* Example monitor name */
+	/* Add more monitor names here as needed */
+};
 
 static void flip_handler(int fd, unsigned int sequence, unsigned int tv_sec,
 			 unsigned int tv_usec, void *_data)
@@ -578,6 +594,32 @@ test_fini(igt_output_t *output, enum igt_commit_style commit_style)
 	igt_display_commit2(&data.display, commit_style);
 }
 
+static bool is_output_hdcp_test_exempt(igt_output_t *output)
+{
+	drmModePropertyBlobPtr edid_blob = NULL;
+	uint64_t edid_blob_id;
+	const struct edid *edid;
+	char edid_vendor[4];
+	char sink_name[20];
+
+	igt_assert(kmstest_get_property(data.drm_fd,
+					output->config.connector->connector_id,
+					DRM_MODE_OBJECT_CONNECTOR, "EDID", NULL,
+					&edid_blob_id, NULL));
+
+	igt_assert(edid_blob = drmModeGetPropertyBlob(data.drm_fd, edid_blob_id));
+
+	edid = (const struct edid *)edid_blob->data;
+	edid_get_mfg(edid, edid_vendor);
+	edid_vendor[3] = '\0';
+
+	edid_get_monitor_name(edid, sink_name, ARRAY_SIZE(sink_name));
+
+	drmModeFreePropertyBlob(edid_blob);
+
+	return igt_is_panel_blocked(sink_name, hdcp_blocklist, ARRAY_SIZE(hdcp_blocklist));
+}
+
 static void
 test_content_protection(enum igt_commit_style commit_style, int content_type)
 {
@@ -595,6 +637,9 @@ test_content_protection(enum igt_commit_style commit_style, int content_type)
 	}
 
 	for_each_connected_output(display, output) {
+		igt_require_f(!is_output_hdcp_test_exempt(output),
+			      "Skipped as the panel is blacklisted");
+
 		for_each_pipe(display, pipe) {
 			igt_display_reset(display);
 
