@@ -99,7 +99,5 @@ int __xe_wait_ufence(int fd, uint64_t *addr, uint64_t value,
 		     uint32_t exec_queue, int64_t *timeout);
 int64_t xe_wait_ufence(int fd, uint64_t *addr, uint64_t value,
 		       uint32_t exec_queue, int64_t timeout);
-void xe_force_gt_reset_async(int fd, int gt);
-void xe_force_gt_reset_sync(int fd, int gt);
 
 #endif /* XE_IOCTL_H */

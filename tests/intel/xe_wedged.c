@@ -22,6 +22,7 @@
 #include "igt_sysfs.h"
 
 #include "xe_drm.h"
+#include "xe/xe_gt.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "xe/xe_spin.h"

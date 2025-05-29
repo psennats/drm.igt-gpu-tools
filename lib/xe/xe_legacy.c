@@ -5,6 +5,7 @@
 
 #include "lib/igt_syncobj.h"
 #include "linux_scaffold.h"
+#include "xe/xe_gt.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_legacy.h"
 #include "xe/xe_spin.h"

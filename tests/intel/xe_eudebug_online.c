@@ -13,6 +13,7 @@
  */
 
 #include "xe/xe_eudebug.h"
+#include "xe/xe_gt.h"
 #include "xe/xe_ioctl.h"
 #include "xe/xe_query.h"
 #include "igt.h"

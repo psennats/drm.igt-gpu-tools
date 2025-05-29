@@ -57,6 +57,45 @@ bool has_xe_gt_reset(int fd)
 	return 1;
 }
 
+static void xe_force_gt_reset(int fd, int gt, bool sync)
+{
+	char reset_string[128];
+	struct stat st;
+
+	igt_assert_eq(fstat(fd, &st), 0);
+
+	snprintf(reset_string, sizeof(reset_string),
+		 "cat /sys/kernel/debug/dri/%d/gt%d/force_reset%s",
+		 minor(st.st_rdev), gt, sync ? "_sync" : "");
+	system(reset_string);
+}
+
+/**
+ * xe_force_gt_reset_async:
+ * @fd: the Xe DRM file descriptor
+ * @gt: the GT identifier
+ *
+ * This function forces a reset on the selected GT.
+ * It does not wait for the reset completion.
+ */
+void xe_force_gt_reset_async(int fd, int gt)
+{
+	xe_force_gt_reset(fd, gt, false);
+}
+
+/**
+ * xe_force_gt_reset_async:
+ * @fd: the Xe DRM file descriptor
+ * @gt: the GT identifier
+ *
+ * This function forces a reset on the selected GT.
+ * It will wait until the reset completes.
+ */
+void xe_force_gt_reset_sync(int fd, int gt)
+{
+	xe_force_gt_reset(fd, gt, true);
+}
+
 /**
  * xe_force_gt_reset_all:
  *
