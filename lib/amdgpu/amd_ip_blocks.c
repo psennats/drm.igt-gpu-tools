@@ -1050,6 +1050,10 @@ is_reset_enable(enum amd_ip_block_type ip_type, uint32_t reset_type, const struc
 		snprintf(reset_mask, sizeof(reset_mask) - 1, "gfx_reset_mask");
 	else if (ip_type == AMD_IP_COMPUTE)
 		snprintf(reset_mask, sizeof(reset_mask) - 1, "compute_reset_mask");
+	else if (ip_type == AMD_IP_VCN_UNIFIED)
+		snprintf(reset_mask, sizeof(reset_mask) - 1, "vcn_reset_mask");
+	else if (ip_type == AMD_IP_VCN_JPEG)
+		snprintf(reset_mask, sizeof(reset_mask) - 1, "jpeg_reset_mask");
 	else
 		snprintf(reset_mask, sizeof(reset_mask) - 1, "sdma_reset_mask");
 

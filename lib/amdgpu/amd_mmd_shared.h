@@ -7,6 +7,7 @@
 #include "amdgpu_drm.h"
 
 #include "igt.h"
+#include "amd_ip_blocks.h"
 #include "amd_mmd_decode_messages.h"
 #include "amd_mmd_util_math.h"
 #include "amd_memory.h"
@@ -26,6 +27,17 @@
 
 #define IB_SIZE		4096
 #define MAX_RESOURCES	16
+
+enum decoder_error_type {
+	INVALID_DECODER_IB_TYPE = 0,
+	INVALID_DECODER_IB_SIZE,
+	INVALID_DECODER_DPB_BUFFER,
+	INVALID_DECODER_CODEC_PARAM,
+	INVALID_DECODER_TARGET_BUFFER,
+	INVALID_DECODER_BITSTREAM,
+	INVALID_DECODER_BITSTREAM_BUFFER,
+	INVALID_DECODER_NONE,
+};
 
 struct mmd_shared_context {
 	uint32_t family_id;
@@ -51,6 +63,7 @@ struct mmd_shared_context {
 	uint32_t vpe_ip_version_major;
 	uint32_t vpe_ip_version_minor;
 	bool vpe_ring;
+	enum amd_ip_block_type ip_type;
 };
 
 struct mmd_context {
@@ -117,3 +130,9 @@ alloc_resource(amdgpu_device_handle device_handle,
 
 void
 free_resource(struct amdgpu_mmd_bo *mmd_bo);
+
+typedef int (*mm_test_callback) (amdgpu_device_handle device_handle, struct mmd_shared_context *context,
+		int err);
+int
+mm_queue_test_helper(amdgpu_device_handle device_handle, struct mmd_shared_context *context,
+		mm_test_callback test, int err_type, const struct pci_addr *pci);

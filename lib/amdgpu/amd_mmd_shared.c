@@ -191,6 +191,64 @@ submit(amdgpu_device_handle device_handle, struct mmd_context *context,
 	return r;
 }
 
+int
+mm_queue_test_helper(amdgpu_device_handle device_handle, struct mmd_shared_context *context,
+		mm_test_callback callback, int err_type, const struct pci_addr *pci)
+{
+	int r;
+	FILE *fp;
+	char cmd[1024];
+	char buffer[128];
+	long sched_mask = 0;
+	long mask = 0;
+	uint32_t ring_id;
+	char sysfs[125];
 
+	if (!callback)
+		return -1;
 
+	// test is only supported on VCN version >= 4
+	if (context->ip_type == AMD_IP_VCN_UNIFIED)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_vcn_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
+	else if (context->ip_type == AMD_IP_VCN_JPEG)
+		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_jpeg_sched_mask",
+				pci->domain, pci->bus, pci->device, pci->function);
 
+	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
+	r = access(sysfs, R_OK);
+	if (!r) {
+		fp = popen(cmd, "r");
+		if (fp == NULL) {
+			igt_skip("read the sysfs failed: %s\n", sysfs);
+			return -1;
+		}
+
+		if (fgets(buffer, 128, fp) != NULL)
+			sched_mask = strtol(buffer, NULL, 16);
+		pclose(fp);
+	} else
+		sched_mask = 1;
+
+	mask = sched_mask;
+	for (ring_id = 0;  mask > 0; ring_id++) {
+		/* check sched is ready is on the ring. */
+		if (mask & 1) {
+			igt_info(" Testing on queue %d\n", ring_id);
+			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s", 0x1 << ring_id, sysfs);
+			r = system(cmd);
+			igt_assert_eq(r, 0);
+			if (callback(device_handle, context, err_type))
+				break;
+		}
+		mask = mask >> 1;
+	}
+
+	/* recover the sched mask */
+	if (sched_mask > 1) {
+		snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%lx > %s", sched_mask, sysfs);
+		r = system(cmd);
+		igt_assert_eq(r, 0);
+	}
+	return r;
+}
