@@ -19,6 +19,7 @@ if libdrm_amdgpu.found()
 			  'amd_ilr',
 			  'amd_info',
 			  'amd_jpeg_dec',
+			  'amd_jpeg_queue',
 			  'amd_link_settings',
 			  'amd_max_bpc',
 			  'amd_mem_leak',
