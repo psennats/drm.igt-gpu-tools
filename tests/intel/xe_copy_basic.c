@@ -19,6 +19,12 @@
 
 #define MEM_FILL 0x8b
 
+struct rect {
+	uint32_t pitch;
+	uint32_t width;
+	uint32_t height;
+};
+
 /**
  * TEST: Test to validate copy commands on xe
  * Category: Core
@@ -42,7 +48,7 @@
  */
 static void
 mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ctx,
-	 uint32_t size, uint32_t width, uint32_t height, uint32_t region)
+	 uint32_t size, uint32_t pitch, uint32_t width, uint32_t height, uint32_t region)
 {
 	struct blt_mem_copy_data mem = {};
 	uint64_t bb_size = xe_bb_size(fd, SZ_4K);
@@ -57,9 +63,9 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 
 	blt_mem_copy_init(fd, &mem, MODE_BYTE, TYPE_LINEAR);
-	blt_set_mem_object(&mem.src, src_handle, size, width, width, height,
+	blt_set_mem_object(&mem.src, src_handle, size, pitch, width, height,
 			   region, src_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
-	blt_set_mem_object(&mem.dst, dst_handle, size, width, width, height,
+	blt_set_mem_object(&mem.dst, dst_handle, size, pitch, width, height,
 			   region, dst_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	mem.src.ptr = xe_bo_map(fd, src_handle, size);
 	mem.dst.ptr = xe_bo_map(fd, dst_handle, size);
@@ -125,13 +131,14 @@ mem_set(int fd, uint32_t dst_handle, const intel_ctx_t *ctx, uint32_t size,
 	munmap(mem.dst.ptr, size);
 }
 
-static void copy_test(int fd, uint32_t size, enum blt_cmd_type cmd, uint32_t region)
+static void copy_test(int fd, struct rect *rect, enum blt_cmd_type cmd, uint32_t region)
 {
 	struct drm_xe_engine_class_instance inst = {
 		.engine_class = DRM_XE_ENGINE_CLASS_COPY,
 	};
-	uint32_t src_handle, dst_handle, vm, exec_queue, src_size, dst_size;
-	uint32_t bo_size = ALIGN(size, xe_get_default_alignment(fd));
+	uint32_t src_handle, dst_handle, vm, exec_queue;
+	uint32_t pitch = rect->pitch ?: rect->width;
+	uint32_t bo_size = ALIGN(pitch * rect->height, xe_get_default_alignment(fd));
 	intel_ctx_t *ctx;
 
 	src_handle = xe_bo_create(fd, 0, bo_size, region, 0);
@@ -140,13 +147,11 @@ static void copy_test(int fd, uint32_t size, enum blt_cmd_type cmd, uint32_t reg
 	exec_queue = xe_exec_queue_create(fd, vm, &inst, 0);
 	ctx = intel_ctx_xe(fd, vm, exec_queue, 0, 0, 0);
 
-	src_size = bo_size;
-	dst_size = bo_size;
-
 	if (cmd == MEM_COPY)
-		mem_copy(fd, src_handle, dst_handle, ctx, src_size, size, 1, region);
+		mem_copy(fd, src_handle, dst_handle, ctx, bo_size,
+			 pitch, rect->width, rect->height, region);
 	else if (cmd == MEM_SET)
-		mem_set(fd, dst_handle, ctx, dst_size, size, 1, MEM_FILL, region);
+		mem_set(fd, dst_handle, ctx, bo_size, rect->width, 1, MEM_FILL, region);
 
 	gem_close(fd, src_handle);
 	gem_close(fd, dst_handle);
@@ -160,7 +165,10 @@ igt_main
 	int fd;
 	struct igt_collection *set, *regions;
 	uint32_t region;
-	uint64_t size[] = {0xFD, 0x369, 0x3FFF, 0xFFFE};
+	struct rect linear[] = { { 0, 0xfd, 1 },
+				 { 0, 0x369, 1 },
+				 { 0, 0x3fff, 1 },
+				 { 0, 0xfffe, 1 } };
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
@@ -170,22 +178,22 @@ igt_main
 					       DRM_XE_MEM_REGION_CLASS_VRAM);
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(size); i++) {
-		igt_subtest_f("mem-copy-linear-0x%"PRIx64"", size[i]) {
+	for (int i = 0; i < ARRAY_SIZE(linear); i++) {
+		igt_subtest_f("mem-copy-linear-0x%x", linear[i].width) {
 			igt_require(blt_has_mem_copy(fd));
 			for_each_variation_r(regions, 1, set) {
 				region = igt_collection_get_value(regions, 0);
-				copy_test(fd, size[i], MEM_COPY, region);
+				copy_test(fd, &linear[i], MEM_COPY, region);
 			}
 		}
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(size); i++) {
-		igt_subtest_f("mem-set-linear-0x%"PRIx64"", size[i]) {
+	for (int i = 0; i < ARRAY_SIZE(linear); i++) {
+		igt_subtest_f("mem-set-linear-0x%x", linear[i].width) {
 			igt_require(blt_has_mem_set(fd));
 			for_each_variation_r(regions, 1, set) {
 				region = igt_collection_get_value(regions, 0);
-				copy_test(fd, size[i], MEM_SET, region);
+				copy_test(fd, &linear[i], MEM_SET, region);
 			}
 		}
 	}
