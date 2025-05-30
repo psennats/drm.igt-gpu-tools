@@ -61,6 +61,18 @@ struct rect {
  * @17: 17
  */
 
+/**
+ *
+ * SUBTEST: mem-matrix-copy-%s
+ * Description: Test validates MEM_COPY command in matrix type.
+ *              Size %arg[1] represents width x height.
+ * Test category: functionality test
+ *
+ * arg[1]:
+ * @2x2: 2x2
+ * @200x127: 200x127
+ */
+
 static void
 mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ctx,
 	 enum blt_memop_type type, enum blt_memop_mode mode,
@@ -77,6 +89,9 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	uint8_t *psrc, *pdst;
 	int result, i;
 
+	igt_debug("size: %u, pitch: %u, width: %u, height: %u (type: %d, mode: %d)\n",
+		  size, pitch, width, height, type, mode);
+
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 
 	blt_mem_copy_init(fd, &mem, mode, type);
@@ -84,6 +99,7 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 			   region, src_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	blt_set_mem_object(&mem.dst, dst_handle, size, pitch, width, height,
 			   region, dst_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
+
 	mem.src.ptr = xe_bo_map(fd, src_handle, size);
 	mem.dst.ptr = xe_bo_map(fd, dst_handle, size);
 	psrc = (uint8_t *) mem.src.ptr;
@@ -110,8 +126,20 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 				break;
 			}
 		}
-	} else {
+	} else if (type == TYPE_LINEAR && mode == MODE_PAGE) {
 		result = memcmp(psrc, pdst, pitch << 8);
+	} else {
+		result = 0;
+
+		for (i = 0; i < pitch * height; i++) {
+			if (i % pitch > width && pdst[i] != 0) {
+				result = -1;
+				break;
+			} else if (i % pitch < width && psrc[i] != pdst[i]) {
+				result = -1;
+				break;
+			}
+		}
 	}
 
 	intel_allocator_bind(ahnd, 0, 0);
@@ -188,8 +216,10 @@ static void copy_test(int fd, struct rect *rect, enum blt_cmd_type cmd, uint32_t
 	ctx = intel_ctx_xe(fd, vm, exec_queue, 0, 0, 0);
 
 	if (cmd == MEM_COPY)
-		mem_copy(fd, src_handle, dst_handle, ctx, TYPE_LINEAR, rect->mode,
-			 bo_size, pitch, rect->width, rect->height, region);
+		mem_copy(fd, src_handle, dst_handle, ctx,
+			 rect->height > 1 ? TYPE_MATRIX : TYPE_LINEAR,
+			 rect->mode, bo_size, pitch,
+			 rect->width, rect->height, region);
 	else if (cmd == MEM_SET)
 		mem_set(fd, dst_handle, ctx, bo_size, rect->width, 1, MEM_FILL, region);
 
@@ -212,6 +242,7 @@ igt_main
 				 { 0, 0x8fffe, 1, MODE_BYTE } };
 	struct rect page[] = { { 0, 1, 1, MODE_PAGE },
 			       { 0, 17, 1, MODE_PAGE }};
+	struct rect matrix[] = { { 4, 2, 2 }, { 256, 200, 127 } };
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
@@ -237,6 +268,16 @@ igt_main
 			for_each_variation_r(regions, 1, set) {
 				region = igt_collection_get_value(regions, 0);
 				copy_test(fd, &page[i], MEM_COPY, region);
+			}
+		}
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(matrix); i++) {
+		igt_subtest_f("mem-matrix-copy-%ux%u", matrix[i].width, matrix[i].height) {
+			igt_require(blt_has_mem_copy(fd));
+			for_each_variation_r(regions, 1, set) {
+				region = igt_collection_get_value(regions, 0);
+				copy_test(fd, &matrix[i], MEM_COPY, region);
 			}
 		}
 	}
