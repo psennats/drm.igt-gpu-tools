@@ -350,11 +350,9 @@ static void xe_spin_mem_copy_region(int fd, struct drm_xe_engine_class_instance 
 	src_handle = xe_bo_create(fd, 0, copy_size, region, 0);
 	dst_handle = xe_bo_create(fd, 0, copy_size, region, 0);
 	blt_set_mem_object(mem_copy.src, src_handle, copy_size, width, width, height, region,
-			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX,
-			   TYPE_LINEAR, COMPRESSION_DISABLED);
+			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	blt_set_mem_object(mem_copy.dst, dst_handle, copy_size, width, width, height, region,
-			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX,
-			   TYPE_LINEAR, COMPRESSION_DISABLED);
+			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	mem_copy.src->ptr = xe_bo_map(fd, src_handle, copy_size);
 	mem_copy.dst->ptr = xe_bo_map(fd, dst_handle, copy_size);
 	mem_copy.src_offset = get_offset_pat_index(ahnd, mem_copy.src->handle,

@@ -44,7 +44,7 @@ static void
 mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ctx,
 	 uint32_t size, uint32_t width, uint32_t height, uint32_t region)
 {
-	struct blt_mem_data mem = {};
+	struct blt_mem_copy_data mem = {};
 	uint64_t bb_size = xe_bb_size(fd, SZ_4K);
 	uint64_t ahnd = intel_allocator_open_full(fd, ctx->vm, 0, 0,
 						  INTEL_ALLOCATOR_SIMPLE,
@@ -56,13 +56,11 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 
-	blt_mem_init(fd, &mem);
+	blt_mem_copy_init(fd, &mem, TYPE_LINEAR);
 	blt_set_mem_object(&mem.src, src_handle, size, width, width, height,
-			   region, src_mocs, DEFAULT_PAT_INDEX, TYPE_LINEAR,
-			   COMPRESSION_DISABLED);
+			   region, src_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	blt_set_mem_object(&mem.dst, dst_handle, size, width, width, height,
-			   region, dst_mocs, DEFAULT_PAT_INDEX, TYPE_LINEAR,
-			   COMPRESSION_DISABLED);
+			   region, dst_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	mem.src.ptr = xe_bo_map(fd, src_handle, size);
 	mem.dst.ptr = xe_bo_map(fd, dst_handle, size);
 
@@ -97,7 +95,7 @@ static void
 mem_set(int fd, uint32_t dst_handle, const intel_ctx_t *ctx, uint32_t size,
 	uint32_t width, uint32_t height, uint8_t fill_data, uint32_t region)
 {
-	struct blt_mem_data mem = {};
+	struct blt_mem_set_data mem = {};
 	uint64_t bb_size = xe_bb_size(fd, SZ_4K);
 	uint64_t ahnd = intel_allocator_open_full(fd, ctx->vm, 0, 0,
 						  INTEL_ALLOCATOR_SIMPLE,
@@ -107,9 +105,9 @@ mem_set(int fd, uint32_t dst_handle, const intel_ctx_t *ctx, uint32_t size,
 	uint8_t *result;
 
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
-	blt_mem_init(fd, &mem);
+	blt_mem_set_init(fd, &mem, TYPE_LINEAR);
 	blt_set_mem_object(&mem.dst, dst_handle, size, width, width, height, region,
-			   dst_mocs, DEFAULT_PAT_INDEX, TYPE_LINEAR, COMPRESSION_DISABLED);
+			   dst_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	mem.dst.ptr = xe_bo_map(fd, dst_handle, size);
 	blt_set_batch(&mem.bb, bb, bb_size, region);
 	blt_mem_set(fd, ctx, NULL, ahnd, &mem, fill_data);

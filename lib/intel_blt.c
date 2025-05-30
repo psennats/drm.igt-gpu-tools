@@ -1799,22 +1799,25 @@ int blt_fast_copy(int fd,
 }
 
 /**
- * blt_mem_init:
+ * blt_mem_copy_init:
  * @fd: drm fd
  * @mem: structure for initialization
+ * @copy_type: linear or matrix
  *
  * Function is zeroing @mem and sets fd and driver fields (INTEL_DRIVER_I915 or
  * INTEL_DRIVER_XE).
  */
-void blt_mem_init(int fd, struct blt_mem_data *mem)
+void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
+		       enum blt_memop_type copy_type)
 {
 	memset(mem, 0, sizeof(*mem));
 
 	mem->fd = fd;
 	mem->driver = get_intel_driver(fd);
+	mem->copy_type = copy_type;
 }
 
-static void emit_blt_mem_copy(int fd, uint64_t ahnd, const struct blt_mem_data *mem)
+static void emit_blt_mem_copy(int fd, uint64_t ahnd, const struct blt_mem_copy_data *mem)
 {
 	uint64_t dst_offset, src_offset;
 	int i;
@@ -1827,7 +1830,7 @@ static void emit_blt_mem_copy(int fd, uint64_t ahnd, const struct blt_mem_data *
 					  0, mem->dst.pat_index);
 
 	batch = bo_map(fd, mem->bb.handle, mem->bb.size, mem->driver);
-	optype = mem->src.type == TYPE_MATRIX ? 1 << 17 : 0;
+	optype = mem->copy_type == TYPE_MATRIX ? 1 << 17 : 0;
 
 	i = 0;
 	batch[i++] = MEM_COPY_CMD | optype;
@@ -1861,7 +1864,7 @@ static void emit_blt_mem_copy(int fd, uint64_t ahnd, const struct blt_mem_data *
 int blt_mem_copy(int fd, const intel_ctx_t *ctx,
 		 const struct intel_execution_engine2 *e,
 		 uint64_t ahnd,
-		 const struct blt_mem_data *mem)
+		 const struct blt_mem_copy_data *mem)
 {
 	struct drm_i915_gem_execbuffer2 execbuf = {};
 	struct drm_i915_gem_exec_object2 obj[3] = {};
@@ -1902,7 +1905,26 @@ int blt_mem_copy(int fd, const intel_ctx_t *ctx,
 	return ret;
 }
 
-static void emit_blt_mem_set(int fd, uint64_t ahnd, const struct blt_mem_data *mem,
+/**
+ * blt_mem_set_init:
+ * @fd: drm fd
+ * @mem: structure for initialization
+ *
+ * Function is zeroing @mem and sets fd and driver fields (INTEL_DRIVER_I915 or
+ * INTEL_DRIVER_XE).
+ */
+void blt_mem_set_init(int fd, struct blt_mem_set_data *mem,
+		      enum blt_memop_type fill_type)
+{
+	memset(mem, 0, sizeof(*mem));
+
+	mem->fd = fd;
+	mem->driver = get_intel_driver(fd);
+	mem->fill_type = fill_type;
+}
+
+static void emit_blt_mem_set(int fd, uint64_t ahnd,
+			     const struct blt_mem_set_data *mem,
 			     uint8_t fill_data)
 {
 	uint64_t dst_offset;
@@ -1945,7 +1967,7 @@ static void emit_blt_mem_set(int fd, uint64_t ahnd, const struct blt_mem_data *m
 int blt_mem_set(int fd, const intel_ctx_t *ctx,
 		const struct intel_execution_engine2 *e,
 		uint64_t ahnd,
-		const struct blt_mem_data *mem,
+		const struct blt_mem_set_data *mem,
 		uint8_t fill_data)
 {
 	struct drm_i915_gem_execbuffer2 execbuf = {};
@@ -2101,14 +2123,13 @@ void blt_set_mem_object(struct blt_mem_object *obj,
 			uint32_t handle, uint64_t size, uint32_t pitch,
 			uint32_t width, uint32_t height, uint32_t region,
 			uint8_t mocs_index, uint8_t pat_index,
-			enum blt_memop_type type, enum blt_compression compression)
+			enum blt_compression compression)
 {
 	obj->handle = handle;
 	obj->region = region;
 	obj->size = size;
 	obj->mocs_index = mocs_index;
 	obj->pat_index = pat_index;
-	obj->type = type;
 	obj->compression = compression;
 	obj->width = width;
 	obj->height = height;

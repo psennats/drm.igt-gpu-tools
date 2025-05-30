@@ -101,7 +101,6 @@ struct blt_mem_object {
 	uint64_t size;
 	uint8_t mocs_index;
 	uint8_t pat_index;
-	enum blt_memop_type type;
 	enum blt_compression compression;
 	uint32_t width;
 	uint32_t height;
@@ -128,10 +127,19 @@ struct blt_copy_data {
 	bool print_bb;
 };
 
-struct blt_mem_data {
+struct blt_mem_copy_data {
 	int fd;
 	enum intel_driver driver;
+	enum blt_memop_type copy_type;
 	struct blt_mem_object src;
+	struct blt_mem_object dst;
+	struct blt_copy_batch bb;
+};
+
+struct blt_mem_set_data {
+	int fd;
+	enum intel_driver driver;
+	enum blt_memop_type fill_type;
 	struct blt_mem_object dst;
 	struct blt_copy_batch bb;
 };
@@ -265,16 +273,20 @@ int blt_fast_copy(int fd,
 		  uint64_t ahnd,
 		  const struct blt_copy_data *blt);
 
-void blt_mem_init(int fd, struct blt_mem_data *mem);
+void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
+		       enum blt_memop_type copy_type);
+
+void blt_mem_set_init(int fd, struct blt_mem_set_data *mem,
+		      enum blt_memop_type fill_type);
 
 int blt_mem_copy(int fd, const intel_ctx_t *ctx,
 			 const struct intel_execution_engine2 *e,
 			 uint64_t ahnd,
-			 const struct blt_mem_data *mem);
+			 const struct blt_mem_copy_data *mem);
 
 int blt_mem_set(int fd, const intel_ctx_t *ctx,
 			const struct intel_execution_engine2 *e, uint64_t ahnd,
-			const struct blt_mem_data *mem, uint8_t fill_data);
+			const struct blt_mem_set_data *mem, uint8_t fill_data);
 
 void blt_set_geom(struct blt_copy_object *obj, uint32_t pitch,
 		  int16_t x1, int16_t y1, int16_t x2, int16_t y2,
@@ -302,7 +314,7 @@ void blt_set_mem_object(struct blt_mem_object *obj,
 			uint32_t handle, uint64_t size, uint32_t pitch,
 			uint32_t width, uint32_t height, uint32_t region,
 			uint8_t mocs_index, uint8_t pat_index,
-			enum blt_memop_type type, enum blt_compression compression);
+			enum blt_compression compression);
 
 void blt_set_object_ext(struct blt_block_copy_object_ext *obj,
 			uint8_t compression_format,
