@@ -23,6 +23,7 @@ struct rect {
 	uint32_t pitch;
 	uint32_t width;
 	uint32_t height;
+	enum blt_memop_mode mode;
 };
 
 /**
@@ -47,8 +48,22 @@ struct rect {
  * @0xfffe: 0xfffe
  * @0x8fffe: 0x8fffe
  */
+
+/**
+ *
+ * SUBTEST: mem-page-copy-%s
+ * Description: Test validates MEM_COPY command in page mode (256B chunks).
+ *              Size %arg[1] means number of pages copied.
+ * Test category: functionality test
+ *
+ * arg[1]:
+ * @1: 1
+ * @17: 17
+ */
+
 static void
 mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ctx,
+	 enum blt_memop_type type, enum blt_memop_mode mode,
 	 uint32_t size, uint32_t pitch, uint32_t width, uint32_t height, uint32_t region)
 {
 	struct blt_mem_copy_data mem = {};
@@ -59,23 +74,45 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	uint8_t src_mocs = intel_get_uc_mocs_index(fd);
 	uint8_t dst_mocs = src_mocs;
 	uint32_t bb;
-	int result;
+	uint8_t *psrc, *pdst;
+	int result, i;
 
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 
-	blt_mem_copy_init(fd, &mem, MODE_BYTE, TYPE_LINEAR);
+	blt_mem_copy_init(fd, &mem, mode, type);
 	blt_set_mem_object(&mem.src, src_handle, size, pitch, width, height,
 			   region, src_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	blt_set_mem_object(&mem.dst, dst_handle, size, pitch, width, height,
 			   region, dst_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	mem.src.ptr = xe_bo_map(fd, src_handle, size);
 	mem.dst.ptr = xe_bo_map(fd, dst_handle, size);
+	psrc = (uint8_t *) mem.src.ptr;
+	pdst = (uint8_t *) mem.dst.ptr;
+
+	srand(time(NULL));
+
+	/* Randomize whole src */
+	for (i = 0; i < size; i++)
+		psrc[i] = rand();
 
 	blt_set_batch(&mem.bb, bb, bb_size, region);
 	igt_assert(mem.src.width == mem.dst.width);
 
 	blt_mem_copy(fd, ctx, NULL, ahnd, &mem);
-	result = memcmp(mem.src.ptr, mem.dst.ptr, mem.src.size);
+
+	if (type == TYPE_LINEAR && mode == MODE_BYTE) {
+		result = memcmp(psrc, pdst, width);
+
+		/* Rest of dst must contain 0 */
+		for (i = width; i < size; i++) {
+			if (pdst[i] != 0) {
+				result = -1;
+				break;
+			}
+		}
+	} else {
+		result = memcmp(psrc, pdst, pitch << 8);
+	}
 
 	intel_allocator_bind(ahnd, 0, 0);
 	munmap(mem.src.ptr, size);
@@ -83,7 +120,7 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	gem_close(fd, bb);
 	put_ahnd(ahnd);
 
-	igt_assert_f(!result, "source and destination differ\n");
+	igt_assert_f(!result, "destination doesn't contain valid data\n");
 }
 
 /**
@@ -140,7 +177,8 @@ static void copy_test(int fd, struct rect *rect, enum blt_cmd_type cmd, uint32_t
 	};
 	uint32_t src_handle, dst_handle, vm, exec_queue;
 	uint32_t pitch = rect->pitch ?: rect->width;
-	uint32_t bo_size = ALIGN(pitch * rect->height, xe_get_default_alignment(fd));
+	uint32_t blocksize = rect->mode == MODE_PAGE ? pitch << 8 : pitch;
+	uint32_t bo_size = ALIGN(blocksize * rect->height, xe_get_default_alignment(fd));
 	intel_ctx_t *ctx;
 
 	src_handle = xe_bo_create(fd, 0, bo_size, region, 0);
@@ -150,8 +188,8 @@ static void copy_test(int fd, struct rect *rect, enum blt_cmd_type cmd, uint32_t
 	ctx = intel_ctx_xe(fd, vm, exec_queue, 0, 0, 0);
 
 	if (cmd == MEM_COPY)
-		mem_copy(fd, src_handle, dst_handle, ctx, bo_size,
-			 pitch, rect->width, rect->height, region);
+		mem_copy(fd, src_handle, dst_handle, ctx, TYPE_LINEAR, rect->mode,
+			 bo_size, pitch, rect->width, rect->height, region);
 	else if (cmd == MEM_SET)
 		mem_set(fd, dst_handle, ctx, bo_size, rect->width, 1, MEM_FILL, region);
 
@@ -167,11 +205,13 @@ igt_main
 	int fd;
 	struct igt_collection *set, *regions;
 	uint32_t region;
-	struct rect linear[] = { { 0, 0xfd, 1 },
-				 { 0, 0x369, 1 },
-				 { 0, 0x3fff, 1 },
-				 { 0, 0xfffe, 1 },
-				 { 0, 0x8fffe, 1 } };
+	struct rect linear[] = { { 0, 0xfd, 1, MODE_BYTE },
+				 { 0, 0x369, 1, MODE_BYTE },
+				 { 0, 0x3fff, 1, MODE_BYTE },
+				 { 0, 0xfffe, 1, MODE_BYTE },
+				 { 0, 0x8fffe, 1, MODE_BYTE } };
+	struct rect page[] = { { 0, 1, 1, MODE_PAGE },
+			       { 0, 17, 1, MODE_PAGE }};
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
@@ -187,6 +227,16 @@ igt_main
 			for_each_variation_r(regions, 1, set) {
 				region = igt_collection_get_value(regions, 0);
 				copy_test(fd, &linear[i], MEM_COPY, region);
+			}
+		}
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(page); i++) {
+		igt_subtest_f("mem-page-copy-%u", page[i].width) {
+			igt_require(blt_has_mem_copy(fd));
+			for_each_variation_r(regions, 1, set) {
+				region = igt_collection_get_value(regions, 0);
+				copy_test(fd, &page[i], MEM_COPY, region);
 			}
 		}
 	}
