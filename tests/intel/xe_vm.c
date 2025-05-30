@@ -1719,7 +1719,7 @@ test_munmap_style_unbind(int fd, struct drm_xe_engine_class_instance *eci,
 	addr = base_addr;
 
 	/*
-	 * Kick a thread to write the first page continously to ensure we can't
+	 * Kick a thread to write the first page continuously to ensure we can't
 	 * cause a fault if a rebind occurs during munmap style VM unbind
 	 * (partial VMAs unbound).
 	 */
@@ -1750,7 +1750,7 @@ test_munmap_style_unbind(int fd, struct drm_xe_engine_class_instance *eci,
 		data->batch[b++] = sdi_addr >> 32;
 		data->batch[b++] = 0xc0ffee;
 		data->batch[b++] = MI_BATCH_BUFFER_END;
-		igt_assert(b <= ARRAY_SIZE(data[i].batch));
+		igt_assert(b <= ARRAY_SIZE(data->batch));
 
 		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 		if (i)
@@ -1807,7 +1807,7 @@ try_again_after_invalidate:
 			data->batch[b++] = sdi_addr >> 32;
 			data->batch[b++] = 0xc0ffee;
 			data->batch[b++] = MI_BATCH_BUFFER_END;
-			igt_assert(b <= ARRAY_SIZE(data[i].batch));
+			igt_assert(b <= ARRAY_SIZE(data->batch));
 
 			sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 			syncobj_reset(fd, &sync[1].handle, 1);
@@ -1878,7 +1878,7 @@ try_again_after_invalidate:
 		data->batch[b++] = sdi_addr >> 32;
 		data->batch[b++] = 0xc0ffee;
 		data->batch[b++] = MI_BATCH_BUFFER_END;
-		igt_assert(b <= ARRAY_SIZE(data[i].batch));
+		igt_assert(b <= ARRAY_SIZE(data->batch));
 
 		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 		syncobj_reset(fd, &sync[1].handle, 1);
@@ -2056,7 +2056,7 @@ test_mmap_style_bind(int fd, struct drm_xe_engine_class_instance *eci,
 		data->batch[b++] = sdi_addr >> 32;
 		data->batch[b++] = 0xc0ffee;
 		data->batch[b++] = MI_BATCH_BUFFER_END;
-		igt_assert(b <= ARRAY_SIZE(data[i].batch));
+		igt_assert(b <= ARRAY_SIZE(data->batch));
 
 		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 		if (i)
@@ -2115,7 +2115,7 @@ test_mmap_style_bind(int fd, struct drm_xe_engine_class_instance *eci,
 		data->batch[b++] = sdi_addr >> 32;
 		data->batch[b++] = 0xc0ffee;
 		data->batch[b++] = MI_BATCH_BUFFER_END;
-		igt_assert(b <= ARRAY_SIZE(data[i].batch));
+		igt_assert(b <= ARRAY_SIZE(data->batch));
 
 		data = map1 + i * page_size;
 		b = 0;
@@ -2124,7 +2124,7 @@ test_mmap_style_bind(int fd, struct drm_xe_engine_class_instance *eci,
 		data->batch[b++] = sdi_addr >> 32;
 		data->batch[b++] = 0xc0ffee;
 		data->batch[b++] = MI_BATCH_BUFFER_END;
-		igt_assert(b <= ARRAY_SIZE(data[i].batch));
+		igt_assert(b <= ARRAY_SIZE(data->batch));
 
 		sync[0].flags &= ~DRM_XE_SYNC_FLAG_SIGNAL;
 		if (i)
