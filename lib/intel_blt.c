@@ -1798,6 +1798,73 @@ int blt_fast_copy(int fd,
 	return ret;
 }
 
+struct xe_mem_copy_data {
+	struct {
+		uint32_t length:			BITRANGE(0, 7);
+		uint32_t compression_format:	BITRANGE(8, 12);
+		uint32_t compression_enable:	BITRANGE(13, 13);
+		uint32_t rsvd0:			BITRANGE(14, 14);
+		uint32_t dst_compressible:	BITRANGE(15, 15);
+		uint32_t src_compressible:	BITRANGE(16, 16);
+		uint32_t copy_type:		BITRANGE(17, 18);
+		uint32_t mode:			BITRANGE(19, 19);
+		uint32_t rsvd1:			BITRANGE(20, 21);
+		uint32_t opcode:			BITRANGE(22, 28);
+		uint32_t client:			BITRANGE(29, 31);
+	} dw00;
+
+	struct {
+		union {
+			struct {
+				uint32_t width:			BITRANGE(0, 17);
+				uint32_t rsvd0:			BITRANGE(18, 31);
+			} byte_copy;
+			struct {
+				uint32_t width:			BITRANGE(0, 23);
+				uint32_t rsvd0:			BITRANGE(24, 31);
+			} page_copy;
+			uint32_t val;
+		};
+	} dw01;
+
+	struct {
+		uint32_t height:			BITRANGE(0, 17);
+		uint32_t rsvd0:			BITRANGE(18, 31);
+	} dw02;
+
+	struct {
+		uint32_t src_pitch:		BITRANGE(0, 17);
+		uint32_t rsvd0:			BITRANGE(18, 31);
+	} dw03;
+
+	struct {
+		uint32_t dst_pitch:		BITRANGE(0, 17);
+		uint32_t rsvd0:			BITRANGE(18, 31);
+	} dw04;
+
+	struct {
+		uint32_t src_address_lo;
+	} dw05;
+
+	struct {
+		uint32_t src_address_hi;
+	} dw06;
+
+	struct {
+		uint32_t dst_address_lo;
+	} dw07;
+
+	struct {
+		uint32_t dst_address_hi;
+	} dw08;
+
+	struct {
+		uint32_t dst_mocs:		BITRANGE(0, 6);
+		uint32_t rsvd0:			BITRANGE(7, 24);
+		uint32_t src_mocs:		BITRANGE(25, 31);
+	} dw09;
+};
+
 /**
  * blt_mem_copy_init:
  * @fd: drm fd
@@ -1820,40 +1887,90 @@ void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
 	mem->copy_type = copy_type;
 }
 
-static void emit_blt_mem_copy(int fd, uint64_t ahnd,
-			      const struct blt_mem_copy_data *mem,
-			      bool emit_bbe)
+static uint64_t emit_blt_mem_copy(int fd, uint64_t ahnd,
+				  const struct blt_mem_copy_data *mem,
+				  uint64_t bb_pos, bool emit_bbe)
 {
-	uint64_t dst_offset, src_offset;
-	int i;
-	uint32_t *batch;
-	uint32_t optype;
+	struct xe_mem_copy_data data = {};
+	uint64_t dst_offset, src_offset, shift;
+	uint32_t height, width_max, remain;
+	uint32_t bbe = MI_BATCH_BUFFER_END;
+	uint32_t *bb;
+
+	if (mem->mode == MODE_BYTE) {
+		data.dw01.byte_copy.width = -1;
+		width_max = data.dw01.byte_copy.width + 1;
+		shift = width_max;
+	} else {
+		data.dw01.page_copy.width = -1;
+		width_max = data.dw01.page_copy.width + 1;
+		shift = width_max << 8;
+	}
 
 	src_offset = get_offset_pat_index(ahnd, mem->src.handle, mem->src.size,
 					  0, mem->src.pat_index);
 	dst_offset = get_offset_pat_index(ahnd, mem->dst.handle, mem->dst.size,
 					  0, mem->dst.pat_index);
 
-	batch = bo_map(fd, mem->bb.handle, mem->bb.size, mem->driver);
-	optype = mem->copy_type == TYPE_MATRIX ? 1 << 17 : 0;
+	bb = bo_map(fd, mem->bb.handle, mem->bb.size, mem->driver);
 
-	i = 0;
-	batch[i++] = MEM_COPY_CMD | optype;
-	batch[i++] = mem->src.width - 1;
-	batch[i++] = mem->src.height - 1;
-	batch[i++] = mem->src.pitch - 1;
-	batch[i++] = mem->dst.pitch - 1;
-	batch[i++] = src_offset;
-	batch[i++] = src_offset << 32;
-	batch[i++] = dst_offset;
-	batch[i++] = dst_offset << 32;
-	batch[i++] = mem->src.mocs_index << XE2_MEM_COPY_MOCS_SHIFT | mem->dst.mocs_index;
+	height = mem->dst.height;
 
-	if (emit_bbe)
-		batch[i++] = MI_BATCH_BUFFER_END;
+	data.dw00.client = 0x2;
+	data.dw00.opcode = 0x5a;
+	data.dw00.length = 8;
+	data.dw00.mode = mem->mode;
+	data.dw00.copy_type = mem->copy_type;
 
-	munmap(batch, mem->bb.size);
+	data.dw02.height = height - 1;
+	data.dw05.src_address_lo = src_offset;
+	data.dw06.src_address_hi = src_offset >> 32;
+	data.dw07.dst_address_lo = dst_offset;
+	data.dw08.dst_address_hi = dst_offset >> 32;
+	data.dw09.src_mocs = mem->src.mocs_index;
+	data.dw09.dst_mocs = mem->dst.mocs_index;
+
+	remain = mem->src.width;
+
+	/* Truncate pitches to match operation bits */
+	if (mem->src.pitch > width_max)
+		data.dw03.src_pitch = width_max - 1;
+	else
+		data.dw03.src_pitch = mem->src.pitch;
+
+	if (mem->dst.pitch > width_max)
+		data.dw04.dst_pitch = width_max - 1;
+	else
+		data.dw04.dst_pitch = mem->dst.pitch;
+
+	while (remain) {
+		data.dw01.val = min_t(uint32_t, width_max, remain) - 1;
+
+		igt_assert(bb_pos + sizeof(data) < mem->bb.size);
+		memcpy(bb + bb_pos, &data, sizeof(data));
+		bb_pos += sizeof(data);
+
+		remain -= remain > width_max ? width_max : remain;
+		src_offset += shift;
+		dst_offset += shift;
+
+		data.dw05.src_address_lo = src_offset;
+		data.dw06.src_address_hi = src_offset >> 32;
+		data.dw07.dst_address_lo = dst_offset;
+		data.dw08.dst_address_hi = dst_offset >> 32;
+	}
+
+	if (emit_bbe) {
+		igt_assert(bb_pos + sizeof(uint32_t) < mem->bb.size);
+		memcpy(bb + bb_pos, &bbe, sizeof(bbe));
+		bb_pos += sizeof(uint32_t);
+	}
+
+	munmap(bb, mem->bb.size);
+
+	return bb_pos;
 }
+
 
 /**
  * blt_mem_copy:
@@ -1884,7 +2001,7 @@ int blt_mem_copy(int fd, const intel_ctx_t *ctx,
 					  0, mem->dst.pat_index);
 	bb_offset = get_offset(ahnd, mem->bb.handle, mem->bb.size, 0);
 
-	emit_blt_mem_copy(fd, ahnd, mem, true);
+	emit_blt_mem_copy(fd, ahnd, mem, 0, true);
 
 	if (mem->driver == INTEL_DRIVER_XE) {
 		intel_ctx_xe_exec(ctx, ahnd, CANONICAL(bb_offset));
