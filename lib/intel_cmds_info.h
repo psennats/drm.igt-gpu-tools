@@ -30,6 +30,17 @@ enum blt_memop_type {
 	TYPE_MATRIX,
 };
 
+/**
+ * enum blt_memop_mode - memory operation mode mem-copy.
+ *
+ * Mem-copy with linear type supports mode operation in bytes or pages
+ * (page is 256B chunk).
+ */
+enum blt_memop_mode {
+	MODE_BYTE,
+	MODE_PAGE,
+};
+
 enum blt_cmd_type {
 	SRC_COPY,
 	MEM_SET,

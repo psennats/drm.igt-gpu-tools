@@ -1802,18 +1802,21 @@ int blt_fast_copy(int fd,
  * blt_mem_copy_init:
  * @fd: drm fd
  * @mem: structure for initialization
+ * @mode: copy mode - byte or page (256B)
  * @copy_type: linear or matrix
  *
  * Function is zeroing @mem and sets fd and driver fields (INTEL_DRIVER_I915 or
  * INTEL_DRIVER_XE).
  */
 void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
+		       enum blt_memop_mode mode,
 		       enum blt_memop_type copy_type)
 {
 	memset(mem, 0, sizeof(*mem));
 
 	mem->fd = fd;
 	mem->driver = get_intel_driver(fd);
+	mem->mode = mode;
 	mem->copy_type = copy_type;
 }
 

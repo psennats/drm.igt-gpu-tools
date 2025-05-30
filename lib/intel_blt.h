@@ -130,6 +130,7 @@ struct blt_copy_data {
 struct blt_mem_copy_data {
 	int fd;
 	enum intel_driver driver;
+	enum blt_memop_mode mode;
 	enum blt_memop_type copy_type;
 	struct blt_mem_object src;
 	struct blt_mem_object dst;
@@ -274,6 +275,7 @@ int blt_fast_copy(int fd,
 		  const struct blt_copy_data *blt);
 
 void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
+		       enum blt_memop_mode mode,
 		       enum blt_memop_type copy_type);
 
 void blt_mem_set_init(int fd, struct blt_mem_set_data *mem,
