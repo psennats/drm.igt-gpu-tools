@@ -19,9 +19,15 @@ enum blt_tiling_type {
 	__BLT_MAX_TILING
 };
 
+/**
+ * enum blt_memop_type - memory operation type for mem-copy and mem-set.
+ *
+ * Mem-copy and mem-set support two types of object copy/fill -
+ * linear (1D buffer) and matrix (2D buffer).
+ */
 enum blt_memop_type {
-	M_LINEAR,
-	M_MATRIX,
+	TYPE_LINEAR,
+	TYPE_MATRIX,
 };
 
 enum blt_cmd_type {

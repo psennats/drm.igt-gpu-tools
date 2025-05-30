@@ -74,13 +74,13 @@ static const struct blt_cmd_info
 
 static const struct blt_cmd_info
 		pvc_mem_copy = BLT_INFO(MEM_COPY,
-					BIT(M_LINEAR) |
-					BIT(M_MATRIX));
+					BIT(TYPE_LINEAR) |
+					BIT(TYPE_MATRIX));
 
 static const struct blt_cmd_info
 		pvc_mem_set = BLT_INFO(MEM_SET,
-				       BIT(M_LINEAR) |
-				       BIT(M_MATRIX));
+				       BIT(TYPE_LINEAR) |
+				       BIT(TYPE_MATRIX));
 
 static const struct blt_cmd_info
 		pre_gen6_xy_color_blt = BLT_INFO(XY_COLOR_BLT, TILE_L_X);
