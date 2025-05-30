@@ -45,6 +45,7 @@ struct rect {
  * @0x3fff: 0x3fff
  * @0xfd: 0xfd
  * @0xfffe: 0xfffe
+ * @0x8fffe: 0x8fffe
  */
 static void
 mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ctx,
@@ -96,6 +97,7 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
  * @0x3fff: 0x3fff
  * @0xfd: 0xfd
  * @0xfffe: 0xfffe
+ * @0x8fffe: 0x8fffe
  */
 static void
 mem_set(int fd, uint32_t dst_handle, const intel_ctx_t *ctx, uint32_t size,
@@ -168,7 +170,8 @@ igt_main
 	struct rect linear[] = { { 0, 0xfd, 1 },
 				 { 0, 0x369, 1 },
 				 { 0, 0x3fff, 1 },
-				 { 0, 0xfffe, 1 } };
+				 { 0, 0xfffe, 1 },
+				 { 0, 0x8fffe, 1 } };
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
