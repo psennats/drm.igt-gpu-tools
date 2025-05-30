@@ -62,6 +62,7 @@ igt@kms_addfb_basic@clobberred-modifier
 igt@kms_addfb_basic@.*framebuffer-vs-set-tiling
 igt@kms_addfb_basic@tile-pitch-mismatch
 igt@kms_busy@.*
+igt@kms_cursor_legacy@basic-busy-flip-before-cursor-(atomic|legacy|varying-size)
 igt@kms_draw_crc@draw-method-(mmap-cpu|mmap-gtt|pwrite)
 igt@kms_fence_pin_leak
 igt@kms_flip@.*flip-vs-fences.*
@@ -79,7 +80,11 @@ igt@kms_pm_rpm@cursor.*
 ##################################################################
 # KMS: Yet to add/missing XE support
 ##################################################################
+igt@kms_atomic@plane-primary-overlay-mutable-zpos
+igt@kms_plane_scaling@.*downscale-factor-0-25.*
 igt@kms_prime@.*
+igt@kms_scaling_modes@scaling-mode-none
+igt@kms_writeback@writeback.*
 ##################################################################
 # KMS: Test was written with the idea that edid read shouldn't take an
 # unreasonable amount of time. The timeout is an arbitrary value
