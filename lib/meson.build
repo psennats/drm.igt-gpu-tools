@@ -236,30 +236,9 @@ lib_version = vcs_tag(input : 'version.h.in', output : 'version.h',
 		      command : vcs_command )
 
 iga64_assembly_sources = [ 'gpgpu_shader.c', 'gpgpu_fill.c' ]
-libiga64_asms = static_library('iga64_asms',
-	iga64_assembly_sources,
-	include_directories: inc,
-	dependencies : lib_deps,
-	c_args : [
-	    '-DIGT_DATADIR="@0@"'.format(join_paths(prefix, datadir)),
-	    '-DIGT_SRCDIR="@0@"'.format(srcdir),
-	    '-DIGT_LOG_DOMAIN="gpu_codes"',
-	    '-ffat-lto-objects' ]
-)
-
-iga64_codes_targets = []
-foreach f: iga64_assembly_sources
-	name = f.underscorify() + '.gen.iga64_codes.c'
-	iga64_codes_targets += custom_target(name,
-		input: [ f + '.gen.iga64_codes.c', libiga64_asms.extract_objects(f) ],
-		output: name,
-		depend_files: [ 'iga64_macros.h', generate_iga64_codes.path() ],
-		command: [ 'env', 'IGT_SRCDIR=@SOURCE_ROOT@', generate_iga64_codes, '-o', '@OUTPUT@', '-i', '@INPUT0@', '@INPUT1@' ],
-		console: true,
-	)
-endforeach
 
 lib_intermediates = []
+iga64_assembly_libs = []
 foreach f: lib_sources
     name = f.underscorify()
     lib = static_library('igt-' + name,
@@ -270,12 +249,25 @@ foreach f: lib_sources
 	    '-DIGT_DATADIR="@0@"'.format(join_paths(prefix, datadir)),
 	    '-DIGT_SRCDIR="@0@"'.format(srcdir),
 	    '-DIGT_LOG_DOMAIN="@0@"'.format(f.split('.')[0]),
-	])
+	] + (iga64_assembly_sources.contains(f) ? [ '-ffat-lto-objects' ] : []))
 
     lib_intermediates += lib
+    if iga64_assembly_sources.contains(f)
+	iga64_assembly_libs += lib
+    endif
 endforeach
 
-lib_intermediates += static_library('iga64_gpu_codes', iga64_codes_targets)
+iga64_generated_codes = custom_target(
+    'iga64_generated_codes.c',
+    input : [ 'iga64_generated_codes.c' ] + iga64_assembly_libs,
+    output : 'iga64_generated_codes.c',
+    depend_files : 'iga64_macros.h',
+    command : [ 'env', 'IGT_SRCDIR=@0@'.format(source_root), generate_iga64_codes, '-o', '@OUTPUT@', '-i', '@INPUT@' ]
+)
+
+lib_intermediates += static_library('igt-iga64_generated_codes.c',
+			[ iga64_generated_codes, lib_version ]
+		     )
 
 lib_igt_build = shared_library('igt',
     ['dummy.c'],
