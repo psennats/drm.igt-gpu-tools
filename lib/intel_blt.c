@@ -1820,7 +1820,9 @@ void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
 	mem->copy_type = copy_type;
 }
 
-static void emit_blt_mem_copy(int fd, uint64_t ahnd, const struct blt_mem_copy_data *mem)
+static void emit_blt_mem_copy(int fd, uint64_t ahnd,
+			      const struct blt_mem_copy_data *mem,
+			      bool emit_bbe)
 {
 	uint64_t dst_offset, src_offset;
 	int i;
@@ -1846,7 +1848,9 @@ static void emit_blt_mem_copy(int fd, uint64_t ahnd, const struct blt_mem_copy_d
 	batch[i++] = dst_offset;
 	batch[i++] = dst_offset << 32;
 	batch[i++] = mem->src.mocs_index << XE2_MEM_COPY_MOCS_SHIFT | mem->dst.mocs_index;
-	batch[i++] = MI_BATCH_BUFFER_END;
+
+	if (emit_bbe)
+		batch[i++] = MI_BATCH_BUFFER_END;
 
 	munmap(batch, mem->bb.size);
 }
@@ -1880,7 +1884,7 @@ int blt_mem_copy(int fd, const intel_ctx_t *ctx,
 					  0, mem->dst.pat_index);
 	bb_offset = get_offset(ahnd, mem->bb.handle, mem->bb.size, 0);
 
-	emit_blt_mem_copy(fd, ahnd, mem);
+	emit_blt_mem_copy(fd, ahnd, mem, true);
 
 	if (mem->driver == INTEL_DRIVER_XE) {
 		intel_ctx_xe_exec(ctx, ahnd, CANONICAL(bb_offset));
