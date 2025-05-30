@@ -19,6 +19,12 @@
 
 #define MEM_FILL 0x8b
 
+static struct param {
+	bool print_bb;
+} param = {
+	.print_bb = false,
+};
+
 struct rect {
 	uint32_t pitch;
 	uint32_t width;
@@ -95,6 +101,8 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	bb = xe_bo_create(fd, 0, bb_size, region, 0);
 
 	blt_mem_copy_init(fd, &mem, mode, type);
+	mem.print_bb = param.print_bb;
+
 	blt_set_mem_object(&mem.src, src_handle, size, pitch, width, height,
 			   region, src_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	blt_set_mem_object(&mem.dst, dst_handle, size, pitch, width, height,
@@ -230,7 +238,25 @@ static void copy_test(int fd, struct rect *rect, enum blt_cmd_type cmd, uint32_t
 	free(ctx);
 }
 
-igt_main
+static int opt_handler(int opt, int opt_index, void *data)
+{
+	switch (opt) {
+	case 'b':
+		param.print_bb = true;
+		igt_debug("Print bb: %d\n", param.print_bb);
+		break;
+	default:
+		return IGT_OPT_HANDLER_ERROR;
+	}
+
+	return IGT_OPT_HANDLER_SUCCESS;
+}
+
+const char *help_str =
+	"  -b\tPrint bb"
+	;
+
+igt_main_args("b", NULL, help_str, opt_handler, NULL)
 {
 	int fd;
 	struct igt_collection *set, *regions;

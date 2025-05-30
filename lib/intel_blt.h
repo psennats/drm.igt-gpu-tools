@@ -135,6 +135,7 @@ struct blt_mem_copy_data {
 	struct blt_mem_object src;
 	struct blt_mem_object dst;
 	struct blt_copy_batch bb;
+	bool print_bb;
 };
 
 struct blt_mem_set_data {

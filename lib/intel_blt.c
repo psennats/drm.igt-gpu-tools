@@ -1887,6 +1887,33 @@ void blt_mem_copy_init(int fd, struct blt_mem_copy_data *mem,
 	mem->copy_type = copy_type;
 }
 
+static void dump_bb_mem_copy_cmd(struct xe_mem_copy_data *data)
+{
+	uint32_t *cmd = (uint32_t *) data;
+
+	igt_info("BB details:\n");
+	igt_info(" dw00: [%08x] <client: 0x%x, opcode: 0x%x, length: %d> "
+		 "[copy type: %d, mode: %d]\n",
+		 cmd[0], data->dw00.client, data->dw00.opcode, data->dw00.length,
+		 data->dw00.copy_type, data->dw00.mode);
+	igt_info(" dw01: [%08x] width: %u\n", cmd[1],
+		 data->dw00.mode == MODE_BYTE ? data->dw01.byte_copy.width :
+						data->dw01.page_copy.width);
+	igt_info(" dw02: [%08x] height: %u\n", cmd[2], data->dw02.height);
+	igt_info(" dw03: [%08x] src pitch: %u\n", cmd[3], data->dw03.src_pitch);
+	igt_info(" dw04: [%08x] dst pitch: %u\n", cmd[4], data->dw04.dst_pitch);
+	igt_info(" dw05: [%08x] src offset lo (0x%x)\n",
+		 cmd[5], data->dw05.src_address_lo);
+	igt_info(" dw06: [%08x] src offset hi (0x%x)\n",
+		 cmd[6], data->dw06.src_address_hi);
+	igt_info(" dw07: [%08x] dst offset lo (0x%x)\n",
+		 cmd[7], data->dw07.dst_address_lo);
+	igt_info(" dw08: [%08x] dst offset hi (0x%x)\n",
+		 cmd[8], data->dw08.dst_address_hi);
+	igt_info(" dw09: [%08x] mocs <dst: 0x%x, src: 0x%x>\n",
+		 cmd[8], data->dw09.dst_mocs, data->dw09.src_mocs);
+}
+
 static uint64_t emit_blt_mem_copy(int fd, uint64_t ahnd,
 				  const struct blt_mem_copy_data *mem,
 				  uint64_t bb_pos, bool emit_bbe)
@@ -1953,6 +1980,11 @@ static uint64_t emit_blt_mem_copy(int fd, uint64_t ahnd,
 		igt_assert(bb_pos + sizeof(data) < mem->bb.size);
 		memcpy(bb + bb_pos, &data, sizeof(data));
 		bb_pos += sizeof(data);
+
+		if (mem->print_bb) {
+			igt_info("[MEM COPY]\n");
+			dump_bb_mem_copy_cmd(&data);
+		}
 	} else {
 		remain = mem->src.width;
 
@@ -1982,6 +2014,11 @@ static uint64_t emit_blt_mem_copy(int fd, uint64_t ahnd,
 			data.dw06.src_address_hi = src_offset >> 32;
 			data.dw07.dst_address_lo = dst_offset;
 			data.dw08.dst_address_hi = dst_offset >> 32;
+
+			if (mem->print_bb) {
+				igt_info("[MEM COPY]\n");
+				dump_bb_mem_copy_cmd(&data);
+			}
 		}
 	}
 
