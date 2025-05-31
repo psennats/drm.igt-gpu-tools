@@ -1137,7 +1137,7 @@ main(int argc, char *argv[])
 	if (ctx.metric_set->perf_oa_metrics_set == 0) {
 		fprintf(stderr,
 			"Unable to load performance configuration, consider running:\n"
-			"   sysctl dev.xe.perf_stream_paranoid=0\n");
+			"   sysctl dev.xe.observation_paranoid=0\n");
 		goto fail;
 	}
 
