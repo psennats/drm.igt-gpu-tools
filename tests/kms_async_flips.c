@@ -410,7 +410,12 @@ static void test_async_flip(data_t *data)
 
 		ret = perform_flip(data, frame, flags);
 
-		if (frame == 1 && data->allow_fail)
+		/* AMD cannot perform async page flip if fb mem type changes,
+		 * and this condition cannot be controlled by any userspace
+		 * configuration. Therefore allow EINVAL failure and skip the
+		 * test for AMD devices.
+		 */
+		if ((frame == 1 && data->allow_fail) || is_amdgpu_device(data->drm_fd))
 			igt_skip_on(ret == -EINVAL);
 		else
 			igt_assert_eq(ret, 0);
