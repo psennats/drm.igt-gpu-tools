@@ -10,6 +10,7 @@
 #include "igt_fs.h"
 #include "igt_kmod.h"
 #include "igt_sysfs.h"
+#include "xe/xe_query.h"
 
 /**
  * TEST: Check configfs userspace API
@@ -57,6 +58,49 @@ static void test_survivability_mode(int configfs_device_fd)
 	close(fd);
 }
 
+/**
+ * SUBTEST: engines-allowed-invalid
+ * Description: Validate engines_allowed attribute for invalid values
+ */
+static void test_engines_allowed_invalid(int configfs_device_fd)
+{
+	static const char *values[] = {
+		"xcs0",
+		"abcsdcs0",
+		"rcs0,abcsdcs0",
+		"rcs9",
+		"rcs10",
+		"rcs0asdf",
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+		const char *v = values[i];
+
+		igt_debug("Writing '%s' to engines_allowed\n", v);
+		igt_assert(!igt_sysfs_set(configfs_device_fd, "engines_allowed", v));
+	}
+}
+
+/**
+ * SUBTEST: engines-allowed
+ * Description: Validate engines_allowed attribute
+ */
+static void test_engines_allowed(int configfs_device_fd)
+{
+	static const char *values[] = {
+		"rcs0", "rcs*", "rcs0,bcs0", "bcs0,rcs0",
+		"bcs0\nrcs0", "bcs0\nrcs0\n",
+		"rcs000",
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+		const char *v = values[i];
+
+		igt_debug("Writing '%s' to engines_allowed\n", v);
+		igt_assert(igt_sysfs_set(configfs_device_fd, "engines_allowed", v));
+	}
+}
+
 static int create_device_configfs_group(int configfs_fd, int fd)
 {
 	int configfs_device_fd;
@@ -89,6 +133,18 @@ igt_main
 		igt_require(IS_BATTLEMAGE(intel_get_drm_devid(fd)));
 		igt_install_exit_handler(restore);
 		test_survivability_mode(configfs_device_fd);
+	}
+
+	igt_describe("Validate engines_allowed with invalid options");
+	igt_subtest("engines-allowed-invalid") {
+		igt_install_exit_handler(restore);
+		test_engines_allowed_invalid(configfs_device_fd);
+	}
+
+	igt_describe("Validate engines_allowed");
+	igt_subtest("engines-allowed") {
+		igt_install_exit_handler(restore);
+		test_engines_allowed(configfs_device_fd);
 	}
 
 	igt_fixture {
