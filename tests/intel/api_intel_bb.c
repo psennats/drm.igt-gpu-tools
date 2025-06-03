@@ -944,7 +944,8 @@ static int dump_base64(const char *name, struct intel_buf *buf)
 
 		igt_info("--- %s ---\n", name);
 		pos = str = g_base64_encode(destbuf, outsize);
-		outsize = strlen(str);
+		outsize = str ? strlen(str) : 0;
+
 		while (pos) {
 			char line[LINELEN + 1];
 			int to_copy = min(LINELEN, outsize);
