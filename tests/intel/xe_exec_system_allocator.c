@@ -9,7 +9,7 @@
  * Mega feature: USM
  * Sub-category: System allocator
  * Functionality: fault mode, system allocator
- * GPU: LNL, BMG, PVC, PTL
+ * GPU: LNL, BMG, PVC
  */
 
 #include <fcntl.h>
