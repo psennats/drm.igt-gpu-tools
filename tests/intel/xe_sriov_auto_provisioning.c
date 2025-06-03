@@ -58,7 +58,7 @@ static int ranges_fair_allocation(enum xe_sriov_shared_res res,
 		uint64_t current_allocation = ranges[i].end - ranges[i].start + 1;
 
 		if (igt_debug_on_f(current_allocation != expected_allocation,
-				   "%s: Allocation mismatch, expected=%lu VF%u=%lu\n",
+				   "%s: Allocation mismatch, expected=%" PRIu64 " VF%u=%" PRIu64 "\n",
 				   xe_sriov_debugfs_provisioned_attr_name(res),
 				   expected_allocation, ranges[i].vf_id,
 				   current_allocation)) {
@@ -183,8 +183,8 @@ static int check_no_overlap(int pf_fd, unsigned int num_vfs, unsigned int gt_id,
 	for (unsigned int i = 0; i < num_vfs - 1; i++)
 		if (ranges[i].end >= ranges[i + 1].start) {
 			igt_debug((res == XE_SRIOV_SHARED_RES_GGTT) ?
-				  "Overlapping ranges: VF%u [%lx-%lx] and VF%u [%lx-%lx]\n" :
-				  "Overlapping ranges: VF%u [%lu-%lu] and VF%u [%lu-%lu]\n",
+				  "Overlapping ranges: VF%u [%" PRIx64 "-%" PRIx64 "] and VF%u [%" PRIx64 "-%" PRIx64 "]\n" :
+				  "Overlapping ranges: VF%u [%" PRIu64 "-%" PRIu64 "] and VF%u [%" PRIu64 "-%" PRIu64 "]\n",
 				  ranges[i].vf_id, ranges[i].start, ranges[i].end,
 				  ranges[i + 1].vf_id, ranges[i + 1].start, ranges[i + 1].end);
 			free(ranges);

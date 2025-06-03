@@ -562,7 +562,7 @@ static int populate_ggtt_pte_offsets(struct ggtt_data *gdata)
 			continue;
 
 		if (vf_id < 1 || vf_id > num_vfs) {
-			set_skip_reason(&gdata->base, "Unexpected VF%u at range entry %u [%#lx-%#lx], num_vfs=%u\n",
+			set_skip_reason(&gdata->base, "Unexpected VF%u at range entry %u [%#" PRIx64 "-%#" PRIx64 "], num_vfs=%u\n",
 					vf_id, i, ranges[i].start, ranges[i].end, num_vfs);
 			free(ranges);
 			return -1;
@@ -634,7 +634,7 @@ static void ggtt_subcheck_prepare_vf(int vf_id, struct subcheck_data *data)
 		if (!set_pte_gpa(&gdata->ggtt, gdata->mmio, data->gt, pte_offset,
 				 (uint8_t)vf_id, &pte)) {
 			set_skip_reason(data,
-					"Prepare VF%u failed, unexpected gpa: Read PTE: %#lx at offset: %#x\n",
+					"Prepare VF%u failed, unexpected gpa: Read PTE: %#" PRIx64 " at offset: %#x\n",
 					vf_id, pte, pte_offset);
 			return;
 		}
@@ -655,7 +655,7 @@ static void ggtt_subcheck_verify_vf(int vf_id, int flr_vf_id, struct subcheck_da
 		if (!check_pte_gpa(&gdata->ggtt, gdata->mmio, data->gt, pte_offset,
 				   expected, &pte)) {
 			set_fail_reason(data,
-					"GGTT check after VF%u FLR failed on VF%u: Read PTE: %#lx at offset: %#x\n",
+					"GGTT check after VF%u FLR failed on VF%u: Read PTE: %#" PRIx64 " at offset: %#x\n",
 					flr_vf_id, vf_id, pte, pte_offset);
 			return;
 		}
@@ -712,7 +712,7 @@ static void *mmap_vf_lmem(int pf_fd, int vf_num, size_t length, int prot, off_t 
 	}
 
 	if (st.st_size < length) {
-		igt_debug("Mapping length (%lu) exceeds BAR2 size (%lu)\n", length, st.st_size);
+		igt_debug("Mapping length (%zu) exceeds BAR2 size (%" PRIu64 ")\n", length, (uint64_t)st.st_size);
 		close(fd);
 		return NULL;
 	}
@@ -750,7 +750,7 @@ static bool lmem_write_pattern(struct lmem_info *lmem, char value, size_t start,
 
 	for (; start < lmem->size; start += step) {
 		read = lmem_write_readback(lmem->addr, start, value);
-		if (igt_debug_on_f(read != value, "LMEM[%lu]=%u != %u\n", start, read, value))
+		if (igt_debug_on_f(read != value, "LMEM[%zu]=%u != %u\n", start, read, value))
 			return false;
 	}
 	return true;
@@ -765,7 +765,7 @@ static bool lmem_contains_expected_values_(struct lmem_info *lmem,
 	for (; start < lmem->size; start += step) {
 		read = lmem_read(lmem->addr, start);
 		if (igt_debug_on_f(read != expected,
-				   "LMEM[%lu]=%u != %u\n", start, read, expected))
+				   "LMEM[%zu]=%u != %u\n", start, read, expected))
 			return false;
 	}
 	return true;

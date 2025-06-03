@@ -346,7 +346,7 @@ static void compute_common_time_frame_stats(struct subm_set *set)
 			common_end = stats->end_timestamp;
 	}
 
-	igt_info("common time frame: [%lu;%lu] %.2fms\n",
+	igt_info("common time frame: [%" PRIu64 ";%" PRIu64 "] %.2fms\n",
 		 common_start, common_end, (common_end - common_start) / 1e6);
 
 	if (igt_warn_on_f(common_end <= common_start, "No common time frame for all sets found\n"))
@@ -671,7 +671,7 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 	int preemptible_end = 1;
 	uint8_t vf_ids[num_vfs + 1 /*PF*/];
 
-	igt_info("eq=%ums pt=%uus duration=%lums num_vfs=%d job_timeout=%ums\n",
+	igt_info("eq=%ums pt=%uus duration=%" PRIu64 "ms num_vfs=%d job_timeout=%ums\n",
 		 vf_sched_params.exec_quantum_ms, vf_sched_params.preempt_timeout_us,
 		 duration_ms, num_vfs, job_timeout_ms);
 
