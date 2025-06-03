@@ -1156,7 +1156,7 @@ static void *discovery_race_thread(void *data)
 
 			xe_eudebug_debugger_stop_worker(s->debugger, 1);
 
-			igt_debug("Resources discovered: %lu\n", s->debugger->event_count);
+			igt_debug("Resources discovered: %" PRIu64 "\n", s->debugger->event_count);
 			if (!s->client->done) {
 				xe_eudebug_for_each_event(e, s->debugger->log) {
 					if (e->type == DRM_XE_EUDEBUG_EVENT_OPEN) {
@@ -2669,7 +2669,7 @@ static void vma_ufence_trigger(struct xe_eudebug_debugger *d,
 				    ef->vm_bind_ref_seqno);
 		xe_eudebug_assert_f(d, eb->flags & DRM_XE_EUDEBUG_EVENT_VM_BIND_FLAG_UFENCE,
 				    "vm bind event does not have ufence: %s\n", event_str);
-		igt_debug("vm bind ufence event received with ref %lld, addr 0x%lx, range 0x%lx\n",
+		igt_debug("vm bind ufence event received with ref %lld, addr 0x%" PRIu64 ", range 0x%" PRIu64 "\n",
 			  ef->vm_bind_ref_seqno,
 			  addr,
 			  range);
