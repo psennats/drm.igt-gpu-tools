@@ -1015,13 +1015,13 @@ static void pec_sanity_check(const u32 *report0, const u32 *report1,
 		return;
 	}
 
-	igt_debug("tick delta = %#lx\n", tick_delta);
+	igt_debug("tick delta = %#" PRIx64 "\n", tick_delta);
 
 	/* Difference in test_event1_cycles_xecore* values should be close to tick_delta */
 	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
 		int n = xecore_idx[i];
 
-		igt_debug("n %d: pec1[n] - pec0[n] %#lx, tick delta %#lx\n",
+		igt_debug("n %d: pec1[n] - pec0[n] %#" PRIx64 ", tick delta %#" PRIx64 "\n",
 			  n, pec1[n] - pec0[n], tick_delta);
 		/* 0 value for pec[xecore_idx[i]] indicates missing xecore */
 		if (pec1[n] && pec0[n])
@@ -1031,7 +1031,7 @@ static void pec_sanity_check(const u32 *report0, const u32 *report1,
 			igt_assert(pec0[n]);
 	}
 
-	igt_debug("pec1[2] - pec0[2] %#lx, tick_delta * num_xecores: %#lx\n",
+	igt_debug("pec1[2] - pec0[2] %#" PRIx64 ", tick_delta * num_xecores: %#" PRIx64 "\n",
 		  pec1[2] - pec0[2], tick_delta * intel_xe_perf->devinfo.n_eu_sub_slices);
 	/* Difference in test_event1_cycles should be close to (tick_delta * num_xecores) */
 	assert_within_epsilon(pec1[2] - pec0[2],

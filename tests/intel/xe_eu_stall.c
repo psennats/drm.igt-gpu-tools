@@ -516,7 +516,7 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int ite
 	igt_assert(query_eu_stall_data->num_sampling_rates > 0);
 	if (p_rate == 0)
 		properties[3] = query_eu_stall_data->sampling_rates[0];
-	igt_info("Sampling Rate: %lu\n", properties[3]);
+	igt_info("Sampling Rate: %" PRIu64 "\n", properties[3]);
 
 	stream_fd = xe_eu_stall_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &props);
 	igt_require_fd(stream_fd);
@@ -580,7 +580,7 @@ enable:
 		}
 	} while (child_is_running);
 
-	igt_info("Total size read: %lu\n", total_size);
+	igt_info("Total size read: %" PRIu64 "\n", total_size);
 	igt_info("Number of samples: %u\n", num_samples);
 	igt_info("Number of drops reported: %u\n", num_drops);
 

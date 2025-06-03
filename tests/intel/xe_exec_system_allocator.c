@@ -325,7 +325,7 @@ static void touch_all_pages(int fd, uint32_t exec_queue, void *ptr,
 			       &timeout);
 	if (ret) {
 		igt_info("FAIL EXEC_UFENCE_ADDR: 0x%016llx\n", sync[0].addr);
-		igt_info("FAIL EXEC_UFENCE: EXPECTED=0x%016llx, ACTUAL=0x%016lx\n",
+		igt_info("FAIL EXEC_UFENCE: EXPECTED=0x%016llx, ACTUAL=0x%016" PRIx64 "\n",
 			 USER_FENCE_VALUE, exec_ufence[0]);
 
 		addr = to_user_pointer(ptr);
@@ -336,9 +336,9 @@ static void touch_all_pages(int fd, uint32_t exec_queue, void *ptr,
 			uint64_t sdi_offset = (char *)&data->data - (char *)data;
 			uint64_t sdi_addr = addr + sdi_offset;
 
-			igt_info("FAIL BATCH_ADDR: 0x%016lx\n", batch_addr);
-			igt_info("FAIL SDI_ADDR: 0x%016lx\n", sdi_addr);
-			igt_info("FAIL SDI_ADDR (in batch): 0x%016lx\n",
+			igt_info("FAIL BATCH_ADDR: 0x%016" PRIx64 "\n", batch_addr);
+			igt_info("FAIL SDI_ADDR: 0x%016" PRIx64 "\n", sdi_addr);
+			igt_info("FAIL SDI_ADDR (in batch): 0x%016" PRIx64 "\n",
 				 (((u64)data->batch[2]) << 32) | data->batch[1]);
 			igt_info("FAIL DATA: EXPECTED=0x%08x, ACTUAL=0x%08x\n",
 				 data->expected_data, data->data);

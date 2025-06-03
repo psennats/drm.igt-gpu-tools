@@ -200,9 +200,9 @@ static void check_all_engines(int num_engines, int *flag, uint64_t *before, uint
 		engine_active_ticks = after[idx] - before[idx];
 		engine_total_ticks = after[idx + 1] - before[idx + 1];
 
-		igt_debug("[%d] Engine active ticks: after %ld, before %ld delta %ld\n", engine_idx,
+		igt_debug("[%d] Engine active ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", engine_idx,
 			  after[idx], before[idx], engine_active_ticks);
-		igt_debug("[%d] Engine total ticks: after %ld, before %ld delta %ld\n", engine_idx,
+		igt_debug("[%d] Engine total ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", engine_idx,
 			  after[idx + 1], before[idx + 1], engine_total_ticks);
 
 		if (flag[engine_idx] == TEST_LOAD)
@@ -243,9 +243,9 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 	engine_active_ticks = after[0] - before[0];
 	engine_total_ticks = after[1] - before[1];
 
-	igt_debug("Engine active ticks:  after %ld, before %ld delta %ld\n", after[0], before[0],
+	igt_debug("Engine active ticks:  after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", after[0], before[0],
 		  engine_active_ticks);
-	igt_debug("Engine total ticks: after %ld, before %ld delta %ld\n", after[1], before[1],
+	igt_debug("Engine total ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", after[1], before[1],
 		  engine_total_ticks);
 
 	if (cork)
@@ -471,9 +471,9 @@ static void engine_activity_all_fn(int fd, struct drm_xe_engine_class_instance *
 		engine_active_ticks = after[idx] - before[idx];
 		engine_total_ticks = after[idx + 1] - before[idx + 1];
 
-		igt_debug("[%d] Engine active ticks: after %ld, before %ld delta %ld\n", i,
+		igt_debug("[%d] Engine active ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", i,
 			  after[idx], before[idx], engine_active_ticks);
-		igt_debug("[%d] Engine total ticks: after %ld, before %ld delta %ld\n", i,
+		igt_debug("[%d] Engine total ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", i,
 			  after[idx + 1], before[idx + 1], engine_total_ticks);
 
 		if (f->cork)
@@ -526,9 +526,9 @@ static void engine_activity_fn(int fd, struct drm_xe_engine_class_instance *eci,
 	engine_active_ticks = after[0] - before[0];
 	engine_total_ticks = after[1] - before[1];
 
-	igt_debug("[%d] Engine active ticks: after %ld, before %ld delta %ld\n", function,
+	igt_debug("[%d] Engine active ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", function,
 		  after[0], before[0], engine_active_ticks);
-	igt_debug("[%d] Engine total ticks: after %ld, before %ld delta %ld\n", function,
+	igt_debug("[%d] Engine total ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", function,
 		  after[1], before[1], engine_total_ticks);
 
 	busy_percent = (double)engine_active_ticks / engine_total_ticks;

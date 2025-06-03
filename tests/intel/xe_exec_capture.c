@@ -14,6 +14,7 @@
 
 #include <ctype.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <regex.h>
 #include <stdio.h>
 #include <string.h>
@@ -290,10 +291,10 @@ check_item_u64(regex_t *regex, char **lines, const char *tag, u64 addr_lo,
 		     "Target not found:%s\n", tag);
 
 	result = compare_hex_value(output);
-	igt_debug("Compare %s %s vs [0x%lX-0x%lX] result %lX\n", tag, output,
+	igt_debug("Compare %s %s vs [0x%" PRIX64 "-0x%" PRIX64 "] result %" PRIX64 "\n", tag, output,
 		  addr_lo, addr_hi, result);
 	igt_assert_f((addr_lo <= result) && (result <= addr_hi),
-		     "value %lX out of range[0x%lX-0x%lX]\n", result, addr_lo, addr_hi);
+		     "value %" PRIX64 " out of range[0x%" PRIX64 "-0x%" PRIX64 "]\n", result, addr_lo, addr_hi);
 }
 
 static void
@@ -423,7 +424,7 @@ igt_main
 			/* Reduce timeout value to speedup test */
 			xe_sysfs_set_job_timeout_ms(xe, hwe, CAPTURE_JOB_TIMEOUT);
 
-			igt_debug("Reduced %s class timeout from %ld to %d\n",
+			igt_debug("Reduced %s class timeout from %" PRIu64 " to %d\n",
 				  xe_engine_class_name(hwe->engine_class),
 				  timeouts[hwe->engine_class], CAPTURE_JOB_TIMEOUT);
 		}
@@ -452,7 +453,7 @@ igt_main
 			store = xe_sysfs_get_job_timeout_ms(xe, hwe);
 			igt_abort_on_f(timeout != store, "job_timeout_ms not restored!\n");
 
-			igt_debug("Restored %s class timeout to %ld\n",
+			igt_debug("Restored %s class timeout to %" PRIu64 "\n",
 				  xe_engine_class_name(hwe->engine_class),
 				  timeouts[hwe->engine_class]);
 

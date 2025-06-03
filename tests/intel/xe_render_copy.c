@@ -629,7 +629,7 @@ static void render_stress_copy(int fd, struct igt_collection *set,
 			render_duration_max = duration;
 	}
 	igt_info("%d render() loops in %d seconds\n", render_count, render_timeout);
-	igt_info("Render duration: avg = %ld ns, min = %ld ns, max = %ld ns\n",
+	igt_info("Render duration: avg = %" PRIu64 " ns, min = %" PRIu64 " ns, max = %" PRIu64 " ns\n",
 		 render_duration_total / render_count,
 		 render_duration_min, render_duration_max);
 

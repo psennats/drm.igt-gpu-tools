@@ -12,6 +12,7 @@
  * Test category: functionality test
  */
 
+#include <inttypes.h>
 #include <string.h>
 
 #include "igt.h"
@@ -84,7 +85,7 @@ igt_main
 				 */
 				child_count = ram_mb / 2 / CONTEXT_MB / 2;
 
-				igt_debug("RAM: %zd, child count: %d\n",
+				igt_debug("RAM: %" PRIu64 ", child count: %d\n",
 					  ram_mb, child_count);
 
 				test_compute_preempt(xe, hwe, false);
@@ -111,7 +112,7 @@ igt_main
 				 */
 				child_count = ram_mb / CONTEXT_MB / 2;
 
-				igt_debug("RAM: %zd, child count: %d\n",
+				igt_debug("RAM: %" PRIu64 ", child count: %d\n",
 					  ram_mb, child_count);
 
 				test_compute_preempt(xe, hwe, false);
