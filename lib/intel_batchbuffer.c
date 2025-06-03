@@ -2348,6 +2348,9 @@ static void intel_bb_dump_base64(struct intel_bb *ibb, int linelen)
 
 	igt_info("--- bb ---\n");
 	pos = str = g_base64_encode((const guchar *) ibb->batch, ibb->size);
+	if (!str)
+		return;
+
 	outsize = strlen(str);
 
 	while (outsize > 0) {
