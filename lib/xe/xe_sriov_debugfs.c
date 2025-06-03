@@ -105,18 +105,18 @@ static int parse_provisioned_range(const char *line,
 	switch (res) {
 	case XE_SRIOV_SHARED_RES_CONTEXTS:
 	case XE_SRIOV_SHARED_RES_DOORBELLS:
-		if (sscanf(line, "VF%u: %lu-%lu", &range->vf_id, &range->start, &range->end) == 3)
+		if (sscanf(line, "VF%u: %" SCNu64 "-%" SCNu64, &range->vf_id, &range->start, &range->end) == 3)
 			ret = 0;
 		break;
 	case XE_SRIOV_SHARED_RES_GGTT:
-		if (sscanf(line, "VF%u: %lx-%lx", &range->vf_id, &range->start, &range->end) == 3)
+		if (sscanf(line, "VF%u: %" SCNx64 "-%" SCNx64, &range->vf_id, &range->start, &range->end) == 3)
 			ret = 0;
 		break;
 	case XE_SRIOV_SHARED_RES_LMEM:
 		/* Convert to an inclusive range as is the case for other resources.
 		 * The start is always 0 and the end is the value read - 1.
 		 */
-		if (sscanf(line, "VF%u: %lu", &range->vf_id, &range->end) == 2)
+		if (sscanf(line, "VF%u: %" SCNu64, &range->vf_id, &range->end) == 2)
 			ret = 0;
 		if (!range->end)
 			return -1;
@@ -232,8 +232,8 @@ static int validate_vf_ids(enum xe_sriov_shared_res res,
 				  nr_ranges);
 			for (unsigned int i = 0; i < limit; i++) {
 				igt_debug((res == XE_SRIOV_SHARED_RES_GGTT) ?
-						  "%s:VF%u: %lx-%lx\n" :
-						  "%s:VF%u: %lu-%lu\n",
+						  "%s:VF%u: %" PRIx64 "-%" PRIx64 "\n" :
+						  "%s:VF%u: %" PRIu64 "-%" PRIu64 "\n",
 					  xe_sriov_shared_res_to_string(res),
 					  ranges[i].vf_id, ranges[i].start, ranges[i].end);
 			}
@@ -504,16 +504,16 @@ int __xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
 	while (getline(&line, &n, file) >= 0) {
 		switch (res) {
 		case XE_SRIOV_SHARED_RES_CONTEXTS:
-			ret = sscanf(line, "GuC contexts: %lu", value);
+			ret = sscanf(line, "GuC contexts: %" SCNu64, value);
 			break;
 		case XE_SRIOV_SHARED_RES_DOORBELLS:
-			ret = sscanf(line, "GuC doorbells: %lu", value);
+			ret = sscanf(line, "GuC doorbells: %" SCNu64, value);
 			break;
 		case XE_SRIOV_SHARED_RES_GGTT:
-			ret = sscanf(line, "GGTT size: %lu", value);
+			ret = sscanf(line, "GGTT size: %" SCNu64, value);
 			break;
 		case XE_SRIOV_SHARED_RES_LMEM:
-			ret = sscanf(line, "LMEM size: %lu", value);
+			ret = sscanf(line, "LMEM size: %" SCNu64, value);
 			break;
 		}
 

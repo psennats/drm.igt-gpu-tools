@@ -75,7 +75,7 @@ static int append_range(struct xe_sriov_provisioned_range **ranges,
 
 	*ranges = new_ranges;
 	if (*nr_ranges < MAX_DEBUG_ENTRIES)
-		igt_debug("Found VF%u GGTT range [%#x-%#x] num_ptes=%ld\n",
+		igt_debug("Found VF%u GGTT range [%#x-%#x] num_ptes=%zu\n",
 			  vf_id, start, end,
 			  (end - start + sizeof(xe_ggtt_pte_t)) /
 			  sizeof(xe_ggtt_pte_t));
