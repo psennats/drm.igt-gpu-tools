@@ -37,7 +37,9 @@
 
 #include "igt_core.h"
 
+#ifndef __packed
 #define __packed                        __attribute__((packed))
+#endif
 
 struct intel_css_header {
 	/* 0x09 for DMC */
