@@ -73,7 +73,7 @@ IGT_TEST_DESCRIPTION("Read and verify drm client memory consumption and engine u
 
 /* flag masks */
 #define TEST_WITH_LOAD		(1 << 0)
-#define TEST_WHILE_ACTIVE	(1 << 0)
+#define TEST_WHILE_ACTIVE	(1 << 1)
 #define TEST_ISOLATION		(1 << 2)
 #define TEST_VIRTUAL		(1 << 3)
 #define TEST_PARALLEL		(1 << 4)
