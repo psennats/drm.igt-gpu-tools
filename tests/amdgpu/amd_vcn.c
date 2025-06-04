@@ -4,320 +4,13 @@
  * Copyright 2014 Advanced Micro Devices, Inc.
  */
 
-#include "lib/amdgpu/amd_mmd_shared.h"
-
-#define DECODE_CMD_MSG_BUFFER                              0x00000000
-#define DECODE_CMD_DPB_BUFFER                              0x00000001
-#define DECODE_CMD_DECODING_TARGET_BUFFER                  0x00000002
-#define DECODE_CMD_FEEDBACK_BUFFER                         0x00000003
-#define DECODE_CMD_PROB_TBL_BUFFER                         0x00000004
-#define DECODE_CMD_SESSION_CONTEXT_BUFFER                  0x00000005
-#define DECODE_CMD_BITSTREAM_BUFFER                        0x00000100
-#define DECODE_CMD_IT_SCALING_TABLE_BUFFER                 0x00000204
-#define DECODE_CMD_CONTEXT_BUFFER                          0x00000206
-
-#define DECODE_IB_PARAM_DECODE_BUFFER                      (0x00000001)
-
-#define DECODE_CMDBUF_FLAGS_MSG_BUFFER                     (0x00000001)
-#define DECODE_CMDBUF_FLAGS_DPB_BUFFER                     (0x00000002)
-#define DECODE_CMDBUF_FLAGS_BITSTREAM_BUFFER               (0x00000004)
-#define DECODE_CMDBUF_FLAGS_DECODING_TARGET_BUFFER         (0x00000008)
-#define DECODE_CMDBUF_FLAGS_FEEDBACK_BUFFER                (0x00000010)
-#define DECODE_CMDBUF_FLAGS_IT_SCALING_BUFFER              (0x00000200)
-#define DECODE_CMDBUF_FLAGS_CONTEXT_BUFFER                 (0x00000800)
-#define DECODE_CMDBUF_FLAGS_PROB_TBL_BUFFER                (0x00001000)
-#define DECODE_CMDBUF_FLAGS_SESSION_CONTEXT_BUFFER         (0x00100000)
-
-#define H264_NAL_TYPE_NON_IDR_SLICE 1
-#define H264_NAL_TYPE_DP_A_SLICE 2
-#define H264_NAL_TYPE_DP_B_SLICE 3
-#define H264_NAL_TYPE_DP_C_SLICE 0x4
-#define H264_NAL_TYPE_IDR_SLICE 0x5
-#define H264_NAL_TYPE_SEI 0x6
-#define H264_NAL_TYPE_SEQ_PARAM 0x7
-#define H264_NAL_TYPE_PIC_PARAM 0x8
-#define H264_NAL_TYPE_ACCESS_UNIT 0x9
-#define H264_NAL_TYPE_END_OF_SEQ 0xa
-#define H264_NAL_TYPE_END_OF_STREAM 0xb
-#define H264_NAL_TYPE_FILLER_DATA 0xc
-#define H264_NAL_TYPE_SEQ_EXTENSION 0xd
-
-#define H264_START_CODE 0x000001
-
-
-struct rvcn_decode_buffer {
-	unsigned int valid_buf_flag;
-	unsigned int msg_buffer_address_hi;
-	unsigned int msg_buffer_address_lo;
-	unsigned int dpb_buffer_address_hi;
-	unsigned int dpb_buffer_address_lo;
-	unsigned int target_buffer_address_hi;
-	unsigned int target_buffer_address_lo;
-	unsigned int session_contex_buffer_address_hi;
-	unsigned int session_contex_buffer_address_lo;
-	unsigned int bitstream_buffer_address_hi;
-	unsigned int bitstream_buffer_address_lo;
-	unsigned int context_buffer_address_hi;
-	unsigned int context_buffer_address_lo;
-	unsigned int feedback_buffer_address_hi;
-	unsigned int feedback_buffer_address_lo;
-	unsigned int luma_hist_buffer_address_hi;
-	unsigned int luma_hist_buffer_address_lo;
-	unsigned int prob_tbl_buffer_address_hi;
-	unsigned int prob_tbl_buffer_address_lo;
-	unsigned int sclr_coeff_buffer_address_hi;
-	unsigned int sclr_coeff_buffer_address_lo;
-	unsigned int it_sclr_table_buffer_address_hi;
-	unsigned int it_sclr_table_buffer_address_lo;
-	unsigned int sclr_target_buffer_address_hi;
-	unsigned int sclr_target_buffer_address_lo;
-	unsigned int cenc_size_info_buffer_address_hi;
-	unsigned int cenc_size_info_buffer_address_lo;
-	unsigned int mpeg2_pic_param_buffer_address_hi;
-	unsigned int mpeg2_pic_param_buffer_address_lo;
-	unsigned int mpeg2_mb_control_buffer_address_hi;
-	unsigned int mpeg2_mb_control_buffer_address_lo;
-	unsigned int mpeg2_idct_coeff_buffer_address_hi;
-	unsigned int mpeg2_idct_coeff_buffer_address_lo;
-};
-
-struct rvcn_decode_ib_package {
-	unsigned int package_size;
-	unsigned int package_type;
-};
-
-
-struct amdgpu_vcn_reg {
-	uint32_t data0;
-	uint32_t data1;
-	uint32_t cmd;
-	uint32_t nop;
-	uint32_t cntl;
-};
-
-struct buffer_info {
-	uint32_t num_bits_in_buffer;
-	const uint8_t *dec_buffer;
-	uint8_t dec_data;
-	uint32_t dec_buffer_size;
-	const uint8_t *end;
-};
-
-struct h264_decode {
-	uint8_t profile;
-	uint8_t level_idc;
-	uint8_t nal_ref_idc;
-	uint8_t nal_unit_type;
-	uint32_t pic_width, pic_height;
-	uint32_t slice_type;
-};
-
-struct vcn_context {
-	struct amdgpu_mmd_bo enc_buf;
-	struct amdgpu_mmd_bo cpb_buf;
-	struct amdgpu_mmd_bo session_ctx_buf;
-	uint32_t enc_task_id;
-	uint32_t *ib_checksum;
-	uint32_t *ib_size_in_dw;
-	uint32_t gWidth, gHeight, gSliceType;
-	struct rvcn_decode_buffer *decode_buffer;
-};
-
-static struct amdgpu_vcn_reg reg[] = {
-	{0x81c4, 0x81c5, 0x81c3, 0x81ff, 0x81c6},
-	{0x504, 0x505, 0x503, 0x53f, 0x506},
-	{0x10, 0x11, 0xf, 0x29, 0x26d},
-};
+#include "lib/amdgpu/amd_vcn_shared.h"
 
 static uint32_t
 bs_read_u(struct buffer_info *buf_info, int n);
 
 static uint32_t
 bs_read_ue(struct buffer_info *buf_info);
-
-static bool
-is_vcn_tests_enable(amdgpu_device_handle device_handle, struct mmd_shared_context *context)
-{
-	struct drm_amdgpu_info_hw_ip info;
-	int r;
-
-	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_VCN_ENC, 0, &info);
-
-	if (r)
-		return false;
-
-	context->vcn_ip_version_major = info.hw_ip_version_major;
-	context->vcn_ip_version_minor = info.hw_ip_version_minor;
-	context->enc_ring = !!info.available_rings;
-		/* in vcn 4.0 it re-uses encoding queue as unified queue */
-	if (context->vcn_ip_version_major >= 4) {
-		context->vcn_unified_ring = true;
-		context->vcn_dec_sw_ring = true;
-		context->dec_ring = context->enc_ring;
-	} else {
-		r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_VCN_DEC, 0, &info);
-		context->dec_ring = !!info.available_rings;
-	}
-
-	if (!(context->dec_ring || context->enc_ring) ||
-		(context->family_id < AMDGPU_FAMILY_RV &&
-		(context->family_id == AMDGPU_FAMILY_AI &&
-		(context->chip_id - context->chip_rev) < 0x32))) { /* Arcturus */
-		igt_info("The ASIC does NOT support VCN, vcn test is disabled\n");
-		return false;
-	}
-
-	if (context->family_id == AMDGPU_FAMILY_AI)
-		context->enc_ring  = false;
-
-	if (!context->dec_ring) {
-		igt_info("VCN Tests DEC create disable");
-		igt_info("VCN Tests DEC decode disable");
-		igt_info("VCN Tests DEC destroy disable");
-	}
-
-	if (!context->enc_ring) {
-		igt_info("VCN Tests ENC create disable");
-		igt_info("VCN Tests ENC encode disable");
-		igt_info("VCN Tests ENC destroy disable");
-	}
-
-	if (context->vcn_ip_version_major == 1) {
-		context->vcn_reg_index = 0;
-	} else if (context->vcn_ip_version_major == 2 && context->vcn_ip_version_minor == 0) {
-		context->vcn_reg_index = 1;
-	} else if ((context->vcn_ip_version_major == 2 && context->vcn_ip_version_minor >= 5) ||
-			context->vcn_ip_version_major == 3) {
-		context->vcn_reg_index = 2;
-	}
-
-	return true;
-}
-
-static void
-amdgpu_cs_sq_head(struct vcn_context *v_context, uint32_t *base, int *offset, bool enc)
-{
-	/* signature */
-	*(base + (*offset)++) = 0x00000010;
-	*(base + (*offset)++) = 0x30000002;
-	v_context->ib_checksum = base + (*offset)++;
-	v_context->ib_size_in_dw = base + (*offset)++;
-
-	/* engine info */
-	*(base + (*offset)++) = 0x00000010;
-	*(base + (*offset)++) = 0x30000001;
-	*(base + (*offset)++) = enc ? 2 : 3;
-	*(base + (*offset)++) = 0x00000000;
-}
-
-static void
-amdgpu_cs_sq_ib_tail(struct vcn_context *v_context, uint32_t *end)
-{
-	uint32_t size_in_dw;
-	uint32_t checksum = 0;
-
-	/* if the pointers are invalid, no need to process */
-	if (v_context->ib_checksum == NULL || v_context->ib_size_in_dw == NULL)
-		return;
-
-	size_in_dw = end - v_context->ib_size_in_dw - 1;
-	*v_context->ib_size_in_dw = size_in_dw;
-	*(v_context->ib_size_in_dw + 4) = size_in_dw * sizeof(uint32_t);
-
-	for (int i = 0; i < size_in_dw; i++)
-		checksum += *(v_context->ib_checksum + 2 + i);
-
-	*v_context->ib_checksum = checksum;
-
-	v_context->ib_checksum = NULL;
-	v_context->ib_size_in_dw = NULL;
-}
-
-static void
-vcn_dec_cmd(struct mmd_shared_context *shared_context,
-		struct mmd_context *context, struct vcn_context *v_context,
-		uint64_t addr, unsigned int cmd, int *idx)
-{
-	if (shared_context->vcn_dec_sw_ring == false) {
-		context->ib_cpu[(*idx)++] = reg[shared_context->vcn_reg_index].data0;
-		context->ib_cpu[(*idx)++] = addr;
-		context->ib_cpu[(*idx)++] = reg[shared_context->vcn_reg_index].data1;
-		context->ib_cpu[(*idx)++] = addr >> 32;
-		context->ib_cpu[(*idx)++] = reg[shared_context->vcn_reg_index].cmd;
-		context->ib_cpu[(*idx)++] = cmd << 1;
-		return;
-	}
-
-	/* Support decode software ring message */
-	if (!(*idx)) {
-		struct rvcn_decode_ib_package *ib_header;
-
-		if (shared_context->vcn_unified_ring)
-			amdgpu_cs_sq_head(v_context, context->ib_cpu, idx, false);
-
-		ib_header = (struct rvcn_decode_ib_package *)&context->ib_cpu[*idx];
-		ib_header->package_size = sizeof(struct rvcn_decode_buffer) +
-			sizeof(struct rvcn_decode_ib_package);
-
-		(*idx)++;
-		ib_header->package_type = (DECODE_IB_PARAM_DECODE_BUFFER);
-		(*idx)++;
-
-		v_context->decode_buffer = (struct rvcn_decode_buffer *)&(context->ib_cpu[*idx]);
-		*idx += sizeof(struct rvcn_decode_buffer) / 4;
-		memset(v_context->decode_buffer, 0, sizeof(struct rvcn_decode_buffer));
-	}
-
-	switch (cmd) {
-	case DECODE_CMD_MSG_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= DECODE_CMDBUF_FLAGS_MSG_BUFFER;
-		v_context->decode_buffer->msg_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->msg_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_DPB_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_DPB_BUFFER);
-		v_context->decode_buffer->dpb_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->dpb_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_DECODING_TARGET_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_DECODING_TARGET_BUFFER);
-		v_context->decode_buffer->target_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->target_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_FEEDBACK_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_FEEDBACK_BUFFER);
-		v_context->decode_buffer->feedback_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->feedback_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_PROB_TBL_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_PROB_TBL_BUFFER);
-		v_context->decode_buffer->prob_tbl_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->prob_tbl_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_SESSION_CONTEXT_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_SESSION_CONTEXT_BUFFER);
-		v_context->decode_buffer->session_contex_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->session_contex_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_BITSTREAM_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_BITSTREAM_BUFFER);
-		v_context->decode_buffer->bitstream_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->bitstream_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_IT_SCALING_TABLE_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_IT_SCALING_BUFFER);
-		v_context->decode_buffer->it_sclr_table_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->it_sclr_table_buffer_address_lo = (addr);
-	break;
-	case DECODE_CMD_CONTEXT_BUFFER:
-		v_context->decode_buffer->valid_buf_flag |= (DECODE_CMDBUF_FLAGS_CONTEXT_BUFFER);
-		v_context->decode_buffer->context_buffer_address_hi = (addr >> 32);
-		v_context->decode_buffer->context_buffer_address_lo = (addr);
-	break;
-	default:
-		igt_info("Not Supported!\n");
-	}
-}
 
 static void
 amdgpu_cs_vcn_dec_create(amdgpu_device_handle device_handle,
@@ -341,9 +34,11 @@ amdgpu_cs_vcn_dec_create(amdgpu_device_handle device_handle,
 	memcpy(msg_buf.ptr, vcn_dec_create_msg, sizeof(vcn_dec_create_msg));
 
 	len = 0;
-	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr, 5, &len);
+	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr,
+		DECODE_CMD_SESSION_CONTEXT_BUFFER, &len, INVALID_DECODER_NONE);
 	if (shared_context->vcn_dec_sw_ring == true) {
-		vcn_dec_cmd(shared_context, context, v_context, msg_buf.addr, 0, &len);
+		vcn_dec_cmd(shared_context, context, v_context, msg_buf.addr,
+			DECODE_CMD_MSG_BUFFER, &len, INVALID_DECODER_NONE);
 	} else {
 		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].data0;
 		context->ib_cpu[len++] = msg_buf.addr;
@@ -381,6 +76,7 @@ amdgpu_cs_vcn_dec_decode(amdgpu_device_handle device_handle,
 	int size, len, i, r;
 	unsigned int ip;
 	uint8_t *dec;
+	enum decoder_error_type err_type = INVALID_DECODER_NONE;
 
 	size = 4*1024; /* msg */
 	size += 4*1024; /* fb */
@@ -424,16 +120,23 @@ amdgpu_cs_vcn_dec_decode(amdgpu_device_handle device_handle,
 	ctx_addr = ALIGN(dpb_addr + 0x006B9400, 4*1024);
 	dt_addr = ALIGN(dpb_addr + dpb_size, 4*1024);
 
-
 	len = 0;
-	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr, 0x5, &len);
-	vcn_dec_cmd(shared_context, context, v_context, msg_addr, 0x0, &len);
-	vcn_dec_cmd(shared_context, context, v_context, dpb_addr, 0x1, &len);
-	vcn_dec_cmd(shared_context, context, v_context, dt_addr, 0x2, &len);
-	vcn_dec_cmd(shared_context, context, v_context, fb_addr, 0x3, &len);
-	vcn_dec_cmd(shared_context, context, v_context, bs_addr, 0x100, &len);
-	vcn_dec_cmd(shared_context, context, v_context, it_addr, 0x204, &len);
-	vcn_dec_cmd(shared_context, context, v_context, ctx_addr, 0x206, &len);
+	vcn_dec_cmd(shared_context, context, v_context,
+		v_context->session_ctx_buf.addr, DECODE_CMD_SESSION_CONTEXT_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		msg_addr, DECODE_CMD_MSG_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		dpb_addr, DECODE_CMD_DPB_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		dt_addr, DECODE_CMD_DECODING_TARGET_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		fb_addr, DECODE_CMD_FEEDBACK_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		bs_addr, DECODE_CMD_BITSTREAM_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		it_addr, DECODE_CMD_IT_SCALING_TABLE_BUFFER, &len, err_type);
+	vcn_dec_cmd(shared_context, context, v_context,
+		ctx_addr, DECODE_CMD_CONTEXT_BUFFER, &len, err_type);
 
 	if (shared_context->vcn_dec_sw_ring == false) {
 		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].cntl;
@@ -482,9 +185,11 @@ amdgpu_cs_vcn_dec_destroy(amdgpu_device_handle device_handle,
 	memcpy(msg_buf.ptr, vcn_dec_destroy_msg, sizeof(vcn_dec_destroy_msg));
 
 	len = 0;
-	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr, 5, &len);
+	vcn_dec_cmd(shared_context, context, v_context, v_context->session_ctx_buf.addr,
+		DECODE_CMD_SESSION_CONTEXT_BUFFER, &len, INVALID_DECODER_NONE);
 	if (shared_context->vcn_dec_sw_ring == true) {
-		vcn_dec_cmd(shared_context, context, v_context, msg_buf.addr, 0, &len);
+		vcn_dec_cmd(shared_context, context, v_context, msg_buf.addr,
+			DECODE_CMD_MSG_BUFFER, &len, INVALID_DECODER_NONE);
 	} else {
 		context->ib_cpu[len++] = reg[shared_context->vcn_reg_index].data0;
 		context->ib_cpu[len++] = msg_buf.addr;
