@@ -55,7 +55,7 @@
 
 #ifdef HAVE_LIBPROCPS
 #  include <proc/readproc.h>
-#else
+#elif HAVE_LIBPROC2
 #  include <libproc2/pids.h>
 #endif
 
@@ -1289,7 +1289,7 @@ struct igt_process {
 #ifdef HAVE_LIBPROCPS
 	PROCTAB * proc;
 	proc_t *proc_info;
-#else
+#elif HAVE_LIBPROC2
 	struct pids_info *info;
 	struct pids_stack *stack;
 #endif
@@ -1305,7 +1305,7 @@ static void open_process(struct igt_process *prcs)
 	prcs->proc = openproc(PROC_FILLCOM | PROC_FILLSTAT | PROC_FILLARG);
 	igt_assert_f(prcs->proc != NULL, "procps open failed\n");
 	prcs->proc_info = NULL;
-#else
+#elif HAVE_LIBPROC2
 	enum pids_item Items[] = { PIDS_ID_PID, PIDS_ID_EUID, PIDS_ID_EGID, PIDS_CMD };
 	int err;
 
@@ -1327,7 +1327,7 @@ static void close_process(struct igt_process *prcs)
 	closeproc(prcs->proc);
 	prcs->proc_info = NULL;
 	prcs->proc = NULL;
-#else
+#elif HAVE_LIBPROC2
 	procps_pids_unref(&prcs->info);
 	prcs->info = NULL;
 #endif
@@ -1351,7 +1351,7 @@ static bool get_process_ids(struct igt_process *prcs)
 		prcs->egid = prcs->proc_info->egid;
 		prcs->comm = prcs->proc_info->cmd;
 	}
-#else
+#elif HAVE_LIBPROC2
 	enum rel_items { EU_PID, EU_EUID, EU_EGID, EU_CMD }; // order at open
 
 	prcs->tid = 0;
