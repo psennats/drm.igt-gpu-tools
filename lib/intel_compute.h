@@ -65,11 +65,20 @@ struct user_execenv {
 	uint64_t output_addr;
 };
 
+enum execenv_alloc_prefs {
+	EXECENV_PREF_SYSTEM,
+	EXECENV_PREF_VRAM,
+	EXECENV_PREF_VRAM_IF_POSSIBLE,
+};
+
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
 
-bool run_intel_compute_kernel(int fd, struct user_execenv *user);
+bool run_intel_compute_kernel(int fd, struct user_execenv *user,
+			      enum execenv_alloc_prefs alloc_prefs);
 bool xe_run_intel_compute_kernel_on_engine(int fd, struct drm_xe_engine_class_instance *eci,
-					   struct user_execenv *user);
+					   struct user_execenv *user,
+					   enum execenv_alloc_prefs alloc_prefs);
 bool run_intel_compute_kernel_preempt(int fd, struct drm_xe_engine_class_instance *eci,
-				      bool threadgroup_preemption);
+				      bool threadgroup_preemption,
+				      enum execenv_alloc_prefs alloc_prefs);
 #endif	/* INTEL_COMPUTE_H */

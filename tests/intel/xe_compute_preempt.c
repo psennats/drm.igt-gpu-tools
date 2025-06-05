@@ -44,7 +44,9 @@
 static void
 test_compute_preempt(int fd, struct drm_xe_engine_class_instance *hwe, bool threadgroup_preemption)
 {
-	igt_require_f(run_intel_compute_kernel_preempt(fd, hwe, threadgroup_preemption), "GPU not supported\n");
+	igt_require_f(run_intel_compute_kernel_preempt(fd, hwe, threadgroup_preemption,
+						       EXECENV_PREF_SYSTEM),
+		      "GPU not supported\n");
 }
 
 #define CONTEXT_MB 100

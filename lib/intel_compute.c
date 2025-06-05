@@ -207,6 +207,7 @@ static void bo_execenv_destroy(struct bo_execenv *execenv)
 }
 
 static void bo_execenv_bind(struct bo_execenv *execenv,
+			    enum execenv_alloc_prefs alloc_prefs,
 			    struct bo_dict_entry *bo_dict, int entries)
 {
 	int fd = execenv->fd;
@@ -230,10 +231,26 @@ static void bo_execenv_bind(struct bo_execenv *execenv,
 		sync.addr = to_user_pointer(&bo_sync->sync);
 
 		for (int i = 0; i < entries; i++) {
+			uint32_t placement, flags = 0;
+
 			bo_sync->sync = 0;
+
+			switch (alloc_prefs) {
+			case EXECENV_PREF_SYSTEM:
+				placement = system_memory(fd);
+				break;
+			case EXECENV_PREF_VRAM:
+				placement = vram_memory(fd, 0);
+				flags = DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
+				break;
+			case EXECENV_PREF_VRAM_IF_POSSIBLE:
+				placement = vram_if_possible(fd, 0);
+				flags = DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
+				break;
+			}
+
 			bo_dict[i].handle = xe_bo_create(fd, execenv->vm, bo_dict[i].size,
-							 vram_if_possible(fd, 0),
-							 DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+							 placement, flags);
 			bo_dict[i].data = xe_bo_map(fd, bo_dict[i].handle, bo_dict[i].size);
 			xe_vm_bind_async(fd, vm, 0, bo_dict[i].handle, 0, bo_dict[i].addr,
 					 bo_dict[i].size, &sync, 1);
@@ -253,6 +270,7 @@ static void bo_execenv_bind(struct bo_execenv *execenv,
 		struct drm_i915_gem_execbuffer2 *execbuf = &execenv->execbuf;
 		struct drm_i915_gem_exec_object2 *obj;
 
+		igt_assert_eq(alloc_prefs, EXECENV_PREF_SYSTEM);
 		obj = calloc(entries, sizeof(*obj));
 		execenv->obj = obj;
 
@@ -795,7 +813,8 @@ static void dg1_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 static void compute_exec(int fd, const unsigned char *kernel,
 			 unsigned int size,
 			 struct drm_xe_engine_class_instance *eci,
-			 struct user_execenv *user)
+			 struct user_execenv *user,
+			 enum execenv_alloc_prefs alloc_prefs)
 {
 	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INDIRECT_OBJECT_BASE + OFFSET_KERNEL,
@@ -831,7 +850,7 @@ static void compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, entries);
+	bo_execenv_bind(&execenv, alloc_prefs, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
@@ -1078,7 +1097,8 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 static void xehp_compute_exec(int fd, const unsigned char *kernel,
 			      unsigned int size,
 			      struct drm_xe_engine_class_instance *eci,
-			      struct user_execenv *user)
+			      struct user_execenv *user,
+			      enum execenv_alloc_prefs alloc_prefs)
 {
 	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
@@ -1118,7 +1138,7 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, entries);
+	bo_execenv_bind(&execenv, alloc_prefs, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
@@ -1303,7 +1323,8 @@ static void xehpc_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 			       unsigned int size,
 			       struct drm_xe_engine_class_instance *eci,
-			       struct user_execenv *user)
+			       struct user_execenv *user,
+			       enum execenv_alloc_prefs alloc_prefs)
 {
 	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
@@ -1334,7 +1355,7 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[2].size = size_input(execenv.array_size);
 	bo_dict[3].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, entries);
+	bo_execenv_bind(&execenv, alloc_prefs, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	xehpc_create_indirect_data(bo_dict[1].data, bind_input_addr, bind_output_addr,
@@ -1682,9 +1703,10 @@ static void xe2_create_indirect_data_inc_kernel(uint32_t *addr_bo_buffer_batch,
  * @user: user-provided execution environment
  */
 static void xelpg_compute_exec(int fd, const unsigned char *kernel,
-				unsigned int size,
+			       unsigned int size,
 			       struct drm_xe_engine_class_instance *eci,
-			       struct user_execenv *user)
+			       struct user_execenv *user,
+			       enum execenv_alloc_prefs alloc_prefs)
 {
 	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
@@ -1726,7 +1748,7 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, entries);
+	bo_execenv_bind(&execenv, alloc_prefs, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 
@@ -1777,7 +1799,8 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 				unsigned int size,
 				struct drm_xe_engine_class_instance *eci,
-				struct user_execenv *user)
+				struct user_execenv *user,
+				enum execenv_alloc_prefs alloc_prefs)
 {
 	struct bo_dict_entry bo_dict[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
@@ -1822,7 +1845,7 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
-	bo_execenv_bind(&execenv, bo_dict, entries);
+	bo_execenv_bind(&execenv, alloc_prefs, bo_dict, entries);
 
 	memcpy(bo_dict[0].data, kernel, size);
 	create_dynamic_state(bo_dict[1].data, OFFSET_KERNEL);
@@ -1879,7 +1902,8 @@ static const struct {
 	void (*compute_exec)(int fd, const unsigned char *kernel,
 			     unsigned int size,
 			     struct drm_xe_engine_class_instance *eci,
-			     struct user_execenv *user);
+			     struct user_execenv *user,
+			     enum execenv_alloc_prefs alloc_prefs);
 	uint32_t compat;
 } intel_compute_batches[] = {
 	{
@@ -1926,7 +1950,8 @@ static const struct {
 
 static bool __run_intel_compute_kernel(int fd,
 				       struct drm_xe_engine_class_instance *eci,
-				       struct user_execenv *user)
+				       struct user_execenv *user,
+				       enum execenv_alloc_prefs alloc_prefs)
 {
 	unsigned int ip_ver = intel_graphics_ver(intel_get_drm_devid(fd));
 	unsigned int batch;
@@ -1967,15 +1992,16 @@ static bool __run_intel_compute_kernel(int fd,
 		kernel_size = kernels->size;
 	}
 
-	intel_compute_batches[batch].compute_exec(fd, kernel,
-						  kernel_size, eci, user);
+	intel_compute_batches[batch].compute_exec(fd, kernel, kernel_size,
+						  eci, user, alloc_prefs);
 
 	return true;
 }
 
-bool run_intel_compute_kernel(int fd, struct user_execenv *user)
+bool run_intel_compute_kernel(int fd, struct user_execenv *user,
+			      enum execenv_alloc_prefs alloc_prefs)
 {
-	return __run_intel_compute_kernel(fd, NULL, user);
+	return __run_intel_compute_kernel(fd, NULL, user, alloc_prefs);
 }
 
 /**
@@ -1990,7 +2016,8 @@ bool run_intel_compute_kernel(int fd, struct user_execenv *user)
  */
 bool xe_run_intel_compute_kernel_on_engine(int fd,
 					   struct drm_xe_engine_class_instance *eci,
-					   struct user_execenv *user)
+					   struct user_execenv *user,
+					   enum execenv_alloc_prefs alloc_prefs)
 {
 	if (!is_xe_device(fd)) {
 		igt_debug("Xe device expected\n");
@@ -2009,7 +2036,7 @@ bool xe_run_intel_compute_kernel_on_engine(int fd,
 		return false;
 	}
 
-	return __run_intel_compute_kernel(fd, eci, user);
+	return __run_intel_compute_kernel(fd, eci, user, alloc_prefs);
 }
 
 /**
@@ -2035,7 +2062,8 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 					const unsigned char *loop_kernel,
 					unsigned int loop_kernel_size,
 					struct drm_xe_engine_class_instance *eci,
-					bool threadgroup_preemption)
+					bool threadgroup_preemption,
+					enum execenv_alloc_prefs alloc_prefs)
 {
 	struct bo_dict_entry bo_dict_long[] = {
 		{ .addr = ADDR_INSTRUCTION_STATE_BASE + OFFSET_KERNEL,
@@ -2095,8 +2123,8 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 		bo_dict_long[0].size = ALIGN(long_kernel_size, 0x1000);
 	bo_dict_short[0].size = ALIGN(short_kernel_size, 0x1000);
 
-	bo_execenv_bind(&execenv_long, bo_dict_long, entries);
-	bo_execenv_bind(&execenv_short, bo_dict_short, entries);
+	bo_execenv_bind(&execenv_long, alloc_prefs, bo_dict_long, entries);
+	bo_execenv_bind(&execenv_short, alloc_prefs, bo_dict_short, entries);
 
 	if (use_loop_kernel)
 		memcpy(bo_dict_long[0].data, loop_kernel, loop_kernel_size);
@@ -2175,7 +2203,8 @@ static const struct {
 			     const unsigned char *loop_kernel,
 			     unsigned int loop_kernel_size,
 			     struct drm_xe_engine_class_instance *eci,
-			     bool threadgroup_preemption);
+			     bool threadgroup_preemption,
+			     enum execenv_alloc_prefs alloc_prefs);
 	uint32_t compat;
 } intel_compute_preempt_batches[] = {
 	{
@@ -2197,7 +2226,8 @@ static const struct {
 
 static bool __run_intel_compute_kernel_preempt(int fd,
 		struct drm_xe_engine_class_instance *eci,
-		bool threadgroup_preemption)
+		bool threadgroup_preemption,
+		enum execenv_alloc_prefs alloc_prefs)
 {
 	unsigned int ip_ver = intel_graphics_ver(intel_get_drm_devid(fd));
 	unsigned int batch;
@@ -2238,7 +2268,8 @@ static bool __run_intel_compute_kernel_preempt(int fd,
 							  kernels->loop_kernel,
 							  kernels->loop_kernel_size,
 							  eci,
-							  threadgroup_preemption);
+							  threadgroup_preemption,
+							  alloc_prefs);
 
 	return true;
 }
@@ -2254,7 +2285,9 @@ static bool __run_intel_compute_kernel_preempt(int fd,
  */
 bool run_intel_compute_kernel_preempt(int fd,
 		struct drm_xe_engine_class_instance *eci,
-		bool threadgroup_preemption)
+		bool threadgroup_preemption,
+		enum execenv_alloc_prefs alloc_prefs)
 {
-	return __run_intel_compute_kernel_preempt(fd, eci, threadgroup_preemption);
+	return __run_intel_compute_kernel_preempt(fd, eci, threadgroup_preemption,
+						  alloc_prefs);
 }
