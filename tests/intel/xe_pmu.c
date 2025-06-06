@@ -49,6 +49,10 @@
  * SUBTEST: engine-activity-suspend
  * Description: Test to validate engine activity on all engines before and after s2idle
  *
+ * SUBTEST: engine-activity-multi-client
+ * Description: Test to validate engine activity with multiple PMU clients and check that
+ *		they do not interfere with each other
+ *
  * SUBTEST: engine-activity-after-load-start
  * Description: Validates engine activity when PMU is opened after load started
  *
@@ -632,6 +636,62 @@ static void engine_activity_load_start(int fd, struct drm_xe_engine_class_instan
 	assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
 }
 
+static void engine_activity_multi_client(int fd, struct drm_xe_engine_class_instance *eci)
+{
+#define NUM_CLIENTS 2
+	struct pmu_client {
+		uint64_t before[2];
+		uint64_t after[2];
+		int pmu_fd[2];
+	} client[NUM_CLIENTS];
+	uint64_t ahnd, config, engine_active_ticks, engine_total_ticks;
+	struct xe_cork *cork = NULL;
+	uint32_t vm;
+	int i = 0;
+
+	vm = xe_vm_create(fd, 0, 0);
+	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);
+
+	for (i = 0; i < NUM_CLIENTS; i++) {
+		config = get_event_config(eci->gt_id, eci, "engine-active-ticks");
+		client[i].pmu_fd[0] = open_group(fd, config, -1);
+		config = get_event_config(eci->gt_id, eci, "engine-total-ticks");
+		client[i].pmu_fd[1] = open_group(fd, config, client[i].pmu_fd[0]);
+	}
+
+	cork = xe_cork_create_opts(fd, eci, vm, 1, 1, .ahnd = ahnd);
+	xe_cork_sync_start(fd, cork);
+
+	for (i = 0; i < NUM_CLIENTS; i++)
+		pmu_read_multi(client[i].pmu_fd[0], 2, client[i].before);
+
+	usleep(SLEEP_DURATION * USEC_PER_SEC);
+
+	for (i = 0; i < NUM_CLIENTS; i++)
+		pmu_read_multi(client[i].pmu_fd[0], 2, client[i].after);
+
+	end_cork(fd, cork);
+	xe_cork_destroy(fd, cork);
+	xe_vm_destroy(fd, vm);
+	put_ahnd(ahnd);
+
+	for (i = 0; i < NUM_CLIENTS; i++) {
+		engine_active_ticks = client[i].after[0] - client[i].before[0];
+		engine_total_ticks = client[i].after[1] - client[i].before[1];
+
+		igt_debug("Client %d: Engine active ticks:  after %ld, before %ld delta %ld\n",
+			  i + 1, client[i].after[0], client[i].before[0], engine_active_ticks);
+
+		igt_debug("Client %d Engine total ticks: after %ld, before %ld delta %ld\n",
+			  i + 1, client[i].after[1], client[i].before[1], engine_total_ticks);
+
+		close(client[i].pmu_fd[0]);
+		close(client[i].pmu_fd[1]);
+
+		assert_within_epsilon(engine_active_ticks, engine_active_ticks, tolerance);
+	}
+}
+
 static void test_gt_c6_idle(int xe, unsigned int gt)
 {
 	int pmu_fd;
@@ -912,6 +972,10 @@ igt_main
 	igt_describe("Validate engine activity when PMU is opened after load");
 	test_each_engine("engine-activity-after-load-start", fd, eci)
 		engine_activity_load_start(fd, eci);
+
+	igt_describe("Validate multiple PMU clients do not interfere with each other");
+	test_each_engine("engine-activity-multi-client", fd, eci)
+		engine_activity_multi_client(fd, eci);
 
 	igt_subtest_group {
 		int render_fd;
