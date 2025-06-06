@@ -56,6 +56,15 @@
  * Description: Test to validate engine activity by running workload and trailing idle on all engines
  * 		except one
  *
+ * SUBTEST: engine-activity-render-node-idle
+ * Description: Test to validate engine activity on render node shows no load when idle
+ *
+ * SUBTEST: engine-activity-render-node-load
+ * Description: Test to validate engine activity on render node by running workload
+ *
+ * SUBTEST: engine-activity-render-node-load-idle
+ * Description: Test to validate engine activity on render node by running workload and trailing idle
+ *
  * SUBTEST: all-fn-engine-activity-load
  * Description: Test to validate engine activity by running load on all functions simultaneously
  *
@@ -855,6 +864,30 @@ igt_main
 		engine_activity_load_all(fd, num_engines, TEST_LOAD);
 		igt_system_suspend_autoresume(SUSPEND_STATE_FREEZE, SUSPEND_TEST_NONE);
 		engine_activity_load_all(fd, num_engines, TEST_LOAD);
+	}
+
+	igt_subtest_group {
+		int render_fd;
+
+		igt_fixture {
+			render_fd = __drm_open_driver_render(DRIVER_XE);
+			igt_require(render_fd);
+		}
+
+		igt_describe("Validate engine activity on render node when idle");
+		test_each_engine("engine-activity-render-node-idle", render_fd, eci)
+			engine_activity(render_fd, eci, 0);
+
+		igt_describe("Validate engine activity on render node when loaded");
+		test_each_engine("engine-activity-render-node-load", render_fd, eci)
+			engine_activity(render_fd, eci, TEST_LOAD);
+
+		igt_describe("Validate engine activity on render node with load and trailing idle");
+		test_each_engine("engine-activity-render-node-load-idle", render_fd, eci)
+			engine_activity(render_fd, eci, TEST_LOAD | TEST_TRAILING_IDLE);
+
+		igt_fixture
+			drm_close_driver(render_fd);
 	}
 
 	igt_subtest_group {
