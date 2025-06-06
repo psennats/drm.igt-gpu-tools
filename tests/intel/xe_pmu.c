@@ -46,6 +46,9 @@
  * SUBTEST: engine-activity-gt-reset
  * Description: Test to validate engine activity on all engines before and after gt reset
  *
+ * SUBTEST: engine-activity-suspend
+ * Description: Test to validate engine activity on all engines before and after s2idle
+ *
  * SUBTEST: engine-activity-most-load
  * Description: Test to validate engine activity by running workload on all engines except one
  *
@@ -844,6 +847,13 @@ igt_main
 		engine_activity_load_all(fd, num_engines, TEST_LOAD);
 		xe_for_each_gt(fd, gt)
 			xe_force_gt_reset_sync(fd, gt);
+		engine_activity_load_all(fd, num_engines, TEST_LOAD);
+	}
+
+	igt_describe("Validate engine activity before and after s2idle");
+	igt_subtest("engine-activity-suspend") {
+		engine_activity_load_all(fd, num_engines, TEST_LOAD);
+		igt_system_suspend_autoresume(SUSPEND_STATE_FREEZE, SUSPEND_TEST_NONE);
 		engine_activity_load_all(fd, num_engines, TEST_LOAD);
 	}
 
