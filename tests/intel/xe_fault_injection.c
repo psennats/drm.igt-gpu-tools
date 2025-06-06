@@ -64,28 +64,18 @@ static int fail_function_open(void)
 	return debugfs_fail_function_dir_fd;
 }
 
-static bool function_is_part_of_guc(const char function_name[])
+static void ignore_dmesg_errors_from_dut(const char pci_slot[])
 {
-	return strstr(function_name, "_guc_") != NULL ||
-	       strstr(function_name, "_uc_") != NULL ||
-	       strstr(function_name, "_wopcm_") != NULL;
-}
-
-static void ignore_faults_in_dmesg(const char function_name[])
-{
-	/* Driver probe is expected to fail in all cases, so ignore in igt_runner */
-	char regex[1024] = "probe with driver xe failed with error -12";
-
 	/*
-	 * If GuC module fault is injected, GuC is expected to fail,
-	 * so also ignore GuC init failures in igt_runner.
+	 * Driver probe is expected to fail in all cases.
+	 * Additionally, error-level reports are expected,
+	 * so ignore these in igt_runner.
 	 */
-	if (function_is_part_of_guc(function_name)) {
-		strcat(regex, "|GT[0-9a-fA-F]*: GuC init failed with -ENOMEM");
-		strcat(regex, "|GT[0-9a-fA-F]*: Failed to initialize uC .-ENOMEM");
-		strcat(regex, "|GT[0-9a-fA-F]*: Failed to enable GuC CT .-ENOMEM");
-		strcat(regex, "|GT[0-9a-fA-F]*: GuC PC query task state failed: -ENOMEM");
-	}
+	static const char *store = "probe with driver xe failed with error|\\*ERROR\\*";
+	char regex[1024];
+
+	/* Only block dmesg reports that target the pci slot of the given fd */
+	snprintf(regex, sizeof(regex), "%s:.*(%s)", pci_slot, store);
 
 	igt_emit_ignore_dmesg_regex(regex);
 }
@@ -234,7 +224,7 @@ inject_fault_probe(int fd, const char pci_slot[], const char function_name[])
 	igt_info("Injecting error \"%s\" (%d) in function \"%s\"\n",
 		 strerror(-INJECT_ERRNO), INJECT_ERRNO, function_name);
 
-	ignore_faults_in_dmesg(function_name);
+	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 
@@ -291,7 +281,8 @@ static void probe_fail_guc(int fd, const char pci_slot[], const char function_na
  */
 static void
 exec_queue_create_fail(int fd, struct drm_xe_engine_class_instance *instance,
-		const char function_name[], unsigned int flags)
+		       const char pci_slot[], const char function_name[],
+		       unsigned int flags)
 {
 	uint32_t exec_queue_id;
 	uint32_t vm = xe_vm_create(fd, flags, 0);
@@ -299,7 +290,7 @@ exec_queue_create_fail(int fd, struct drm_xe_engine_class_instance *instance,
 	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id), 0);
 	xe_exec_queue_destroy(fd, exec_queue_id);
 
-	ignore_faults_in_dmesg(function_name);
+	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id) != 0);
@@ -330,11 +321,12 @@ simple_vm_create(int fd, unsigned int flags)
  * @xe_vm_create_scratch:	xe_vm_create_scratch
  */
 static void
-vm_create_fail(int fd, const char function_name[], unsigned int flags)
+vm_create_fail(int fd, const char pci_slot[],
+	       const char function_name[], unsigned int flags)
 {
 	igt_assert_eq(simple_vm_create(fd, flags), 0);
 
-	ignore_faults_in_dmesg(function_name);
+	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(simple_vm_create(fd, flags) != 0);
@@ -391,13 +383,13 @@ simple_vm_bind(int fd, uint32_t vm)
  * @xe_sync_entry_parse:		xe_sync_entry_parse
  */
 static void
-vm_bind_fail(int fd, const char function_name[])
+vm_bind_fail(int fd, const char pci_slot[], const char function_name[])
 {
 	uint32_t vm = xe_vm_create(fd, 0, 0);
 
 	igt_assert_eq(simple_vm_bind(fd, vm), 0);
 
-	ignore_faults_in_dmesg(function_name);
+	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert(simple_vm_bind(fd, vm) != 0);
@@ -415,7 +407,8 @@ vm_bind_fail(int fd, const char function_name[])
  * @xe_oa_alloc_regs:		xe_oa_alloc_regs
  */
 static void
-oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
+oa_add_config_fail(int fd, int sysfs, int devid,
+		   const char pci_slot[], const char function_name[])
 {
 	char path[512];
 	uint64_t config_id;
@@ -445,7 +438,7 @@ oa_add_config_fail(int fd, int sysfs, int devid, const char function_name[])
 	igt_assert(igt_sysfs_scanf(sysfs, path, "%" PRIu64, &config_id) == 1);
 	igt_assert_eq(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_REMOVE_CONFIG, &config_id), 0);
 
-	ignore_faults_in_dmesg(function_name);
+	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
 	igt_assert_lt(intel_xe_perf_ioctl(fd, DRM_XE_OBSERVATION_OP_ADD_CONFIG, &config), 0);
@@ -564,27 +557,29 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 
 	for (const struct section *s = vm_create_fail_functions; s->name; s++)
 		igt_subtest_f("vm-create-fail-%s", s->name)
-			vm_create_fail(fd, s->name, s->flags);
+			vm_create_fail(fd, pci_slot, s->name, s->flags);
 
 	for (const struct section *s = vm_bind_fail_functions; s->name; s++)
 		igt_subtest_f("vm-bind-fail-%s", s->name)
-			vm_bind_fail(fd, s->name);
+			vm_bind_fail(fd, pci_slot, s->name);
 
 	for (const struct section *s = exec_queue_create_fail_functions; s->name; s++)
 		igt_subtest_f("exec-queue-create-fail-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				if (hwe->engine_class != DRM_XE_ENGINE_CLASS_VM_BIND)
-					exec_queue_create_fail(fd, hwe, s->name, s->flags);
+					exec_queue_create_fail(fd, hwe, pci_slot,
+							       s->name, s->flags);
 
 	for (const struct section *s = exec_queue_create_vmbind_fail_functions; s->name; s++)
 		igt_subtest_f("exec-queue-create-fail-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				if (hwe->engine_class == DRM_XE_ENGINE_CLASS_VM_BIND)
-					exec_queue_create_fail(fd, hwe, s->name, s->flags);
+					exec_queue_create_fail(fd, hwe, pci_slot,
+							       s->name, s->flags);
 
 	for (const struct section *s = oa_add_config_fail_functions; s->name; s++)
 		igt_subtest_f("oa-add-config-fail-%s", s->name)
-			oa_add_config_fail(fd, sysfs, devid, s->name);
+			oa_add_config_fail(fd, sysfs, devid, pci_slot, s->name);
 
 	igt_fixture {
 		igt_kmod_unbind("xe", pci_slot);
