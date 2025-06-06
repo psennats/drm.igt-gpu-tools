@@ -40,6 +40,12 @@
  * Description: Test to validate engine activity by running workload on all engines
  *		simultaneously and trailing idle
  *
+ * SUBTEST: engine-activity-gt-reset-idle
+ * Description: Test to validate engine activity is idle after gt reset
+ *
+ * SUBTEST: engine-activity-gt-reset
+ * Description: Test to validate engine activity on all engines before and after gt reset
+ *
  * SUBTEST: engine-activity-most-load
  * Description: Test to validate engine activity by running workload on all engines except one
  *
@@ -75,6 +81,7 @@
 #define TEST_LOAD		BIT(0)
 #define TEST_TRAILING_IDLE	BIT(1)
 #define TEST_IDLE		BIT(2)
+#define TEST_GT_RESET		BIT(3)
 
 const double tolerance = 0.1;
 static char xe_device[NAME_MAX];
@@ -238,7 +245,10 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 		end_cork(fd, cork);
 	pmu_read_multi(pmu_fd[0], 2, after);
 
-	end_cork(fd, cork);
+	if (flags & TEST_GT_RESET)
+		xe_force_gt_reset_sync(fd, eci->gt_id);
+	else
+		end_cork(fd, cork);
 
 	engine_active_ticks = after[0] - before[0];
 	engine_total_ticks = after[1] - before[1];
@@ -248,6 +258,24 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 	igt_debug("Engine total ticks: after %" PRIu64 ", before %" PRIu64 " delta %" PRIu64 "\n", after[1], before[1],
 		  engine_total_ticks);
 
+	if (flags & TEST_LOAD)
+		assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
+	else
+		igt_assert(!engine_active_ticks);
+
+	if (flags & TEST_GT_RESET) {
+		pmu_read_multi(pmu_fd[0], 2, before);
+		usleep(SLEEP_DURATION * USEC_PER_SEC);
+		pmu_read_multi(pmu_fd[0], 2, after);
+
+		engine_active_ticks = after[0] - before[0];
+
+		igt_debug("Engine active ticks after gt reset:  after %ld, before %ld delta %ld\n",
+			  after[0], before[0], engine_active_ticks);
+
+		igt_assert(!engine_active_ticks);
+	}
+
 	if (cork)
 		xe_cork_destroy(fd, cork);
 
@@ -255,11 +283,6 @@ static void engine_activity(int fd, struct drm_xe_engine_class_instance *eci, un
 
 	close(pmu_fd[0]);
 	close(pmu_fd[1]);
-
-	if (flags & TEST_LOAD)
-		assert_within_epsilon(engine_active_ticks, engine_total_ticks, tolerance);
-	else
-		igt_assert(!engine_active_ticks);
 }
 
 static void engine_activity_load_single(int fd, int num_engines,
@@ -811,6 +834,18 @@ igt_main
 	igt_describe("Validate engine activity by loading all engines simultaenously and trailing idle");
 	igt_subtest("engine-activity-all-load-idle")
 		engine_activity_load_all(fd, num_engines, TEST_LOAD | TEST_TRAILING_IDLE);
+
+	igt_describe("Validate engine activity is idle after gt reset");
+	test_each_engine("engine-activity-gt-reset-idle", fd, eci)
+		engine_activity(fd, eci, TEST_LOAD | TEST_GT_RESET);
+
+	igt_describe("Validate engine activity before and after gt reset");
+	igt_subtest("engine-activity-gt-reset") {
+		engine_activity_load_all(fd, num_engines, TEST_LOAD);
+		xe_for_each_gt(fd, gt)
+			xe_force_gt_reset_sync(fd, gt);
+		engine_activity_load_all(fd, num_engines, TEST_LOAD);
+	}
 
 	igt_subtest_group {
 		unsigned int num_fns;
