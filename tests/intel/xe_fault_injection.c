@@ -228,7 +228,7 @@ static void set_retval(const char function_name[], long long retval)
  * @xe_wopcm_init:			xe_wopcm_init
  */
 static int
-inject_fault_probe(int fd, char pci_slot[], const char function_name[])
+inject_fault_probe(int fd, const char pci_slot[], const char function_name[])
 {
 	int err = 0;
 	igt_info("Injecting error \"%s\" (%d) in function \"%s\"\n",
@@ -255,8 +255,8 @@ inject_fault_probe(int fd, char pci_slot[], const char function_name[])
  * @xe_guc_mmio_send_recv:     Inject an error when calling xe_guc_mmio_send_recv
  * @xe_guc_ct_send_recv:       Inject an error when calling xe_guc_ct_send_recv
  */
-static void probe_fail_guc(int fd, char pci_slot[], const char function_name[],
-               struct fault_injection_params *fault_params)
+static void probe_fail_guc(int fd, const char pci_slot[], const char function_name[],
+			   struct fault_injection_params *fault_params)
 {
 	int iter_start = 0, iter_end = 0, iter = 0;
 
