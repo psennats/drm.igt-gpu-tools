@@ -179,10 +179,12 @@ if libdrm_amdgpu.found()
 		warning('libdrm <= 2.4.99 found, amdgpu_cs_query_reset_state2 not applicable')
 	endif
 
-	if cc.has_function('amdgpu_create_userqueue', dependencies: libdrm_amdgpu)
-		add_project_arguments('-DAMDGPU_USERQ_ENABLED=1', language: 'c')
-		#conf.set('AMDGPU_USERQ_ENABLED', 1)
-	endif	
+	if libdrm_amdgpu.version().version_compare('>= 2.4.125')
+		add_project_arguments('-DAMDGPU_USERQ_ENABLED', language: 'c')
+	else
+		warning('libdrm < 2.4.125 found, amdgpu user queue support is not enabled')
+	endif
+
 endif
 
 if libunwind.found()
