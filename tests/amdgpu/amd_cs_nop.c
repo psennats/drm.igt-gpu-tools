@@ -167,9 +167,14 @@ igt_main
 		{ "gfx", AMDGPU_HW_IP_GFX },
 		{ },
 	}, *e;
+
 	int fd = -1;
 	bool arr_cap[AMD_IP_MAX] = {0};
 	bool userq_arr_cap[AMD_IP_MAX] = {0};
+	bool enable_test;
+	const char *env = getenv("AMDGPU_DISABLE_USERQTEST");
+
+	enable_test = env && atoi(env);
 
 	igt_fixture {
 		uint32_t major, minor;
@@ -200,7 +205,7 @@ igt_main
 	}
 
 #ifdef AMDGPU_USERQ_ENABLED
-#ifdef AMDGPU_DISABLE_USERQTEST
+if (enable_test) {
 	for (p = phase; p->name; p++) {
 		for (e = engines; e->name; e++) {
 			igt_describe("Stressful-and-multiple-cs-of-nop-operations-using-multiple-processes-with-the-same-GPU-context-UMQ");
@@ -213,7 +218,7 @@ igt_main
 			}
 		}
 	}
-#endif
+}
 #endif
 
 	igt_fixture {
