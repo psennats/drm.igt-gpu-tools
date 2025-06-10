@@ -39,6 +39,7 @@
 #include "xe_oa_metrics_pvc.h"
 #include "xe_oa_metrics_lnl.h"
 #include "xe_oa_metrics_bmg.h"
+#include "xe_oa_metrics_ptl.h"
 
 static struct intel_xe_perf_logical_counter_group *
 intel_xe_perf_logical_counter_group_new(struct intel_xe_perf *perf,
@@ -300,6 +301,8 @@ intel_xe_perf_for_devinfo(uint32_t device_id,
 		intel_xe_perf_load_metrics_lnl(perf);
 	} else if (devinfo->is_battlemage) {
 		intel_xe_perf_load_metrics_bmg(perf);
+	} else if (devinfo->is_pantherlake) {
+		intel_xe_perf_load_metrics_ptl(perf);
 	} else if (intel_graphics_ver(device_id) >= IP_VER(20, 0)) {
 		intel_xe_perf_load_metrics_lnl(perf);
 	} else {

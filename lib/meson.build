@@ -443,6 +443,7 @@ xe_oa_hardware = [
   'mtlgt2', 'mtlgt3',
   'lnl',
   'bmg',
+  'ptl',
 ]
 
 xe_xml_files = []

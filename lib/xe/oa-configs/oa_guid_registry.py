@@ -103,6 +103,7 @@ class Registry:
                            'MTL',
                            'LNL',
                            'BMG',
+                           'PTL',
                           )
         if name in known_chipsets:
             return name
