@@ -2770,4 +2770,14 @@
     <guid config_hash="6dc1bd4e8d8b49cc9776701db836ffe9" mdapi_config_hash="cee63b3642783febd3bcbf45629c5e1c" id="dfe5251f-af3e-434c-b627-38490f2213da" chipset="bmg" name="VectorEngineProfile" />
     <guid config_hash="b87d3a3dfab7193309deb13aeb595589" mdapi_config_hash="1950d62ef4b729af4494d76ca3ec8101" id="d008dcae-2a82-4929-a94d-2ba1e9c569d6" chipset="bmg" name="VectorEngineStalls" />
     <guid config_hash="6723e2305bfd92e1d94c4242e476ee36" mdapi_config_hash="8c21cff2375af4159f5abd0ef05ee97a" id="9ec392a7-4c77-4253-a28a-85240821e82c" chipset="bmg" name="TestOa" />
+    <guid config_hash="208c3c79f1b4db2f86277292566d3f10" mdapi_config_hash="1fbaf5ad061ccf96ff7d4e108cbcf3ae" id="a78beb3a-98d1-48cc-86ee-29bb3cc3b5a7" chipset="ptl" name="RenderBasic" />
+    <guid config_hash="39eb89a5a9a33ab05bce6069f77e0cbb" mdapi_config_hash="24837cfd6478062c78968430d5f8a902" id="751a8e91-f8cd-49ba-95ef-28f45fd4ded6" chipset="ptl" name="ComputeBasic" />
+    <guid config_hash="955739b43332e61729e0a7a032188c02" mdapi_config_hash="d9be0378dd2dd6a5f85f71d156d21b43" id="b7f6cc1f-8092-44c2-8889-82ca13aa736a" chipset="ptl" name="DepthProfile" />
+    <guid config_hash="55ecb5067bca7d99769a30a14eaceba5" mdapi_config_hash="e444af605670c2230a5796b4ad65b2c0" id="89acd6f6-6559-4aae-8178-e3d475c2af4e" chipset="ptl" name="DeviceCacheProfile" />
+    <guid config_hash="073c22bb18e4ea3a39b43ab9cf9915a1" mdapi_config_hash="b29927048361ca3c24e3228e5f77cc25" id="9a4e83b3-2f9b-4d09-a9b7-256b7e7ad536" chipset="ptl" name="MemoryProfile" />
+    <guid config_hash="5d38d137356ca80dca2ea337449675be" mdapi_config_hash="07f0aa1a93f77bc7b6771ba2b68c8325" id="37a30f4d-40b1-4ad5-aeab-592c72e22536" chipset="ptl" name="RenderPipeProfile" />
+    <guid config_hash="85bd9123cd9231c85b4cde11e6a17a68" mdapi_config_hash="72bda7af5deee4193c5ef93165851069" id="7d46ea13-6f8c-4b7f-8ecd-a14839b2c2e3" chipset="ptl" name="RTProfile" />
+    <guid config_hash="6dc1bd4e8d8b49cc9776701db836ffe9" mdapi_config_hash="cee63b3642783febd3bcbf45629c5e1c" id="765ea760-ca86-475a-a807-7c75f44b39c9" chipset="ptl" name="VectorEngineProfile" />
+    <guid config_hash="b87d3a3dfab7193309deb13aeb595589" mdapi_config_hash="1950d62ef4b729af4494d76ca3ec8101" id="64c274c2-3df8-44c7-a779-085e27d474d3" chipset="ptl" name="VectorEngineStalls" />
+    <guid config_hash="2c8d8862e0eab0c587f2a2c18d96ad3b" mdapi_config_hash="89ebddf1d2af3b8acb33e7e3488086be" id="cf90eca9-c696-4e2c-8f48-0574b1745a58" chipset="ptl" name="TestOa" />
 </guids>
