@@ -67,7 +67,7 @@
  */
 #define TGP_long_kernel_loop_count		10
 #define WMTP_long_kernel_loop_count		1000000
-#define XE2_THREADGROUP_PREEMPT_XDIM		0x200000
+#define XE2_THREADGROUP_PREEMPT_XDIM		0x4000
 
 struct bo_dict_entry {
 	uint64_t addr;
@@ -2180,8 +2180,11 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	/* Check that the long kernel has not completed yet */
 	igt_assert_neq(0, __xe_wait_ufence(fd, &execenv_long.bo_sync->sync, USER_FENCE_VALUE,
 					   execenv_long.exec_queue, &timeout_one_ns));
-	if (use_loop_kernel)
-		((int *)input_long)[0] = MAGIC_LOOP_STOP;
+	/*
+	 * For threadgroup preemption it breaks the loop. So rest shaders exit
+	 * immediately without reaching whole loop count.
+	 */
+	((int *)input_long)[0] = MAGIC_LOOP_STOP;
 
 	bo_execenv_sync(&execenv_long);
 
