@@ -1385,15 +1385,15 @@ test_large_binds(int fd, struct drm_xe_engine_class_instance *eci,
 	igt_assert_lte(n_exec_queues, MAX_N_EXEC_QUEUES);
 	vm = xe_vm_create(fd, 0, 0);
 
+	bo_size_prefetch = xe_bb_size(fd, bo_size);
+
 	if (flags & LARGE_BIND_FLAG_USERPTR) {
-		bo_size_prefetch = xe_bb_size(fd, bo_size);
 		map = aligned_alloc(xe_get_default_alignment(fd), bo_size_prefetch);
 		igt_assert(map);
 	} else {
-		igt_skip_on(xe_visible_vram_size(fd, 0) && bo_size >
+		igt_skip_on(xe_visible_vram_size(fd, 0) && bo_size_prefetch >
 			    xe_visible_vram_size(fd, 0));
 
-		bo_size_prefetch = xe_bb_size(fd, bo_size);
 		bo = xe_bo_create(fd, vm, bo_size_prefetch,
 				  vram_if_possible(fd, eci->gt_id),
 				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
