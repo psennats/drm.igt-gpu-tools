@@ -316,10 +316,12 @@ igt_main
 	int r, fd = -1;
 	bool is_secure = true;
 	bool userq_arr_cap[AMD_IP_MAX] = {0};
+#ifdef AMDGPU_USERQ_ENABLED
 	bool enable_test = false;
 	const char *env = getenv("AMDGPU_DISABLE_USERQTEST");
 
 	enable_test = env && atoi(env);
+#endif
 
 	igt_fixture {
 		uint32_t major, minor;
