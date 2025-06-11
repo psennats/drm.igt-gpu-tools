@@ -188,11 +188,11 @@ igt_main
 	}
 
 #ifdef AMDGPU_USERQ_ENABLED
-	igt_describe("Test-GPU-reset-by-access-umq-gfx-illegal-reg");
-	igt_subtest_with_dynamic("amdgpu-umq-gfx-illegal-reg-access") {
+	igt_describe("Test-GPU-reset-by-access-gfx-illegal-reg-umq");
+	igt_subtest_with_dynamic("amdgpu-gfx-illegal-reg-access-umq") {
 		if (enable_test && userq_arr_cap[AMD_IP_GFX] &&
 		    is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
-			igt_dynamic_f("amdgpu-umq-illegal-reg-access")
+			igt_dynamic_f("amdgpu-illegal-reg-access-umq")
 			bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
 					       AMDGPU_HW_IP_GFX, &pci, true);
 		}
