@@ -43,8 +43,9 @@ igt_main
 	bool arr_cap[AMD_IP_MAX] = {0};
 	bool userq_arr_cap[AMD_IP_MAX] = {0};
 	struct pci_addr pci;
+
 #ifdef AMDGPU_USERQ_ENABLED
-	bool enable_test = false;
+	bool enable_test;
 	const char *env = getenv("AMDGPU_DISABLE_USERQTEST");
 
 	enable_test = env && atoi(env);
@@ -185,17 +186,15 @@ igt_main
 					AMDGPU_HW_IP_DMA, &pci, false);
 		}
 	}
+
 #ifdef AMDGPU_USERQ_ENABLED
-	if (enable_test) {
-		igt_describe("Test-GPU-reset-by-access-umq-gfx-illegal-reg");
-		igt_subtest_with_dynamic("amdgpu-umq-gfx-illegal-reg-access") {
-			if (userq_arr_cap[AMD_IP_GFX] &&
-			    is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
-				igt_dynamic_f("amdgpu-umq-illegal-reg-access")
-				bad_access_ring_helper(device,
-					CMD_STREAM_TRANS_BAD_REG_ADDRESS,
-					AMDGPU_HW_IP_GFX, &pci, true);
-			}
+	igt_describe("Test-GPU-reset-by-access-umq-gfx-illegal-reg");
+	igt_subtest_with_dynamic("amdgpu-umq-gfx-illegal-reg-access") {
+		if (enable_test && userq_arr_cap[AMD_IP_GFX] &&
+		    is_reset_enable(AMD_IP_GFX, AMDGPU_RESET_TYPE_PER_QUEUE, &pci)) {
+			igt_dynamic_f("amdgpu-umq-illegal-reg-access")
+			bad_access_ring_helper(device, CMD_STREAM_TRANS_BAD_REG_ADDRESS,
+					       AMDGPU_HW_IP_GFX, &pci, true);
 		}
 	}
 #endif
