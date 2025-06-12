@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:bullseye
 
 RUN apt-get update
 RUN apt-get install -y \
@@ -6,7 +6,7 @@ RUN apt-get install -y \
 			bison \
 			pkg-config \
 			x11proto-dri2-dev \
-			python-docutils \
+			python3-docutils \
 			valgrind \
 			peg
 
