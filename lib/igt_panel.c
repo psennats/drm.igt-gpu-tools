@@ -20,10 +20,14 @@
  * true if the vendor name is found in the blocklist, false otherwise.
  */
 bool igt_is_panel_blocked(const char *vendor_name,
-			    const char *const blocklist[],
-			    size_t blocklist_size)
+			  const char *const blocklist[],
+			  size_t blocklist_size)
 {
 	int i;
+
+	if (!vendor_name || vendor_name[0] == '\0' ||
+	    (vendor_name[0] == ' ' && vendor_name[1] == '\0'))
+		return false;
 
 	for (i = 0; i < blocklist_size; i++) {
 		if (strstr(blocklist[i], vendor_name) != NULL)
