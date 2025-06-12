@@ -637,9 +637,6 @@ test_content_protection(enum igt_commit_style commit_style, int content_type)
 	}
 
 	for_each_connected_output(display, output) {
-		igt_require_f(!is_output_hdcp_test_exempt(output),
-			      "Skipped as the panel is blacklisted");
-
 		for_each_pipe(display, pipe) {
 			igt_display_reset(display);
 
@@ -651,6 +648,12 @@ test_content_protection(enum igt_commit_style commit_style, int content_type)
 
 			if (!output_hdcp_capable(output, content_type))
 				continue;
+
+			if (is_output_hdcp_test_exempt(output)) {
+				igt_info("Skipping HDCP test on %s, as the panel is blocklisted\n",
+					  output->name);
+				continue;
+			}
 
 			igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), output->name)
 				test_content_protection_on_output(output, pipe, commit_style, content_type);
