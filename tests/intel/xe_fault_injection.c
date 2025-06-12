@@ -113,6 +113,22 @@ static void injection_list_add(const char function_name[])
 	close(dir);
 }
 
+static void injection_list_append(const char function_name[])
+{
+	int dir, fd, ret;
+
+	dir = fail_function_open();
+	igt_assert_lte(0, dir);
+
+	fd = openat(dir, "inject", O_WRONLY | O_APPEND);
+	igt_assert_lte(0, fd);
+	ret = write(fd, function_name, strlen(function_name));
+	igt_assert_lte(0, ret);
+
+	close(fd);
+	close(dir);
+}
+
 static void injection_list_remove(const char function_name[])
 {
 	int dir;
@@ -192,6 +208,18 @@ static void set_retval(const char function_name[], long long retval)
 	close(dir);
 }
 
+static void ignore_fail_dump_in_dmesg(const char function_name[], bool enable)
+{
+	if (strstr(function_name, "send_recv")) {
+		if (enable) {
+			injection_list_append("xe_is_injection_active");
+			set_retval("xe_is_injection_active", INJECT_ERRNO);
+		} else {
+			injection_list_remove("xe_is_injection_active");
+		}
+	}
+}
+
 /**
  * SUBTEST: inject-fault-probe-function-%s
  * Description: inject an error in the injectable function %arg[1] then
@@ -227,11 +255,13 @@ inject_fault_probe(int fd, const char pci_slot[], const char function_name[])
 	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
+	ignore_fail_dump_in_dmesg(function_name, true);
 
 	igt_kmod_bind("xe", pci_slot);
 
 	err = -errno;
 	injection_list_remove(function_name);
+	ignore_fail_dump_in_dmesg(function_name, false);
 
 	return err;
 }
