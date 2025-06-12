@@ -29,6 +29,7 @@ typedef char gchar;
 typedef unsigned char guchar;
 typedef void GRegex;
 typedef int GRegexMatchFlags;
+typedef bool gboolean;
 
 static inline void g_clear_error(GError **error) { }
 static inline void g_error_free(GError *error) { }
