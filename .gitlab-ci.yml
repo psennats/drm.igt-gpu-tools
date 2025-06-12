@@ -48,7 +48,6 @@ build-containers:build-debian:
   stage: build-containers
   image: $BUILD_CONTAINERS_IMAGE
   script:
-    - podman login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - .gitlab-ci/pull-or-rebuild.sh base Dockerfile.build-debian-minimal build-debian-minimal
     - .gitlab-ci/pull-or-rebuild.sh base Dockerfile.build-debian build-debian
 
@@ -56,21 +55,18 @@ build-containers:build-debian-armhf:
   stage: build-containers
   image: $BUILD_CONTAINERS_IMAGE
   script:
-    - podman login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - .gitlab-ci/pull-or-rebuild.sh base Dockerfile.build-debian-armhf build-debian-armhf
 
 build-containers:build-debian-arm64:
   stage: build-containers
   image: $BUILD_CONTAINERS_IMAGE
   script:
-    - podman login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - .gitlab-ci/pull-or-rebuild.sh base Dockerfile.build-debian-arm64 build-debian-arm64
 
 build-containers:build-fedora:
   stage: build-containers
   image: $BUILD_CONTAINERS_IMAGE
   script:
-    - podman login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - .gitlab-ci/pull-or-rebuild.sh base Dockerfile.build-fedora build-fedora
 
 #################### BUILD #########################
@@ -263,5 +259,4 @@ containers:igt:
   variables:
     FORCE_REBUILD: 1
   script:
-    - podman login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - .gitlab-ci/pull-or-rebuild.sh igt Dockerfile igt

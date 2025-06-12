@@ -47,7 +47,7 @@ if [ "$TYPE" = "base" ]; then
 	else
 		echo "Building!"
 		$PODMAN_BUILD --squash -t $DOCKERNAME -f $DOCKERFILE .
-		podman push $DOCKERNAME
+		podman push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD $DOCKERNAME
 	fi
 
 	skopeo copy --dest-creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD \
@@ -57,7 +57,7 @@ elif [ "$TYPE" = "igt" ]; then
 	# we always rebuild
 	set -e
 	$PODMAN_BUILD -t $COMMITNAME -f $DOCKERFILE .
-	podman push $COMMITNAME
+	podman push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD $COMMITNAME
 	skopeo copy --dest-creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD \
                docker://$COMMITNAME docker://$REFNAME
 else
