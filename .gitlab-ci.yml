@@ -74,7 +74,7 @@ build-containers:build-fedora:
 build:tests-fedora:
   stage: build
   script:
-    - meson --prefix=/opt/igt $MESON_OPTIONS build
+    - meson setup --prefix=/opt/igt $MESON_OPTIONS build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
     - DESTDIR="$PWD/installdir" ninja -C build install
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} igt-gpu-tools-doc
@@ -87,7 +87,7 @@ build:tests-fedora-no-libunwind:
   stage: build
   script:
     - dnf remove -y libunwind-devel
-    - meson -Dlibunwind=disabled build
+    - meson setup -Dlibunwind=disabled build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
 
 # documentation building is different with meson<0.47
@@ -96,7 +96,7 @@ build:tests-fedora-oldest-meson:
   script:
     - dnf remove -y meson
     - pip install /usr/src/meson-*.tar.gz
-    - meson $MESON_OPTIONS build
+    - meson setup $MESON_OPTIONS build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} igt-gpu-tools-doc
 
@@ -104,7 +104,7 @@ build:tests-fedora-oldest-meson:
 build:tests-fedora-no-libdrm-nouveau:
   stage: build
   script:
-    - meson -Dlibdrm_drivers= build
+    - meson setup -Dlibdrm_drivers= build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
 
 build:tests-fedora-clang:
@@ -112,7 +112,7 @@ build:tests-fedora-clang:
   variables:
     CC: clang
   script:
-    - meson $MESON_OPTIONS build
+    - meson setup $MESON_OPTIONS build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
   artifacts:
     paths:
@@ -122,7 +122,7 @@ build:tests-debian-meson:
   image: $CI_REGISTRY/$CI_PROJECT_PATH/build-debian:commit-$CI_COMMIT_SHA
   stage: build
   script:
-    - meson $MESON_OPTIONS build
+    - meson setup $MESON_OPTIONS build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
     - cp build/tests/test-list.txt meson-test-list.txt
   artifacts:
@@ -133,7 +133,7 @@ build:tests-debian-minimal:
   image: $CI_REGISTRY/$CI_PROJECT_PATH/build-debian-minimal:commit-$CI_COMMIT_SHA
   stage: build
   script:
-    - meson -Dtests=disabled -Dlibdrm_drivers="" build
+    - meson setup -Dtests=disabled -Dlibdrm_drivers="" build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
   artifacts:
     paths:
@@ -144,7 +144,7 @@ build:tests-debian-meson-armhf:
   stage: build
   script:
     - export PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig/
-    - meson --cross-file meson-cross-armhf.txt build
+    - meson setup --cross-file meson-cross-armhf.txt build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
   artifacts:
     paths:
@@ -155,7 +155,7 @@ build:tests-debian-meson-arm64:
   stage: build
   script:
     - export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig/
-    - meson --cross-file meson-cross-arm64.txt build
+    - meson setup --cross-file meson-cross-arm64.txt build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
   artifacts:
     paths:
