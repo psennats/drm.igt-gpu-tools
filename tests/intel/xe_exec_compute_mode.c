@@ -393,7 +393,7 @@ static void non_block(int fd, int expect)
 	data[EXEC_DATA].batch[b++] = sdi_addr >> 32;
 	data[EXEC_DATA].batch[b++] = value;
 	data[EXEC_DATA].batch[b++] = MI_BATCH_BUFFER_END;
-	igt_assert(b <= ARRAY_SIZE(data->batch));
+	igt_assert(b <= ARRAY_SIZE(data[EXEC_DATA].batch));
 
 	sync[0].addr = addr + (char *)&data[EXEC_DATA].exec_sync - (char *)data;
 	exec.num_syncs = 0;
