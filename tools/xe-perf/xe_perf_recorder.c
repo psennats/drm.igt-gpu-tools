@@ -351,10 +351,9 @@ struct recording_context {
 	const char *command_fifo;
 	int command_fifo_fd;
 
-	int gt;
-	struct drm_xe_engine_class_instance eci;
-	struct drm_xe_engine_class_instance *hwe;
+	int oa_unit_id;
 	struct drm_xe_oa_unit *oa_unit;
+	struct drm_xe_engine_class_instance *hwe;
 };
 
 static void set_fd_flags(int fd, int flags)
@@ -829,8 +828,7 @@ usage(const char *name)
 		"     --output,             -o <path>   Output file (default = xe_perf.record)\n"
 		"     --cpu-clock,          -k <path>   Cpu clock to use for correlations\n"
 		"                                       Values: boot, mono, mono_raw (default = mono)\n"
-		"     --engine-class        -e <value>  Engine class used for the OA capture.\n"
-		"     --engine-instance     -i <value>  Engine instance used for the OA capture.\n",
+		"     --oa-unit-id          -u <value>  OA unit id for the capture.\n",
 		name);
 }
 
@@ -859,6 +857,40 @@ teardown_recording_context(struct recording_context *ctx)
 		close(ctx->drm_fd);
 }
 
+static int assign_hwe(int fd, struct recording_context *ctx)
+{
+	struct drm_xe_query_oa_units *qoa = xe_oa_units(fd);
+	struct drm_xe_oa_unit *oau;
+	int oam_sag_gt_id = 1;
+	uint8_t *poau;
+
+	if (ctx->oa_unit->num_engines) {
+		/* Just use the first hwe attached to the oa_unit */
+		ctx->hwe = &ctx->oa_unit->eci[0];
+		return 0;
+	}
+
+	assert(ctx->oa_unit->oa_unit_type == DRM_XE_OA_UNIT_TYPE_OAM_SAG);
+
+	/* Use first hwe attached to a different oa_unit on the same gt */
+	poau = (uint8_t *)&qoa->oa_units[0];
+	for (int i = 0; i < qoa->num_oa_units; i++) {
+		oau = (struct drm_xe_oa_unit *)poau;
+
+		if (!oau->num_engines)
+			goto next;
+
+		if (oau->eci[0].gt_id == oam_sag_gt_id) {
+			ctx->hwe = &oau->eci[0];
+			return 0;
+		}
+next:
+		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
+	}
+
+	return -1;
+}
+
 static int assign_oa_unit(int fd, struct recording_context *ctx)
 {
 	struct drm_xe_query_oa_units *qoa = xe_oa_units(fd);
@@ -869,13 +901,9 @@ static int assign_oa_unit(int fd, struct recording_context *ctx)
 	for (int i = 0; i < qoa->num_oa_units; i++) {
 		oau = (struct drm_xe_oa_unit *)poau;
 
-		for (int j = 0; j < oau->num_engines; j++) {
-			if (oau->eci[j].engine_class == ctx->eci.engine_class &&
-			    oau->eci[j].engine_instance == ctx->eci.engine_instance) {
-				ctx->hwe = &oau->eci[j];
-				ctx->oa_unit = oau;
-				return 0;
-			}
+		if (oau->oa_unit_id == ctx->oa_unit_id) {
+			ctx->oa_unit = oau;
+			return assign_hwe(fd, ctx);
 		}
 
 		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
@@ -898,8 +926,7 @@ main(int argc, char *argv[])
 		{"size",		required_argument, 0, 's'},
 		{"command-fifo",	required_argument, 0, 'f'},
 		{"cpu-clock",		required_argument, 0, 'k'},
-		{"engine-class",	required_argument, 0, 'e'},
-		{"engine-instance",	required_argument, 0, 'i'},
+		{"oa-unit-id",		required_argument, 0, 'u'},
 		{0, 0, 0, 0}
 	};
 	const struct {
@@ -927,10 +954,10 @@ main(int argc, char *argv[])
 		.command_fifo = XE_PERF_RECORD_FIFO_PATH,
 		.command_fifo_fd = -1,
 
-		.eci = { DRM_XE_ENGINE_CLASS_RENDER, 0 },
+		.oa_unit_id = 0,
 	};
 
-	while ((opt = getopt_long(argc, argv, "hc:d:p:m:Co:s:f:k:P:e:i:", long_options, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "hc:d:p:m:Co:s:f:k:P:u:", long_options, NULL)) != -1) {
 		switch (opt) {
 		case 'h':
 			usage(argv[0]);
@@ -978,11 +1005,8 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
-		case 'e':
-			ctx.eci.engine_class = atoi(optarg);
-			break;
-		case 'i':
-			ctx.eci.engine_instance = atoi(optarg);
+		case 'u':
+			ctx.oa_unit_id = atoi(optarg);
 			break;
 		default:
 			fprintf(stderr, "Internal error: "
