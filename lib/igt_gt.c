@@ -528,6 +528,9 @@ int igt_open_forcewake_handle_for_pcidev(const struct pci_device *pci_dev)
 	char path[PATH_MAX];
 	int dirlen, ret;
 
+	if (getenv("IGT_NO_FORCEWAKE"))
+		return -1;
+
 	if (!debugfs_root)
 		return -ENOENT;
 
