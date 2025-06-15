@@ -806,6 +806,10 @@ partial(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
  * Description: Run %arg[1] system allocator test many times with large allocations
  * Test category: stress test
  *
+ * SUBTEST: many-64k-%s
+ * Description: Run %arg[1] system allocator test many times with large allocations
+ * Test category: stress test
+ *
  * SUBTEST: many-large-execqueues-%s
  * Description: Run %arg[1] system allocator test on many exec_queues with large allocations
  *
@@ -1739,6 +1743,11 @@ igt_main
 		igt_subtest_f("many-large-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 128, SZ_2M, 0, 0, NULL,
+					  NULL, s->flags);
+
+		igt_subtest_f("many-64k-%s", s->name)
+			xe_for_each_engine(fd, hwe)
+				test_exec(fd, hwe, 1, 128, SZ_64K, 0, 0, NULL,
 					  NULL, s->flags);
 
 		igt_subtest_f("many-large-execqueues-%s", s->name)
