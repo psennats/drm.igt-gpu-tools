@@ -74,6 +74,8 @@ static int stream_fd = -1;
 
 static volatile bool child_is_running = true;
 
+static struct drm_xe_query_eu_stall *query_eu_stall_data;
+
 /*
  * EU stall data format for PVC
  */
@@ -510,33 +512,13 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int ite
 		.properties_ptr = to_user_pointer(properties),
 	};
 
-	struct drm_xe_query_eu_stall *query_eu_stall_data;
-	struct drm_xe_device_query query = {
-		.extensions = 0,
-		.query = DRM_XE_DEVICE_QUERY_EU_STALL,
-		.size = 0,
-		.data = 0,
-	};
-
 	igt_info("User buffer size: %u\n", p_user);
 	if (p_args[0])
 		igt_info("Workload: %s\n", p_args[0]);
 	else
 		igt_info("Workload: GPGPU fill\n");
 
-	igt_assert_eq(igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
-	igt_assert_neq(query.size, 0);
-
-	query_eu_stall_data = malloc(query.size);
-	igt_assert(query_eu_stall_data);
-
-	query.data = to_user_pointer(query_eu_stall_data);
-	igt_assert_eq(igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
-
-	igt_assert(query_eu_stall_data->num_sampling_rates > 0);
-	if (p_rate == 0)
-		properties[3] = query_eu_stall_data->sampling_rates[0];
-	igt_info("Sampling Rate: %" PRIu64 "\n", properties[3]);
+	igt_info("Sampling Rate: %u\n", p_rate);
 
 	stream_fd = eu_stall_open(drm_fd, &props);
 
@@ -664,18 +646,42 @@ static struct option long_options[] = {
 
 igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 {
-	int drm_fd;
+	bool blocking_read = true;
+	int drm_fd, ret;
 	uint32_t devid;
 	struct stat sb;
-	bool blocking_read = true;
+	struct drm_xe_device_query query = {
+		.extensions = 0,
+		.query = DRM_XE_DEVICE_QUERY_EU_STALL,
+		.size = 0,
+		.data = 0,
+	};
 
 	igt_fixture {
 		drm_fd = drm_open_driver(DRIVER_XE);
 		igt_require_fd(drm_fd);
 		devid = intel_get_drm_devid(drm_fd);
-		igt_require(IS_PONTEVECCHIO(devid) || intel_graphics_ver(devid) >= IP_VER(20, 0));
+
 		igt_require_f(igt_get_gpgpu_fillfunc(devid), "no gpgpu-fill function\n");
 		igt_require_f(!stat(OBSERVATION_PARANOID, &sb), "no observation_paranoid file\n");
+
+		ret = igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query);
+		igt_skip_on_f(ret == -1 && errno == ENODEV,
+			      "EU stall monitoring is not available on this platform\n");
+		igt_skip_on_f(ret == -1 && errno == EINVAL,
+			      "EU stall monitoring is not supported in the driver\n");
+		igt_assert_neq(query.size, 0);
+
+		query_eu_stall_data = malloc(query.size);
+		igt_assert(query_eu_stall_data);
+
+		query.data = to_user_pointer(query_eu_stall_data);
+		igt_assert_eq(igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+		igt_assert(query_eu_stall_data->num_sampling_rates > 0);
+		if (p_rate == 0)
+			p_rate = query_eu_stall_data->sampling_rates[0];
+
 		if (output_file) {
 			output = fopen(output_file, "w");
 			igt_require(output);
