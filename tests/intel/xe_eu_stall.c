@@ -65,6 +65,7 @@
 static FILE *output;
 static char *p_args[8];
 static char *output_file;
+static uint8_t *user_buf;
 static uint8_t p_gt_id;
 static uint32_t p_rate;
 static uint32_t p_user = DEFAULT_USER_BUF_SIZE;
@@ -497,7 +498,6 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int ite
 	struct sigaction sa = { 0 };
 	int ret, flags;
 	uint64_t total_size;
-	uint8_t *buf;
 
 	uint64_t properties[] = {
 		DRM_XE_EU_STALL_PROP_GT_ID, p_gt_id,
@@ -523,9 +523,6 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int ite
 		igt_info("Workload: %s\n", p_args[0]);
 	else
 		igt_info("Workload: GPGPU fill\n");
-
-	buf = malloc(p_user);
-	igt_assert(buf);
 
 	igt_assert_eq(igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 	igt_assert_neq(query.size, 0);
@@ -583,11 +580,11 @@ enable:
 			igt_assert_eq(ret, 1);
 			igt_assert(pollfd.revents & POLLIN);
 		}
-		ret = read(stream_fd, buf, p_user);
+		ret = read(stream_fd, user_buf, p_user);
 		if (ret > 0) {
 			total_size += ret;
 			if (output)
-				print_eu_stall_data(devid, buf, ret);
+				print_eu_stall_data(devid, user_buf, ret);
 			num_samples += ret / query_eu_stall_data->record_size;
 		} else if ((ret < 0) && (errno != EAGAIN)) {
 			if (errno == EINTR)
@@ -602,20 +599,21 @@ enable:
 		}
 	} while (child_is_running);
 
+	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
+
 	igt_info("Total size read: %" PRIu64 "\n", total_size);
 	igt_info("Number of samples: %u\n", num_samples);
 	igt_info("Number of drops reported: %u\n", num_drops);
 
 	ret = wait_child(&work_load);
 	igt_assert_f(ret == 0, "waitpid() - ret: %d, errno: %d\n", ret, errno);
-	igt_assert_f(num_samples, "No EU stalls detected during the workload\n");
+	if (!igt_run_in_simulation())
+		igt_assert_f(num_samples, "No EU stalls detected during the workload\n");
 
-	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_DISABLE, 0);
 	if (--iter)
 		goto enable;
 
 	eu_stall_close(stream_fd);
-	free(buf);
 }
 
 static int opt_handler(int opt, int opt_index, void *data)
@@ -682,6 +680,8 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 			output = fopen(output_file, "w");
 			igt_require(output);
 		}
+		user_buf = malloc(p_user);
+		igt_assert(user_buf);
 	}
 
 	igt_describe("Verify non-blocking read of EU stall data during a workload run");
@@ -721,6 +721,7 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 		test_invalid_event_report_count(drm_fd);
 
 	igt_fixture {
+		free(user_buf);
 		if (output)
 			fclose(output);
 		drm_close_driver(drm_fd);
