@@ -69,6 +69,7 @@ static uint8_t p_gt_id;
 static uint32_t p_rate;
 static uint32_t p_user = DEFAULT_USER_BUF_SIZE;
 static uint32_t p_num_reports = DEFAULT_NUM_REPORTS;
+static int stream_fd = -1;
 
 static volatile bool child_is_running = true;
 
@@ -302,6 +303,25 @@ static void set_fd_flags(int fd, int flags)
 	igt_assert_eq(0, fcntl(fd, F_SETFL, old | flags));
 }
 
+static void eu_stall_close(int fd)
+{
+	close(fd);
+	stream_fd = -1;
+}
+
+static int eu_stall_open(int drm_fd, struct xe_eu_stall_open_prop *props)
+{
+	int ret;
+
+	if (stream_fd >= 0)
+		eu_stall_close(stream_fd);
+
+	ret = xe_eu_stall_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, props);
+	igt_assert_fd(ret);
+
+	return ret;
+}
+
 /*
  * Verify that tests with invalid arguments fail.
  */
@@ -353,7 +373,11 @@ static inline void disable_paranoid(void)
  */
 static void test_non_privileged_access(int drm_fd)
 {
-	int paranoid, stream_fd;
+	int paranoid;
+
+	/* Close any open stream fd before fork() */
+	if (stream_fd >= 0)
+		eu_stall_close(stream_fd);
 
 	paranoid = read_u64_file(OBSERVATION_PARANOID);
 
@@ -395,9 +419,8 @@ static void test_non_privileged_access(int drm_fd)
 
 		igt_drop_root();
 
-		stream_fd = xe_eu_stall_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &props);
-		igt_require_fd(stream_fd);
-		close(stream_fd);
+		stream_fd = eu_stall_open(drm_fd, &props);
+		eu_stall_close(stream_fd);
 	}
 
 	igt_waitchildren();
@@ -472,7 +495,7 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int ite
 	uint32_t num_samples, num_drops;
 	struct igt_helper_process work_load = {};
 	struct sigaction sa = { 0 };
-	int ret, flags, stream_fd;
+	int ret, flags;
 	uint64_t total_size;
 	uint8_t *buf;
 
@@ -518,8 +541,7 @@ static void test_eustall(int drm_fd, uint32_t devid, bool blocking_read, int ite
 		properties[3] = query_eu_stall_data->sampling_rates[0];
 	igt_info("Sampling Rate: %" PRIu64 "\n", properties[3]);
 
-	stream_fd = xe_eu_stall_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &props);
-	igt_require_fd(stream_fd);
+	stream_fd = eu_stall_open(drm_fd, &props);
 
 	if (!blocking_read)
 		flags = O_CLOEXEC | O_NONBLOCK;
@@ -592,7 +614,7 @@ enable:
 	if (--iter)
 		goto enable;
 
-	close(stream_fd);
+	eu_stall_close(stream_fd);
 	free(buf);
 }
 
