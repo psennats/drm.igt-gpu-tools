@@ -442,7 +442,8 @@ static void exec_store(int fd, struct drm_xe_engine_class_instance *eci,
 	vm = xe_vm_create(fd, 0, 0);
 	exec_queue = xe_exec_queue_create(fd, vm, eci, 0);
 	bb_size = xe_bb_size(fd, sizeof(*data));
-	bb = xe_bo_create(fd, vm, bb_size, vram_if_possible(fd, eci->gt_id), 0);
+	bb = xe_bo_create(fd, vm, bb_size, vram_if_possible(fd, eci->gt_id),
+			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	bb_addr = intel_allocator_alloc_with_strategy(ahnd, bb, bb_size, 0,
 						      ALLOC_STRATEGY_LOW_TO_HIGH);
 	data = xe_bo_map(fd, bb, bb_size);

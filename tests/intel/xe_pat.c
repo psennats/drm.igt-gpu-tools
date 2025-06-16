@@ -582,7 +582,8 @@ static void prime_self_import_coh(void)
 	fd1 = drm_open_driver(DRIVER_XE);
 	fd2 = drm_open_driver(DRIVER_XE);
 
-	dst_handle = xe_bo_create_caching(fd1, 0, size, all_memory_regions(fd1), 0,
+	dst_handle = xe_bo_create_caching(fd1, 0, size, all_memory_regions(fd1),
+					  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
 					  DRM_XE_GEM_CPU_CACHING_WC);
 
 	dma_buf_fd = prime_handle_to_fd(fd1, dst_handle);

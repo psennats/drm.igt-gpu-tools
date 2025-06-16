@@ -362,7 +362,7 @@ static void block_copy(int xe,
 	uint8_t uc_mocs = intel_get_uc_mocs_index(xe);
 	int result;
 
-	bb = xe_bo_create(xe, 0, bb_size, region1, 0);
+	bb = xe_bo_create(xe, 0, bb_size, region1, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	if (!blt_uses_extended_block_copy(xe))
 		pext = NULL;
@@ -497,7 +497,7 @@ static void block_multicopy(int xe,
 	uint8_t uc_mocs = intel_get_uc_mocs_index(xe);
 	int result;
 
-	bb = xe_bo_create(xe, 0, bb_size, region1, 0);
+	bb = xe_bo_create(xe, 0, bb_size, region1, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	if (!blt_uses_extended_block_copy(xe))
 		pext3 = NULL;
@@ -593,7 +593,7 @@ static void block_copy_large(int xe,
 	bool result = true;
 	int i;
 
-	bb = xe_bo_create(xe, 0, bb_size, region1, 0);
+	bb = xe_bo_create(xe, 0, bb_size, region1, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	if (!blt_uses_extended_block_copy(xe))
 		pext = NULL;

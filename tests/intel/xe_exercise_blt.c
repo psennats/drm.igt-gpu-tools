@@ -133,7 +133,7 @@ static void fast_copy_emit(int xe, const intel_ctx_t *ctx,
 	uint32_t bb;
 	int result;
 
-	bb = xe_bo_create(xe, 0, bb_size, region1, 0);
+	bb = xe_bo_create(xe, 0, bb_size, region1, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	blt_copy_init(xe, &bltinit);
 	src = blt_create_object(&bltinit, region1, width, height, bpp, 0,
@@ -192,7 +192,7 @@ static void fast_copy(int xe, const intel_ctx_t *ctx,
 	uint32_t bb;
 	int result;
 
-	bb = xe_bo_create(xe, 0, bb_size, region1, 0);
+	bb = xe_bo_create(xe, 0, bb_size, region1, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	blt_copy_init(xe, &blt);
 	src = blt_create_object(&blt, region1, width, height, bpp, 0,

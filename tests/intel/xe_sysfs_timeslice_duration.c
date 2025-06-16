@@ -76,7 +76,8 @@ static uint64_t __test_timeout(int fd, int engine, unsigned int timeout, uint16_
 	exec_queues[0] = xe_exec_queue_create(fd, vm[0], hwe, 0);
 	exec_queues[1] = xe_exec_queue_create(fd, vm[1], hwe, 0);
 	bo_size = xe_bb_size(fd, sizeof(*spin));
-	bo[0] = xe_bo_create(fd, vm[0], bo_size, vram_if_possible(fd, 0), 0);
+	bo[0] = xe_bo_create(fd, vm[0], bo_size, vram_if_possible(fd, 0),
+			     DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	spin[0] = xe_bo_map(fd, bo[0], bo_size);
 	xe_vm_bind_async(fd, vm[0], 0, bo[0], 0, addr1, bo_size, &sync, 1);
 	xe_spin_init_opts(spin[0], .addr = addr1, .preempt = false);
@@ -85,7 +86,8 @@ static uint64_t __test_timeout(int fd, int engine, unsigned int timeout, uint16_
 	xe_exec(fd, &exec);
 	xe_spin_wait_started(spin[0]);
 
-	bo[1] = xe_bo_create(fd, vm[1], bo_size, vram_if_possible(fd, 0), 0);
+	bo[1] = xe_bo_create(fd, vm[1], bo_size, vram_if_possible(fd, 0),
+			     DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	spin[1] = xe_bo_map(fd, bo[1], bo_size);
 	xe_vm_bind_sync(fd, vm[1], bo[1], 0, addr2, bo_size);
 	xe_spin_init_opts(spin[1], .addr = addr2);

@@ -98,7 +98,7 @@ mem_copy(int fd, uint32_t src_handle, uint32_t dst_handle, const intel_ctx_t *ct
 	igt_debug("size: %u, pitch: %u, width: %u, height: %u (type: %d, mode: %d)\n",
 		  size, pitch, width, height, type, mode);
 
-	bb = xe_bo_create(fd, 0, bb_size, region, 0);
+	bb = xe_bo_create(fd, 0, bb_size, region, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	blt_mem_copy_init(fd, &mem, mode, type);
 	mem.print_bb = param.print_bb;
@@ -185,7 +185,7 @@ mem_set(int fd, uint32_t dst_handle, const intel_ctx_t *ctx, uint32_t size,
 	uint32_t bb;
 	uint8_t *result;
 
-	bb = xe_bo_create(fd, 0, bb_size, region, 0);
+	bb = xe_bo_create(fd, 0, bb_size, region, DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	blt_mem_set_init(fd, &mem, TYPE_LINEAR);
 	blt_set_mem_object(&mem.dst, dst_handle, size, width, width, height, region,
 			   dst_mocs, DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
@@ -217,8 +217,10 @@ static void copy_test(int fd, struct rect *rect, enum blt_cmd_type cmd, uint32_t
 	uint32_t bo_size = ALIGN(blocksize * rect->height, xe_get_default_alignment(fd));
 	intel_ctx_t *ctx;
 
-	src_handle = xe_bo_create(fd, 0, bo_size, region, 0);
-	dst_handle = xe_bo_create(fd, 0, bo_size, region, 0);
+	src_handle = xe_bo_create(fd, 0, bo_size, region,
+				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	dst_handle = xe_bo_create(fd, 0, bo_size, region,
+				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	vm = xe_vm_create(fd, 0, 0);
 	exec_queue = xe_exec_queue_create(fd, vm, &inst, 0);
 	ctx = intel_ctx_xe(fd, vm, exec_queue, 0, 0, 0);
