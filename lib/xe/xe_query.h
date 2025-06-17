@@ -36,7 +36,7 @@ struct xe_device {
 	/** @gt_list: gt info */
 	struct drm_xe_query_gt_list *gt_list;
 
-	/** @gt_list: bitmask of all memory regions */
+	/** @memory_regions: bitmask of all memory regions */
 	uint64_t memory_regions;
 
 	/** @engines: hardware engines */
