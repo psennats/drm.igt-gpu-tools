@@ -1,11 +1,12 @@
-FROM fedora:33
+FROM fedora:42
 
 RUN dnf install -y \
 	gcc flex bison libatomic meson ninja-build xdotool \
+	'pkgconfig(libcurl)' \
 	'pkgconfig(libdrm)' \
 	'pkgconfig(pciaccess)' \
 	'pkgconfig(libkmod)' \
-	'pkgconfig(libprocps)' \
+	'pkgconfig(libproc2)' \
 	'pkgconfig(libunwind)' \
 	'pkgconfig(libdw)' \
 	'pkgconfig(pixman-1)' \
