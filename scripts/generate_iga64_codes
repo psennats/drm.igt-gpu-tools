@@ -29,17 +29,17 @@ while getopts ':i:o:' opt; do
     case $opt in
     i) INPUT=$OPTARG;;
     o) OUTPUT=$OPTARG;;
-    ?) die "Usage: $0 -i pre-generated-iga64-file -o generated-iga64-file libs-with-iga64-assembly [...]"
+    ?) die "Usage: $0 -i pre-generated-iga64-file -o generated-iga64-file obj-with-iga64-assembly [...]"
     esac
 done
-LIBS=${@:OPTIND}
+OBJ=${@:OPTIND}
 
 # read all assemblies into ASMS array
 ASMS=()
 while  read -d $'\0' asm; do
     test -z "$asm" && continue
     ASMS+=( "$asm" )
-done < <(for f in $LIBS; do objcopy --dump-section .iga64_assembly=/dev/stdout $f.p/*.o /dev/null; done)
+done < <(objcopy --dump-section .iga64_assembly=/dev/stdout $OBJ /dev/null)
 
 # check if we need to recompile - checksum difference and compiler present
 MD5_ASMS="$(md5sum <<< "$(< $IGT_SRCDIR/lib/iga64_macros.h) ${ASMS[@]}" | cut -b1-32)"
@@ -47,13 +47,13 @@ MD5_PRE="$(grep -Po '(?<=^#define MD5_SUM_IGA64_ASMS )\S{32,32}' $INPUT 2>/dev/n
 
 if [ "$MD5_ASMS" = "$MD5_PRE" ]; then
     echo "iga64 assemblies not changed, reusing pre-compiled file $INPUT."
-    cp $INPUT $OUTPUT
+    cp -p $INPUT $OUTPUT
     exit 0
 fi
 
 type iga64 >/dev/null || {
     warn "WARNING: iga64 assemblies changed, but iga64 compiler not present, CHANGES will have no effect. Install iga64 (libigc-tools package) to re-compile code."
-    cp $INPUT $OUTPUT
+    cp -p $INPUT $OUTPUT
     exit 0
 }
 
@@ -67,7 +67,7 @@ for gen in $GEN_VERSIONS; do
     gen_name="${gen#*:}"
     iga64 -p=$gen_name -d $WD/empty 2>/dev/null || {
         warn "WARNING: iga64 assemblies changed, but iga64 compiler does not support platform '$gen_name', CHANGES will have no effect. Update iga64 (libigc-tools package) to re-compile code."
-        cp $INPUT $OUTPUT
+        cp -p $INPUT $OUTPUT
         exit 0
     }
 done
@@ -127,4 +127,4 @@ for asm in "${ASMS[@]}"; do
     echo -e "\t{ .gen_ver = $cur_ver, .size = $(dword_count "$cur_code"), .code = (const uint32_t []) {\n$cur_code\n\t}}\n};" >>$OUTPUT
 done
 
-cp $OUTPUT $INPUT
+cp -vp $OUTPUT $INPUT
