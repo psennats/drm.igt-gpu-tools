@@ -46,7 +46,7 @@ void (*test_to_run)(void) = NULL;
  */
 #define CHECK_NEG(x) { \
 	igt_subtest_f("XFAIL_simple_%d", __LINE__) { \
-		(*exec_before)++; \
+		(*(volatile int *)(exec_before))++; \
 		x; \
 		raise(SIGBUS); \
 	} \
