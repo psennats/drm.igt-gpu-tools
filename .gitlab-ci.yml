@@ -76,8 +76,8 @@ build:tests-fedora:
   script:
     - meson setup --prefix=/opt/igt $MESON_OPTIONS build
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} || ninja -C build -j 1
-    - DESTDIR="$PWD/installdir" ninja -C build install
     - ninja -C build -j${FDO_CI_CONCURRENT:-4} igt-gpu-tools-doc
+    - DESTDIR="$PWD/installdir" ninja -C build install
   artifacts:
     paths:
       - build
