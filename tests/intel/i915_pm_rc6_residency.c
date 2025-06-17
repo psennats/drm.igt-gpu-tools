@@ -617,6 +617,8 @@ igt_main
 
 		igt_require_gem(i915);
 		gem_quiescent_gpu(i915);
+		igt_require_f(i915_is_slpc_enabled(i915),
+			      "This test can only be conducted if SLPC is enabled\n");
 
 		s_dirfd = igt_sysfs_gt_open(i915, 0);
 		stash_min = get_freq(s_dirfd, RPS_MIN_FREQ_MHZ);
