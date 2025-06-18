@@ -37,7 +37,7 @@ Building
 
 Oneliner to get started:
 
-    $ meson build && ninja -C build
+    $ meson setup build && ninja -C build
 
 Note that meson insist on separate build directories from the source tree.
 
