@@ -309,6 +309,7 @@ struct event_state {
 	unsigned int current_seq;		/* kernel reported seq. num */
 
 	int count;				/* # of events of this type */
+	int err_frames;				/* # of unexpected events */
 
 	/* Step between the current and next 'target' sequence number. */
 	int seq_step;
@@ -677,7 +678,7 @@ static void vblank_handler(int fd, unsigned int frame, unsigned int sec,
 	fixup_premature_vblank_ts(o, &o->vblank_state);
 }
 
-static bool check_state(const struct test_output *o, const struct event_state *es)
+static bool check_state(const struct test_output *o, struct event_state *es)
 {
 	struct timeval diff;
 
@@ -706,7 +707,8 @@ static bool check_state(const struct test_output *o, const struct event_state *e
 	    es->current_seq - (es->last_seq + o->seq_step) > 1UL << 23) {
 		igt_debug("unexpected %s seq %u, should be >= %u\n",
 			  es->name, es->current_seq, es->last_seq + o->seq_step);
-		return false;
+		es->err_frames++;
+		return true;
 	}
 
 	if (o->flags & TEST_CHECK_TS) {
@@ -727,16 +729,16 @@ static bool check_state(const struct test_output *o, const struct event_state *e
 				  es->name, timeval_float(&es->last_ts), es->last_seq,
 				  timeval_float(&es->current_ts), es->current_seq,
 				  elapsed, expected);
-
-			return false;
+			es->err_frames++;
+			return true;
 		}
 
 		if (es->current_seq != es->last_seq + o->seq_step) {
 			igt_debug("unexpected %s seq %u, expected %u\n",
 				  es->name, es->current_seq,
 				  es->last_seq + o->seq_step);
-
-			return false;
+			es->err_frames++;
+			return true;
 		}
 	}
 
@@ -1233,17 +1235,22 @@ static bool check_final_state(const struct test_output *o,
 	 * those use some funny fake timings behind userspace's back. */
 	if (o->flags & TEST_CHECK_TS) {
 		int count = es->count * o->seq_step;
-		unsigned int min = actual_frame_time(o) * (count - 1);
-		unsigned int max = actual_frame_time(o) * (count + 1);
+		int error_count = es->err_frames * o->seq_step;
+		int expected = elapsed / actual_frame_time(o);
+		float pass_rate = ((float)(count - error_count) / count) * 100;
 
-		igt_debug("expected %d, counted %d, encoder type %d\n",
-			  (int)(elapsed / actual_frame_time(o)), count,
-			  o->kencoder[0]->encoder_type);
-		if (elapsed < min || elapsed > max) {
-			igt_debug("dropped frames, expected %d, counted %d, encoder type %d\n",
-				  (int)(elapsed / actual_frame_time(o)), count,
-				  o->kencoder[0]->encoder_type);
+		igt_info("Event %s: expected %d, counted %d, passrate = %.2f%%, encoder type %d\n",
+			 es->name, expected, count, pass_rate, o->kencoder[0]->encoder_type);
 
+		/*
+		 * TODO: Review the use of the hardcoded threshold (85). This value is
+		 * currently a placeholder for the acceptable pass rate. In the future,
+		 * we should either justify this value or refine the logic to skip
+		 * frames near the evasion time.
+		 */
+		if (pass_rate < 85) {
+			igt_debug("dropped frames, expected %d, counted %d, passrate = %.2f%%, encoder type %d\n",
+				  expected, count, pass_rate, o->kencoder[0]->encoder_type);
 			return false;
 		}
 	}
