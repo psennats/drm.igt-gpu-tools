@@ -282,6 +282,8 @@ static drmModeConnector *last_connector;
 
 uint32_t *fb_ptr;
 
+static igt_display_t display;
+
 struct type_name {
 	int type;
 	const char *name;
@@ -1533,7 +1535,15 @@ restart:
 	if (o->flags & TEST_PAN)
 		o->fb_width *= 2;
 
-	modifier = DRM_FORMAT_MOD_LINEAR;
+	if (igt_display_has_format_mod(&display, DRM_FORMAT_XRGB8888,
+				       I915_FORMAT_MOD_4_TILED))
+		modifier = I915_FORMAT_MOD_4_TILED;
+	else if (igt_display_has_format_mod(&display, DRM_FORMAT_XRGB8888,
+					    I915_FORMAT_MOD_X_TILED))
+		modifier = I915_FORMAT_MOD_X_TILED;
+	else
+		modifier = DRM_FORMAT_MOD_LINEAR;
+
 	if (o->flags & TEST_FENCE_STRESS)
 		modifier = I915_FORMAT_MOD_X_TILED;
 
@@ -2034,7 +2044,6 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 		{ 0, TEST_BO_TOOBIG | TEST_NO_2X_OUTPUT, "bo-too-big" },
 		{ 10, TEST_FLIP | TEST_SUSPEND, "flip-vs-suspend" },
 	};
-	igt_display_t display;
 	int i;
 
 	igt_fixture {
