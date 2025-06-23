@@ -137,7 +137,6 @@ typedef struct {
 	enum pipe pipe;
 	bool alternate_sync_async;
 	bool suspend_resume;
-	bool allow_fail;
 	struct buf_ops *bops;
 	bool atomic_path;
 	bool overlay_path;
@@ -436,7 +435,7 @@ static void test_async_flip(data_t *data)
 		 * configuration. Therefore allow EINVAL failure and skip the
 		 * test for AMD devices.
 		 */
-		if ((frame == 1 && data->allow_fail) || is_amdgpu_device(data->drm_fd))
+		if (is_amdgpu_device(data->drm_fd))
 			igt_skip_on(ret == -EINVAL);
 		else
 			igt_assert_eq(ret, 0);
@@ -821,12 +820,6 @@ static void run_test(data_t *data, void (*test)(data_t *))
 			continue;
 
 		test_init(data);
-
-		if (data->linear_modifier && is_intel_device(data->drm_fd))
-			data->allow_fail = true;
-		else
-			data->allow_fail = false;
-
 		data->modifier = data->linear_modifier ? DRM_FORMAT_MOD_LINEAR : default_modifier(data);
 
 		igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(data->pipe), data->output->name) {
