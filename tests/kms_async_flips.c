@@ -805,6 +805,23 @@ static void test_crc(data_t *data)
 	igt_assert_lt(data->frame_count * 2, data->flip_count);
 }
 
+static void require_linear_modifier(data_t *data)
+{
+	if(!igt_plane_has_prop(data->plane, IGT_PLANE_IN_FORMATS_ASYNC)) {
+		data->modifier = DRM_FORMAT_MOD_LINEAR;
+		return;
+	}
+
+	for (int i = 0; i < data->plane->async_format_mod_count; i++) {
+		if (data->plane->async_modifiers[i] == DRM_FORMAT_MOD_LINEAR) {
+			data->modifier = DRM_FORMAT_MOD_LINEAR;
+			return;
+		}
+	}
+
+	igt_skip("Linear modifier not supported for async flips on this platform\n");
+}
+
 static void run_test(data_t *data, void (*test)(data_t *))
 {
 	igt_display_t *display = &data->display;
@@ -820,7 +837,11 @@ static void run_test(data_t *data, void (*test)(data_t *))
 			continue;
 
 		test_init(data);
-		data->modifier = data->linear_modifier ? DRM_FORMAT_MOD_LINEAR : default_modifier(data);
+
+		if (data->linear_modifier)
+			require_linear_modifier(data);
+		else
+			data->modifier = default_modifier(data);
 
 		igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(data->pipe), data->output->name) {
 			/*
