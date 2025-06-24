@@ -24,8 +24,8 @@
  */
 #ifndef AMD_COMPUTE_H
 #define AMD_COMPUTE_H
+#include "amd_ip_blocks.h"
 
-
-void amdgpu_command_submission_compute_nop(amdgpu_device_handle device, bool user_queue);
+void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_block_type type,  bool user_queue);
 
 #endif

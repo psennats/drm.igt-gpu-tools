@@ -116,7 +116,7 @@ static void amdgpu_command_submission_compute(amdgpu_device_handle device, bool 
 						     get_ip_block(device, AMDGPU_HW_IP_COMPUTE),
 						     user_queue);
 	/* nop test */
-	amdgpu_command_submission_compute_nop(device, user_queue);
+	amdgpu_command_submission_nop(device, AMDGPU_HW_IP_COMPUTE, user_queue);
 }
 
 /**

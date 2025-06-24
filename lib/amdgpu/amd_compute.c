@@ -32,7 +32,7 @@
  * @param device
  * @param user_queue
  */
-void amdgpu_command_submission_compute_nop(amdgpu_device_handle device, bool user_queue)
+void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_block_type type, bool user_queue)
 {
 	amdgpu_context_handle context_handle;
 	amdgpu_bo_handle ib_result_handle;
@@ -57,7 +57,7 @@ void amdgpu_command_submission_compute_nop(amdgpu_device_handle device, bool use
 	igt_assert_eq(r, 0);
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device, ring_context, AMD_IP_COMPUTE);
+		amdgpu_user_queue_create(device, ring_context, type);
 	} else {
 		r = amdgpu_cs_ctx_create(device, &context_handle);
 		igt_assert_eq(r, 0);
@@ -90,7 +90,7 @@ void amdgpu_command_submission_compute_nop(amdgpu_device_handle device, bool use
 		ring_context->pm4_dw = 16;
 
 		if (user_queue) {
-			amdgpu_user_queue_submit(device, ring_context, AMD_IP_COMPUTE,
+			amdgpu_user_queue_submit(device, ring_context, type,
 						 ib_result_mc_address);
 		} else {
 			memset(&ib_info, 0, sizeof(struct amdgpu_cs_ib_info));
@@ -128,7 +128,7 @@ void amdgpu_command_submission_compute_nop(amdgpu_device_handle device, bool use
 	}
 
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device, ring_context, AMD_IP_COMPUTE);
+		amdgpu_user_queue_destroy(device, ring_context, type);
 	} else {
 		r = amdgpu_cs_ctx_free(context_handle);
 		igt_assert_eq(r, 0);
