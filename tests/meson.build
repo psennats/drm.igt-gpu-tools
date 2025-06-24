@@ -13,6 +13,7 @@ test_progs = [
 	'drm_buddy',
 	'drm_mm',
 	'drm_read',
+	'drm_virtgpu',
 	'fbdev',
 	'kms_3d',
 	'kms_addfb_basic',
