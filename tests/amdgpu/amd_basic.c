@@ -136,6 +136,8 @@ static void amdgpu_command_submission_sdma(amdgpu_device_handle device, bool use
 	amdgpu_command_submission_copy_linear_helper(device,
 						     get_ip_block(device, AMDGPU_HW_IP_DMA),
 						     user_queue);
+	/* nop test */
+	amdgpu_command_submission_nop(device, AMDGPU_HW_IP_DMA, user_queue);
 }
 
 /**
@@ -813,6 +815,14 @@ igt_main
 		if (userq_arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("sync-dependency-test-with-umq")
 			amdgpu_sync_dependency_test(device, true);
+		}
+	}
+
+	igt_describe("Check-DMA-CS-for-every-available-ring-works-for-write-const-fill-copy-operation");
+	igt_subtest_with_dynamic("cs-sdma-with-IP-DMA-UMQ") {
+		if (userq_arr_cap[AMD_IP_DMA]) {
+			igt_dynamic_f("cs-sdma-with-umq")
+			amdgpu_command_submission_sdma(device, true);
 		}
 	}
 #endif
