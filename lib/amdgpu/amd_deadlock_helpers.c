@@ -101,8 +101,14 @@ amdgpu_wait_memory(amdgpu_device_handle device_handle, unsigned int ip_type, uin
 
 	base_cmd->emit(base_cmd, 0);/* reference value */
 	base_cmd->emit(base_cmd, 0xffffffff); /* and mask */
-	base_cmd->emit(base_cmd, 0x00000004);/* poll interval */
-	base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP, 16 - base_cmd->cdw);
+
+	if (ip_type == AMDGPU_HW_IP_DMA) {
+		base_cmd->emit(base_cmd, 0x0fff0004);/* poll interval and infinite retry */
+		base_cmd->emit_repeat(base_cmd, SDMA_NOP, 16 - base_cmd->cdw);
+	} else {
+		base_cmd->emit(base_cmd, 0x00000004);/* poll interval */
+		base_cmd->emit_repeat(base_cmd, GFX_COMPUTE_NOP, 16 - base_cmd->cdw);
+	}
 
 	ib_result_cpu2 = ib_result_cpu;
 	ib_result_cpu2[MEMORY_OFFSET] = 0x0; /* the memory we wait on to change */
