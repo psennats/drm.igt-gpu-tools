@@ -321,7 +321,8 @@ static void engine_activity_load_single(int fd, int num_engines,
 		flag[engine_idx] = TEST_IDLE;
 
 		if (eci_->engine_class == eci->engine_class &&
-		    eci_->engine_instance == eci->engine_instance)
+		    eci_->engine_instance == eci->engine_instance &&
+		    eci_->gt_id == eci->gt_id)
 			flag[engine_idx] = TEST_LOAD;
 
 		config = get_event_config(eci_->gt_id, eci_, "engine-active-ticks");
@@ -379,7 +380,8 @@ static void engine_activity_load_most(int fd, int num_engines, struct drm_xe_eng
 		flag[engine_idx] = TEST_LOAD;
 
 		if (eci_->engine_class == eci->engine_class &&
-		    eci_->engine_instance == eci->engine_instance) {
+		    eci_->engine_instance == eci->engine_instance &&
+		    eci_->gt_id == eci->gt_id) {
 			flag[engine_idx] = TEST_IDLE;
 			cork[engine_idx] = NULL;
 		} else {
