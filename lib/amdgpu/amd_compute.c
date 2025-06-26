@@ -25,6 +25,7 @@
 #include "amd_PM4.h"
 #include "amd_memory.h"
 #include "amd_compute.h"
+#include "amd_sdma.h"
 #include "amd_userq.h"
 
 /**
@@ -53,7 +54,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	ring_context = calloc(1, sizeof(*ring_context));
 	igt_assert(ring_context);
 
-	r = amdgpu_query_hw_ip_info(device, AMDGPU_HW_IP_COMPUTE, 0, &info);
+	r = amdgpu_query_hw_ip_info(device, type, 0, &info);
 	igt_assert_eq(r, 0);
 
 	if (user_queue) {
@@ -86,7 +87,10 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 
 		ptr = ib_result_cpu;
 		memset(ptr, 0, 16);
-		ptr[0] = PACKET3(PACKET3_NOP, 14);
+		if (type == AMDGPU_HW_IP_DMA)
+			ptr[0] = SDMA_NOP;
+		else
+			ptr[0] = PACKET3(PACKET3_NOP, 14);
 		ring_context->pm4_dw = 16;
 
 		if (user_queue) {
@@ -98,7 +102,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 			ib_info.size = 16;
 
 			memset(&ibs_request, 0, sizeof(struct amdgpu_cs_request));
-			ibs_request.ip_type = AMDGPU_HW_IP_COMPUTE;
+			ibs_request.ip_type = type;
 			ibs_request.ring = instance;
 			ibs_request.number_of_ibs = 1;
 			ibs_request.ibs = &ib_info;
@@ -110,7 +114,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 			igt_assert_eq(r, 0);
 
 			fence_status.context = context_handle;
-			fence_status.ip_type = AMDGPU_HW_IP_COMPUTE;
+			fence_status.ip_type = type;
 			fence_status.ip_instance = 0;
 			fence_status.ring = instance;
 			fence_status.fence = ibs_request.seq_no;
