@@ -1458,7 +1458,7 @@ static bool read_hook_strs_from_file(struct igt_vec *hook_strs, FILE *f)
 
 	buf = malloc(buf_capacity);
 
-	while ((line_length = getline(&line, &line_size, f) != -1)) {
+	while ((line_length = getline(&line, &line_size, f)) != -1) {
 		char *s = line;
 
 		if (buf_len == 0) {
