@@ -40,6 +40,8 @@
  * Description:
  *	Kernel dynamic selftests to check eudebug functionality.
  * Functionality: eudebug kunit
+ * Mega feature: EUdebug
+ * Sub-category: kunit eudebug
  */
 
 static const char *live_tests[] = {
