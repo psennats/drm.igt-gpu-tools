@@ -700,6 +700,12 @@ igt_main
 	int r;
 	bool arr_cap[AMD_IP_MAX] = {0};
 	bool userq_arr_cap[AMD_IP_MAX] = {0};
+#ifdef AMDGPU_USERQ_ENABLED
+	bool enable_test;
+	const char *env = getenv("AMDGPU_DISABLE_USERQTEST");
+
+	enable_test = env && atoi(env);
+#endif
 
 	igt_fixture {
 		uint32_t major, minor;
@@ -820,7 +826,7 @@ igt_main
 
 	igt_describe("Check-DMA-CS-for-every-available-ring-works-for-write-const-fill-copy-operation");
 	igt_subtest_with_dynamic("cs-sdma-with-IP-DMA-UMQ") {
-		if (userq_arr_cap[AMD_IP_DMA]) {
+		if (enable_test && userq_arr_cap[AMD_IP_DMA]) {
 			igt_dynamic_f("cs-sdma-with-umq")
 			amdgpu_command_submission_sdma(device, true);
 		}
