@@ -203,6 +203,8 @@ test_export_dma_buf(struct drm_xe_engine_class_instance *hwe0,
 		xe_spin_end(&data[i]->spin);
 		igt_assert(syncobj_wait(fd[1], &sync[1].handle, 1, INT64_MAX,
 					0, NULL));
+		igt_assert(syncobj_wait(fd[0], &syncobj_signal, 1, INT64_MAX,
+					0, NULL));
 		igt_assert_eq(data[i]->data, 0xc0ffee);
 
 		/* Clean up */
