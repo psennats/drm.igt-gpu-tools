@@ -1286,4 +1286,6 @@ void igt_set_link_params(int drm_fd, igt_output_t *output,
 int igt_backlight_read(int *result, const char *fname, igt_backlight_context_t *context);
 int igt_backlight_write(int value, const char *fname, igt_backlight_context_t *context);
 
+drmModePropertyBlobRes *igt_get_writeback_formats_blob(igt_output_t *output);
+
 #endif /* __IGT_KMS_H__ */
