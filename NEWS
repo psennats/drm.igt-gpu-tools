@@ -1,3 +1,83 @@
+Release 2.01 (2025-06-27)
+-------------------------
+
+General changes:
+
+- Bumped required meson version to 0.52.1 (Andrzej Hajda)
+
+- Added man page for lsgpu. (Peter Senna Tschudin)
+
+Devops changes:
+
+- Improved GitLab CI pipeline. (Andrzej Hajda)
+
+- Bumped Debian version to bullseye and Fedora to latest 42 (Andrzej Hajda)
+
+- Removed MIPS testing (Ryszard Knop and Andrzej Hajda)
+
+Library changes:
+
+- Updated PCI ids for BMG/PTL. (Shekhar Chauhan and Kamil Konieczny)
+
+- Preliminary enablement for Android compilation (Sapna Singh and Jeevaka
+  Prabu Badrappan)
+
+- Improved kernel module un/binding. (Lucas De Marchi and Francois Dugast)
+
+- Added user mode queues UMQ support for amdgpu. (Sunil Khatri)
+
+- Improved Intel GPGPU compute libs. (Francois Dugast and Zbigniew Kempczyński)
+
+- New configfs library. (José Expósito, Jim Shargo, Marius Vlad, Riana Tauro)
+
+- Added PTL support in Xe OA libs. (Sushma Venkatesh Reddy)
+
+- Improved capturing logs for child processes. (Pawel Sikora)
+
+Test changes:
+
+- New test drm_virtgpu for VirtIO-GPU. (Dorinda Bassey)
+
+- New Xe survivability mode testing. (Riana Tauro)
+
+- New amdgpu tests for jpeg and vcn queues. (Ruili Ji)
+
+- New Xe system allocator test. (Matthew Brost).
+
+- Improved Xe fault injection. (Satyanarayana K V P)
+
+- New Xe PXP test. (Daniele Ceraolo Spurio)
+
+- Unified Intel sysfs and debugfs testing. (Peter Senna Tschudin)
+
+- Improved chamelium color test. (Swati Sharma)
+
+- Improved Xe OA testing. (Ashutosh Dixit, Sai Teja Pottumuttu and Umesh
+  Nerlige Ramappa)
+
+- Added dual display subtest in multi plane test. (Karthik B S)
+
+Tools changes:
+
+- New tool intel_hdcp for printing HDCP info on connected outputs. (Santhosh
+  Reddy Guddati)
+
+- Add support for gen10+ devices in intel_gtt (Tomita Moeko)
+
+- Add support for Xe in intel_pm_rpm (Soham Purkait)
+
+Runner changes:
+
+- Use boottime for time checks. (Kamil Konieczny)
+
+Benchmark changes:
+
+- New Xe benchmarks. (Pravalika Gurram)
+
+
+And many other bug fixes, improvements, cleanups and new tests.
+
+
 Release 2.00 (2025-03-13)
 -------------------------
 
