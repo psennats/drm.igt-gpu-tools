@@ -860,6 +860,12 @@ static bool skip_async_format_mod(data_t *data,
 			    uint32_t format, uint64_t modifier,
 			    struct igt_vec *tested_formats)
 {
+	/* test each format "class" only once in non-extended tests */
+	struct format_mod rf = {
+		.format = igt_reduce_format(format),
+		.modifier = modifier,
+	};
+
 	/* igt doesn't know how to sw generate UBWC: */
 	if (is_msm_device(data->drm_fd) &&
 	    modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
@@ -869,12 +875,6 @@ static bool skip_async_format_mod(data_t *data,
 	if (igt_fb_is_gen12_mc_ccs_modifier(modifier) &&
 	    igt_reduce_format(format) == DRM_FORMAT_XRGB2101010)
 		return true;
-
-	/* test each format "class" only once in non-extended tests */
-	struct format_mod rf = {
-		.format = igt_reduce_format(format),
-		.modifier = modifier,
-	};
 
 	if (igt_vec_index(tested_formats, &rf) >= 0)
 		return true;
