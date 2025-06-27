@@ -54,7 +54,6 @@
 #define MAX_XECORES		64
 #define NUM_ITERS_GPGPU_FILL	100
 #define DEFAULT_NUM_REPORTS	1
-#define DEFAULT_SAMPLE_RATE	(251 * 4)
 #define DEFAULT_USER_BUF_SIZE	(64 * 512 * 1024)
 
 #define WIDTH		64
@@ -346,17 +345,17 @@ static void test_invalid_arguments(int drm_fd, uint8_t gt_id, uint32_t rate, uin
 
 static void test_invalid_gt_id(int fd)
 {
-	test_invalid_arguments(fd, 255, DEFAULT_SAMPLE_RATE, DEFAULT_NUM_REPORTS);
+	test_invalid_arguments(fd, 255, p_rate, DEFAULT_NUM_REPORTS);
 }
 
 static void test_invalid_sampling_rate(int fd)
 {
-	test_invalid_arguments(fd, 0, 251 * 10, DEFAULT_NUM_REPORTS);
+	test_invalid_arguments(fd, 0, p_rate * 10, DEFAULT_NUM_REPORTS);
 }
 
 static void test_invalid_event_report_count(int fd)
 {
-	test_invalid_arguments(fd, 0, DEFAULT_SAMPLE_RATE,
+	test_invalid_arguments(fd, 0, p_rate,
 			       NUM_DATA_ROWS(512 * 1024) * MAX_XECORES + 1);
 }
 
@@ -387,7 +386,7 @@ static void test_non_privileged_access(int drm_fd)
 	igt_fork(child, 1) {
 		uint64_t properties[] = {
 			DRM_XE_EU_STALL_PROP_GT_ID, p_gt_id,
-			DRM_XE_EU_STALL_PROP_SAMPLE_RATE, DEFAULT_SAMPLE_RATE,
+			DRM_XE_EU_STALL_PROP_SAMPLE_RATE, p_rate,
 			DRM_XE_EU_STALL_PROP_WAIT_NUM_REPORTS, p_num_reports,
 		};
 
@@ -409,7 +408,7 @@ static void test_non_privileged_access(int drm_fd)
 	igt_fork(child, 1) {
 		uint64_t properties[] = {
 			DRM_XE_EU_STALL_PROP_GT_ID, p_gt_id,
-			DRM_XE_EU_STALL_PROP_SAMPLE_RATE, DEFAULT_SAMPLE_RATE,
+			DRM_XE_EU_STALL_PROP_SAMPLE_RATE, p_rate,
 			DRM_XE_EU_STALL_PROP_WAIT_NUM_REPORTS, p_num_reports,
 		};
 
@@ -647,7 +646,7 @@ static struct option long_options[] = {
 igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 {
 	bool blocking_read = true;
-	int drm_fd, ret;
+	int drm_fd, ret, idx;
 	uint32_t devid;
 	struct stat sb;
 	struct drm_xe_device_query query = {
@@ -679,8 +678,11 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 		igt_assert_eq(igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
 
 		igt_assert(query_eu_stall_data->num_sampling_rates > 0);
-		if (p_rate == 0)
-			p_rate = query_eu_stall_data->sampling_rates[0];
+		/* If the user doesn't pass a sampling rate, use a mid sampling rate */
+		if (p_rate == 0) {
+			idx = query_eu_stall_data->num_sampling_rates / 2;
+			p_rate = query_eu_stall_data->sampling_rates[idx];
+		}
 
 		if (output_file) {
 			output = fopen(output_file, "w");
