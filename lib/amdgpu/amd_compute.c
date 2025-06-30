@@ -42,7 +42,6 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	struct amdgpu_cs_request ibs_request;
 	struct amdgpu_cs_ib_info ib_info;
 	struct amdgpu_cs_fence fence_status;
-	struct drm_amdgpu_info_hw_ip info;
 	uint32_t *ptr;
 	uint32_t expired;
 	int r, instance;
@@ -54,7 +53,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	ring_context = calloc(1, sizeof(*ring_context));
 	igt_assert(ring_context);
 
-	r = amdgpu_query_hw_ip_info(device, type, 0, &info);
+	r = amdgpu_query_hw_ip_info(device, type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
 
 	if (user_queue) {
@@ -64,7 +63,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 		igt_assert_eq(r, 0);
 	}
 
-	for (instance = 0; info.available_rings & (1 << instance); instance++) {
+	for (instance = 0; ring_context->hw_ip_info.available_rings & (1 << instance); instance++) {
 		r = amdgpu_bo_alloc_and_map_sync(device, 4096, 4096,
 						 AMDGPU_GEM_DOMAIN_GTT, 0,
 						 AMDGPU_VM_MTYPE_UC,
