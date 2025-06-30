@@ -88,6 +88,18 @@ igt_sriov_random_vf_in_range(int pf_fd, unsigned int start, unsigned int end)
 #define for_each_sriov_num_vfs for_each_sriov_vf
 
 /**
+ * for_each_sriov_enabled_vf - Helper for running code on each enabled VF
+ * @__pf_fd: PF device file descriptor
+ * @__vf_num: VFs iterator
+ *
+ * For loop that iterates over all enabled VFs associated with given PF @__pf_fd.
+ */
+#define for_each_sriov_enabled_vf(__pf_fd, __vf_num) \
+	for (unsigned int __vf_num = 1, __enabled_vfs = igt_sriov_get_enabled_vfs(__pf_fd); \
+	     __vf_num <= __enabled_vfs; \
+	     ++__vf_num)
+
+/**
  * for_each_sriov_vf_in_range - Iterate over VFs in a specified range
  * @__pf_fd: PF device file descriptor
  * @__start: Starting VF number in the range
