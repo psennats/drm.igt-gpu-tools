@@ -6,6 +6,7 @@
 #include "amd_userq.h"
 #include "amd_memory.h"
 #include "amd_PM4.h"
+#include "amd_sdma.h"
 #include "ioctl_wrappers.h"
 
 #ifdef AMDGPU_USERQ_ENABLED
@@ -136,22 +137,39 @@ void amdgpu_user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_co
 	uint64_t timeout = ring_context->time_out ? ring_context->time_out : INT64_MAX;
 
 	amdgpu_pkt_begin();
-	/* Prepare the Indirect IB to submit the IB to user queue */
-	amdgpu_pkt_add_dw(PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	amdgpu_pkt_add_dw(lower_32_bits(mc_address));
-	amdgpu_pkt_add_dw(upper_32_bits(mc_address));
 
-	if (ip_type == AMD_IP_GFX)
-		amdgpu_pkt_add_dw(control | S_3F3_INHERIT_VMID_MQD_GFX(1));
-	else
-		amdgpu_pkt_add_dw(control | S_3F3_VALID_COMPUTE(1)
-					       | S_3F3_INHERIT_VMID_MQD_COMPUTE(1));
+	if (ip_type == AMD_IP_DMA) {
+		/* For SDMA, we need to align the IB to 8 DW boundary */
+		unsigned int nop_count = (2 - lower_32_bits(*ring_context->wptr_cpu)) & 7;
+		for (unsigned int i = 0; i < nop_count; i++)
+			amdgpu_pkt_add_dw(SDMA_PKT_HEADER_OP(SDMA_NOP));
+		amdgpu_pkt_add_dw(SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT));
+		amdgpu_pkt_add_dw(lower_32_bits(mc_address) & 0xffffffe0); // 32-byte aligned
+		amdgpu_pkt_add_dw(upper_32_bits(mc_address));
+		amdgpu_pkt_add_dw(control); // IB length in DWORDS
+		amdgpu_pkt_add_dw(lower_32_bits(ring_context->csa.mc_addr)); // CSA MC address low
+		amdgpu_pkt_add_dw(upper_32_bits(ring_context->csa.mc_addr)); // CSA MC address high
+		if (ring_context->hw_ip_info.hw_ip_version_major <= 6)
+			amdgpu_pkt_add_dw(SDMA_PACKET(SDMA_OP_PROTECTED_FENCE, SDMA6_SUB_OP_PROTECTED_FENCE, 0));
+		else
+			amdgpu_pkt_add_dw(SDMA_PACKET(SDMA_OP_PROTECTED_FENCE, SDMA7_SUB_OP_PROTECTED_FENCE, 0));
+	} else {
+		/* Prepare the Indirect IB to submit the IB to user queue */
+		amdgpu_pkt_add_dw(PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+		amdgpu_pkt_add_dw(lower_32_bits(mc_address));
+		amdgpu_pkt_add_dw(upper_32_bits(mc_address));
 
-	amdgpu_pkt_add_dw(PACKET3(PACKET3_PROTECTED_FENCE_SIGNAL, 0));
+		if (ip_type == AMD_IP_GFX)
+			amdgpu_pkt_add_dw(control | S_3F3_INHERIT_VMID_MQD_GFX(1));
+		else
+			amdgpu_pkt_add_dw(control | S_3F3_VALID_COMPUTE(1)
+						| S_3F3_INHERIT_VMID_MQD_COMPUTE(1));
 
-	/* empty dword is needed for fence signal pm4 */
-	amdgpu_pkt_add_dw(0);
+		amdgpu_pkt_add_dw(PACKET3(PACKET3_PROTECTED_FENCE_SIGNAL, 0));
 
+		/* empty dword is needed for fence signal pm4 */
+		amdgpu_pkt_add_dw(0);
+	}
 #if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
 	asm volatile ("mfence" : : : "memory");
 #endif
@@ -163,6 +181,8 @@ void amdgpu_user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_co
 	asm volatile ("mfence" : : : "memory");
 #endif
 
+	if (ip_type == AMD_IP_DMA)
+		*ring_context->wptr_cpu = *ring_context->wptr_cpu <<2;
 	/* Update the door bell */
 	ring_context->doorbell_cpu[DOORBELL_INDEX] = *ring_context->wptr_cpu;
 
