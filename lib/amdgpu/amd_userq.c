@@ -416,6 +416,7 @@ void amdgpu_user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_
 	ctxt->doorbell_cpu = (uint64_t *)ctxt->doorbell.ptr;
 
 	ctxt->wptr_cpu = (uint64_t *)ctxt->wptr.ptr;
+	ctxt->rptr_cpu = (uint64_t *)ctxt->rptr.ptr;
 
 	ctxt->queue_cpu = (uint32_t *)ctxt->queue.ptr;
 	memset(ctxt->queue_cpu, 0, USERMODE_QUEUE_SIZE);

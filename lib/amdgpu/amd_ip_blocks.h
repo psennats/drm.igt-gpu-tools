@@ -166,7 +166,8 @@ struct amdgpu_ring_context {
 	struct  amdgpu_userq_bo eop;
 
 	uint32_t *queue_cpu;
-	uint64_t *wptr_cpu;
+	volatile uint64_t *wptr_cpu;
+	volatile uint64_t *rptr_cpu;
 	uint64_t *doorbell_cpu;
 
 	uint32_t db_handle;
