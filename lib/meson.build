@@ -71,6 +71,7 @@ lib_sources = [
 	'intel_mocs.c',
 	'igt_multigpu.c',
 	'intel_pat.c',
+	'intel_vram.c',
 	'ioctl_wrappers.c',
 	'media_spin.c',
 	'media_fill.c',
