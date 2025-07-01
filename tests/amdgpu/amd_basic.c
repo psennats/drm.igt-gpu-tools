@@ -702,7 +702,7 @@ igt_main
 	bool userq_arr_cap[AMD_IP_MAX] = {0};
 #ifdef AMDGPU_USERQ_ENABLED
 	bool enable_test;
-	const char *env = getenv("AMDGPU_DISABLE_USERQTEST");
+	const char *env = getenv("AMDGPU_ENABLE_USERQTEST");
 
 	enable_test = env && atoi(env);
 #endif
