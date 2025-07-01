@@ -11,6 +11,7 @@
 #include "igt_device.h"
 #include "igt_sriov_device.h"
 #include "intel_chipset.h"
+#include "intel_vram.h"
 #include "linux_scaffold.h"
 #include "xe/xe_mmio.h"
 #include "xe/xe_query.h"
@@ -677,94 +678,28 @@ struct lmem_data {
 	size_t *vf_lmem_size;
 };
 
-struct lmem_info {
-	/* pointer to the mapped area */
-	char *addr;
-	/* size of mapped area */
-	size_t size;
-};
-
 const size_t STEP = SZ_1M;
 
-static void *mmap_vf_lmem(int pf_fd, int vf_num, size_t length, int prot, off_t offset)
+static bool lmem_write_pattern(struct vram_mapping *m, uint8_t value, size_t start, size_t step)
 {
-	int open_flags = ((prot & PROT_WRITE) != 0) ? O_RDWR : O_RDONLY;
-	struct stat st;
-	int sysfs, fd;
-	void *addr;
+	uint8_t read;
 
-	sysfs = igt_sriov_device_sysfs_open(pf_fd, vf_num);
-	if (sysfs < 0) {
-		igt_debug("Failed to open sysfs for VF%d: %s\n", vf_num, strerror(errno));
-		return NULL;
-	}
-
-	fd = openat(sysfs, "resource2", open_flags | O_SYNC);
-	close(sysfs);
-	if (fd < 0) {
-		igt_debug("Failed to open resource2 for VF%d: %s\n", vf_num, strerror(errno));
-		return NULL;
-	}
-
-	if (fstat(fd, &st)) {
-		igt_debug("Failed to stat resource2 for VF%d: %s\n", vf_num, strerror(errno));
-		close(fd);
-		return NULL;
-	}
-
-	if (st.st_size < length) {
-		igt_debug("Mapping length (%zu) exceeds BAR2 size (%" PRIu64 ")\n", length, (uint64_t)st.st_size);
-		close(fd);
-		return NULL;
-	}
-
-	addr = mmap(NULL, length, prot, MAP_SHARED, fd, offset);
-	close(fd);
-	if (addr == MAP_FAILED) {
-		igt_debug("Failed mmap resource2 for VF%d: %s\n", vf_num, strerror(errno));
-		return NULL;
-	}
-
-	return addr;
-}
-
-static void munmap_vf_lmem(struct lmem_info *lmem)
-{
-	igt_debug_on_f(munmap(lmem->addr, lmem->size),
-		       "Failed munmap %p: %s\n", lmem->addr, strerror(errno));
-}
-
-static char lmem_read(const char *addr, size_t idx)
-{
-	return READ_ONCE(*(addr + idx));
-}
-
-static char lmem_write_readback(char *addr, size_t idx, char value)
-{
-	WRITE_ONCE(*(addr + idx), value);
-	return lmem_read(addr, idx);
-}
-
-static bool lmem_write_pattern(struct lmem_info *lmem, char value, size_t start, size_t step)
-{
-	char read;
-
-	for (; start < lmem->size; start += step) {
-		read = lmem_write_readback(lmem->addr, start, value);
+	for (; start < m->size; start += step) {
+		read = intel_vram_write_readback8(m, start, value);
 		if (igt_debug_on_f(read != value, "LMEM[%zu]=%u != %u\n", start, read, value))
 			return false;
 	}
 	return true;
 }
 
-static bool lmem_contains_expected_values_(struct lmem_info *lmem,
-					   char expected, size_t start,
+static bool lmem_contains_expected_values_(struct vram_mapping *m,
+					   uint8_t expected, size_t start,
 					   size_t step)
 {
-	char read;
+	uint8_t read;
 
-	for (; start < lmem->size; start += step) {
-		read = lmem_read(lmem->addr, start);
+	for (; start < m->size; start += step) {
+		read = intel_vram_read8(m, start);
 		if (igt_debug_on_f(read != expected,
 				   "LMEM[%zu]=%u != %u\n", start, read, expected))
 			return false;
@@ -775,30 +710,27 @@ static bool lmem_contains_expected_values_(struct lmem_info *lmem,
 static bool lmem_contains_expected_values(int pf_fd, int vf_num, size_t length,
 					  char expected)
 {
-	struct lmem_info lmem = { .size = length };
+	struct vram_mapping vram;
 	bool result;
 
-	lmem.addr = mmap_vf_lmem(pf_fd, vf_num, length, PROT_READ | PROT_WRITE, 0);
-	if (igt_debug_on(!lmem.addr))
+	if (igt_debug_on(intel_vram_mmap(pf_fd, vf_num, 0, length, PROT_READ | PROT_WRITE, &vram)))
 		return false;
 
-	result = lmem_contains_expected_values_(&lmem, expected, 0, STEP);
-	munmap_vf_lmem(&lmem);
+	result = lmem_contains_expected_values_(&vram, expected, 0, STEP);
+	intel_vram_munmap(&vram);
 
 	return result;
 }
 
 static bool lmem_mmap_write_munmap(int pf_fd, int vf_num, size_t length, char value)
 {
-	struct lmem_info lmem;
+	struct vram_mapping vram;
 	bool result;
 
-	lmem.size = length;
-	lmem.addr = mmap_vf_lmem(pf_fd, vf_num, length, PROT_READ | PROT_WRITE, 0);
-	if (igt_debug_on(!lmem.addr))
+	if (igt_debug_on(intel_vram_mmap(pf_fd, vf_num, 0, length, PROT_READ | PROT_WRITE, &vram)))
 		return false;
-	result = lmem_write_pattern(&lmem, value, 0, STEP);
-	munmap_vf_lmem(&lmem);
+	result = lmem_write_pattern(&vram, value, 0, STEP);
+	intel_vram_munmap(&vram);
 
 	return result;
 }
