@@ -490,9 +490,14 @@ static void test_crc_offscreen(data_t *data)
 static void test_crc_sliding(data_t *data)
 {
 	int i;
+	int max;
+
 	struct {
 		igt_crc_t crc[3];
 	} rounds[16] = {};
+
+	/* In simulation, we only run a few rounds to keep the test fast */
+	max = igt_run_in_simulation() ? 4 : 16;
 
 	/* Make sure cursor moves smoothly and pixel-by-pixel, and that there are
 	 * no alignment issues. Horizontal, vertical and diagonal test.
@@ -502,7 +507,7 @@ static void test_crc_sliding(data_t *data)
 	cursor_enable(data);
 	igt_plane_set_fb(data->primary, &data->primary_fb[HWCURSORBUFFER]);
 
-	for (i = 0; i < ARRAY_SIZE(rounds); i++) {
+	for (i = 0; i < max; i++) {
 		do_single_test(data, i, 0, true, &rounds[i].crc[0]);
 		do_single_test(data, 0, i, true, &rounds[i].crc[1]);
 		do_single_test(data, i, i, true, &rounds[i].crc[2]);
@@ -510,7 +515,7 @@ static void test_crc_sliding(data_t *data)
 
 	/* SW test */
 	cursor_disable(data);
-	for (i = 0; i < ARRAY_SIZE(rounds); i++) {
+	for (i = 0; i < max; i++) {
 		do_single_test(data, i, 0, false, &rounds[i].crc[0]);
 		do_single_test(data, 0, i, false, &rounds[i].crc[1]);
 		do_single_test(data, i, i, false, &rounds[i].crc[2]);
@@ -525,6 +530,9 @@ static void test_crc_random(data_t *data)
 	max = data->flags & (TEST_DPMS | TEST_SUSPEND) ? 2 : ARRAY_SIZE(crc);
 
 	/* Random cursor placement */
+
+	if (igt_run_in_simulation() && max > 10)
+		max = 10;
 
 	/* HW test */
 	cursor_enable(data);
