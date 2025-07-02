@@ -74,6 +74,30 @@ get_and_clear_devcore(int timeout_ms)
 	return buf;
 }
 
+static void
+wait_for_stall_on_fault(int drm_fd)
+{
+	char buf[64] = "\0";
+
+	do {
+		int us;
+
+		igt_debugfs_read(drm_fd, "stall_reenable_time_us", buf);
+		if (!strlen(buf)) {
+			/* Not supported on older kernels: */
+			return;
+		}
+
+		us = atoi(buf);
+		if (!us) {
+			/* Done waiting: */
+			return;
+		}
+
+		usleep(us);
+	} while (true);
+}
+
 /*
  * Helper to find named buffer address
  */
@@ -227,6 +251,11 @@ do_mapping_test(struct msm_pipe *pipe, const char *buffername, bool write)
 	igt_fail_on(addr != fault_addr);
 
 	free(devcore);
+
+	/* Wait for stall-on-fault to re-enable, otherwise the next sub-test
+	 * would not generate a devcore:
+	 */
+	wait_for_stall_on_fault(pipe->dev->fd);
 }
 
 /*
