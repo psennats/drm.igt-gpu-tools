@@ -399,17 +399,17 @@ igt_main
 	int gt;
 	struct drm_xe_engine_class_instance *hwe;
 	uint32_t *stash_min, *stash_max;
-	int num_gts;
+	int max_gt;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
 
 		igt_require(xe_sysfs_gt_has_node(fd, 0, "freq0"));
-		num_gts = xe_number_gt(fd);
+		max_gt = xe_dev_max_gt(fd);
 
 		/* The defaults are the same. Stashing the gt0 is enough */
-		stash_min = (uint32_t *) malloc(sizeof(uint32_t) * num_gts);
-		stash_max = (uint32_t *) malloc(sizeof(uint32_t) * num_gts);
+		stash_min = (uint32_t *) malloc(sizeof(uint32_t) * max_gt);
+		stash_max = (uint32_t *) malloc(sizeof(uint32_t) * max_gt);
 
 		xe_for_each_gt(fd, gt) {
 			stash_min[gt] = xe_gt_get_freq(fd, gt, "min");

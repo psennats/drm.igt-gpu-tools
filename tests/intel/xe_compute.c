@@ -41,6 +41,21 @@ static bool get_num_cslices(u32 gt, u32 *num_slices)
 	return ret > 0;
 }
 
+/* Grab GT mask in places where we don't have or want to maintain an open fd */
+static uint64_t get_gt_mask(void)
+{
+	int fd = drm_open_driver(DRIVER_XE);
+	uint64_t mask;
+
+	mask = xe_device_get(fd)->gt_mask;
+	drm_close_driver(fd);
+
+	return mask;
+}
+
+#define for_each_bit(__mask, __bit) \
+	for ( ; __bit = ffsll(__mask) - 1, __mask != 0; __mask &= ~(1ull << __bit))
+
 /**
  * SUBTEST: ccs-mode-basic
  * GPU requirement: PVC
@@ -48,13 +63,18 @@ static bool get_num_cslices(u32 gt, u32 *num_slices)
  * Functionality: ccs mode
  */
 static void
-test_ccs_mode(int num_gt)
+test_ccs_mode(void)
 {
 	struct drm_xe_engine_class_instance *hwe;
 	u32 gt, m, ccs_mode, vm, q, num_slices;
 	int fd, gt_fd, num_gt_with_ccs_mode = 0;
+	uint64_t gt_mask = get_gt_mask();
 
-	for (gt = 0; gt < num_gt; gt++) {
+	/*
+	 * The loop body needs to run without any open file descriptors so we
+	 * can't use xe_for_each_gt() which uses an open fd.
+	 */
+	for_each_bit(gt_mask, gt) {
 		if (!get_num_cslices(gt, &num_slices))
 			continue;
 
@@ -119,13 +139,18 @@ test_ccs_mode(int num_gt)
  * Functionality: ccs mode
  */
 static void
-test_compute_kernel_with_ccs_mode(int num_gt)
+test_compute_kernel_with_ccs_mode(void)
 {
 	struct drm_xe_engine_class_instance *hwe;
 	u32 gt, m, num_slices;
 	int fd, gt_fd, num_gt_with_ccs_mode = 0;
+	uint64_t gt_mask = get_gt_mask();
 
-	for (gt = 0; gt < num_gt; gt++) {
+	/*
+	 * The loop body needs to run without any open file descriptors so we
+	 * can't use xe_for_each_gt() which uses an open fd.
+	 */
+	for_each_bit(gt_mask, gt) {
 		if (!get_num_cslices(gt, &num_slices))
 			continue;
 
@@ -180,11 +205,10 @@ test_compute_square(int fd)
 
 igt_main
 {
-	int xe, num_gt;
+	int xe;
 
 	igt_fixture {
 		xe = drm_open_driver(DRIVER_XE);
-		num_gt = xe_number_gt(xe);
 	}
 
 	igt_subtest("compute-square")
@@ -195,8 +219,8 @@ igt_main
 
 	/* ccs mode tests should be run without open gpu file handles */
 	igt_subtest("ccs-mode-basic")
-		test_ccs_mode(num_gt);
+		test_ccs_mode();
 
 	igt_subtest("ccs-mode-compute-kernel")
-		test_compute_kernel_with_ccs_mode(num_gt);
+		test_compute_kernel_with_ccs_mode();
 }
