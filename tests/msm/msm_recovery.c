@@ -44,8 +44,12 @@ read_and_clear_devcore(void)
 	glob_t glob_buf = {0};
 	int ret, fd;
 
-	ret = glob("/sys/class/devcoredump/devcd*/data", GLOB_NOSORT, NULL, &glob_buf);
-	if ((ret == GLOB_NOMATCH) || !glob_buf.gl_pathc)
+	/* The devcore shows up asynchronously, so it might not be
+	 * immediately available:
+	 */
+	if (!igt_wait(glob("/sys/class/devcoredump/devcd*/data",
+			   GLOB_NOSORT, NULL, &glob_buf) != GLOB_NOMATCH,
+		      1000, 100))
 		return;
 
 	fd = open(glob_buf.gl_pathv[0], O_RDWR);
