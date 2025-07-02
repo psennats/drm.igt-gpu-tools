@@ -332,6 +332,7 @@ static void xe_device_free(struct xe_device *xe_dev)
 struct xe_device *xe_device_get(int fd)
 {
 	struct xe_device *xe_dev, *prev;
+	int max_gt;
 
 	xe_dev = find_in_cache(fd);
 	if (xe_dev)
@@ -355,14 +356,22 @@ struct xe_device *xe_device_get(int fd)
 	xe_dev->engines = xe_query_engines(fd);
 	xe_dev->mem_regions = xe_query_mem_regions_new(fd);
 	xe_dev->oa_units = xe_query_oa_units_new(fd);
-	xe_dev->vram_size = calloc(xe_dev->gt_list->num_gt, sizeof(*xe_dev->vram_size));
-	xe_dev->visible_vram_size = calloc(xe_dev->gt_list->num_gt, sizeof(*xe_dev->visible_vram_size));
-	for (int gt = 0; gt < xe_dev->gt_list->num_gt; gt++) {
-		xe_dev->vram_size[gt] = gt_vram_size(xe_dev->mem_regions,
-						     &xe_dev->gt_list->gt_list[gt]);
-		xe_dev->visible_vram_size[gt] =
-			gt_visible_vram_size(xe_dev->mem_regions,
-					     &xe_dev->gt_list->gt_list[gt]);
+
+	/*
+	 * vram_size[] and visible_vram_size[] are indexed by uapi ID; ensure
+	 * the allocation is large enough to hold the highest GT ID
+	 */
+	max_gt = ffsll(xe_dev->gt_mask) - 1;
+	xe_dev->vram_size = calloc(max_gt, sizeof(*xe_dev->vram_size));
+	xe_dev->visible_vram_size = calloc(max_gt, sizeof(*xe_dev->visible_vram_size));
+
+	for (int idx = 0; idx < xe_dev->gt_list->num_gt; idx++) {
+		struct drm_xe_gt *gt = &xe_dev->gt_list->gt_list[idx];
+
+		xe_dev->vram_size[gt->gt_id] =
+			gt_vram_size(xe_dev->mem_regions, gt);
+		xe_dev->visible_vram_size[gt->gt_id] =
+			gt_visible_vram_size(xe_dev->mem_regions, gt);
 	}
 	xe_dev->default_alignment = __mem_default_alignment(xe_dev->mem_regions);
 	xe_dev->has_vram = __mem_has_vram(xe_dev->mem_regions);
