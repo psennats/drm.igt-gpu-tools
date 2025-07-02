@@ -241,12 +241,13 @@ void xe_bind_unbind_async(int xe, uint32_t vm, uint32_t bind_engine,
 static uint32_t reference_clock(int fd, int gt_id)
 {
 	struct xe_device *dev = xe_device_get(fd);
+	const struct drm_xe_gt *gt;
 	uint32_t refclock;
 
-	igt_assert(dev && dev->gt_list && dev->gt_list->num_gt);
-	igt_assert(gt_id >= 0 && gt_id <= dev->gt_list->num_gt);
+	igt_assert(dev && dev->gt_mask & BIT(gt_id));
 
-	refclock = dev->gt_list->gt_list[gt_id].reference_clock;
+	gt = drm_xe_get_gt(dev, gt_id);
+	refclock = gt->reference_clock;
 
 	igt_assert_lt(0, refclock);
 

@@ -185,21 +185,21 @@ static struct drm_xe_query_oa_units *xe_query_oa_units_new(int fd)
 	return oa_units;
 }
 
-static uint64_t native_region_for_gt(const struct drm_xe_query_gt_list *gt_list, int gt)
+static uint64_t native_region_for_gt(const struct drm_xe_gt *gt)
 {
 	uint64_t region;
 
-	igt_assert(gt_list->num_gt > gt);
-	region = gt_list->gt_list[gt].near_mem_regions;
+	igt_assert(gt);
+	region = gt->near_mem_regions;
 	igt_assert(region);
 
 	return region;
 }
 
 static uint64_t gt_vram_size(const struct drm_xe_query_mem_regions *mem_regions,
-			     const struct drm_xe_query_gt_list *gt_list, int gt)
+			     const struct drm_xe_gt *gt)
 {
-	int region_idx = ffs(native_region_for_gt(gt_list, gt)) - 1;
+	int region_idx = ffsll(native_region_for_gt(gt)) - 1;
 
 	if (XE_IS_CLASS_VRAM(&mem_regions->mem_regions[region_idx]))
 		return mem_regions->mem_regions[region_idx].total_size;
@@ -208,9 +208,9 @@ static uint64_t gt_vram_size(const struct drm_xe_query_mem_regions *mem_regions,
 }
 
 static uint64_t gt_visible_vram_size(const struct drm_xe_query_mem_regions *mem_regions,
-				     const struct drm_xe_query_gt_list *gt_list, int gt)
+				     const struct drm_xe_gt *gt)
 {
-	int region_idx = ffs(native_region_for_gt(gt_list, gt)) - 1;
+	int region_idx = ffsll(native_region_for_gt(gt)) - 1;
 
 	if (XE_IS_CLASS_VRAM(&mem_regions->mem_regions[region_idx]))
 		return mem_regions->mem_regions[region_idx].cpu_visible_size;
@@ -359,10 +359,10 @@ struct xe_device *xe_device_get(int fd)
 	xe_dev->visible_vram_size = calloc(xe_dev->gt_list->num_gt, sizeof(*xe_dev->visible_vram_size));
 	for (int gt = 0; gt < xe_dev->gt_list->num_gt; gt++) {
 		xe_dev->vram_size[gt] = gt_vram_size(xe_dev->mem_regions,
-						     xe_dev->gt_list, gt);
+						     &xe_dev->gt_list->gt_list[gt]);
 		xe_dev->visible_vram_size[gt] =
 			gt_visible_vram_size(xe_dev->mem_regions,
-					     xe_dev->gt_list, gt);
+					     &xe_dev->gt_list->gt_list[gt]);
 	}
 	xe_dev->default_alignment = __mem_default_alignment(xe_dev->mem_regions);
 	xe_dev->has_vram = __mem_has_vram(xe_dev->mem_regions);
@@ -481,6 +481,20 @@ uint64_t system_memory(int fd)
 	return regions & 0x1;
 }
 
+/*
+ * Given a uapi GT ID, lookup the corresponding drm_xe_gt structure in the
+ * GT list.
+ */
+const struct drm_xe_gt *drm_xe_get_gt(struct xe_device *xe_dev, int gt_id)
+{
+	for (int i = 0; i < xe_dev->gt_list->num_gt; i++)
+		if (xe_dev->gt_list->gt_list[i].gt_id == gt_id)
+			return &xe_dev->gt_list->gt_list[i];
+
+	return NULL;
+}
+
+
 /**
  * vram_memory:
  * @fd: xe device fd
@@ -494,9 +508,9 @@ uint64_t vram_memory(int fd, int gt)
 
 	xe_dev = find_in_cache(fd);
 	igt_assert(xe_dev);
-	igt_assert(gt >= 0 && gt < xe_dev->gt_list->num_gt);
+	igt_assert(xe_dev->gt_mask & BIT(gt));
 
-	return xe_has_vram(fd) ? native_region_for_gt(xe_dev->gt_list, gt) : 0;
+	return xe_has_vram(fd) ? native_region_for_gt(drm_xe_get_gt(xe_dev, gt)) : 0;
 }
 
 static uint64_t __xe_visible_vram_size(int fd, int gt)
@@ -716,7 +730,7 @@ static void __available_vram_size_snapshot(int fd, int gt, struct __available_vr
 	xe_dev = find_in_cache(fd);
 	igt_assert(xe_dev);
 
-	region_idx = ffs(native_region_for_gt(xe_dev->gt_list, gt)) - 1;
+	region_idx = ffsll(native_region_for_gt(drm_xe_get_gt(xe_dev, gt))) - 1;
 	mem_region = &xe_dev->mem_regions->mem_regions[region_idx];
 
 	if (XE_IS_CLASS_VRAM(mem_region)) {
