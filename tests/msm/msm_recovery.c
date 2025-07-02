@@ -195,6 +195,22 @@ do_parallel_test(struct msm_pipe *pipe, int child)
 	igt_msm_cmd_free(cmd);
 }
 
+static void
+do_fault_test(struct msm_pipe *pipe, bool stress)
+{
+	struct msm_cmd *cmd = igt_msm_cmd_new(pipe, 0x10000);
+	unsigned int cnt = stress ? 0x10000 / 16 : 1;
+
+	for (unsigned int i = 0; i < cnt; i++) {
+		msm_cmd_pkt7(cmd, CP_MEM_WRITE, 3);
+		msm_cmd_emit(cmd, 0xdeaddead);           /* ADDR_LO */
+		msm_cmd_emit(cmd, 0x1);                  /* ADDR_HI */
+		msm_cmd_emit(cmd, 0x123);                /* VAL */
+	}
+
+	igt_wait_and_close(igt_msm_cmd_submit(cmd));
+}
+
 /*
  * Tests for drm/msm hangcheck, recovery, and fault handling
  */
@@ -242,18 +258,16 @@ igt_main
 
 	igt_describe("Test iova fault handling");
 	igt_subtest("iova-fault") {
-		struct msm_cmd *cmd;
-
 		igt_require(dev->gen >= 6);
 
-		cmd = igt_msm_cmd_new(pipe, 0x1000);
+		do_fault_test(pipe, false);
+	}
 
-		msm_cmd_pkt7(cmd, CP_MEM_WRITE, 3);
-		msm_cmd_emit(cmd, 0xdeaddead);           /* ADDR_LO */
-		msm_cmd_emit(cmd, 0x1);                  /* ADDR_HI */
-		msm_cmd_emit(cmd, 0x123);                /* VAL */
+	igt_describe("Test iova fault handling (stress)");
+	igt_subtest("iova-fault-stress") {
+		igt_require(dev->gen >= 6);
 
-		igt_wait_and_close(igt_msm_cmd_submit(cmd));
+		do_fault_test(pipe, true);
 	}
 
 	igt_fixture {
