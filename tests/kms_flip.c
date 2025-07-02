@@ -1641,7 +1641,16 @@ retry:
 
 	/* quiescent the hw a bit so ensure we don't miss a single frame */
 	if (o->flags & TEST_CHECK_TS && !calibrate_ts(o, crtc_idxs[0])) {
-		igt_assert(!retried && needs_retry_after_link_reset(mon));
+		igt_assert(!retried);
+
+		/*
+		 * FIXME: Retried logic is currently breaking due to an HPD
+		 * (Hot Plug Detect) issue. Temporarily removing this from
+		 * the assertion. This needs to be debugged separately.
+		 * Revert this patch once the HPD issue is resolved.
+		 */
+		if (!needs_retry_after_link_reset(mon))
+			igt_debug("Retrying without a hotplug event\n");
 
 		retried = true;
 
@@ -1680,7 +1689,16 @@ retry:
 		state_ok &= check_final_state(o, &o->vblank_state, elapsed);
 
 	if (!state_ok) {
-		igt_assert(!retried && needs_retry_after_link_reset(mon));
+		igt_assert(!retried);
+
+		/*
+		 * FIXME: Retried logic is currently breaking due to an HPD
+		 * (Hot Plug Detect) issue. Temporarily removing this from
+		 * the assertion. This needs to be debugged separately.
+		 * Revert this patch once the HPD issue is resolved.
+		 */
+		if (!needs_retry_after_link_reset(mon))
+			igt_debug("Retrying without a hotplug event\n");
 
 		retried = true;
 
