@@ -123,7 +123,7 @@ endswith(const char *str, const char *end)
 static uint64_t
 get_bo_addr(int drm_fd, const char *name)
 {
-	char buf[0x4000];
+	char buf[0x80000];
 	char *p = buf;
 
 	igt_debugfs_read(drm_fd, "gem", buf);
