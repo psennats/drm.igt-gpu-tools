@@ -26,7 +26,6 @@
 #include "amd_memory.h"
 #include "amd_compute.h"
 #include "amd_sdma.h"
-#include "amd_userq.h"
 
 /**
  *
@@ -42,6 +41,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	struct amdgpu_cs_request ibs_request;
 	struct amdgpu_cs_ib_info ib_info;
 	struct amdgpu_cs_fence fence_status;
+	const struct amdgpu_ip_block_version *ip_block = NULL;
 	uint32_t *ptr;
 	uint32_t expired;
 	int r, instance;
@@ -50,6 +50,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 
 	struct amdgpu_ring_context *ring_context;
 
+	ip_block = get_ip_block(device, type);
 	ring_context = calloc(1, sizeof(*ring_context));
 	igt_assert(ring_context);
 
@@ -57,7 +58,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	igt_assert_eq(r, 0);
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device, ring_context, type);
+		ip_block->funcs->userq_create(device, ring_context, type);
 	} else {
 		r = amdgpu_cs_ctx_create(device, &context_handle);
 		igt_assert_eq(r, 0);
@@ -93,7 +94,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 		ring_context->pm4_dw = 16;
 
 		if (user_queue) {
-			amdgpu_user_queue_submit(device, ring_context, type,
+			ip_block->funcs->userq_submit(device, ring_context, type,
 						 ib_result_mc_address);
 		} else {
 			memset(&ib_info, 0, sizeof(struct amdgpu_cs_ib_info));
@@ -131,7 +132,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	}
 
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device, ring_context, type);
+		ip_block->funcs->userq_destroy(device, ring_context, type);
 	} else {
 		r = amdgpu_cs_ctx_free(context_handle);
 		igt_assert_eq(r, 0);

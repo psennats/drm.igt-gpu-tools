@@ -13,7 +13,6 @@
 #include "lib/amdgpu/amd_gfx.h"
 #include "lib/amdgpu/amd_shaders.h"
 #include "lib/amdgpu/amd_dispatch.h"
-#include "lib/amdgpu/amd_userq.h"
 
 #define BUFFER_SIZE (8 * 1024)
 
@@ -509,7 +508,7 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle, bool user_queue)
 	igt_assert(ring_context);
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device_handle, ring_context, ip_block->type);
+		ip_block->funcs->userq_create(device_handle, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_create(device_handle, &context_handle[0]);
 		igt_assert_eq(r, 0);
@@ -608,7 +607,7 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle, bool user_queue)
 
 	if (user_queue) {
 		ring_context->pm4_dw = ib_info.size;
-		amdgpu_user_queue_submit(device_handle, ring_context, ip_block->type,
+		ip_block->funcs->userq_submit(device_handle, ring_context, ip_block->type,
 					 ib_result_mc_address);
 	} else {
 		r = amdgpu_cs_submit(context_handle[1], 0, &ibs_request, 1);
@@ -648,7 +647,7 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle, bool user_queue)
 
 	if (user_queue) {
 		ring_context->pm4_dw = ib_info.size;
-		amdgpu_user_queue_submit(device_handle, ring_context, ip_block->type,
+		ip_block->funcs->userq_submit(device_handle, ring_context, ip_block->type,
 					ib_info.ib_mc_address);
 	} else {
 		r = amdgpu_cs_submit(context_handle[0], 0, &ibs_request, 1);
@@ -680,7 +679,7 @@ amdgpu_sync_dependency_test(amdgpu_device_handle device_handle, bool user_queue)
 				 ib_result_mc_address, const_alignment);
 
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device_handle, ring_context, ip_block->type);
+		ip_block->funcs->userq_destroy(device_handle, ring_context, ip_block->type);
 	} else {
 		amdgpu_cs_ctx_free(context_handle[0]);
 		amdgpu_cs_ctx_free(context_handle[1]);

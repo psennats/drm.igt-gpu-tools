@@ -25,8 +25,7 @@
 
 #include "amd_memory.h"
 #include "amd_PM4.h"
-#include "amd_userq.h"
-
+#include "amd_ip_blocks.h"
 /**
  *
  * @param device_handle

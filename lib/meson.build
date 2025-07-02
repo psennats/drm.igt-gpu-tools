@@ -170,8 +170,7 @@ if libdrm_amdgpu.found()
 		'amdgpu/amd_mem_leak.c',
 		'amdgpu/amd_mmd_shared.c',
 		'amdgpu/amd_jpeg_shared.c',
-		'amdgpu/amd_vcn_shared.c',
-		'amdgpu/amd_userq.c'
+		'amdgpu/amd_vcn_shared.c'
 	]
 	if libdrm_amdgpu.version().version_compare('> 2.4.99')
 		lib_sources +=[ 'amdgpu/amd_dispatch.c',]

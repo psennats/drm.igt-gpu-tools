@@ -10,7 +10,6 @@
 #include "lib/amdgpu/amd_sdma.h"
 #include "lib/amdgpu/amd_PM4.h"
 #include "lib/amdgpu/amd_command_submission.h"
-#include "lib/amdgpu/amd_userq.h"
 #include "ioctl_wrappers.h"
 
 
@@ -33,8 +32,11 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 	struct amdgpu_cs_fence fence_status = {0};
 	amdgpu_va_handle va_handle;
 	bool user_queue = ring_context->user_queue;
+	const struct amdgpu_ip_block_version *ip_block = NULL;
+	amdgpu_bo_handle *all_res;
 
-	amdgpu_bo_handle *all_res = alloca(sizeof(ring_context->resources[0]) * (ring_context->res_cnt + 1));
+	ip_block = get_ip_block(device, ip_type);
+	all_res = alloca(sizeof(ring_context->resources[0]) * (ring_context->res_cnt + 1));
 
 	if (expect_failure) {
 		/* allocate IB */
@@ -68,7 +70,7 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 	memcpy(ring_ptr, ring_context->pm4, ring_context->pm4_dw * sizeof(*ring_context->pm4));
 
 	if (user_queue)
-		amdgpu_user_queue_submit(device, ring_context, ip_type, ib_result_mc_address);
+		ip_block->funcs->userq_submit(device, ring_context, ip_type, ib_result_mc_address);
 	else {
 		ring_context->ib_info.ib_mc_address = ib_result_mc_address;
 		ring_context->ib_info.size = ring_context->pm4_dw;
@@ -163,7 +165,7 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 		gtt_flags[i] |= AMDGPU_GEM_CREATE_ENCRYPTED;
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device, ring_context, ip_block->type);
+		ip_block->funcs->userq_create(device, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
 		igt_assert_eq(r, 0);
@@ -246,7 +248,7 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 	free(ring_context->pm4);
 
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device, ring_context, ip_block->type);
+		ip_block->funcs->userq_destroy(device, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_free(ring_context->context_handle);
 		igt_assert_eq(r, 0);
@@ -287,7 +289,7 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 	igt_assert_eq(r, 0);
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device, ring_context, ip_block->type);
+		ip_block->funcs->userq_create(device, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
 		igt_assert_eq(r, 0);
@@ -341,7 +343,7 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 	free(ring_context->pm4);
 
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device, ring_context, ip_block->type);
+		ip_block->funcs->userq_destroy(device, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_free(ring_context->context_handle);
 		igt_assert_eq(r, 0);
@@ -383,7 +385,7 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device, ring_context, ip_block->type);
+		ip_block->funcs->userq_create(device, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_create(device, &ring_context->context_handle);
 		igt_assert_eq(r, 0);
@@ -467,7 +469,7 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 	free(ring_context->pm4);
 
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device, ring_context, ip_block->type);
+		ip_block->funcs->userq_destroy(device, ring_context, ip_block->type);
 	} else {
 		r = amdgpu_cs_ctx_free(ring_context->context_handle);
 		igt_assert_eq(r, 0);

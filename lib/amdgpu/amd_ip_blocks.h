@@ -8,6 +8,8 @@
 #define AMD_IP_BLOCKS_H
 
 #include <amdgpu_drm.h>
+#include <amdgpu.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -31,6 +33,29 @@
 #define   S_3F3_INHERIT_VMID_MQD_GFX(x)        (((unsigned int)(x)&0x1) << 22)/* userqueue only */
 #define   S_3F3_VALID_COMPUTE(x)		(((unsigned int)(x)&0x1) << 23)/* userqueue only */
 #define   S_3F3_INHERIT_VMID_MQD_COMPUTE(x)	(((unsigned int)(x)&0x1) << 30)/* userqueue only */
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif
+
+#define USERMODE_QUEUE_SIZE		(PAGE_SIZE * 256)   //In bytes with total size as 1 Mbyte
+#define ALIGNMENT			4096
+#define DOORBELL_INDEX			4
+#define USERMODE_QUEUE_SIZE_DW		(USERMODE_QUEUE_SIZE >> 2)
+#define USERMODE_QUEUE_SIZE_DW_MASK	(USERMODE_QUEUE_SIZE_DW - 1)
+
+#define amdgpu_pkt_begin() uint32_t __num_dw_written = 0; \
+	uint32_t __ring_start = *ring_context->wptr_cpu & USERMODE_QUEUE_SIZE_DW_MASK;
+
+#define amdgpu_pkt_add_dw(value) do { \
+	*(ring_context->queue_cpu + \
+	((__ring_start + __num_dw_written) & USERMODE_QUEUE_SIZE_DW_MASK)) \
+	= value; \
+	__num_dw_written++;\
+} while (0)
+
+#define amdgpu_pkt_end() \
+	*ring_context->wptr_cpu += __num_dw_written
 
 enum amd_ip_block_type {
 	AMD_IP_GFX = 0,
@@ -202,6 +227,10 @@ struct amdgpu_ip_funcs {
 	int (*get_reg_offset)(enum general_reg reg);
 	int (*wait_reg_mem)(const struct amdgpu_ip_funcs *func, const struct amdgpu_ring_context *context, uint32_t *pm4_dw);
 
+	/* userq functions */
+	void (*userq_create)(amdgpu_device_handle device_handle, struct amdgpu_ring_context *ctxt, unsigned int type);
+	void (*userq_submit)(amdgpu_device_handle device, struct amdgpu_ring_context *ring_context, unsigned int ip_type, uint64_t mc_address);
+	void (*userq_destroy)(amdgpu_device_handle device_handle, struct amdgpu_ring_context *ctxt, unsigned int type);
 };
 
 extern const struct amdgpu_ip_block_version gfx_v6_0_ip_block;
@@ -280,4 +309,15 @@ get_pci_addr_from_fd(int fd, struct pci_addr *pci);
 
 bool
 is_support_page_queue(enum amd_ip_block_type ip_type, const struct pci_addr *pci);
+
+int
+amdgpu_bo_alloc_and_map_uq(amdgpu_device_handle device_handle, unsigned int size,
+			       unsigned int alignment, unsigned int heap, uint64_t alloc_flags,
+			       uint64_t mapping_flags, amdgpu_bo_handle *bo, void **cpu,
+			       uint64_t *mc_address, amdgpu_va_handle *va_handle,
+			       uint32_t timeline_syncobj_handle, uint64_t point);
+
+int
+amdgpu_timeline_syncobj_wait(amdgpu_device_handle device_handle,
+				 uint32_t timeline_syncobj_handle, uint64_t point);
 #endif

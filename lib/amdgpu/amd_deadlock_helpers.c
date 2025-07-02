@@ -13,7 +13,6 @@
 #include <signal.h>
 #include "amd_memory.h"
 #include "amd_deadlock_helpers.h"
-#include "lib/amdgpu/amd_userq.h"
 #include "lib/amdgpu/amd_command_submission.h"
 
 #define MAX_JOB_COUNT 200
@@ -292,11 +291,12 @@ bad_access_helper(amdgpu_device_handle device_handle, unsigned int cmd_error,
 	struct amdgpu_ring_context *ring_context;
 	int r = 0;
 
+	ip_block = get_ip_block(device_handle, ip_type);
 	ring_context = calloc(1, sizeof(*ring_context));
 	igt_assert(ring_context);
 
 	if (user_queue) {
-		amdgpu_user_queue_create(device_handle, ring_context, ip_type);
+		ip_block->funcs->userq_create(device_handle, ring_context, ip_type);
 	} else {
 		if (priority == AMDGPU_CTX_PRIORITY_HIGH)
 			r = amdgpu_cs_ctx_create2(device_handle, AMDGPU_CTX_PRIORITY_HIGH, &ring_context->context_handle);
@@ -314,7 +314,6 @@ bad_access_helper(amdgpu_device_handle device_handle, unsigned int cmd_error,
 	ring_context->user_queue = user_queue;
 	ring_context->time_out = 0x7ffff;
 	igt_assert(ring_context->pm4);
-	ip_block = get_ip_block(device_handle, ip_type);
 	r = amdgpu_bo_alloc_and_map_sync(device_handle,
 				    ring_context->write_length * sizeof(uint32_t),
 				    4096, AMDGPU_GEM_DOMAIN_GTT,
@@ -345,7 +344,7 @@ bad_access_helper(amdgpu_device_handle device_handle, unsigned int cmd_error,
 	amdgpu_bo_unmap_and_free(ring_context->bo, ring_context->va_handle, ring_context->bo_mc,
 				 ring_context->write_length * sizeof(uint32_t));
 	if (user_queue) {
-		amdgpu_user_queue_destroy(device_handle, ring_context, ip_block->type);
+		ip_block->funcs->userq_destroy(device_handle, ring_context, ip_block->type);
 	} else {
 		free(ring_context->pm4);
 		free(ring_context);
