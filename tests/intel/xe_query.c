@@ -675,18 +675,13 @@ query_engine_cycles(int fd, struct drm_xe_query_engine_cycles *resp)
 static uint32_t
 __engine_reference_clock(int fd, int gt_id)
 {
-	uint32_t reference_clock = 0;
 	struct xe_device *xe_dev = xe_device_get(fd);
+	const struct drm_xe_gt *gt = drm_xe_get_gt(xe_dev, gt_id);
 
-	for (int gt = 0; gt < xe_dev->gt_list->num_gt; gt++) {
-		if (gt == gt_id) {
-			reference_clock = xe_dev->gt_list->gt_list[gt].reference_clock;
-			break;
-		}
-	}
-	igt_assert(reference_clock);
+	igt_assert(gt);
+	igt_assert(gt->reference_clock);
 
-	return reference_clock;
+	return gt->reference_clock;
 }
 
 static void
