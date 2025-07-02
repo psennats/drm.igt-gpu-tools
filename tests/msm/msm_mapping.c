@@ -101,13 +101,15 @@ endswith(const char *str, const char *end)
 
 	/* Trim trailing whitespace: */
 	if (p) {
-		char *c = p;
-		while (c) {
+		char *c = p + strlen(p) - 1;
+
+		while (c > p) {
 			if (isspace(*c)) {
 				*c = '\0';
+			} else {
 				break;
 			}
-			c++;
+			c--;
 		}
 	}
 
