@@ -42,14 +42,18 @@
  */
 
 static char *
-get_and_clear_devcore(void)
+get_and_clear_devcore(int timeout_ms)
 {
 	glob_t glob_buf = {0};
 	char *buf = NULL;
-	int ret, fd;
+	int fd;
 
-	ret = glob("/sys/class/devcoredump/devcd*/data", GLOB_NOSORT, NULL, &glob_buf);
-	if ((ret == GLOB_NOMATCH) || !glob_buf.gl_pathc)
+	/* The devcore shows up asynchronously, so it might not be
+	 * immediately available:
+	 */
+	if (!igt_wait(glob("/sys/class/devcoredump/devcd*/data",
+			   GLOB_NOSORT, NULL, &glob_buf) != GLOB_NOMATCH,
+		      timeout_ms, 100))
 		return NULL;
 
 	fd = open(glob_buf.gl_pathv[0], O_RDWR);
@@ -176,7 +180,7 @@ do_mapping_test(struct msm_pipe *pipe, const char *buffername, bool write)
 	int fence_fd, ret;
 
 	/* Clear any existing devcore's: */
-	while ((devcore = get_and_clear_devcore())) {
+	while ((devcore = get_and_clear_devcore(0))) {
 		free(devcore);
 	}
 
@@ -209,7 +213,7 @@ do_mapping_test(struct msm_pipe *pipe, const char *buffername, bool write)
 	/* And now we should have gotten a devcore from the iova fault
 	 * triggered by the read or write:
 	 */
-	devcore = get_and_clear_devcore();
+	devcore = get_and_clear_devcore(1000);
 	igt_fail_on(!devcore);
 
 	/* Make sure the devcore is from iova fault: */
