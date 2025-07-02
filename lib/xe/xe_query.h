@@ -94,6 +94,7 @@ struct xe_device {
 #define XE_MAX_ENGINE_INSTANCE	9
 
 unsigned int xe_number_gt(int fd);
+unsigned int xe_dev_max_gt(int fd);
 uint64_t all_memory_regions(int fd);
 uint64_t system_memory(int fd);
 const struct drm_xe_gt *drm_xe_get_gt(struct xe_device *xe_dev, int gt_id);

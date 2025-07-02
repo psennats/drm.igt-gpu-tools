@@ -470,6 +470,20 @@ _TYPE _NAME(int fd)			\
 xe_dev_FN(xe_number_gt, gt_list->num_gt, unsigned int);
 
 /**
+ * xe_max_gt:
+ * @fd: xe device fd
+ *
+ * Return maximum GT ID in xe device's GT list.
+ */
+unsigned int xe_dev_max_gt(int fd)
+{
+	struct xe_device *xe_dev = find_in_cache(fd);
+
+	igt_assert(xe_dev);
+	return igt_fls(xe_dev->gt_mask) - 1;
+}
+
+/**
  * all_memory_regions:
  * @fd: xe device fd
  *
