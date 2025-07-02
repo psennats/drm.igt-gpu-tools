@@ -147,7 +147,11 @@ get_bo_addr(int drm_fd, const char *name)
 			igt_fail_on(!line);
 
 			ret = sscanf(line, "      vmas: [gpu: aspace=%"PRIx64", %"PRIx64",mapped,inuse=1]",
-					&dummy, &addr);
+				     &dummy, &addr);
+			if (ret != 2) {
+				ret = sscanf(line, "      vmas: [gpu: vm=%"PRIx64", %"PRIx64", mapped]",
+					     &dummy, &addr);
+			}
 			igt_fail_on(ret != 2);
 
 			return addr;
