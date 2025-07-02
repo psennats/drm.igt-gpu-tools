@@ -77,8 +77,9 @@ struct xe_device {
 	for (__class = 0; __class < DRM_XE_ENGINE_CLASS_COMPUTE + 1; \
 	     ++__class)
 #define xe_for_each_gt(__fd, __gt) \
-	for (__gt = 0; __gt < xe_number_gt(__fd); ++__gt)
-
+	for (uint64_t igt_unique(__mask) = xe_device_get(__fd)->gt_mask; \
+	     __gt = ffsll(igt_unique(__mask)) - 1, igt_unique(__mask) != 0; \
+	     igt_unique(__mask) &= ~(1ull << __gt))
 #define xe_for_each_mem_region(__fd, __memreg, __r) \
 	for (uint64_t igt_unique(__i) = 0; igt_unique(__i) < igt_fls(__memreg); igt_unique(__i)++) \
 		for_if(__r = (__memreg & (1ull << igt_unique(__i))))
