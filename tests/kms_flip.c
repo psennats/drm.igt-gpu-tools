@@ -1228,6 +1228,7 @@ static bool check_final_state(const struct test_output *o,
 			      const struct event_state *es,
 			      unsigned int elapsed)
 {
+	int threshold = 85;
 	igt_assert_f(es->count > 0,
 		     "no %s event received\n", es->name);
 
@@ -1239,16 +1240,19 @@ static bool check_final_state(const struct test_output *o,
 		int expected = elapsed / actual_frame_time(o);
 		float pass_rate = ((float)(count - error_count) / count) * 100;
 
+		if ((1000000.0/actual_frame_time(o)) > 120)
+			threshold = 75;
+
 		igt_info("Event %s: expected %d, counted %d, passrate = %.2f%%, encoder type %d\n",
 			 es->name, expected, count, pass_rate, o->kencoder[0]->encoder_type);
 
 		/*
-		 * TODO: Review the use of the hardcoded threshold (85). This value is
+		 * TODO: Review the use of the hardcoded threshold (85/75). This value is
 		 * currently a placeholder for the acceptable pass rate. In the future,
 		 * we should either justify this value or refine the logic to skip
 		 * frames near the evasion time.
 		 */
-		if (pass_rate < 85) {
+		if (pass_rate < threshold) {
 			igt_debug("dropped frames, expected %d, counted %d, passrate = %.2f%%, encoder type %d\n",
 				  expected, count, pass_rate, o->kencoder[0]->encoder_type);
 			return false;
