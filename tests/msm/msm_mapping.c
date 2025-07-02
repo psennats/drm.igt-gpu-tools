@@ -256,6 +256,36 @@ igt_main
 		do_mapping_test(pipe, "shadow", false);
 	}
 
+	igt_describe("Test pwrup_reglist mapping, should be inaccessible");
+	igt_subtest("pwrup_reglist") {
+		do_mapping_test(pipe, "pwrup_reglist", true);
+		do_mapping_test(pipe, "pwrup_reglist", false);
+	}
+
+	igt_describe("Test memptrs mapping, should be inaccessible");
+	igt_subtest("memptrs") {
+		/*
+		 * This test will fail on older GPUs without HW_APRIV, but
+		 * there isn't a good way to test that from userspace, short
+		 * of maintaining a giant table.  Probably just easier to
+		 * list it in xfails or skips for those GPUs.
+		 */
+		do_mapping_test(pipe, "memptrs", true);
+		do_mapping_test(pipe, "memptrs", false);
+	}
+
+	igt_describe("Test 'preempt_record ring0' mapping, should be inaccessible");
+	igt_subtest("preempt_record_ring0") {
+		do_mapping_test(pipe, "preempt_record ring0", true);
+		do_mapping_test(pipe, "preempt_record ring0", false);
+	}
+
+	igt_describe("Test 'preempt_smmu_info ring0' mapping, should be inaccessible");
+	igt_subtest("preempt_smmu_info_ring0") {
+		do_mapping_test(pipe, "preempt_smmu_info ring0", true);
+		do_mapping_test(pipe, "preempt_smmu_info ring0", false);
+	}
+
 	igt_fixture {
 		igt_msm_pipe_close(pipe);
 		igt_msm_dev_close(dev);
