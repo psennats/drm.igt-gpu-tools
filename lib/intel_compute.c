@@ -14,6 +14,7 @@
 #include "gen8_media.h"
 #include "gen9_media.h"
 #include "intel_compute.h"
+#include "intel_mocs.h"
 #include "lib/igt_syncobj.h"
 #include "lib/intel_reg.h"
 #include "xe/xe_ioctl.h"
@@ -60,6 +61,9 @@
 #define ENQUEUED_LOCAL_SIZE_X		1024
 #define ENQUEUED_LOCAL_SIZE_Y		1
 #define ENQUEUED_LOCAL_SIZE_Z		1
+#define DP_SS_CACHE_FLUSH		(1 << 12)
+#define DP_PIPELINE_FLUSH		(1 << 2)
+#define WRITE_TIMESTAMP		(3 << 0)
 
 /*
  * TGP  - ThreadGroup Preemption
@@ -975,7 +979,8 @@ static void xehp_create_surface_state(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = 0x00000000;
 }
 
-static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
+static void xehp_compute_exec_compute(int fd,
+				      uint32_t *addr_bo_buffer_batch,
 				      uint64_t addr_general_state_base,
 				      uint64_t addr_surface_state_base,
 				      uint64_t addr_dynamic_state_base,
@@ -983,6 +988,7 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 				      uint64_t offset_indirect_data_start,
 				      uint64_t kernel_start_pointer)
 {
+	uint8_t wb_mocs = intel_get_wb_mocs_index(fd);
 	int b = 0;
 
 	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
@@ -1067,7 +1073,8 @@ static void xehp_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 
 	addr_bo_buffer_batch[b++] = 0x00000008;
 	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = 0x00001027;
+	addr_bo_buffer_batch[b++] = DP_SS_CACHE_FLUSH | wb_mocs << 4 |
+				    DP_PIPELINE_FLUSH | WRITE_TIMESTAMP;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH >> 32;
 	addr_bo_buffer_batch[b++] = 0x00000000;
@@ -1150,7 +1157,8 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 	input_data = get_input_data(&execenv, user, bo_dict[4].data);
 	output_data = get_output_data(&execenv, user, bo_dict[5].data);
 
-	xehp_compute_exec_compute(bo_dict[8].data,
+	xehp_compute_exec_compute(fd,
+				  bo_dict[8].data,
 				  ADDR_GENERAL_STATE_BASE,
 				  ADDR_SURFACE_STATE_BASE,
 				  ADDR_DYNAMIC_STATE_BASE,
@@ -1201,7 +1209,8 @@ static void xehpc_create_indirect_data(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = ENQUEUED_LOCAL_SIZE_Z;
 }
 
-static void xehpc_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
+static void xehpc_compute_exec_compute(int fd,
+				       uint32_t *addr_bo_buffer_batch,
 				       uint64_t addr_general_state_base,
 				       uint64_t addr_surface_state_base,
 				       uint64_t addr_dynamic_state_base,
@@ -1209,6 +1218,7 @@ static void xehpc_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 				       uint64_t offset_indirect_data_start,
 				       uint64_t kernel_start_pointer)
 {
+	uint8_t wb_mocs = intel_get_wb_mocs_index(fd);
 	int b = 0;
 
 	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
@@ -1293,7 +1303,8 @@ static void xehpc_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 
 	addr_bo_buffer_batch[b++] = 0x00000008;
 	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = 0x00001047;
+	addr_bo_buffer_batch[b++] = DP_SS_CACHE_FLUSH | wb_mocs << 4 |
+				    DP_PIPELINE_FLUSH | WRITE_TIMESTAMP;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH >> 32;
 	addr_bo_buffer_batch[b++] = 0x00000000;
@@ -1364,7 +1375,8 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 	input_data = get_input_data(&execenv, user, bo_dict[2].data);
 	output_data = get_output_data(&execenv, user, bo_dict[3].data);
 
-	xehpc_compute_exec_compute(bo_dict[5].data,
+	xehpc_compute_exec_compute(fd,
+				   bo_dict[5].data,
 				   ADDR_GENERAL_STATE_BASE,
 				   ADDR_SURFACE_STATE_BASE,
 				   ADDR_DYNAMIC_STATE_BASE,
@@ -1532,7 +1544,8 @@ static void xelpg_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = MI_BATCH_BUFFER_END;
 }
 
-static void xe2lpg_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
+static void xe2lpg_compute_exec_compute(int fd,
+					uint32_t *addr_bo_buffer_batch,
 					uint64_t addr_general_state_base,
 					uint64_t addr_surface_state_base,
 					uint64_t addr_dynamic_state_base,
@@ -1544,6 +1557,7 @@ static void xe2lpg_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 					bool	 threadgroup_preemption,
 					uint32_t work_size)
 {
+	uint8_t wb_mocs = intel_get_wb_mocs_index(fd);
 	int b = 0;
 
 	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
@@ -1651,7 +1665,8 @@ static void xe2lpg_compute_exec_compute(uint32_t *addr_bo_buffer_batch,
 	addr_bo_buffer_batch[b++] = 0x0c000000 | THREADS_PER_GROUP;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = 0x00001047;
+	addr_bo_buffer_batch[b++] = DP_SS_CACHE_FLUSH | wb_mocs << 4 |
+				    DP_PIPELINE_FLUSH | WRITE_TIMESTAMP;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH >> 32;
 	addr_bo_buffer_batch[b++] = 0x00000000;
@@ -1857,7 +1872,8 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 	input_data = get_input_data(&execenv, user, bo_dict[4].data);
 	output_data = get_output_data(&execenv, user, bo_dict[5].data);
 
-	xe2lpg_compute_exec_compute(bo_dict[8].data,
+	xe2lpg_compute_exec_compute(fd,
+				    bo_dict[8].data,
 				    ADDR_GENERAL_STATE_BASE,
 				    ADDR_SURFACE_STATE_BASE,
 				    ADDR_DYNAMIC_STATE_BASE,
@@ -2152,13 +2168,15 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 
 	bo_randomize(input_short, SIZE_DATA);
 
-	xe2lpg_compute_exec_compute(bo_dict_long[8].data, ADDR_GENERAL_STATE_BASE,
+	xe2lpg_compute_exec_compute(fd,
+				    bo_dict_long[8].data, ADDR_GENERAL_STATE_BASE,
 				    ADDR_SURFACE_STATE_BASE, ADDR_DYNAMIC_STATE_BASE,
 				    ADDR_INSTRUCTION_STATE_BASE, XE2_ADDR_STATE_CONTEXT_DATA_BASE,
 				    OFFSET_INDIRECT_DATA_START, OFFSET_KERNEL, OFFSET_STATE_SIP,
 				    threadgroup_preemption, SIZE_DATA);
 
-	xe2lpg_compute_exec_compute(bo_dict_short[8].data, ADDR_GENERAL_STATE_BASE,
+	xe2lpg_compute_exec_compute(fd,
+				    bo_dict_short[8].data, ADDR_GENERAL_STATE_BASE,
 				    ADDR_SURFACE_STATE_BASE, ADDR_DYNAMIC_STATE_BASE,
 				    ADDR_INSTRUCTION_STATE_BASE, XE2_ADDR_STATE_CONTEXT_DATA_BASE,
 				    OFFSET_INDIRECT_DATA_START, OFFSET_KERNEL, OFFSET_STATE_SIP,
