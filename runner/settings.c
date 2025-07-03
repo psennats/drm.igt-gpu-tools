@@ -90,6 +90,8 @@ static const char settings_filename[] = "metadata.txt";
 static const char env_filename[] = "environment.txt";
 static const char hooks_filename[] = "hooks.txt";
 
+static bool igt_data_path_set_by_runner;
+
 static bool set_log_level(struct settings* settings, const char *level)
 {
 	typeof(*log_levels) *it;
@@ -612,6 +614,31 @@ char *absolute_path(const char *path)
 	return result;
 }
 
+static int set_tests_datadir(void)
+{
+	const char *datapath = "../share/igt-gpu-tools";
+	char *abpath;
+
+	if (getenv("IGT_DATA_PATH"))
+		return 0;
+
+	abpath = absolute_path(datapath);
+	if (!abpath) {
+		fprintf(stderr, "Error: Failed to get absolute path for '%s'\n",
+			datapath);
+		return -EINVAL;
+	}
+
+	if (setenv("IGT_DATA_PATH", abpath, 0) == 0) {
+		igt_data_path_set_by_runner = true;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+
+
 static char *bin_path(char *fname)
 {
 	char *path, *p;
@@ -654,6 +681,10 @@ void init_settings(struct settings *settings)
 {
 	memset(settings, 0, sizeof(*settings));
 	IGT_INIT_LIST_HEAD(&settings->env_vars);
+
+	if (set_tests_datadir())
+		fprintf(stderr, "Data dir path not set\n");
+
 	igt_vec_init(&settings->hook_strs, sizeof(char *));
 }
 
@@ -670,6 +701,11 @@ void clear_settings(struct settings *settings)
 	free_env_vars(&settings->env_vars);
 	free_hook_strs(&settings->hook_strs);
 	free_array_deep((void **)settings->cmdline.argv, settings->cmdline.argc);
+
+	if (igt_data_path_set_by_runner) {
+		unsetenv("IGT_DATA_PATH");
+		igt_data_path_set_by_runner = false;
+	}
 
 	init_settings(settings);
 }
