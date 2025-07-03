@@ -572,7 +572,7 @@ igt_main
 
 		is_dgfx = is_xe_device(data.drm_fd) ? xe_has_vram(data.drm_fd) : gem_has_lmem(data.drm_fd);
 		display_ver = intel_display_ver(intel_get_drm_devid(data.drm_fd));
-		if ((is_dgfx && display_ver == 14) || (display_ver > 14))
+		if (is_dgfx && display_ver == 14)
 			ultra_joiner_supported = true;
 
 		for_each_connected_output(&data.display, output) {
