@@ -53,6 +53,7 @@
 #define OFFSET_STATE_SIP			0xFFFF0000
 
 #define USER_FENCE_VALUE			0xdeadbeefdeadbeefull
+#define POST_SYNC_VALUE			0xabcdabcdcdefcdefull
 #define MAGIC_LOOP_STOP			0x12341234
 
 #define THREADS_PER_GROUP		32
@@ -63,6 +64,7 @@
 #define ENQUEUED_LOCAL_SIZE_Z		1
 #define DP_SS_CACHE_FLUSH		(1 << 12)
 #define DP_PIPELINE_FLUSH		(1 << 2)
+#define WRITE_IMM_DATA			(1 << 0)
 #define WRITE_TIMESTAMP		(3 << 0)
 
 /*
@@ -1557,7 +1559,7 @@ static void xe2lpg_compute_exec_compute(int fd,
 					bool	 threadgroup_preemption,
 					uint32_t work_size)
 {
-	uint8_t wb_mocs = intel_get_wb_mocs_index(fd);
+	uint8_t uc_mocs = intel_get_uc_mocs_index(fd);
 	int b = 0;
 
 	igt_debug("general   state base: %"PRIx64"\n", addr_general_state_base);
@@ -1617,7 +1619,7 @@ static void xe2lpg_compute_exec_compute(int fd,
 	addr_bo_buffer_batch[b++] = addr_surface_state_base >> 32;
 	addr_bo_buffer_batch[b++] = 0x001ff000;
 
-	if (sip_start_pointer) {
+	if (sip_start_pointer && !threadgroup_preemption) {
 		addr_bo_buffer_batch[b++] = XE2_STATE_SIP | 0x1;
 		addr_bo_buffer_batch[b++] = sip_start_pointer;
 		addr_bo_buffer_batch[b++] = 0x00000000;
@@ -1665,12 +1667,12 @@ static void xe2lpg_compute_exec_compute(int fd,
 	addr_bo_buffer_batch[b++] = 0x0c000000 | THREADS_PER_GROUP;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = DP_SS_CACHE_FLUSH | wb_mocs << 4 |
-				    DP_PIPELINE_FLUSH | WRITE_TIMESTAMP;
+	addr_bo_buffer_batch[b++] = DP_SS_CACHE_FLUSH | uc_mocs << 4 |
+				    DP_PIPELINE_FLUSH | WRITE_IMM_DATA;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH;
 	addr_bo_buffer_batch[b++] = ADDR_BATCH >> 32;
-	addr_bo_buffer_batch[b++] = 0x00000000;
-	addr_bo_buffer_batch[b++] = 0x00000000;
+	addr_bo_buffer_batch[b++] = (uint32_t) POST_SYNC_VALUE;
+	addr_bo_buffer_batch[b++] = (uint32_t) (POST_SYNC_VALUE >> 32);
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
 	addr_bo_buffer_batch[b++] = 0x00000000;
@@ -2117,6 +2119,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	struct bo_dict_entry bo_dict_short[ARRAY_SIZE(bo_dict_long)];
 	struct bo_execenv execenv_short, execenv_long;
 	float *input_short, *output_short, *input_long;
+	uint64_t *post_data;
 	unsigned int long_kernel_loop_count = 0;
 	int64_t timeout_one_ns = 1;
 	bool use_loop_kernel = loop_kernel && !threadgroup_preemption;
@@ -2165,6 +2168,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	input_long = (float *) bo_dict_long[4].data;
 	input_short = (float *) bo_dict_short[4].data;
 	output_short = (float *) bo_dict_short[5].data;
+	post_data = (uint64_t *) bo_dict_long[8].data;
 
 	bo_randomize(input_short, SIZE_DATA);
 
@@ -2195,6 +2199,12 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	bo_execenv_exec(&execenv_short, ADDR_BATCH);
 	bo_check_square(input_short, output_short, SIZE_DATA);
 
+	/*
+	 * Catch command level preemption instead TG preemption. For TG and WMTP
+	 * post sync can't be visible at this point yet.
+	 */
+	igt_assert_neq_u64(POST_SYNC_VALUE, *post_data);
+
 	/* Check that the long kernel has not completed yet */
 	igt_assert_neq(0, __xe_wait_ufence(fd, &execenv_long.bo_sync->sync, USER_FENCE_VALUE,
 					   execenv_long.exec_queue, &timeout_one_ns));
@@ -2205,6 +2215,7 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 	((int *)input_long)[0] = MAGIC_LOOP_STOP;
 
 	bo_execenv_sync(&execenv_long);
+	igt_assert_eq_u64(POST_SYNC_VALUE, *post_data);
 
 	bo_execenv_unbind(&execenv_short, bo_dict_short, entries);
 	bo_execenv_unbind(&execenv_long, bo_dict_long, entries);
