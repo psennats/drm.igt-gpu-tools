@@ -29,7 +29,7 @@ static void get_mocs_index(int fd, struct drm_intel_mocs_index *mocs)
 		mocs->defer_to_pat_index = 0;
 	} else if (IS_METEORLAKE(devid)) {
 		mocs->uc_index = 5;
-		mocs->wb_index = 10;
+		mocs->wb_index = 1;
 	} else if (IS_DG2(devid)) {
 		mocs->uc_index = 1;
 		mocs->wb_index = 3;
