@@ -83,7 +83,13 @@
         },
         "GPU excluded platform": {
             "_properties_": {
-                "description": "Provides a list of GPUs not capable of running the subtest (or the test as a whole)."
+                "description": "Provides a list of GPUs not capable of running the subtest (or the test as a whole).",
+                "update-from-file": {
+                    "include-type": "regex-ignorecase",
+                    "include": [
+                        { "all": "../intel-ci/blacklist.txt" }
+                    ]
+                }
             }
         },
         "GPU requirement": {
