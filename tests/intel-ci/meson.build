@@ -2,8 +2,8 @@
 
 intelci_files = [
   'README',
-  'blacklist.txt',
-  'blacklist-pre-merge.txt',
+  'i915.blocklist.txt',
+  'i915.blocklist-pre-merge.txt',
   'chamelium-only.testlist',
   'fast-feedback.testlist',
   'fast-feedback-chamelium-only.testlist',

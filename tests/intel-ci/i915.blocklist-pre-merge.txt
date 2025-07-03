@@ -23,7 +23,7 @@ igt@kms_pm_rpm@universal-planes(-dpms)?
 # it is harder to predictably exercise the cache from userspace.
 #
 # Until these 8 tests are replaced with a kernel selftest and removed from IGT,
-# let's blacklist them for pre-merge testing as they are responsible for a
+# let's blocklist them for pre-merge testing as they are responsible for a
 # significant portion of our execution time:
 #
 # - shard-skl: 0.1% (~15 seconds)
@@ -96,7 +96,8 @@ igt@gem_tiled_wc
 # This test is doing nothing more than waiting for the driver to be suspended
 # before issueing a modeset. However, it never failed while testing for this
 # in the past year, so we probably just want to drop the amount of rounds to
-# reduce the runtime, but let's just blacklist it in pre-merge for now:
+# reduce the runtime, but let's just blocklist it in pre-merge for now:
+
 #
 # - shard-skl: 1% (~2.5 minute)
 # - shard-kbl: 0.9% (~1 minute)

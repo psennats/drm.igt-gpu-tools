@@ -28,7 +28,7 @@
                         { "i915 BAT": "../intel-ci/fast-feedback.testlist" }
                     ],
                     "exclude": [
-                        { "all": "../intel-ci/blacklist.txt" }
+                        { "all": "../intel-ci/i915.blocklist.txt" }
                     ]
                 },
                 "order": [
