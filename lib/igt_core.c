@@ -3336,21 +3336,33 @@ void igt_reset_timeout(void)
 	igt_set_timeout(0, NULL);
 }
 
-FILE *__igt_fopen_data(const char* igt_srcdir, const char* igt_datadir,
-		       const char* filename)
+/**
+ * __igt_fopen_data:
+ * @igt_srcdir:  Directory path for source files.
+ * @igt_datadir: Directory path for data files
+ * @igt_imgdir: Directory path for image files.
+ * @filename: Name of the file to be opened.
+ *
+ * This function attempts to open a data file from a list of specified
+ * directories. A file pointer to the opened file. If the file cannot
+ * be opened, it returns NULL and logs a critical error message.
+ *
+ */
+FILE *__igt_fopen_data(const char *igt_srcdir, const char *igt_datadir,
+		       const char *igt_imgdir, const char *filename)
 {
 	char path[PATH_MAX];
 	FILE *fp;
+	const char *dirs[] = {igt_datadir, igt_srcdir, igt_imgdir,
+			      getenv("IGT_DATA_PATH"), "./data"};
 
-	snprintf(path, sizeof(path), "%s/%s", igt_datadir, filename);
-	fp = fopen(path, "r");
-	if (!fp) {
-		snprintf(path, sizeof(path), "%s/%s", igt_srcdir, filename);
-		fp = fopen(path, "r");
-	}
-	if (!fp) {
-		snprintf(path, sizeof(path), "./%s", filename);
-		fp = fopen(path, "r");
+	for (int i = 0; i < ARRAY_SIZE(dirs); i++) {
+		if (dirs[i]) {
+			snprintf(path, sizeof(path), "%s/%s", dirs[i], filename);
+			fp = fopen(path, "r");
+			if (fp)
+				break;
+		}
 	}
 
 	if (!fp)
