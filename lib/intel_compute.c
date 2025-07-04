@@ -882,17 +882,8 @@ static void compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_exec(&execenv, ADDR_BATCH);
 
-	for (int i = 0; i < execenv.array_size; i++) {
-		float input = input_data[i];
-		float output = output_data[i];
-		float expected_output = input * input;
-
-		if (output != expected_output)
-			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
-				  i, input, output, expected_output);
-		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq_double(output, expected_output);
-	}
+	if (!user || (user && !user->skip_results_check))
+		bo_check_square(input_data, output_data, execenv.array_size);
 
 	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
@@ -1170,17 +1161,8 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_exec(&execenv, ADDR_BATCH);
 
-	for (int i = 0; i < execenv.array_size; i++) {
-		float input = input_data[i];
-		float output = output_data[i];
-		float expected_output = input * input;
-
-		if (output != expected_output)
-			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
-				  i, input, output, expected_output);
-		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq_double(output, expected_output);
-	}
+	if (!user || (user && !user->skip_results_check))
+		bo_check_square(input_data, output_data, execenv.array_size);
 
 	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
@@ -1388,17 +1370,8 @@ static void xehpc_compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_exec(&execenv, ADDR_BATCH);
 
-	for (int i = 0; i < execenv.array_size; i++) {
-		float input = input_data[i];
-		float output = output_data[i];
-		float expected_output = input * input;
-
-		if (output != expected_output)
-			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
-				  i, input, output, expected_output);
-		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq_double(output, expected_output);
-	}
+	if (!user || (user && !user->skip_results_check))
+		bo_check_square(input_data, output_data, execenv.array_size);
 
 	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
@@ -1789,17 +1762,8 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_exec(&execenv, ADDR_BATCH);
 
-	for (int i = 0; i < execenv.array_size; i++) {
-		float input = input_data[i];
-		float output = output_data[i];
-		float expected_output = input * input;
-
-		if (output != expected_output)
-			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
-				  i, input, output, expected_output);
-		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq_double(output, expected_output);
-	}
+	if (!user || (user && !user->skip_results_check))
+		bo_check_square(input_data, output_data, execenv.array_size);
 
 	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
@@ -1887,17 +1851,8 @@ static void xe2lpg_compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_exec(&execenv, ADDR_BATCH);
 
-	for (int i = 0; i < execenv.array_size; i++) {
-		float input = input_data[i];
-		float output = output_data[i];
-		float expected_output = input * input;
-
-		if (output != expected_output)
-			igt_debug("[%4d] input:%f output:%f expected_output:%f\n",
-				  i, input, output, expected_output);
-		if (!user || (user && !user->skip_results_check))
-			igt_assert_eq_double(output, expected_output);
-	}
+	if (!user || (user && !user->skip_results_check))
+		bo_check_square(input_data, output_data, execenv.array_size);
 
 	bo_execenv_unbind(&execenv, bo_dict, entries);
 	bo_execenv_destroy(&execenv);
