@@ -13,10 +13,10 @@ static const struct {
 	int bad;
 	const char *explanation;
 } abort_taints[] = {
-  { 4, 1, "TAINT_MACHINE_CHECK: Processor reported a Machine Check Exception."},
-  { 5, 1, "TAINT_BAD_PAGE: Bad page reference or an unexpected page flags." },
-  { 7, 1, "TAINT_DIE: Kernel has died - BUG/OOPS." },
-  { 9, 1, "TAINT_WARN: WARN_ON has happened." },
+  { TAINT_MACHINE_CHECK, 1, "TAINT_MACHINE_CHECK: Processor reported a Machine Check Exception."},
+  { TAINT_BAD_PAGE,	 1, "TAINT_BAD_PAGE: Bad page reference or an unexpected page flags." },
+  { TAINT_DIE,		 1, "TAINT_DIE: Kernel has died - BUG/OOPS." },
+  { TAINT_WARN,		 1, "TAINT_WARN: WARN_ON has happened." },
   { -1 }
 };
 

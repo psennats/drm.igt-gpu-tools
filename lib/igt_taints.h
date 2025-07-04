@@ -6,6 +6,12 @@
 #ifndef __IGT_TAINTS_H__
 #define __IGT_TAINTS_H__
 
+#define	TAINT_MACHINE_CHECK	 4
+#define	TAINT_BAD_PAGE		 5
+#define	TAINT_DIE		 7
+#define	TAINT_WARN		 9
+#define	TAINT_SOFT_LOCKUP	14
+
 unsigned long igt_kernel_tainted(unsigned long *taints);
 const char *igt_explain_taints(unsigned long *taints);
 

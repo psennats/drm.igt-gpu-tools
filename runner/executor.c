@@ -871,10 +871,15 @@ static const char *need_to_timeout(struct settings *settings,
 	if (settings->abort_mask & ABORT_TAINT &&
 	    is_tainted(taints)) {
 		/* list of timeouts that may postpone immediate kill on taint */
-		if (settings->per_test_timeout || settings->inactivity_timeout)
-			decrease = 10;
-		else
+		if (settings->per_test_timeout || settings->inactivity_timeout) {
+			if (is_tainted(taints) == (1 << TAINT_WARN) &&
+			    taints & (1 << TAINT_SOFT_LOCKUP))
+				decrease = 2;
+			else
+				decrease = 10;
+		} else {
 			return "Killing the test because the kernel is tainted.\n";
+		}
 	}
 
 	if (settings->per_test_timeout != 0 &&
@@ -1526,8 +1531,9 @@ static int monitor_output(pid_t child,
 			sigfd = -1; /* we are dying, no signal handling for now */
 		}
 
+		igt_kernel_tainted(&taints);
 		timeout_reason = need_to_timeout(settings, killed,
-						 igt_kernel_tainted(&taints),
+						 taints,
 						 igt_time_elapsed(&time_last_activity, &time_now),
 						 igt_time_elapsed(&time_last_subtest, &time_now),
 						 igt_time_elapsed(&time_killed, &time_now),
