@@ -5,6 +5,7 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #include "drmtest.h"
 #include "igt_debugfs.h"
