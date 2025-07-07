@@ -500,12 +500,14 @@ static void igt_drm_debug_mask_reset_exit_handler(int sig)
 
 /**
  * igt_drm_debug_mask_update:
- * @debug_mask: new debug mask to set
+ * @mask_to_set: new debug mask to set
  *
  * This modifies the current drm debug mask to the new value.
  */
-void igt_drm_debug_mask_update(unsigned int new_mask)
+void igt_drm_debug_mask_update(unsigned int mask_to_set)
 {
+	unsigned int new_debug_mask;
+	static bool debug_mask_read_once = true;
 	char buf[20];
 	int dir;
 
@@ -513,14 +515,18 @@ void igt_drm_debug_mask_update(unsigned int new_mask)
 	if (dir < 0)
 		return;
 
-	saved_drm_debug_mask = igt_drm_debug_mask_get(dir);
-	if (saved_drm_debug_mask < 0) {
-		close(dir);
-		return;
+	/* The below flag is used to read the original debug mask only once */
+	if (debug_mask_read_once) {
+		debug_mask_read_once = false;
+		saved_drm_debug_mask = igt_drm_debug_mask_get(dir);
+		if (saved_drm_debug_mask < 0) {
+			close(dir);
+			return;
+		}
 	}
 
-	igt_debug("Setting DRM debug mask to %d\n", new_mask);
-	snprintf(buf, sizeof(buf), "%d", new_mask);
+	igt_debug("Setting DRM debug mask to %d\n", new_debug_mask);
+	snprintf(buf, sizeof(buf), "%d", new_debug_mask);
 	igt_assert(igt_sysfs_set(dir, "debug", buf));
 
 	close(dir);
