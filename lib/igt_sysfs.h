@@ -148,6 +148,7 @@ void igt_drm_debug_mask_reset(void);
 int igt_drm_debug_mask_get(int dir);
 int igt_sysfs_drm_module_params_open(void);
 void update_debug_mask_if_ci(unsigned int debug_mask_if_ci);
+void igt_drm_debug_mask_reset_exit_handler(int sig);
 
 enum drm_debug_category {
 	DRM_UT_CORE      = 1 << 0,

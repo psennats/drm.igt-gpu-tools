@@ -493,7 +493,7 @@ void igt_drm_debug_mask_reset(void)
 	close(dir);
 }
 
-static void igt_drm_debug_mask_reset_exit_handler(int sig)
+void igt_drm_debug_mask_reset_exit_handler(int sig)
 {
 	igt_drm_debug_mask_reset();
 }
@@ -530,12 +530,6 @@ void igt_drm_debug_mask_update(unsigned int mask_to_set)
 	igt_assert(igt_sysfs_set(dir, "debug", buf));
 
 	close(dir);
-
-	/*
-	 * TODO: Check whether multiple exit handlers will get installed,
-	 * if we call this api multiple times
-	 */
-	igt_install_exit_handler(igt_drm_debug_mask_reset_exit_handler);
 }
 
 void update_debug_mask_if_ci(unsigned int debug_mask_if_ci)
