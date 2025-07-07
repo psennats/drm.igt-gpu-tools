@@ -443,7 +443,7 @@ int igt_sysfs_drm_module_params_open(void)
 	return open(path, O_RDONLY);
 }
 
-static int log_level = -1;
+static int saved_drm_debug_mask = -1;
 
 /**
  * igt_drm_debug_level_get:
@@ -458,8 +458,8 @@ int igt_drm_debug_level_get(int dir)
 {
 	char buf[20];
 
-	if (log_level >= 0)
-		return log_level;
+	if (saved_drm_debug_mask >= 0)
+		return saved_drm_debug_mask;
 
 	if (igt_sysfs_read(dir, "debug", buf, sizeof(buf) - 1) < 0)
 		return -1;
@@ -479,15 +479,15 @@ void igt_drm_debug_level_reset(void)
 	char buf[20];
 	int dir;
 
-	if (log_level < 0)
+	if (saved_drm_debug_mask < 0)
 		return;
 
 	dir = igt_sysfs_drm_module_params_open();
 	if (dir < 0)
 		return;
 
-	igt_debug("Resetting DRM debug level to %d\n", log_level);
-	snprintf(buf, sizeof(buf), "%d", log_level);
+	igt_debug("Restoring DRM debug level to %d\n", saved_drm_debug_mask);
+	snprintf(buf, sizeof(buf), "%d", saved_drm_debug_mask);
 	igt_assert(igt_sysfs_set(dir, "debug", buf));
 
 	close(dir);
@@ -513,8 +513,8 @@ void igt_drm_debug_level_update(unsigned int new_log_level)
 	if (dir < 0)
 		return;
 
-	log_level = igt_drm_debug_level_get(dir);
-	if (log_level < 0) {
+	saved_drm_debug_mask = igt_drm_debug_level_get(dir);
+	if (saved_drm_debug_mask < 0) {
 		close(dir);
 		return;
 	}
