@@ -1465,6 +1465,7 @@ struct drm_amdgpu_info_hw_ip {
 	__u32  available_rings;
 	/** version info: bits 23:16 major, 15:8 minor, 7:0 revision */
 	__u32  ip_discovery_version;
+	__u32  num_userq_slots;
 };
 
 /* GFX metadata BO sizes and alignment info (in bytes) */
