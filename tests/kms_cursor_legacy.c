@@ -1853,11 +1853,11 @@ igt_main
 
 		dir = igt_sysfs_drm_module_params_open();
 		if (dir >= 0) {
-			current_log_level = igt_drm_debug_level_get(dir);
+			current_log_level = igt_drm_debug_mask_get(dir);
 			close(dir);
 
 			if (current_log_level > 10)
-				igt_drm_debug_level_update(10);
+				igt_drm_debug_mask_update(10);
 		}
 	}
 

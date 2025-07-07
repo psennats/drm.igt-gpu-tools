@@ -446,15 +446,15 @@ int igt_sysfs_drm_module_params_open(void)
 static int saved_drm_debug_mask = -1;
 
 /**
- * igt_drm_debug_level_get:
+ * igt_drm_debug_mask_get:
  *
- * This reads the current debug log level of the machine on
+ * This reads the current debug mask of the machine on
  * which the test is currently executing.
  *
  * Returns:
- * The current log level, or -1 on error.
+ * The current debug mask, or -1 on error.
  */
-int igt_drm_debug_level_get(int dir)
+int igt_drm_debug_mask_get(int dir)
 {
 	char buf[20];
 
@@ -468,13 +468,13 @@ int igt_drm_debug_level_get(int dir)
 }
 
 /**
- * igt_drm_debug_level_reset:
+ * igt_drm_debug_mask_reset:
  *
- * This modifies the current debug log level of the machine
+ * This modifies the current debug mask of the machine
  * to the default value post-test.
  *
  */
-void igt_drm_debug_level_reset(void)
+void igt_drm_debug_mask_reset(void)
 {
 	char buf[20];
 	int dir;
@@ -486,25 +486,25 @@ void igt_drm_debug_level_reset(void)
 	if (dir < 0)
 		return;
 
-	igt_debug("Restoring DRM debug level to %d\n", saved_drm_debug_mask);
+	igt_debug("Restoring DRM debug mask to %d\n", saved_drm_debug_mask);
 	snprintf(buf, sizeof(buf), "%d", saved_drm_debug_mask);
 	igt_assert(igt_sysfs_set(dir, "debug", buf));
 
 	close(dir);
 }
 
-static void igt_drm_debug_level_reset_exit_handler(int sig)
+static void igt_drm_debug_mask_reset_exit_handler(int sig)
 {
-	igt_drm_debug_level_reset();
+	igt_drm_debug_mask_reset();
 }
 
 /**
- * igt_drm_debug_level_update:
- * @debug_level: new debug level to set
+ * igt_drm_debug_mask_update:
+ * @debug_mask: new debug mask to set
  *
- * This modifies the current drm debug log level to the new value.
+ * This modifies the current drm debug mask to the new value.
  */
-void igt_drm_debug_level_update(unsigned int new_log_level)
+void igt_drm_debug_mask_update(unsigned int new_mask)
 {
 	char buf[20];
 	int dir;
@@ -513,14 +513,14 @@ void igt_drm_debug_level_update(unsigned int new_log_level)
 	if (dir < 0)
 		return;
 
-	saved_drm_debug_mask = igt_drm_debug_level_get(dir);
+	saved_drm_debug_mask = igt_drm_debug_mask_get(dir);
 	if (saved_drm_debug_mask < 0) {
 		close(dir);
 		return;
 	}
 
-	igt_debug("Setting DRM debug level to %d\n", new_log_level);
-	snprintf(buf, sizeof(buf), "%d", new_log_level);
+	igt_debug("Setting DRM debug mask to %d\n", new_mask);
+	snprintf(buf, sizeof(buf), "%d", new_mask);
 	igt_assert(igt_sysfs_set(dir, "debug", buf));
 
 	close(dir);
@@ -529,7 +529,7 @@ void igt_drm_debug_level_update(unsigned int new_log_level)
 	 * TODO: Check whether multiple exit handlers will get installed,
 	 * if we call this api multiple times
 	 */
-	igt_install_exit_handler(igt_drm_debug_level_reset_exit_handler);
+	igt_install_exit_handler(igt_drm_debug_mask_reset_exit_handler);
 }
 
 /**
