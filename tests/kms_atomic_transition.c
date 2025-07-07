@@ -1174,8 +1174,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 	int pipe_count = 0;
 
 	igt_fixture {
-		int dir, current_log_level;
-
+		unsigned int debug_mask_if_ci = DRM_UT_KMS;
 		data.drm_fd = drm_open_driver_master(DRIVER_ANY);
 
 		kmstest_set_vt_graphics_mode();
@@ -1188,14 +1187,7 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 		for_each_connected_output(&data.display, output)
 			count++;
 
-		dir = igt_sysfs_drm_module_params_open();
-		if (dir >= 0) {
-			current_log_level = igt_drm_debug_mask_get(dir);
-			close(dir);
-
-			if (current_log_level > 10)
-				igt_drm_debug_mask_update(10);
-		}
+		update_debug_mask_if_ci(debug_mask_if_ci);
 	}
 
 	igt_describe("Check toggling of primary plane with vblank");

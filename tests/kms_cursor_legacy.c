@@ -1839,7 +1839,7 @@ igt_main
 	};
 
 	igt_fixture {
-		int dir, current_log_level;
+		unsigned int debug_mask_if_ci = DRM_UT_KMS;
 		display.drm_fd = drm_open_driver_master(DRIVER_ANY);
 		kmstest_set_vt_graphics_mode();
 
@@ -1851,14 +1851,7 @@ igt_main
 		 */
 		intel_psr2_restore = i915_psr2_sel_fetch_to_psr1(display.drm_fd, NULL);
 
-		dir = igt_sysfs_drm_module_params_open();
-		if (dir >= 0) {
-			current_log_level = igt_drm_debug_mask_get(dir);
-			close(dir);
-
-			if (current_log_level > 10)
-				igt_drm_debug_mask_update(10);
-		}
+		update_debug_mask_if_ci(debug_mask_if_ci);
 	}
 
 	igt_describe("Test checks how many cursor updates we can fit between vblanks "

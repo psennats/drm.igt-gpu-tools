@@ -147,6 +147,20 @@ void igt_drm_debug_mask_update(unsigned int new_log_level);
 void igt_drm_debug_mask_reset(void);
 int igt_drm_debug_mask_get(int dir);
 int igt_sysfs_drm_module_params_open(void);
+void update_debug_mask_if_ci(unsigned int debug_mask_if_ci);
+
+enum drm_debug_category {
+	DRM_UT_CORE      = 1 << 0,
+	DRM_UT_DRIVER    = 1 << 1,
+	DRM_UT_KMS       = 1 << 2,
+	DRM_UT_PRIME     = 1 << 3,
+	DRM_UT_ATOMIC    = 1 << 4,
+	DRM_UT_VBL       = 1 << 5,
+	DRM_UT_STATE     = 1 << 6,
+	DRM_UT_LEASE     = 1 << 7,
+	DRM_UT_DP        = 1 << 8,
+	DRM_UT_DRMRES    = 1 << 9,
+};
 
 /**
  * igt_sysfs_rw_attr:

@@ -538,6 +538,16 @@ void igt_drm_debug_mask_update(unsigned int mask_to_set)
 	igt_install_exit_handler(igt_drm_debug_mask_reset_exit_handler);
 }
 
+void update_debug_mask_if_ci(unsigned int debug_mask_if_ci)
+{
+	const char *ci_run = getenv("IGT_CI_RUN");
+
+	if (ci_run && ci_run[0] == '1') {
+		igt_debug("Currently under CI execution, reducing the DRM debug mask to 0x4\n");
+		igt_drm_debug_mask_update(debug_mask_if_ci);
+	}
+}
+
 /**
  * igt_sysfs_write:
  * @dir: sysfs directory

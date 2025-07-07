@@ -597,7 +597,7 @@ igt_main
 	data_t data = {};
 
 	igt_fixture {
-		int dir, current_log_level;
+		unsigned int debug_mask_if_ci = DRM_UT_KMS;
 		data.drm_fd = drm_open_driver_master(DRIVER_INTEL |
 						     DRIVER_XE);
 		kmstest_set_vt_graphics_mode();
@@ -605,14 +605,8 @@ igt_main
 		igt_display_require_output(&data.display);
 		for_each_pipe(&data.display, data.pipe)
 			data.n_pipes++;
-		dir = igt_sysfs_drm_module_params_open();
-		if (dir >= 0) {
-			current_log_level = igt_drm_debug_mask_get(dir);
-			close(dir);
+		update_debug_mask_if_ci(debug_mask_if_ci);
 
-			if (current_log_level > 10)
-				igt_drm_debug_mask_update(10);
-		}
 		/*
 		 * Some environments may have environment
 		 * variable set to ignore long hpd, disable it for this test
