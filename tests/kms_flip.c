@@ -321,7 +321,19 @@ static bool should_skip_ts_checks(void) {
 	 * timestamp to drift with a relatively larger standard deviation over a large sample.
 	 * As it's a known issue, skip any Timestamp or Sequence checks for MTK drivers.
 	 */
-	return is_mtk_device(drm_fd);
+	if (is_mtk_device(drm_fd))
+		return true;
+
+	/*
+	 * In simulation environments, hardware behavior may not accurately reflect real-world
+	 * timing characteristics. To avoid false negatives in tests due to simulated timing
+	 * artifacts, skip timestamp and sequence checks when the INTEL_SIMULATION environment
+	 * variable is set to a truthy value.
+	 */
+	if (igt_run_in_simulation())
+		return true;
+
+	return false;
 }
 
 static bool vblank_dependence(int flags)
