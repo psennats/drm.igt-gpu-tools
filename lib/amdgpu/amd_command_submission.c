@@ -353,6 +353,7 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 	int i, r, loop, ring_id;
 
 	uint64_t gtt_flags[2] = {0, AMDGPU_GEM_CREATE_CPU_GTT_USWC};
+	uint32_t available_rings = 0;
 
 	ring_context = calloc(1, sizeof(*ring_context));
 	igt_assert(ring_context);
@@ -368,7 +369,8 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 
 	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
-
+	available_rings = user_queue ? ((1 << ring_context->hw_ip_info.num_userq_slots) -1) :
+					ring_context->hw_ip_info.available_rings;
 	for (i = 0; secure && (i < 2); i++)
 		gtt_flags[i] |= AMDGPU_GEM_CREATE_ENCRYPTED;
 
@@ -381,8 +383,7 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 
 
 
-/* Dont need but check with vitaly if for KMS also we need ring id or not */
-	for (ring_id = 0; (1 << ring_id) & ring_context->hw_ip_info.available_rings; ring_id++) {
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
 		loop = 0;
 		ring_context->ring_id = ring_id;
 		while (loop < 2) {
@@ -481,7 +482,7 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 
 	struct amdgpu_ring_context *ring_context;
 	int r, loop, ring_id;
-
+	uint32_t available_rings = 0;
 	uint64_t gtt_flags[2] = {0, AMDGPU_GEM_CREATE_CPU_GTT_USWC};
 
 	ring_context = calloc(1, sizeof(*ring_context));
@@ -495,6 +496,8 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 	igt_assert(ring_context->pm4);
 	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
+	available_rings = user_queue ? ((1 << ring_context->hw_ip_info.num_userq_slots) -1) :
+					ring_context->hw_ip_info.available_rings;
 
 	if (user_queue) {
 		ip_block->funcs->userq_create(device, ring_context, ip_block->type);
@@ -503,7 +506,7 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 		igt_assert_eq(r, 0);
 	}
 
-	for (ring_id = 0; (1 << ring_id) & ring_context->hw_ip_info.available_rings; ring_id++) {
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
 		/* prepare resource */
 		loop = 0;
 		ring_context->ring_id = ring_id;
@@ -575,7 +578,7 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 
 	struct amdgpu_ring_context *ring_context;
 	int r, loop1, loop2, ring_id;
-
+	uint32_t available_rings = 0;
 	uint64_t gtt_flags[2] = {0, AMDGPU_GEM_CREATE_CPU_GTT_USWC};
 
 
@@ -590,6 +593,8 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 	igt_assert(ring_context->pm4);
 	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
+	available_rings = user_queue ? ((1 << ring_context->hw_ip_info.num_userq_slots) -1) :
+					ring_context->hw_ip_info.available_rings;
 
 
 	if (user_queue) {
@@ -599,7 +604,7 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 		igt_assert_eq(r, 0);
 	}
 
-	for (ring_id = 0; (1 << ring_id) & ring_context->hw_ip_info.available_rings; ring_id++) {
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
 		loop1 = loop2 = 0;
 		ring_context->ring_id = ring_id;
 	/* run 9 circle to test all mapping combination */

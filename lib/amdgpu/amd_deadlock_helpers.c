@@ -457,10 +457,12 @@ void bad_access_ring_helper(amdgpu_device_handle device_handle, unsigned int cmd
 	uint32_t prio;
 	char sysfs[125];
 	bool support_page;
-
+	uint32_t available_rings = 0;
 	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
 	igt_assert_eq(r, 0);
-	if (!info.available_rings)
+
+	available_rings = user_queue ? ((1 << info.num_userq_slots) -1) : info.available_rings;
+	if (!available_rings)
 		igt_info("SKIP ... as there's no ring for ip %d\n", ip_type);
 
 	if (user_queue) {

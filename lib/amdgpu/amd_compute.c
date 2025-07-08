@@ -47,7 +47,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	int r, instance;
 	amdgpu_bo_list_handle bo_list;
 	amdgpu_va_handle va_handle;
-
+	uint32_t available_rings = 0;
 	struct amdgpu_ring_context *ring_context;
 
 	ip_block = get_ip_block(device, type);
@@ -57,6 +57,9 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 	r = amdgpu_query_hw_ip_info(device, type, 0, &ring_context->hw_ip_info);
 	igt_assert_eq(r, 0);
 
+	available_rings = user_queue ? ((1 << ring_context->hw_ip_info.num_userq_slots) -1) :
+						ring_context->hw_ip_info.available_rings;
+
 	if (user_queue) {
 		ip_block->funcs->userq_create(device, ring_context, type);
 	} else {
@@ -64,7 +67,7 @@ void amdgpu_command_submission_nop(amdgpu_device_handle device, enum amd_ip_bloc
 		igt_assert_eq(r, 0);
 	}
 
-	for (instance = 0; ring_context->hw_ip_info.available_rings & (1 << instance); instance++) {
+	for (instance = 0; available_rings & (1 << instance); instance++) {
 		r = amdgpu_bo_alloc_and_map_sync(device, 4096, 4096,
 						 AMDGPU_GEM_DOMAIN_GTT, 0,
 						 AMDGPU_VM_MTYPE_UC,
