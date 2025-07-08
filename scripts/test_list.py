@@ -1427,7 +1427,7 @@ class TestList:
                     continue
 
                 file_line.rstrip(r"\n")
-                printf(f"{fname}:{file_ln + 1}: Warning: unrecognized line. Need to add field at %s?\n\t==> %s" %
+                print(f"{fname}:{file_ln + 1}: Warning: unrecognized line. Need to add field at %s?\n\t==> %s" %
                          (config_origin, file_line))
 
     def show_subtests(self, sort_field):
