@@ -139,6 +139,14 @@ static void amdgpu_command_submission_sdma(amdgpu_device_handle device, bool use
 	amdgpu_command_submission_nop(device, AMDGPU_HW_IP_DMA, user_queue);
 }
 
+static void amdgpu_test_all_queues(amdgpu_device_handle device, bool user_queue)
+{
+	amdgpu_command_submission_write_linear_helper2(device, AMDGPU_HW_IP_GFX, false, user_queue);
+	amdgpu_command_submission_write_linear_helper2(device, AMDGPU_HW_IP_COMPUTE, false, user_queue);
+	amdgpu_command_submission_write_linear_helper2(device, AMDGPU_HW_IP_DMA, false, user_queue);
+	amdgpu_command_submission_write_linear_helper2(device, AMDGPU_HW_IP_GFX |AMDGPU_HW_IP_COMPUTE |
+							AMDGPU_HW_IP_DMA, false, user_queue);
+}
 /**
  * SEMAPHORE
  * @param device
@@ -828,6 +836,16 @@ igt_main
 		if (enable_test && userq_arr_cap[AMD_IP_DMA]) {
 			igt_dynamic_f("cs-sdma-with-umq")
 			amdgpu_command_submission_sdma(device, true);
+		}
+	}
+
+	igt_describe("Check-all-user-queues-for-write-operation");
+	igt_subtest_with_dynamic("all-queues-test-with-UMQ") {
+		if (enable_test && userq_arr_cap[AMD_IP_GFX] &&
+				userq_arr_cap[AMD_IP_COMPUTE] &&
+				userq_arr_cap[AMD_IP_DMA]) {
+			igt_dynamic_f("all-queues-with-umq")
+			amdgpu_test_all_queues(device, true);
 		}
 	}
 #endif
