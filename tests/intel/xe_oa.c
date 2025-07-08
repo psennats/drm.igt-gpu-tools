@@ -1431,7 +1431,7 @@ read_2_oa_reports(int format_id,
 
 		while ((ret = read(stream_fd, buf + len, buf_size)) < 0 && errno == EINTR)
 			;
-		if (errno == EIO) {
+		if (ret < 0 && errno == EIO) {
 			oa_status = get_stream_status(stream_fd);
 			continue;
 		}
@@ -1869,7 +1869,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 
 			while ((ret = read(stream_fd, buf, buf_size)) < 0 && errno == EINTR)
 				;
-			if (errno == EIO) {
+			if (ret < 0 && errno == EIO) {
 				oa_status = get_stream_status(stream_fd);
 				continue;
 			}
@@ -2532,7 +2532,6 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 
 	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
 
-	errno = 0;
 	/* Read 0 bytes repeatedly until you see an EIO */
 	while (-1 == read(stream_fd, buf, 0)) {
 		if (errno == EIO) {
@@ -2607,7 +2606,7 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 	       ((len = read(stream_fd, &buf[total_len], buf_size - total_len)) > 0 ||
 		(len == -1 && (errno == EINTR || errno == EIO)))) {
 		/* Assert only for default OA buffer size */
-		if (errno == EIO && !oa_buffer_size) {
+		if (len < 0 && errno == EIO && !oa_buffer_size) {
 			oa_status = get_stream_status(stream_fd);
 			igt_assert(!(oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW));
 		}
