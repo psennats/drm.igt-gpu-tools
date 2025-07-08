@@ -4,6 +4,9 @@ intelci_files = [
   'README',
   'blacklist.txt',
   'blacklist-pre-merge.txt',
+  'chamelium-only.testlist',
+  'fast-feedback.testlist',
+  'fast-feedback-chamelium-only.testlist',
   'i915.blocklist.txt',
   'i915.blocklist-pre-merge.txt',
   'i915.chamelium-only.testlist',
@@ -24,4 +27,4 @@ intelci_files = [
   'xe-sriov-vm.blocklist.txt',
 ]
 
-install_data(sources : intelci_files, install_dir : datadir)
+install_data(sources : intelci_files, install_dir : datadir, follow_symlinks : false)
