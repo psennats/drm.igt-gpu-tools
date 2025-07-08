@@ -36,6 +36,9 @@ void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 						   const struct amdgpu_ip_block_version *ip_block,
 						   bool secure, bool user_queue);
 
+void amdgpu_command_submission_write_linear_helper2(amdgpu_device_handle device, unsigned type,
+						    bool secure, bool user_queue);
+
 void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 						 const struct amdgpu_ip_block_version *ip_block,
 						 bool user_queue);

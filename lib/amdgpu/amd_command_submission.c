@@ -133,6 +133,214 @@ int amdgpu_test_exec_cs_helper(amdgpu_device_handle device, unsigned int ip_type
 	return r;
 }
 
+static void amdgpu_create_ip_queues(amdgpu_device_handle device,
+                         const struct amdgpu_ip_block_version *ip_block,
+                         bool secure, bool user_queue,
+                         struct amdgpu_ring_context **ring_context_out,
+                         int *available_rings_out)
+{
+	const int sdma_write_length = 128;
+	const int pm4_dw = 256;
+	struct amdgpu_ring_context *ring_context = NULL;
+	int available_rings = 0;
+	int r, ring_id;
+
+	/* Get number of available queues */
+	struct drm_amdgpu_info_hw_ip hw_ip_info;
+
+	/* First get the hardware IP information */
+	memset(&hw_ip_info, 0, sizeof(hw_ip_info));
+	r = amdgpu_query_hw_ip_info(device, ip_block->type, 0, &hw_ip_info);
+	igt_assert_eq(r, 0);
+
+	available_rings = user_queue ? ((1 << hw_ip_info.num_userq_slots) - 1) :
+				hw_ip_info.available_rings;
+	if (available_rings <= 0) {
+		*ring_context_out = NULL;
+		*available_rings_out = 0;
+		igt_skip("No available queues for testing\n");
+		return;
+	}
+
+	/* Allocate and initialize ring_id contexts */
+	ring_context = calloc(available_rings, sizeof(*ring_context));
+	igt_assert(ring_context);
+
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
+		memset(&ring_context[ring_id], 0, sizeof(ring_context[ring_id]));
+		ring_context[ring_id].write_length = sdma_write_length;
+		ring_context[ring_id].pm4 = calloc(pm4_dw, sizeof(*ring_context[ring_id].pm4));
+		ring_context[ring_id].secure = secure;
+		ring_context[ring_id].pm4_size = pm4_dw;
+		ring_context[ring_id].res_cnt = 1;
+		ring_context[ring_id].user_queue = user_queue;
+		ring_context[ring_id].time_out = 0;
+		igt_assert(ring_context[ring_id].pm4);
+
+		/* Copy the previously queried HW IP info instead of querying again */
+		memcpy(&ring_context[ring_id].hw_ip_info, &hw_ip_info, sizeof(hw_ip_info));
+	}
+
+	/* Create all queues */
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
+		if (user_queue) {
+			ip_block->funcs->userq_create(device, &ring_context[ring_id], ip_block->type);
+		} else {
+			r = amdgpu_cs_ctx_create(device, &ring_context[ring_id].context_handle);
+		}
+		igt_assert_eq(r, 0);
+	}
+
+	*ring_context_out = ring_context;
+	*available_rings_out = available_rings;
+}
+
+static void amdgpu_command_submission_write_linear(amdgpu_device_handle device,
+                         const struct amdgpu_ip_block_version *ip_block,
+                         bool secure, bool user_queue,
+                         struct amdgpu_ring_context *ring_context,
+                         int available_rings)
+{
+	uint64_t gtt_flags[2] = {0, AMDGPU_GEM_CREATE_CPU_GTT_USWC};
+	int i, r, ring_id;
+
+	/* Set encryption flags if needed */
+	for (i = 0; secure && (i < 2); i++)
+		gtt_flags[i] |= AMDGPU_GEM_CREATE_ENCRYPTED;
+
+	/* Test all queues */
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
+		/* Allocate buffer for this ring_id */
+		r = amdgpu_bo_alloc_and_map_sync(device,
+			ring_context[ring_id].write_length * sizeof(uint32_t),
+			4096, AMDGPU_GEM_DOMAIN_GTT,
+			gtt_flags[0],
+			AMDGPU_VM_MTYPE_UC,
+			&ring_context[ring_id].bo,
+			(void **)&ring_context[ring_id].bo_cpu,
+			&ring_context[ring_id].bo_mc,
+			&ring_context[ring_id].va_handle,
+			ring_context[ring_id].timeline_syncobj_handle,
+			++ring_context[ring_id].point, user_queue);
+		igt_assert_eq(r, 0);
+
+		if (user_queue) {
+			r = amdgpu_timeline_syncobj_wait(device,
+			ring_context[ring_id].timeline_syncobj_handle,
+			ring_context[ring_id].point);
+			igt_assert_eq(r, 0);
+		}
+
+		/* Clear buffer */
+		memset((void *)ring_context[ring_id].bo_cpu, 0,
+		       ring_context[ring_id].write_length * sizeof(uint32_t));
+
+		ring_context[ring_id].resources[0] = ring_context[ring_id].bo;
+
+		/* Submit work */
+		ip_block->funcs->write_linear(ip_block->funcs, &ring_context[ring_id],
+			  &ring_context[ring_id].pm4_dw);
+
+		amdgpu_test_exec_cs_helper(device, ip_block->type, &ring_context[ring_id], 0);
+
+		/* Verification */
+		if (!secure) {
+			r = ip_block->funcs->compare(ip_block->funcs, &ring_context[ring_id], 1);
+			igt_assert_eq(r, 0);
+		} else if (ip_block->type == AMDGPU_HW_IP_GFX) {
+			ip_block->funcs->write_linear_atomic(ip_block->funcs, &ring_context[ring_id], &ring_context[ring_id].pm4_dw);
+			amdgpu_test_exec_cs_helper(device, ip_block->type, &ring_context[ring_id], 0);
+		} else if (ip_block->type == AMDGPU_HW_IP_DMA) {
+			uint32_t original_value = ring_context[ring_id].bo_cpu[0];
+			ip_block->funcs->write_linear_atomic(ip_block->funcs, &ring_context[ring_id], &ring_context[ring_id].pm4_dw);
+			amdgpu_test_exec_cs_helper(device, ip_block->type, &ring_context[ring_id], 0);
+			igt_assert_neq(ring_context[ring_id].bo_cpu[0], original_value);
+
+			original_value = ring_context[ring_id].bo_cpu[0];
+			ip_block->funcs->write_linear_atomic(ip_block->funcs, &ring_context[ring_id], &ring_context[ring_id].pm4_dw);
+			amdgpu_test_exec_cs_helper(device, ip_block->type, &ring_context[ring_id], 0);
+			igt_assert_eq(ring_context[ring_id].bo_cpu[0], original_value);
+		}
+
+		/* Clean up buffer */
+		amdgpu_bo_unmap_and_free(ring_context[ring_id].bo, ring_context[ring_id].va_handle,
+		ring_context[ring_id].bo_mc,
+		ring_context[ring_id].write_length * sizeof(uint32_t));
+	}
+}
+
+static void amdgpu_destroy_ip_queues(amdgpu_device_handle device,
+                         const struct amdgpu_ip_block_version *ip_block,
+                         bool secure, bool user_queue,
+                         struct amdgpu_ring_context *ring_context,
+                         int available_rings)
+{
+	int ring_id, r;
+
+	/* Destroy all queues and free resources */
+	for (ring_id = 0; (1 << ring_id) & available_rings; ring_id++) {
+		if (user_queue) {
+			ip_block->funcs->userq_destroy(device, &ring_context[ring_id], ip_block->type);
+		} else {
+			r = amdgpu_cs_ctx_free(ring_context[ring_id].context_handle);
+			igt_assert_eq(r, 0);
+		}
+		free(ring_context[ring_id].pm4);
+	}
+
+	free(ring_context);
+}
+
+void amdgpu_command_submission_write_linear_helper2(amdgpu_device_handle device,
+                            unsigned type,
+                            bool secure, bool user_queue)
+{
+	struct amdgpu_ring_context *gfx_ring_context = NULL;
+	struct amdgpu_ring_context *compute_ring_context = NULL;
+	struct amdgpu_ring_context *sdma_ring_context = NULL;
+
+	// Separate variables for each type of IP block's ring_id count
+	int num_gfx_queues = 0;
+	int num_compute_queues = 0;
+	int num_sdma_queues = 0;
+
+	/* Create IP slots for each block */
+	if (type & AMDGPU_HW_IP_GFX)
+		amdgpu_create_ip_queues(device, get_ip_block(device, AMDGPU_HW_IP_GFX), secure, user_queue, &gfx_ring_context, &num_gfx_queues);
+
+	if (type & AMDGPU_HW_IP_COMPUTE)
+		amdgpu_create_ip_queues(device, get_ip_block(device, AMDGPU_HW_IP_COMPUTE), secure, user_queue, &compute_ring_context, &num_compute_queues);
+
+	if (type & AMDGPU_HW_IP_DMA)
+		amdgpu_create_ip_queues(device, get_ip_block(device, AMDGPU_HW_IP_DMA), secure, user_queue, &sdma_ring_context, &num_sdma_queues);
+
+	/* Submit commands to all IP blocks */
+	if (gfx_ring_context)
+		amdgpu_command_submission_write_linear(device, get_ip_block(device, AMDGPU_HW_IP_GFX), secure, user_queue,
+												gfx_ring_context, num_gfx_queues);
+
+	if (compute_ring_context)
+		amdgpu_command_submission_write_linear(device, get_ip_block(device, AMDGPU_HW_IP_COMPUTE), secure, user_queue,
+												compute_ring_context, num_compute_queues);
+
+	if (sdma_ring_context)
+		amdgpu_command_submission_write_linear(device, get_ip_block(device, AMDGPU_HW_IP_DMA), secure, user_queue,
+												sdma_ring_context, num_sdma_queues);
+
+	/* Clean up resources */
+	if (gfx_ring_context)
+		amdgpu_destroy_ip_queues(device, get_ip_block(device, AMDGPU_HW_IP_GFX), secure, user_queue,
+												gfx_ring_context, num_gfx_queues);
+
+	if (compute_ring_context)
+		amdgpu_destroy_ip_queues(device, get_ip_block(device, AMDGPU_HW_IP_COMPUTE), secure, user_queue,
+												compute_ring_context, num_compute_queues);
+
+	if (sdma_ring_context)
+		amdgpu_destroy_ip_queues(device, get_ip_block(device, AMDGPU_HW_IP_DMA), secure, user_queue,
+												sdma_ring_context, num_sdma_queues);
+}
+
 void amdgpu_command_submission_write_linear_helper(amdgpu_device_handle device,
 						   const struct amdgpu_ip_block_version *ip_block,
 						   bool secure, bool user_queue)
