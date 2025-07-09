@@ -1012,9 +1012,9 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	uint32_t exec_queues[MAX_N_EXEC_QUEUES];
 	struct test_exec_data *data, *next_data = NULL;
 	uint32_t bo_flags;
-	uint32_t bo = 0, prefetch_sync = 0;
+	uint32_t bo = 0, bind_sync = 0;
 	void **pending_free;
-	u64 *exec_ufence = NULL, *prefetch_ufence = NULL;
+	u64 *exec_ufence = NULL, *bind_ufence = NULL;
 	int i, j, b, file_fd = -1, prev_idx, pf_count;
 	bool free_vm = false;
 	size_t aligned_size = bo_size ?: xe_get_default_alignment(fd);
@@ -1154,20 +1154,19 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 		memset(exec_ufence, 0, SZ_4K);
 	}
 
+	aligned_alloc_type = __aligned_alloc(SZ_4K, SZ_4K);
+	bind_ufence = aligned_alloc_type.ptr;
+	igt_assert(bind_ufence);
+	__aligned_partial_free(&aligned_alloc_type);
+	bind_sync = xe_bo_create(fd, vm, SZ_4K, system_memory(fd),
+				 bo_flags);
+	bind_ufence = xe_bo_map_fixed(fd, bind_sync, SZ_4K,
+				      to_user_pointer(bind_ufence));
+
 	if (!(flags & FAULT) && flags & PREFETCH) {
 		bo_flags = DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
 
-		aligned_alloc_type = __aligned_alloc(SZ_4K, SZ_4K);
-		prefetch_ufence = aligned_alloc_type.ptr;
-		igt_assert(prefetch_ufence);
-		__aligned_partial_free(&aligned_alloc_type);
-
-		prefetch_sync = xe_bo_create(fd, vm, SZ_4K, system_memory(fd),
-					     bo_flags);
-		prefetch_ufence = xe_bo_map_fixed(fd, prefetch_sync, SZ_4K,
-						  to_user_pointer(prefetch_ufence));
-
-		sync[0].addr = to_user_pointer(prefetch_ufence);
+		sync[0].addr = to_user_pointer(bind_ufence);
 
 		pf_count = xe_gt_stats_get_count(fd, eci->gt_id, pf_count_stat);
 
@@ -1176,18 +1175,18 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			region = 0;
 			xe_vm_prefetch_async(fd, vm, 0, 0, addr, bo_size, sync,
 					     1, region);
-			xe_wait_ufence(fd, prefetch_ufence, USER_FENCE_VALUE, 0,
+			xe_wait_ufence(fd, bind_ufence, USER_FENCE_VALUE, 0,
 				       FIVE_SEC);
-			prefetch_ufence[0] = 0;
+			bind_ufence[0] = 0;
 		}
 
 		if (exec_ufence) {
 			xe_vm_prefetch_async(fd, vm, 0, 0,
 					     to_user_pointer(exec_ufence),
 					     SZ_4K, sync, 1, 0);
-			xe_wait_ufence(fd, prefetch_ufence, USER_FENCE_VALUE, 0,
+			xe_wait_ufence(fd, bind_ufence, USER_FENCE_VALUE, 0,
 				       FIVE_SEC);
-			prefetch_ufence[0] = 0;
+			bind_ufence[0] = 0;
 		}
 	}
 
@@ -1246,16 +1245,16 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			struct timespec tv = {};
 			u64 start, end;
 
-			sync[0].addr = to_user_pointer(prefetch_ufence);
+			sync[0].addr = to_user_pointer(bind_ufence);
 
 			start = igt_nsec_elapsed(&tv);
 			xe_vm_prefetch_async(fd, vm, 0, 0, addr, bo_size, sync,
 					     1, region);
 			end = igt_nsec_elapsed(&tv);
 
-			xe_wait_ufence(fd, prefetch_ufence, USER_FENCE_VALUE, 0,
+			xe_wait_ufence(fd, bind_ufence, USER_FENCE_VALUE, 0,
 				       FIVE_SEC);
-			prefetch_ufence[0] = 0;
+			bind_ufence[0] = 0;
 
 			prefetch_ns += (end - start);
 		}
@@ -1374,11 +1373,15 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			exec_ufence[0] = 0;
 
 		if (bo) {
+			sync[0].addr = to_user_pointer(bind_ufence);
 			__xe_vm_bind_assert(fd, vm, 0,
 					    0, 0, addr, bo_size,
 					    DRM_XE_VM_BIND_OP_MAP,
 					    DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR,
-					    NULL, 0, 0, 0);
+					    sync, 1, 0, 0);
+			xe_wait_ufence(fd, bind_ufence, USER_FENCE_VALUE, 0,
+				       FIVE_SEC);
+			bind_ufence[0] = 0;
 			munmap(data, bo_size);
 			gem_close(fd, bo);
 		}
@@ -1456,20 +1459,22 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	}
 
 	if (bo) {
+		sync[0].addr = to_user_pointer(bind_ufence);
 		__xe_vm_bind_assert(fd, vm, 0,
 				    0, 0, addr, bo_size,
 				    DRM_XE_VM_BIND_OP_MAP,
 				    DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR,
-				    NULL, 0, 0, 0);
+				    sync, 1, 0, 0);
+		xe_wait_ufence(fd, bind_ufence, USER_FENCE_VALUE, 0,
+			       FIVE_SEC);
+		bind_ufence[0] = 0;
 		munmap(data, bo_size);
 		data = NULL;
 		gem_close(fd, bo);
 	}
 
-	if (prefetch_sync) {
-		munmap(prefetch_ufence, SZ_4K);
-		gem_close(fd, prefetch_sync);
-	}
+	munmap(bind_ufence, SZ_4K);
+	gem_close(fd, bind_sync);
 
 	if (flags & BUSY)
 		igt_assert_eq(unbind_system_allocator(), -EBUSY);
