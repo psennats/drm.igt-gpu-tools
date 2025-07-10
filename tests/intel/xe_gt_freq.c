@@ -408,8 +408,8 @@ igt_main
 		max_gt = xe_dev_max_gt(fd);
 
 		/* The defaults are the same. Stashing the gt0 is enough */
-		stash_min = (uint32_t *) malloc(sizeof(uint32_t) * max_gt);
-		stash_max = (uint32_t *) malloc(sizeof(uint32_t) * max_gt);
+		stash_min = (uint32_t *) malloc(sizeof(uint32_t) * (max_gt + 1));
+		stash_max = (uint32_t *) malloc(sizeof(uint32_t) * (max_gt + 1));
 
 		xe_for_each_gt(fd, gt) {
 			stash_min[gt] = xe_gt_get_freq(fd, gt, "min");
