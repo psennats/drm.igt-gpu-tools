@@ -707,8 +707,8 @@ igt_main
 	int r;
 	bool arr_cap[AMD_IP_MAX] = {0};
 	bool userq_arr_cap[AMD_IP_MAX] = {0};
+	bool enable_test = false;
 #ifdef AMDGPU_USERQ_ENABLED
-	bool enable_test;
 	const char *env = getenv("AMDGPU_ENABLE_USERQTEST");
 
 	enable_test = env && atoi(env);
@@ -805,11 +805,9 @@ igt_main
 		}
 	}
 
-#ifdef AMDGPU_USERQ_ENABLED
-
 	igt_describe("Check-GFX-CS-for-every-available-ring-works-for-write-const-fill-and-copy-operation-using-more-than-one-IB-and-shared-IB");
 	igt_subtest_with_dynamic("cs-gfx-with-IP-GFX-UMQ") {
-		if (userq_arr_cap[AMD_IP_GFX]) {
+		if (enable_test && userq_arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("cs-gfx-with-umq")
 			amdgpu_command_submission_gfx(device, info.hw_ip_version_major < 11, true);
 		}
@@ -817,7 +815,7 @@ igt_main
 
 	igt_describe("Check-COMPUTE-CS-for-every-available-ring-works-for-write-const-fill-copy-and-nop-operation");
 	igt_subtest_with_dynamic("cs-compute-with-IP-COMPUTE-UMQ") {
-		if (userq_arr_cap[AMD_IP_COMPUTE]) {
+		if (enable_test && userq_arr_cap[AMD_IP_COMPUTE]) {
 			igt_dynamic_f("cs-compute-with-umq")
 			amdgpu_command_submission_compute(device, true);
 		}
@@ -825,7 +823,7 @@ igt_main
 
 	igt_describe("Check-sync-dependency-using-GFX-ring");
 	igt_subtest_with_dynamic("sync-dependency-test-with-IP-GFX-UMQ") {
-		if (userq_arr_cap[AMD_IP_GFX]) {
+		if (enable_test && userq_arr_cap[AMD_IP_GFX]) {
 			igt_dynamic_f("sync-dependency-test-with-umq")
 			amdgpu_sync_dependency_test(device, true);
 		}
@@ -848,7 +846,6 @@ igt_main
 			amdgpu_test_all_queues(device, true);
 		}
 	}
-#endif
 
 	igt_fixture {
 		amdgpu_device_deinitialize(device);
