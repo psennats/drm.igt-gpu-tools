@@ -826,6 +826,9 @@ igt_main
 		igt_assert(igt_setup_runtime_pm(device.fd_xe));
 		sysfs_fd = igt_sysfs_open(device.fd_xe);
 		device.res = drmModeGetResources(device.fd_xe);
+
+		igt_install_exit_handler(igt_drm_debug_mask_reset_exit_handler);
+		update_debug_mask_if_ci(DRM_UT_KMS);
 	}
 
 	for (const struct s_state *s = s_states; s->name; s++) {
