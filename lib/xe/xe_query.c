@@ -361,9 +361,9 @@ struct xe_device *xe_device_get(int fd)
 	 * vram_size[] and visible_vram_size[] are indexed by uapi ID; ensure
 	 * the allocation is large enough to hold the highest GT ID
 	 */
-	max_gt = ffsll(xe_dev->gt_mask) - 1;
-	xe_dev->vram_size = calloc(max_gt, sizeof(*xe_dev->vram_size));
-	xe_dev->visible_vram_size = calloc(max_gt, sizeof(*xe_dev->visible_vram_size));
+	max_gt = igt_fls(xe_dev->gt_mask) - 1;
+	xe_dev->vram_size = calloc(max_gt + 1, sizeof(*xe_dev->vram_size));
+	xe_dev->visible_vram_size = calloc(max_gt + 1, sizeof(*xe_dev->visible_vram_size));
 
 	for (int idx = 0; idx < xe_dev->gt_list->num_gt; idx++) {
 		struct drm_xe_gt *gt = &xe_dev->gt_list->gt_list[idx];
