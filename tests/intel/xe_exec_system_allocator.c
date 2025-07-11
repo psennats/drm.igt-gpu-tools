@@ -294,7 +294,7 @@ static void touch_all_pages(int fd, uint32_t exec_queue, void *ptr,
 			   PROT_WRITE, MAP_SHARED |
 			   MAP_ANONYMOUS, -1, 0);
 	igt_assert(exec_ufence != MAP_FAILED);
-	memset(exec_ufence, 0, SZ_4K);
+	memset(exec_ufence, 5, SZ_4K);
 	sync[0].addr = to_user_pointer(exec_ufence);
 
 	for (i = 0; i < n_writes; ++i, addr += stride) {
@@ -678,7 +678,7 @@ partial(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 	data = mmap(alloc.ptr, bo_size, PROT_READ | PROT_WRITE,
 		    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	igt_assert(data != MAP_FAILED);
-	memset(data, 0, bo_size);
+	memset(data, 5, bo_size);
 	old = data;
 
 	exec_queue = xe_exec_queue_create(fd, vm, eci, 0);
@@ -692,7 +692,7 @@ partial(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 			   PROT_WRITE, MAP_SHARED |
 			   MAP_ANONYMOUS, -1, 0);
 	igt_assert(exec_ufence != MAP_FAILED);
-	memset(exec_ufence, 0, SZ_4K);
+	memset(exec_ufence, 5, SZ_4K);
 
 	for (i = 0; i < 2; i++) {
 		uint64_t addr = to_user_pointer(data);
@@ -1109,7 +1109,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			igt_assert(data);
 		}
 		if (!(flags & SKIP_MEMSET))
-			memset(data, 0, bo_size);
+			memset(data, 5, bo_size);
 		if (flags & LOCK) {
 			igt_assert(!(flags & NEW));
 			mlock(data, bo_size);
@@ -1151,7 +1151,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 				   PROT_WRITE, MAP_SHARED |
 				   MAP_ANONYMOUS, -1, 0);
 		igt_assert(exec_ufence != MAP_FAILED);
-		memset(exec_ufence, 0, SZ_4K);
+		memset(exec_ufence, 5, SZ_4K);
 	}
 
 	aligned_alloc_type = __aligned_alloc(SZ_4K, SZ_4K);
@@ -1351,7 +1351,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 					igt_assert_eq(data[idx].data,
 						      READ_VALUE(&data[idx]));
 					if (flags & PREFETCH_BENCHMARK)
-						memset(data, 0, bo_size);
+						memset(data, 5, bo_size);
 
 					if (flags & MULTI_FAULT) {
 						for (j = 1; j < N_MULTI_FAULT; ++j) {
@@ -1432,7 +1432,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			}
 			addr = to_user_pointer(data);
 			if (!(flags & SKIP_MEMSET))
-				memset(data, 0, bo_size);
+				memset(data, 5, bo_size);
 		}
 
 		prev_idx = idx;
@@ -1586,7 +1586,7 @@ threads(int fd, int n_exec_queues, int n_execs, size_t bo_size,
 		alloc = aligned_alloc(SZ_2M, alloc_size);
 		igt_assert(alloc);
 
-		memset(alloc, 0, alloc_size);
+		memset(alloc, 5, alloc_size);
 		flags &= ~SHARED_ALLOC;
 	}
 
