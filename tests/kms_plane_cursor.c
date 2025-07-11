@@ -237,6 +237,10 @@ static void test_cursor_spots(data_t *data, int size, unsigned int flags)
 
 	for (i = 0; i < ARRAY_SIZE(pos); ++i) {
 		test_cursor_pos(data, pos[i].x, pos[i].y, flags);
+		if (igt_run_in_simulation() && i == 2) {
+			igt_debug("Limiting only to first 3 positions on simulation\n");
+			break;
+		}
 	}
 }
 
@@ -347,6 +351,8 @@ igt_main
 						test_cursor(&data, size, tests[i].flags);
 
 					test_cleanup(&data);
+					if (igt_run_in_simulation())
+						break;
 				}
 
 				test_fini(&data);
