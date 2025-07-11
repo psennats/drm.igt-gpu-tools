@@ -460,8 +460,17 @@ static void vblank_ts_cont(data_t *data, int fd, int nchildren)
 
 	igt_assert_f(seq2 - seq1 >= 0, "elapsed %f(%d vblanks) unexpected vblank seq %u, should be > %u\n", time_elapsed,
 			estimated_vblanks, seq2, seq1);
-	igt_assert_f(seq2 - seq1 <= estimated_vblanks + VBLANK_ERR, "elapsed %f(%d vblanks) unexpected vblank seq %u, should be <= %u\n", time_elapsed,
-			estimated_vblanks, seq2, seq1 + estimated_vblanks);
+	/*
+	 * Timing behavior in simulation environments often differs from real hardware,
+	 * which can lead to false negatives during testing. To mitigate this, disable
+	 * timestamp and sequence validations when the INTEL_SIMULATION environment
+	 * variable is active.
+	 */
+	if (!igt_run_in_simulation())
+		igt_assert_f(seq2 - seq1 <= estimated_vblanks + VBLANK_ERR,
+			     "elapsed %f(%d vblanks) unexpected vblank seq %u, should be <= %u\n",
+			     time_elapsed, estimated_vblanks,
+			     seq2, seq1 + estimated_vblanks);
 }
 
 static void run_subtests(data_t *data)
