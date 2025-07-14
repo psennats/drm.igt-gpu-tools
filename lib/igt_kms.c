@@ -5051,8 +5051,11 @@ bool igt_override_all_active_output_modes_to_fit_bw(igt_display_t *display)
  * igt_fit_modes_in_bw :
  * @display: a pointer to an #igt_display_t structure
  *
- * Tries atomic TEST_ONLY commit; if it fails, overrides
- * output modes to fit bandwidth.
+ * Attempts to commit the current display configuration using
+ * atomic or legacy commit style based on the platform support.
+ *
+ * If the commit fails, attempts to override all active output
+ * modes to try to fit within the available bandwidth.
  *
  * Returns: true if a valid mode combination is found or the commit succeeds,
  * false otherwise.
@@ -5061,9 +5064,13 @@ bool igt_fit_modes_in_bw(igt_display_t *display)
 {
 	int ret;
 
-	ret = igt_display_try_commit_atomic(display,
-					    DRM_MODE_ATOMIC_TEST_ONLY |
-					    DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+	if (display->is_atomic)
+		ret = igt_display_try_commit_atomic(display,
+						    DRM_MODE_ATOMIC_TEST_ONLY |
+						    DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+	else
+		ret = igt_display_try_commit2(display, COMMIT_LEGACY);
+
 	if (ret != 0) {
 		bool found;
 
