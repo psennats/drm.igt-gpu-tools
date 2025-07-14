@@ -961,6 +961,12 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 	}
 
 	if (flags & TEST_LINK_OFF) {
+		if (!psr_sink_support(data->drm_fd,
+				      data->debugfs_fd, PR_MODE, NULL)) {
+			igt_info("LOBF not supported\n");
+			return false;
+		}
+
 		if (psr_sink_support(data->drm_fd, data->debugfs_fd, PSR_MODE_1, NULL) ||
 		    psr_sink_support(data->drm_fd, data->debugfs_fd, PR_MODE, NULL))
 			psr_disable(data->drm_fd, data->debugfs_fd, NULL);
@@ -1050,11 +1056,6 @@ run_vrr_test(data_t *data, test_t test, uint32_t flags)
 				igt_output_set_pipe(output, PIPE_NONE);
 				continue;
 			}
-
-			if (flags == TEST_LINK_OFF)
-				igt_require_f(psr_sink_support(data->drm_fd,
-					      data->debugfs_fd, PR_MODE, output),
-					      "LOBF not supported");
 
 			igt_dynamic_f("pipe-%s-%s",
 				      kmstest_pipe_name(pipe), output->name)
