@@ -998,7 +998,7 @@ static void pec_sanity_check(const u32 *report0, const u32 *report1,
 			     struct intel_xe_perf_metric_set *set)
 {
 	u64 tick_delta = oa_tick_delta(report1, report0, set->perf_oa_format);
-	int xecore_idx[] = {3, 4, 5, 6, 21, 22, 23, 24};
+	int xecore_to_pec[] = {3, 4, 5, 6, 21, 22, 23, 24};
 	u64 *pec0 = (u64 *)(report0 + 8);
 	u64 *pec1 = (u64 *)(report1 + 8);
 
@@ -1018,17 +1018,17 @@ static void pec_sanity_check(const u32 *report0, const u32 *report1,
 	igt_debug("tick delta = %#" PRIx64 "\n", tick_delta);
 
 	/* Difference in test_event1_cycles_xecore* values should be close to tick_delta */
-	for (int i = 0; i < ARRAY_SIZE(xecore_idx); i++) {
-		int n = xecore_idx[i];
+	for (int i = 0; i < ARRAY_SIZE(xecore_to_pec); i++) {
+		int n = xecore_to_pec[i];
 
 		igt_debug("n %d: pec1[n] - pec0[n] %#" PRIx64 ", tick delta %#" PRIx64 "\n",
 			  n, pec1[n] - pec0[n], tick_delta);
-		/* 0 value for pec[xecore_idx[i]] indicates missing xecore */
-		if (pec1[n] && pec0[n])
+
+		/* Skip missing xecore's */
+		if (intel_xe_perf->devinfo.subslice_mask & BIT(i)) {
+			igt_assert(pec1[n] && pec0[n]);
 			assert_within_epsilon(pec1[n] - pec0[n], tick_delta, 0.1);
-		/* Same test_event1_cycles_xecore* should be present in all reports */
-		if (pec1[n])
-			igt_assert(pec0[n]);
+		}
 	}
 
 	igt_debug("pec1[2] - pec0[2] %#" PRIx64 ", tick_delta * num_xecores: %#" PRIx64 "\n",
@@ -1201,6 +1201,7 @@ init_sys_info(void)
 	igt_debug("n_eu_slices: %"PRIu64"\n", intel_xe_perf->devinfo.n_eu_slices);
 	igt_debug("n_eu_sub_slices: %"PRIu64"\n", intel_xe_perf->devinfo.n_eu_sub_slices);
 	igt_debug("n_eus: %"PRIu64"\n", intel_xe_perf->devinfo.n_eus);
+	igt_debug("subslice_mask: %#"PRIx64"\n", intel_xe_perf->devinfo.subslice_mask);
 	igt_debug("timestamp_frequency = %"PRIu64"\n",
 		  intel_xe_perf->devinfo.timestamp_frequency);
 	igt_assert_neq(intel_xe_perf->devinfo.timestamp_frequency, 0);
