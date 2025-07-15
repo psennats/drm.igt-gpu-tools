@@ -37,7 +37,7 @@ class IgtTestList(TestList):
                 run_type = "other"
             else:
                 for driver in self.drivers:
-                    result = re.sub(r"^" + driver + r"[\W_]*", "", run_type, re.IGNORECASE)
+                    result = re.sub(r"^" + driver + r"[\W_]*", "", run_type, flags = re.IGNORECASE)
                     if result != run_type:
                         driver_set = set([driver])
                         run_type = result
