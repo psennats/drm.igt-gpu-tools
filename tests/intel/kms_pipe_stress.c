@@ -28,15 +28,18 @@
  * Driver requirement: i915, xe
  * Mega feature: General Display Features
  *
- * SUBTEST: stress-xrgb8888-untiled
+ * SUBTEST: stress-xrgb8888-%s
  * Description:
  *   Start pipe stress test, utilizing cpu and gpu simultaneously with maximum amount of planes
- *   and resolution.
+ *   and resolution and %arg[1] modifier.
  *
- * SUBTEST: stress-xrgb8888-ytiled
- * Description:
- *   Start pipe stress test, utilizing cpu and gpu simultaneously with maximum amount of planes
- *   and resolution.
+ * arg[1]:
+ *
+ * @4tiled:            TILE-4 modifier
+ * @xtiled:            TILE-X modifier
+ * @ytiled:            TILE-Y modifier
+ * @yftiled:           TILE-YF modifier
+ * @untiled:           LINEAR modifier
  */
 
 IGT_TEST_DESCRIPTION("Stress test how gpu and cpu behaves if maximum amount of planes, "
@@ -59,10 +62,13 @@ static const uint32_t formats[N_FORMATS] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-#define N_TILING_METHODS 2
+#define N_TILING_METHODS 5
 static const uint64_t tilings[N_TILING_METHODS] = {
 	DRM_FORMAT_MOD_LINEAR,
+	I915_FORMAT_MOD_X_TILED,
 	I915_FORMAT_MOD_Y_TILED,
+	I915_FORMAT_MOD_Yf_TILED,
+	I915_FORMAT_MOD_4_TILED,
 };
 
 static const char *format_str(int format_index)
@@ -88,6 +94,10 @@ static const char *tiling_str(int tiling_index)
 		return "xtiled";
 	case I915_FORMAT_MOD_Y_TILED:
 		return "ytiled";
+	case I915_FORMAT_MOD_Yf_TILED:
+		return "yftiled";
+	case I915_FORMAT_MOD_4_TILED:
+		return "4tiled";
 	default:
 		igt_assert(false);
 	}
