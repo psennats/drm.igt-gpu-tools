@@ -1,5 +1,6 @@
 test_progs = [
 	'core_auth',
+	'core_debugfs',
 	'core_getclient',
 	'core_getstats',
 	'core_getversion',
