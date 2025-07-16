@@ -92,6 +92,7 @@ lib_sources = [
 	'igt_kms.c',
 	'igt_fb.c',
 	'igt_core.c',
+	'igt_dir.c',
 	'igt_draw.c',
 	'igt_list.c',
 	'igt_map.c',
