@@ -87,7 +87,7 @@
                 "update-from-file": {
                     "include-type": "regex-ignorecase",
                     "include": [
-                        { "all": "../intel-ci/blacklist.txt" }
+                        { "all": "../intel-ci/i915.blocklist.txt" }
                     ]
                 }
             }

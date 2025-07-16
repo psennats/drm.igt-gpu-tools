@@ -61,7 +61,7 @@
 			{ "LNL": "../intel-ci/xe.lnl.display.blocklist.txt" },
 			{ "BMG": "../intel-ci/xe.bmg.display.blocklist.txt" },
 			{ "LNL, BMG": "../intel-ci/xe.blocklist.txt" },
-			{ "ADLP, ADLS, DG2, MTL": "../intel-ci/blacklist.txt" }
+			{ "ADLP, ADLS, DG2, MTL": "../intel-ci/i915.blocklist.txt" }
 		    ]
 		}
 	    }
