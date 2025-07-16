@@ -2368,6 +2368,80 @@ static void invalid_vm_id(int fd)
 	do_ioctl_err(fd, DRM_IOCTL_XE_VM_DESTROY, &destroy, ENOENT);
 }
 
+/**
+ * SUBTEST: out-of-memory
+ * Description: Test if vm_bind ioctl results in oom
+ * when creating and vm_binding buffer objects on an LR vm beyond available visible vram size.
+ * Functionality: oom
+ * Test category: functionality test
+ */
+static void test_oom(int fd)
+{
+#define USER_FENCE_VALUE 0xdeadbeefdeadbeefull
+#define BO_SIZE xe_bb_size(fd, SZ_512M)
+#define MAX_BUFS ((int)(xe_visible_vram_size(fd, 0) / BO_SIZE))
+	uint64_t addr = 0x1a0000;
+	uint64_t vm_sync;
+	uint32_t bo[MAX_BUFS + 1];
+	uint32_t *data[MAX_BUFS + 1];
+	uint32_t vm;
+	struct drm_xe_sync sync[1] = {
+		{ .type = DRM_XE_SYNC_TYPE_USER_FENCE, .flags = DRM_XE_SYNC_FLAG_SIGNAL,
+		  .timeline_value = USER_FENCE_VALUE },
+	};
+	size_t bo_size = BO_SIZE;
+	int total_bufs = MAX_BUFS;
+	int bind_vm = 0;
+	bool oom = false;
+
+	vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE, 0);
+	for (int iter = 0; iter <= total_bufs; iter++) {
+		int err = 0;
+
+		bo[iter] = xe_bo_create(fd, 0, bo_size,
+					vram_if_possible(fd, 0),
+					DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING |
+					DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+
+		sync[0].addr = to_user_pointer(&vm_sync);
+		err = __xe_vm_bind(fd, vm, 0, bo[iter], 0,
+				   addr + bo_size * iter, bo_size,
+				   DRM_XE_VM_BIND_OP_MAP, 0, sync,
+				   1, 0, DEFAULT_PAT_INDEX, 0);
+
+		if (err) {
+			if (err == -ENOMEM || err == -ENOSPC) {
+				oom = true;
+				break;
+			}
+			igt_assert_f(err, "Unexpected error %d for vm bind\n",
+				     err);
+		} else {
+			bind_vm = bind_vm + 1;
+		}
+
+		xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
+		vm_sync = 0;
+		data[iter] = xe_bo_map(fd, bo[iter], bo_size);
+		memset(data[iter], 0, bo_size);
+	}
+
+	igt_assert_f(oom, "OOM scenario is not working as expected\n");
+
+	if (bind_vm < total_bufs)
+		igt_warn("VRAM was smaller than estimated,"
+			 "may be due to leaked VRAM memory\n");
+
+	for (int iter = 0; iter < bind_vm; iter++) {
+		sync[0].addr = to_user_pointer(&vm_sync);
+		xe_vm_unbind_async(fd, vm, 0, 0, addr + bo_size * iter, bo_size,
+				   sync, 1);
+		xe_wait_ufence(fd, &vm_sync, USER_FENCE_VALUE, 0, NSEC_PER_SEC);
+		munmap(data[iter], bo_size);
+		gem_close(fd, bo[iter]);
+	}
+}
+
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe, *hwe_non_copy = NULL;
@@ -2758,6 +2832,12 @@ igt_main
 
 	igt_subtest("invalid-vm-id")
 		invalid_vm_id(fd);
+
+	igt_subtest("out-of-memory") {
+		igt_require(xe_has_vram(fd));
+		igt_assert(xe_visible_vram_size(fd, 0));
+		test_oom(fd);
+	}
 
 	igt_fixture
 		drm_close_driver(fd);
