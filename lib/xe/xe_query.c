@@ -160,6 +160,32 @@ static struct drm_xe_query_mem_regions *xe_query_mem_regions_new(int fd)
 	return mem_regions;
 }
 
+static struct drm_xe_query_eu_stall *xe_query_eu_stall_new(int fd)
+{
+	struct drm_xe_query_eu_stall *query_eu_stall;
+	struct drm_xe_device_query query = {
+		.extensions = 0,
+		.query = DRM_XE_DEVICE_QUERY_EU_STALL,
+		.size = 0,
+		.data = 0,
+	};
+
+	/* Support older kernels where this uapi is not yet available */
+	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
+		return NULL;
+	igt_assert_neq(query.size, 0);
+
+	query_eu_stall = malloc(query.size);
+	igt_assert(query_eu_stall);
+
+	query.data = to_user_pointer(query_eu_stall);
+	igt_assert_eq(igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
+
+	VG(VALGRIND_MAKE_MEM_DEFINED(query_eu_stall, query.size));
+
+	return query_eu_stall;
+}
+
 static struct drm_xe_query_oa_units *xe_query_oa_units_new(int fd)
 {
 	struct drm_xe_query_oa_units *oa_units;
@@ -317,6 +343,7 @@ static void xe_device_free(struct xe_device *xe_dev)
 	free(xe_dev->engines);
 	free(xe_dev->mem_regions);
 	free(xe_dev->vram_size);
+	free(xe_dev->eu_stall);
 	free(xe_dev);
 }
 
@@ -355,6 +382,7 @@ struct xe_device *xe_device_get(int fd)
 	xe_dev->memory_regions = __memory_regions(xe_dev->gt_list);
 	xe_dev->engines = xe_query_engines(fd);
 	xe_dev->mem_regions = xe_query_mem_regions_new(fd);
+	xe_dev->eu_stall = xe_query_eu_stall_new(fd);
 	xe_dev->oa_units = xe_query_oa_units_new(fd);
 
 	/*

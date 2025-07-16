@@ -46,6 +46,7 @@
 #include "igt_core.h"
 #include "xe_drm.h"
 #include "xe/xe_ioctl.h"
+#include "xe/xe_query.h"
 
 #define OBSERVATION_PARANOID	"/proc/sys/dev/xe/observation_paranoid"
 
@@ -646,15 +647,10 @@ static struct option long_options[] = {
 igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 {
 	bool blocking_read = true;
-	int drm_fd, ret, idx;
+	struct xe_device *xe_dev;
+	int drm_fd, idx;
 	uint32_t devid;
 	struct stat sb;
-	struct drm_xe_device_query query = {
-		.extensions = 0,
-		.query = DRM_XE_DEVICE_QUERY_EU_STALL,
-		.size = 0,
-		.data = 0,
-	};
 
 	igt_fixture {
 		drm_fd = drm_open_driver(DRIVER_XE);
@@ -663,20 +659,10 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 
 		igt_require_f(igt_get_gpgpu_fillfunc(devid), "no gpgpu-fill function\n");
 		igt_require_f(!stat(OBSERVATION_PARANOID, &sb), "no observation_paranoid file\n");
+		xe_dev = xe_device_get(drm_fd);
+		igt_require_f(xe_dev->eu_stall, "EU stall monitoring is not available/supported\n");
 
-		ret = igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query);
-		igt_skip_on_f(ret == -1 && errno == ENODEV,
-			      "EU stall monitoring is not available on this platform\n");
-		igt_skip_on_f(ret == -1 && errno == EINVAL,
-			      "EU stall monitoring is not supported in the driver\n");
-		igt_assert_neq(query.size, 0);
-
-		query_eu_stall_data = malloc(query.size);
-		igt_assert(query_eu_stall_data);
-
-		query.data = to_user_pointer(query_eu_stall_data);
-		igt_assert_eq(igt_ioctl(drm_fd, DRM_IOCTL_XE_DEVICE_QUERY, &query), 0);
-
+		query_eu_stall_data = xe_dev->eu_stall;
 		igt_assert(query_eu_stall_data->num_sampling_rates > 0);
 		/* If the user doesn't pass a sampling rate, use a mid sampling rate */
 		if (p_rate == 0) {

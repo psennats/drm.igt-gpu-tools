@@ -45,6 +45,9 @@ struct xe_device {
 	/** @engines: hardware engines */
 	struct drm_xe_query_engines *engines;
 
+	/** @eu_stall: information about EU stall data */
+	struct drm_xe_query_eu_stall *eu_stall;
+
 	/** @mem_regions: regions memory information and usage */
 	struct drm_xe_query_mem_regions *mem_regions;
 
