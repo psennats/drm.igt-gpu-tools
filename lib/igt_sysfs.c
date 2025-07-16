@@ -506,7 +506,6 @@ void igt_drm_debug_mask_reset_exit_handler(int sig)
  */
 void igt_drm_debug_mask_update(unsigned int mask_to_set)
 {
-	unsigned int new_debug_mask;
 	static bool debug_mask_read_once = true;
 	char buf[20];
 	int dir;
@@ -525,8 +524,8 @@ void igt_drm_debug_mask_update(unsigned int mask_to_set)
 		}
 	}
 
-	igt_debug("Setting DRM debug mask to %d\n", new_debug_mask);
-	snprintf(buf, sizeof(buf), "%d", new_debug_mask);
+	igt_debug("Setting DRM debug mask to %d\n", mask_to_set);
+	snprintf(buf, sizeof(buf), "%d", mask_to_set);
 	igt_assert(igt_sysfs_set(dir, "debug", buf));
 
 	close(dir);
