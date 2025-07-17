@@ -890,6 +890,9 @@ struct test_mode {
 	enum igt_draw_method method;
 };
 
+static bool in_simulation;
+static int r_max;
+
 enum color {
 	COLOR_RED,
 	COLOR_GREEN,
@@ -2858,6 +2861,7 @@ static void multidraw_subtest(const struct test_mode *t)
 	struct fb_region *target;
 	enum igt_draw_method m1, m2, used_method;
 	bool wc_used = false;
+	int draw_count, pattern_rects;
 
 	switch (t->plane) {
 	case PLANE_PRI:
@@ -2874,8 +2878,11 @@ static void multidraw_subtest(const struct test_mode *t)
 	prepare_subtest(t, pattern);
 	target = pick_target(t, params);
 
-	for (m1 = 0; m1 < IGT_DRAW_METHOD_COUNT; m1++) {
-		for (m2 = m1 + 1; m2 < IGT_DRAW_METHOD_COUNT; m2++) {
+	draw_count = in_simulation ? 1 : IGT_DRAW_METHOD_COUNT;
+	pattern_rects = in_simulation ? 1 : pattern->n_rects;
+
+	for (m1 = 0; m1 < draw_count; m1++) {
+		for (m2 = m1 + 1; m2 < draw_count; m2++) {
 
 			igt_debug("Methods %s and %s\n",
 				  igt_draw_get_method_name(m1),
@@ -2885,7 +2892,7 @@ static void multidraw_subtest(const struct test_mode *t)
 			    !igt_draw_supports_method(drm.fd, m2))
 				continue;
 
-			for (r = 0; r < pattern->n_rects; r++) {
+			for (r = 0; r < pattern_rects; r++) {
 				used_method = (r % 2 == 0) ? m1 : m2;
 
 				igt_debug("Used method %s\n",
@@ -3248,12 +3255,12 @@ static void fliptrack_subtest(const struct test_mode *t, enum flip_type type)
  */
 static void move_subtest(const struct test_mode *t)
 {
-	int r;
 	int assertions = ASSERT_NO_ACTION_CHANGE;
 	struct modeset_params *params = pick_params(t);
 	struct draw_pattern_info *pattern = &pattern3;
 	struct fb_region *reg = pick_target(t, params);
 	bool repeat = false;
+	r_max = in_simulation ? 2 : pattern->n_rects;
 
 	prepare_subtest(t, pattern);
 
@@ -3263,7 +3270,7 @@ static void move_subtest(const struct test_mode *t)
 
 	do_assertions(assertions);
 
-	for (r = 1; r < pattern->n_rects; r++) {
+	for (int r = 1; r < r_max; r++) {
 		struct rect rect = pattern->get_rect(&params->primary, r);
 
 		igt_plane_set_fb(reg->plane, reg->fb);
@@ -3301,10 +3308,11 @@ static void move_subtest(const struct test_mode *t)
  */
 static void onoff_subtest(const struct test_mode *t)
 {
-	int r;
 	int assertions = ASSERT_NO_ACTION_CHANGE;
 	struct modeset_params *params = pick_params(t);
 	struct draw_pattern_info *pattern = &pattern3;
+
+	r_max = in_simulation ? 1 : 4;
 
 	prepare_subtest(t, pattern);
 
@@ -3313,7 +3321,7 @@ static void onoff_subtest(const struct test_mode *t)
 	update_wanted_crc(t, &pattern->crcs[t->format][0]);
 	do_assertions(assertions);
 
-	for (r = 0; r < 4; r++) {
+	for (int r = 0; r < r_max; r++) {
 		struct fb_region *reg = pick_target(t, params);
 
 		if (r % 2 == 0) {
@@ -4100,6 +4108,7 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 			opt.tiling = drm.display_ver >= 30 ? TILING_4 : TILING_X;
 
 		setup_environment();
+		in_simulation = igt_run_in_simulation();
 	}
 
 	for (t.feature = 0; t.feature < FEATURE_COUNT; t.feature++) {
@@ -4184,6 +4193,8 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 
 					break; /* One output is enough. */
 				}
+				if (in_simulation)
+					break;
 			}
 		}
 
