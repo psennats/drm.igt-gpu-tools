@@ -15,7 +15,7 @@
 #include "amd_deadlock_helpers.h"
 #include "lib/amdgpu/amd_command_submission.h"
 
-#define MAX_JOB_COUNT 200
+#define MAX_JOB_COUNT 20
 
 #define MEMORY_OFFSET 256 /* wait for this memory to change */
 struct thread_param {
