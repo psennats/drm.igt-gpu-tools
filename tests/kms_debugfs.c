@@ -66,6 +66,8 @@ static void igt_display_all_on(igt_display_t *display)
 
 	/* Skip if bandwidth is insufficient for all simultaneous displays */
 	igt_require(igt_fit_modes_in_bw(display));
+
+	igt_display_commit2(display, display->is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 }
 
 /**
