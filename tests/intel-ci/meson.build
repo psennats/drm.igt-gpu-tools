@@ -27,4 +27,8 @@ intelci_files = [
   'xe-sriov-vm.blocklist.txt',
 ]
 
-install_data(sources : intelci_files, install_dir : datadir, follow_symlinks : false)
+if meson.version().version_compare('<1.3.0')
+  install_data(sources : intelci_files, install_dir : datadir)
+else
+  install_data(sources : intelci_files, install_dir : datadir, follow_symlinks : false)
+endif
