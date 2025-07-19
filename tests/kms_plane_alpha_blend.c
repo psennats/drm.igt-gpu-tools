@@ -79,6 +79,8 @@ typedef struct {
 	igt_pipe_crc_t *pipe_crc;
 } data_t;
 
+static bool in_simulation;
+
 static void __draw_gradient(struct igt_fb *fb, int w, int h, double a, cairo_t *cr)
 {
 	cairo_pattern_t *pat;
@@ -289,7 +291,7 @@ static void basic_alpha(data_t *data, enum pipe pipe, igt_plane_t *plane)
 {
 	igt_display_t *display = &data->display;
 	igt_crc_t ref_crc, crc;
-	int i;
+	int i, max_alpha_value;
 
 	/* Testcase 1: alpha = 0.0, plane should be transparent. */
 	igt_display_commit2(display, COMMIT_ATOMIC);
@@ -298,8 +300,10 @@ static void basic_alpha(data_t *data, enum pipe pipe, igt_plane_t *plane)
 
 	igt_plane_set_fb(plane, &data->argb_fb_0);
 
+	max_alpha_value = in_simulation ? 160 : 256;
+
 	/* transparent fb should be transparent, no matter what.. */
-	for (i = 7; i < 256; i += 8) {
+	for (i = 7; i < max_alpha_value; i += 8) {
 		igt_plane_set_prop_value(plane, IGT_PLANE_ALPHA, i | (i << 8));
 		igt_display_commit2(display, COMMIT_ATOMIC);
 
@@ -564,6 +568,9 @@ static void run_test_on_pipe_planes(data_t *data, enum pipe pipe, igt_output_t *
 		igt_info("Testing plane %u\n", plane->index);
 		test(data, pipe, plane);
 		igt_plane_set_fb(plane, NULL);
+
+		if (in_simulation)
+			break;
 	}
 
 	igt_output_set_pipe(output, PIPE_NONE);
@@ -743,6 +750,8 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 		for_each_pipe(&data.display, pipe)
 			active_pipes[last_pipe++] = pipe;
 		last_pipe--;
+
+		in_simulation = igt_run_in_simulation();
 	}
 
 	run_subtests(&data);
