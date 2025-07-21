@@ -31,7 +31,7 @@
 #include "igt_fb.h"
 #include "vc4_drm.h"
 
-#define PAGE_SIZE 4096
+#define VC4_GPU_PAGE_SIZE 4096
 
 uint32_t igt_vc4_get_cleared_bo(int fd, size_t size, uint32_t clearval);
 int igt_vc4_create_bo(int fd, size_t size);

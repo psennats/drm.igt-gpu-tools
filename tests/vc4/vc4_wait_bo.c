@@ -28,7 +28,7 @@
 static void
 test_used_bo(int fd, uint64_t timeout)
 {
-	size_t size = PAGE_SIZE;
+	size_t size = VC4_GPU_PAGE_SIZE;
 	uint32_t clearval = 0xaabbccdd + timeout;
 	int handle = igt_vc4_get_cleared_bo(fd, size, clearval);
 	struct drm_vc4_wait_bo wait = {
@@ -65,7 +65,7 @@ igt_main
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_VC4);
 		igt_require(igt_vc4_is_v3d(fd));
-		bo_handle = igt_vc4_create_bo(fd, PAGE_SIZE);
+		bo_handle = igt_vc4_create_bo(fd, VC4_GPU_PAGE_SIZE);
 	}
 
 	igt_subtest("bad-bo") {

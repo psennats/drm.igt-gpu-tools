@@ -28,16 +28,16 @@ igt_main
 	igt_describe("Test basics of newly mapped bo like default content, write and read "
 		     "coherency, mapping existence after gem_close and unmapping.");
 	igt_subtest("mmap-bo") {
-		int handle = igt_vc4_create_bo(fd, PAGE_SIZE);
-		uint32_t *map = igt_vc4_mmap_bo(fd, handle, PAGE_SIZE, PROT_READ | PROT_WRITE);
-		uint8_t expected[PAGE_SIZE];
+		int handle = igt_vc4_create_bo(fd, VC4_GPU_PAGE_SIZE);
+		uint32_t *map = igt_vc4_mmap_bo(fd, handle, VC4_GPU_PAGE_SIZE, PROT_READ | PROT_WRITE);
+		uint8_t expected[VC4_GPU_PAGE_SIZE];
 
 		/* Testing contents of newly created objects. */
 		memset(expected, 0, sizeof(expected));
 		igt_assert_eq(memcmp(map, expected, sizeof(expected)), 0);
 
-		memset(map, 0xd0, PAGE_SIZE);
-		memset(expected, 0xd0, PAGE_SIZE);
+		memset(map, 0xd0, VC4_GPU_PAGE_SIZE);
+		memset(expected, 0xd0, VC4_GPU_PAGE_SIZE);
 		igt_assert_eq(memcmp(expected, map, sizeof(expected)), 0);
 
 		/* Testing that mapping stays after close */
@@ -45,7 +45,7 @@ igt_main
 		igt_assert_eq(memcmp(expected, map, sizeof(expected)), 0);
 
 		/* Testing unmapping */
-		munmap(map, PAGE_SIZE);
+		munmap(map, VC4_GPU_PAGE_SIZE);
 	}
 
 	igt_fixture

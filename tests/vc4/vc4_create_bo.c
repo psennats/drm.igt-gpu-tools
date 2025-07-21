@@ -34,7 +34,7 @@ igt_main
 	}
 
 	igt_subtest("create-bo-4096") {
-		int handle = igt_vc4_create_bo(fd, PAGE_SIZE);
+		int handle = igt_vc4_create_bo(fd, VC4_GPU_PAGE_SIZE);
 		gem_close(fd, handle);
 	}
 
@@ -53,7 +53,7 @@ igt_main
 		 * to convince it to land as the only one of its size in the
 		 * kernel BO cache
 		 */
-		size_t size = 3 * PAGE_SIZE, i;
+		size_t size = 3 * VC4_GPU_PAGE_SIZE, i;
 
 		/* Make a BO and free it on our main fd. */
 		handle = igt_vc4_create_bo(fd, size);

@@ -33,7 +33,7 @@ igt_main
 		fd = drm_open_driver(DRIVER_VC4);
 
 	igt_subtest("bad-color-write") {
-		uint32_t size = PAGE_SIZE;
+		uint32_t size = VC4_GPU_PAGE_SIZE;
 		/* A single row will be a page. */
 		uint32_t width = 1024;
 		uint32_t height = size / (width * 4);
