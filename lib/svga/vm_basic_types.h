@@ -27,7 +27,15 @@
 #define VM_BASIC_TYPES_H
 
 #define PAGE_SHIFT 12
-#define PAGE_SIZE (1 << PAGE_SHIFT)
+
+#ifndef PAGE_SIZE
+# define PAGE_SIZE (1 << PAGE_SHIFT)
+#else
+# if PAGE_SIZE != 4096
+#  error "Unexpected PAGE_SIZE"
+# endif
+#endif
+
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 #define PAGE_ALIGN(addr) (((addr) + PAGE_SIZE - 1) & PAGE_MASK)
 
