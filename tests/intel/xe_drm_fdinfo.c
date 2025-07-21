@@ -158,7 +158,8 @@ static void mem_active(int fd, struct drm_xe_engine *engine)
 		igt_assert_f(ret != 0, "failed with err:%d\n", errno);
 		pre_size = info.region_mem[memregion->instance + 1].active;
 
-		bo = xe_bo_create(fd, vm, bo_size, region, 0);
+		bo = xe_bo_create(fd, vm, bo_size, region,
+				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 		data = xe_bo_map(fd, bo, bo_size);
 
 		for (i = 0; i < N_EXEC_QUEUES; i++) {

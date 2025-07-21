@@ -367,7 +367,8 @@ static void non_block(int fd, int expect)
 	bo_size = xe_bb_size(fd, bo_size);
 
 	engine = xe_engine(fd, 1);
-	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, engine->instance.gt_id), 0);
+	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, engine->instance.gt_id),
+			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 
 	data = xe_bo_map(fd, bo, bo_size);
 	memset(data, 0, bo_size);
@@ -464,7 +465,8 @@ static void lr_mode_workload(int fd)
 	engine = xe_find_engine_by_class(fd, DRM_XE_ENGINE_CLASS_COPY);
 	igt_assert(engine);
 
-	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, engine->instance.gt_id), 0);
+	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, engine->instance.gt_id),
+			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	spin = xe_bo_map(fd, bo, bo_size);
 
 	exec_queue = xe_exec_queue_create(fd, vm, &engine->instance, 0);

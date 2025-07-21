@@ -276,7 +276,8 @@ static void xe_spin_fixed_duration(int fd, int gt, int class, int flags)
 	exec_queue = xe_exec_queue_create(fd, vm, hwe, ext);
 	ahnd = intel_allocator_open(fd, 0, INTEL_ALLOCATOR_RELOC);
 	bo_size = xe_bb_size(fd, sizeof(*spin));
-	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0), 0);
+	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0),
+			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	spin = xe_bo_map(fd, bo, bo_size);
 	spin_addr = intel_allocator_alloc_with_strategy(ahnd, bo, bo_size, 0,
 							ALLOC_STRATEGY_LOW_TO_HIGH);
@@ -347,8 +348,10 @@ static void xe_spin_mem_copy_region(int fd, struct drm_xe_engine_class_instance 
 					 ALLOC_STRATEGY_LOW_TO_HIGH, 0);
 
 	/* Create source and destination objects used for the copy */
-	src_handle = xe_bo_create(fd, 0, copy_size, region, 0);
-	dst_handle = xe_bo_create(fd, 0, copy_size, region, 0);
+	src_handle = xe_bo_create(fd, 0, copy_size, region,
+				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	dst_handle = xe_bo_create(fd, 0, copy_size, region,
+				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	blt_set_mem_object(mem_copy.src, src_handle, copy_size, width, width, height, region,
 			   intel_get_uc_mocs_index(fd), DEFAULT_PAT_INDEX, COMPRESSION_DISABLED);
 	blt_set_mem_object(mem_copy.dst, dst_handle, copy_size, width, width, height, region,
@@ -361,7 +364,8 @@ static void xe_spin_mem_copy_region(int fd, struct drm_xe_engine_class_instance 
 						   mem_copy.dst->size, 0, mem_copy.dst->pat_index);
 
 	/* Create spinner */
-	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0), 0);
+	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0),
+			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	spin = xe_bo_map(fd, bo, bo_size);
 	spin_addr = intel_allocator_alloc_with_strategy(ahnd, bo, bo_size, 0,
 							ALLOC_STRATEGY_LOW_TO_HIGH);

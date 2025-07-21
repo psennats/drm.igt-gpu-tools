@@ -238,7 +238,8 @@ exec_queue_reset_wait(int fd)
 	};
 
 	bb_size = xe_bb_size(fd, 0x40000);
-	bo = xe_bo_create(fd, vm, bb_size, vram_if_possible(fd, 0), 0);
+	bo = xe_bo_create(fd, vm, bb_size, vram_if_possible(fd, 0),
+			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	data = xe_bo_map(fd, bo, bb_size);
 
 	batch_offset = (char *)&data[0].batch - (char *)data;
