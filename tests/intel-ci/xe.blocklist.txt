@@ -11,6 +11,7 @@ igt@v3d.*
 igt@vc4.*
 igt@vgem_.*
 igt@.*virtgpu.*
+igt@vkms.*
 igt@vmwgfx.*
 ##################################################################
 # Exclude all i915 tests
