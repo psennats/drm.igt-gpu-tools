@@ -258,6 +258,8 @@ static void emit_tiling_convert_cmd(struct intel_bb *ibb,
 
 	if (HAS_4TILE(ibb->devid))
 		tc->tc1_2.input_mocs_idx = IS_DG2(ibb->devid) ? 3 : 9;
+	else
+		tc->tc1_2.input_mocs_idx = src->mocs_index;
 
 	tc->tc1_2.input_tiled_resource_mode = src->tiling == I915_TILING_Yf;
 
@@ -277,6 +279,8 @@ static void emit_tiling_convert_cmd(struct intel_bb *ibb,
 		tc->tc3_4.output_compression_type =
 			dst->compression == I915_COMPRESSION_RENDER;
 	}
+
+	tc->tc3_4.output_mocs_idx = dst->mocs_index;
 
 	if (HAS_4TILE(ibb->devid))
 		tc->tc3_4.output_mocs_idx = IS_DG2(ibb->devid) ? 3 : 9;
