@@ -899,7 +899,8 @@ igt_main
 				igt_subtest_with_dynamic_f("%s%scursor-%s", append_fbc_subtest[y],
 					      append_subtest_name[z], op_str(op)) {
 					igt_skip_on(is_xe_device(data.drm_fd) &&
-						    (op == MMAP_CPU || op == MMAP_GTT));
+						    (op == MMAP_CPU || op == MMAP_GTT ||
+						     op == BLT || op == RENDER));
 					for_each_connected_output(&data.display, output) {
 						if (!psr_sink_support(data.drm_fd, data.debugfs_fd,
 								      data.op_psr_mode, output))
