@@ -87,6 +87,9 @@
  * SUBTEST: async-flip-suspend-resume
  * Description: Verify the async flip functionality with suspend and resume cycle
  *
+ * SUBTEST: async-flip-hang
+ * Description: Verify the async flip functionality with hang cycle
+ *
  * SUBTEST: overlay-atomic
  * Description: Verify overlay planes with async flips in atomic API
  *
@@ -137,6 +140,7 @@ typedef struct {
 	enum pipe pipe;
 	bool alternate_sync_async;
 	bool suspend_resume;
+	bool hang;
 	struct buf_ops *bops;
 	bool atomic_path;
 	bool overlay_path;
@@ -387,9 +391,11 @@ static void test_async_flip(data_t *data)
 	int ret, frame;
 	long long int fps;
 	struct timeval start, end, diff;
-	int suspend_time = RUN_TIME / 2;
+	igt_hang_t hang;
+	uint64_t ahnd = 0;
+	int mid_time = RUN_TIME / 2;
 	float run_time;
-	bool temp = data->suspend_resume;
+	bool temp = data->suspend_resume || data->hang;
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
@@ -454,9 +460,19 @@ static void test_async_flip(data_t *data)
 				     data->flip_interval, data->refresh_rate, MIN_FLIPS_PER_FRAME);
 		}
 
-		if (data->suspend_resume && diff.tv_sec == suspend_time && temp) {
+		if (data->suspend_resume && diff.tv_sec == mid_time && temp) {
 			temp = false;
 			igt_system_suspend_autoresume(SUSPEND_STATE_MEM, SUSPEND_TEST_NONE);
+		}
+
+		if (data->hang && diff.tv_sec == mid_time && temp) {
+			temp = false;
+			memset(&hang, 0, sizeof(hang));
+
+			ahnd = is_i915_device(data->drm_fd) ?
+			       get_reloc_ahnd(data->drm_fd, 0) :
+			       intel_allocator_open(data->drm_fd, 0, INTEL_ALLOCATOR_RELOC);
+			hang = igt_hang_ring_with_ahnd(data->drm_fd, I915_EXEC_DEFAULT, ahnd);
 		}
 
 		/*
@@ -479,6 +495,11 @@ static void test_async_flip(data_t *data)
 		run_time = RUN_TIME - (1.0 / data->refresh_rate);
 	else
 		run_time = RUN_TIME;
+
+	if (data->hang) {
+		igt_post_hang_ring(data->drm_fd, hang);
+		put_ahnd(ahnd);
+	}
 
 	if (!data->alternate_sync_async && !data->async_mod_formats) {
 		fps = frame * 1000 / run_time;
@@ -1174,6 +1195,15 @@ igt_main
 	igt_describe("Verify basic modeset with all supported modifier and format combinations");
 	igt_subtest_with_dynamic("basic-modeset-with-all-modifiers-formats") {
 		run_test_with_async_format_modifiers(&data, test_async_flip);
+	}
+
+	igt_describe("Verify the async flip functionality after hang cycle");
+	igt_subtest_with_dynamic("async-flip-hang") {
+		igt_require(is_intel_device(data.drm_fd));
+		test_init_ops(&data);
+		data.hang = true;
+		run_test(&data, test_async_flip);
+		data.hang = false;
 	}
 
 	igt_fixture {
