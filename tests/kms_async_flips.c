@@ -90,6 +90,9 @@
  * SUBTEST: async-flip-hang
  * Description: Verify the async flip functionality with hang cycle
  *
+ * SUBTEST: async-flip-dpms
+ * Description: Verify the async flip functionality with dpms cycle
+ *
  * SUBTEST: overlay-atomic
  * Description: Verify overlay planes with async flips in atomic API
  *
@@ -141,6 +144,7 @@ typedef struct {
 	bool alternate_sync_async;
 	bool suspend_resume;
 	bool hang;
+	bool dpms;
 	struct buf_ops *bops;
 	bool atomic_path;
 	bool overlay_path;
@@ -386,6 +390,21 @@ static int perform_flip(data_t *data, int frame, int flags)
 	return ret;
 }
 
+static void check_dpms(igt_output_t *output)
+{
+	igt_require(igt_setup_runtime_pm(output->display->drm_fd));
+
+	kmstest_set_connector_dpms(output->display->drm_fd,
+				   output->config.connector,
+				   DRM_MODE_DPMS_OFF);
+	igt_require(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_SUSPENDED));
+
+	kmstest_set_connector_dpms(output->display->drm_fd,
+				   output->config.connector,
+				   DRM_MODE_DPMS_ON);
+	igt_assert(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_ACTIVE));
+}
+
 static void test_async_flip(data_t *data)
 {
 	int ret, frame;
@@ -395,7 +414,7 @@ static void test_async_flip(data_t *data)
 	uint64_t ahnd = 0;
 	int mid_time = RUN_TIME / 2;
 	float run_time;
-	bool temp = data->suspend_resume || data->hang;
+	bool temp = data->suspend_resume || data->hang || data->dpms;
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
@@ -488,10 +507,15 @@ static void test_async_flip(data_t *data)
 			break;
 		}
 
+		if (data->dpms && diff.tv_sec == mid_time && temp) {
+			temp = false;
+			check_dpms(data->output);
+		}
+
 		frame++;
 	} while (diff.tv_sec < RUN_TIME);
 
-	if (data->suspend_resume)
+	if (data->suspend_resume || data->dpms)
 		run_time = RUN_TIME - (1.0 / data->refresh_rate);
 	else
 		run_time = RUN_TIME;
@@ -1204,6 +1228,14 @@ igt_main
 		data.hang = true;
 		run_test(&data, test_async_flip);
 		data.hang = false;
+	}
+
+	igt_describe("Verify the async flip functionality after dpms cycle");
+	igt_subtest_with_dynamic("async-flip-dpms") {
+		test_init_ops(&data);
+		data.dpms = true;
+		run_test(&data, test_async_flip);
+		data.dpms = false;
 	}
 
 	igt_fixture {
