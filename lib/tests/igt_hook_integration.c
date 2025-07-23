@@ -16,24 +16,25 @@ char fake_argv_buffer[1024];
 char *fake_argv[64];
 int fake_argc;
 
-#define ENV_ARRAY(evt_name, fullname_suffix, subtest, dyn_subtest, result) \
+#define ENV_ARRAY(evt_name, fullname_suffix, subtest, dyn_subtest, unbind_module_name, result) \
 { \
 	"IGT_HOOK_EVENT=" evt_name, \
 	"IGT_HOOK_TEST_FULLNAME=igt@igt_hook_integration" fullname_suffix, \
 	"IGT_HOOK_TEST=igt_hook_integration", \
 	"IGT_HOOK_SUBTEST=" subtest, \
 	"IGT_HOOK_DYN_SUBTEST=" dyn_subtest, \
+	"IGT_HOOK_KMOD_UNBIND_MODULE_NAME=" unbind_module_name, \
 	"IGT_HOOK_RESULT=" result, \
 }
 
 #define TEST_ENV(evt_name, result) \
-	ENV_ARRAY(evt_name, "", "", "", result)
+	ENV_ARRAY(evt_name, "", "", "", "", result)
 
 #define SUBTEST_ENV(evt_name, subtest, result) \
-	ENV_ARRAY(evt_name, "@" subtest, subtest, "", result)
+	ENV_ARRAY(evt_name, "@" subtest, subtest, "", "", result)
 
 #define DYN_SUBTEST_ENV(evt_name, subtest, dyn_subtest, result) \
-	ENV_ARRAY(evt_name, "@" subtest "@" dyn_subtest, subtest, dyn_subtest, result)
+	ENV_ARRAY(evt_name, "@" subtest "@" dyn_subtest, subtest, dyn_subtest, "", result)
 
 const char *pre_test_env[] = TEST_ENV("pre-test", "");
 const char *pre_subtest_a_env[] = SUBTEST_ENV("pre-subtest", "a", "");

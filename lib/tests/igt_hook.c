@@ -16,6 +16,7 @@ static const char *env_var_names[] = {
 	"IGT_HOOK_TEST",
 	"IGT_HOOK_SUBTEST",
 	"IGT_HOOK_DYN_SUBTEST",
+	"IGT_HOOK_KMOD_UNBIND_MODULE_NAME",
 	"IGT_HOOK_RESULT",
 };
 
