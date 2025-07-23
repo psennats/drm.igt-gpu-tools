@@ -1601,4 +1601,6 @@ void igt_pci_system_cleanup(void);
 void igt_emit_ignore_dmesg_regex(const char *ignore_dmesg_regex);
 
 unsigned int igt_measured_usleep(unsigned int usec);
+
+struct igt_hook *igt_core_get_igt_hook(void);
 #endif /* IGT_CORE_H */

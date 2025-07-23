@@ -3616,3 +3616,15 @@ unsigned int igt_measured_usleep(unsigned int usec)
 
 	return igt_nsec_elapsed(&ts) / NSEC_PER_USEC;
 }
+
+/**
+ * igt_core_get_igt_hook: To allow for using hooks from other libraries, this
+ * function returns the pointer to the struct that is likely already
+ * initialized.
+ *
+ * Returns: Pointer to the igt_hook structure.
+ */
+struct igt_hook *igt_core_get_igt_hook(void)
+{
+	return igt_hook;
+}
