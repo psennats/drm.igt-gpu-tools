@@ -388,6 +388,7 @@ static void test_async_flip(data_t *data)
 	long long int fps;
 	struct timeval start, end, diff;
 	int suspend_time = RUN_TIME / 2;
+	bool temp = data->suspend_resume;
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
@@ -452,8 +453,8 @@ static void test_async_flip(data_t *data)
 				     data->flip_interval, data->refresh_rate, MIN_FLIPS_PER_FRAME);
 		}
 
-		if (data->suspend_resume && diff.tv_sec == suspend_time) {
-			data->suspend_resume = false;
+		if (data->suspend_resume && diff.tv_sec == suspend_time && temp) {
+			temp = false;
 			igt_system_suspend_autoresume(SUSPEND_STATE_MEM, SUSPEND_TEST_NONE);
 		}
 
@@ -1161,6 +1162,7 @@ igt_main
 		test_init_ops(&data);
 		data.suspend_resume = true;
 		run_test(&data, test_async_flip);
+		data.suspend_resume = false;
 	}
 
 	igt_describe("Verify basic modeset with all supported modifier and format combinations");
