@@ -388,6 +388,7 @@ static void test_async_flip(data_t *data)
 	long long int fps;
 	struct timeval start, end, diff;
 	int suspend_time = RUN_TIME / 2;
+	float run_time;
 	bool temp = data->suspend_resume;
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
@@ -474,8 +475,13 @@ static void test_async_flip(data_t *data)
 		frame++;
 	} while (diff.tv_sec < RUN_TIME);
 
+	if (data->suspend_resume)
+		run_time = RUN_TIME - (1.0 / data->refresh_rate);
+	else
+		run_time = RUN_TIME;
+
 	if (!data->alternate_sync_async && !data->async_mod_formats) {
-		fps = frame * 1000 / RUN_TIME;
+		fps = frame * 1000 / run_time;
 		igt_assert_f((fps / 1000) > (data->refresh_rate * MIN_FLIPS_PER_FRAME),
 			     "FPS should be significantly higher than the refresh rate\n");
 	}
