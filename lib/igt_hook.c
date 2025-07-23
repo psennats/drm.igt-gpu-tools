@@ -74,6 +74,8 @@ static const char *igt_hook_evt_type_to_name(enum igt_hook_evt_type evt_type)
 		return "post-subtest";
 	case IGT_HOOK_POST_TEST:
 		return "post-test";
+	case IGT_HOOK_POST_KMOD_UNBIND:
+		return "post-kmod-unbind";
 	case IGT_HOOK_NUM_EVENTS:
 		break;
 	/* No "default:" case, to force a warning from -Wswitch in case we miss
@@ -335,6 +337,8 @@ static void igt_hook_update_env_vars(struct igt_hook *igt_hook, struct igt_hook_
 	setenv("IGT_HOOK_TEST", igt_hook->test_name, 1);
 	setenv("IGT_HOOK_SUBTEST", igt_hook->subtest_name, 1);
 	setenv("IGT_HOOK_DYN_SUBTEST", igt_hook->dyn_subtest_name, 1);
+	setenv("IGT_HOOK_KMOD_UNBIND_MODULE_NAME",
+	       evt->evt_type == IGT_HOOK_POST_KMOD_UNBIND ? evt->target_name : "", 1);
 	setenv("IGT_HOOK_RESULT", evt->result ?: "", 1);
 }
 
@@ -470,6 +474,9 @@ below:\n\
 		case IGT_HOOK_POST_TEST:
 			desc = "Occurs after a test case has finished.";
 			break;
+		case IGT_HOOK_POST_KMOD_UNBIND:
+			desc = "Occurs after the kernel module is unbound from the device.";
+			break;
 		default:
 			desc = "MISSING DESCRIPTION";
 		}
@@ -504,6 +511,10 @@ available to the command:\n\
   values are: SUCCESS, SKIP or FAIL. This is only applicable on \"post-*\"\n\
   events and will be the empty string for other types of events.\n\
 \n\
+  IGT_HOOK_KMOD_UNBIND_MODULE_NAME\n\
+  Name of the kernel module that was unbound from the device. This is only\n\
+  applicable on the `IGT_HOOK_POST_KMOD_UNBIND` event and will be the empty\n\
+  string for other types of events.\n\
 \n\
 Note that %s can be passed multiple times. Each descriptor is evaluated in turn\n\
 when matching events and running hook commands.\n\

@@ -41,6 +41,7 @@
 #include "igt_aux.h"
 #include "igt_core.h"
 #include "igt_debugfs.h"
+#include "igt_hook.h"
 #include "igt_kmod.h"
 #include "igt_ktap.h"
 #include "igt_sysfs.h"
@@ -604,6 +605,7 @@ int __igt_intel_driver_unload(char **who, const char *driver)
  */
 int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 {
+	struct igt_hook *igt_hook = NULL;
 	char path[PATH_MAX];
 	struct dirent *de;
 	int dirlen;
@@ -633,6 +635,12 @@ int igt_kmod_unbind(const char *mod_name, const char *pci_device)
 	}
 
 	closedir(dir);
+
+	igt_hook = igt_core_get_igt_hook();
+	igt_hook_event_notify(igt_hook, &(struct igt_hook_evt){
+		.evt_type = IGT_HOOK_POST_KMOD_UNBIND,
+		.target_name = mod_name,
+	});
 
 	return 0;
 }

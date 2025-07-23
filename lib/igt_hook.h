@@ -26,6 +26,8 @@ struct igt_hook;
  * @IGT_HOOK_POST_SUBTEST: Occurs after the execution of a subtest..
  * @IGT_HOOK_POST_TEST: Occurs after a test case (executable) is finished with
  * the test code.
+ * @IGT_HOOK_POST_KMOD_UNBIND: Occurs after the kernel module is unbound
+ * from the device.
  * @IGT_HOOK_NUM_EVENTS: This is not really an event and represents the number
  * of possible events tracked by igt_hook.
  *
@@ -39,6 +41,7 @@ enum igt_hook_evt_type {
 	IGT_HOOK_POST_DYN_SUBTEST,
 	IGT_HOOK_POST_SUBTEST,
 	IGT_HOOK_POST_TEST,
+	IGT_HOOK_POST_KMOD_UNBIND,
 	IGT_HOOK_NUM_EVENTS /* This must always be the last one. */
 };
 
