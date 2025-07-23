@@ -142,22 +142,6 @@ static void test_fade(igt_backlight_context_t *context)
 	}
 }
 
-static void
-check_dpms(igt_output_t *output)
-{
-	igt_require(igt_setup_runtime_pm(output->display->drm_fd));
-
-	kmstest_set_connector_dpms(output->display->drm_fd,
-				   output->config.connector,
-				   DRM_MODE_DPMS_OFF);
-	igt_require(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_SUSPENDED));
-
-	kmstest_set_connector_dpms(output->display->drm_fd,
-				   output->config.connector,
-				   DRM_MODE_DPMS_ON);
-	igt_assert(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_ACTIVE));
-}
-
 static void check_dpms_cycle(igt_backlight_context_t *context)
 {
 	int max, val_1, val_2;
@@ -168,7 +152,7 @@ static void check_dpms_cycle(igt_backlight_context_t *context)
 	igt_backlight_write(max / 2, "brightness", context);
 	igt_backlight_read(&val_1, "actual_brightness", context);
 
-	check_dpms(context->output);
+	igt_pm_dpms_toggle(context->output);
 
 	igt_backlight_read(&val_2, "actual_brightness", context);
 	igt_assert_eq(val_1, val_2);
@@ -310,7 +294,7 @@ igt_main
 				test_setup(display, &contexts->output[j]);
 
 				if (tests[i].flags == TEST_DPMS)
-					check_dpms(contexts[j].output);
+					igt_pm_dpms_toggle(contexts[j].output);
 
 				if (tests[i].flags == TEST_SUSPEND)
 					check_suspend(contexts[j].output);

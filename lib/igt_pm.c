@@ -1487,3 +1487,24 @@ bool igt_has_pci_pm_capability(struct pci_device *pci_dev)
 
 	return (offset > 0);
 }
+
+/**
+ * igt_pm_dpms_toggle:
+ * @output: igt output for which DPMS toggle has to be performed
+ *
+ * Toggles the DPMS state of output to OFF and then back ON.
+ */
+void igt_pm_dpms_toggle(igt_output_t *output)
+{
+	igt_require(igt_setup_runtime_pm(output->display->drm_fd));
+
+	kmstest_set_connector_dpms(output->display->drm_fd,
+				   output->config.connector,
+				   DRM_MODE_DPMS_OFF);
+	igt_require(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_SUSPENDED));
+
+	kmstest_set_connector_dpms(output->display->drm_fd,
+				   output->config.connector,
+				   DRM_MODE_DPMS_ON);
+	igt_assert(igt_wait_for_pm_status(IGT_RUNTIME_PM_STATUS_ACTIVE));
+}
