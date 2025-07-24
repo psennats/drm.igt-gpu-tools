@@ -97,7 +97,7 @@ IGT_TEST_DESCRIPTION("Read entries from debugfs with display on/off.");
 igt_main
 {
 	int debugfs = -1;
-	igt_display_t *display;
+	igt_display_t display;
 	int fd = -1;
 
 	igt_fixture {
@@ -107,28 +107,27 @@ igt_main
 
 		kmstest_set_vt_graphics_mode();
 
-		display = calloc(1, sizeof(*display));
-		igt_display_require(display, fd);
+		igt_display_require(&display, fd);
 
 		/* Make sure we have at least one output connected */
-		igt_display_require_output(display);
+		igt_display_require_output(&display);
 	}
 
 	igt_subtest("display-off-read-all") {
-		igt_display_all_off(display);
+		igt_display_all_off(&display);
 
 		igt_dir_process_files_simple(debugfs);
 	}
 
 	igt_subtest("display-on-read-all") {
 		/* try to light all pipes */
-		igt_display_all_on(display);
+		igt_display_all_on(&display);
 
 		igt_dir_process_files_simple(debugfs);
 	}
 
 	igt_fixture {
-		igt_display_fini(display);
+		igt_display_fini(&display);
 		close(debugfs);
 		drm_close_driver(fd);
 	}
