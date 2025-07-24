@@ -361,15 +361,10 @@ static int setup_framebuffers(struct connector *dp_conn)
 	igt_assert(dp_conn->fb);
 
 	/* Map the mapping of GEM object into the virtual address space */
-	dp_conn->pixmap = gem_mmap__device_coherent(drm_fd,
-					dp_conn->fb_video_pattern.gem_handle,
-					0, dp_conn->fb_video_pattern.size,
-					PROT_READ | PROT_WRITE);
+	dp_conn->pixmap = igt_fb_map_buffer(drm_fd, &dp_conn->fb_video_pattern);
 	if (dp_conn->pixmap == NULL)
 		return -1;
 
-	gem_set_domain(drm_fd, dp_conn->fb_video_pattern.gem_handle,
-		       I915_GEM_DOMAIN_GTT, I915_GEM_DOMAIN_GTT);
 	dp_conn->fb_size = dp_conn->fb_video_pattern.size;
 
 	/* After filling the device memory with 0s it needs to be unmapped */
@@ -391,15 +386,10 @@ static int setup_failsafe_framebuffer(struct connector *dp_conn)
 	igt_assert(dp_conn->failsafe_fb);
 
 	/* Map the mapping of GEM object into the virtual address space */
-	dp_conn->failsafe_pixmap = gem_mmap__device_coherent(drm_fd,
-						 dp_conn->fb_failsafe_pattern.gem_handle,
-						 0, dp_conn->fb_failsafe_pattern.size,
-						 PROT_READ | PROT_WRITE);
+	dp_conn->failsafe_pixmap = igt_fb_map_buffer(drm_fd, &dp_conn->fb_failsafe_pattern);
 	if (dp_conn->failsafe_pixmap == NULL)
 		return -1;
 
-	gem_set_domain(drm_fd, dp_conn->fb_failsafe_pattern.gem_handle,
-		       I915_GEM_DOMAIN_GTT, I915_GEM_DOMAIN_GTT);
 	dp_conn->failsafe_size = dp_conn->fb_failsafe_pattern.size;
 
 	/* After filling the device framebuffer the mapped memory needs to be freed */
@@ -428,15 +418,9 @@ static int setup_video_pattern_framebuffer(struct connector *dp_conn)
 	igt_assert(dp_conn->test_pattern.fb);
 
 	/* Map the mapping of GEM object into the virtual address space */
-	dp_conn->test_pattern.pixmap = gem_mmap__device_coherent(drm_fd,
-						     dp_conn->test_pattern.fb_pattern.gem_handle,
-						     0, dp_conn->test_pattern.fb_pattern.size,
-						     PROT_READ | PROT_WRITE);
+	dp_conn->test_pattern.pixmap = igt_fb_map_buffer(drm_fd, &dp_conn->test_pattern.fb_pattern);
 	if (dp_conn->test_pattern.pixmap == NULL)
 		return -1;
-
-	gem_set_domain(drm_fd, dp_conn->test_pattern.fb_pattern.gem_handle,
-		       I915_GEM_DOMAIN_GTT, I915_GEM_DOMAIN_GTT);
 
 	dp_conn->test_pattern.size = dp_conn->test_pattern.fb_pattern.size;
 
