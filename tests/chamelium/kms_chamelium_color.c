@@ -748,13 +748,12 @@ igt_main
 		 * prevents any ports from being unintentionally skipped in test_setup.
 		 */
 		for (i = 0; i < data.port_count; i++) {
-			struct udev_monitor *mon;
-			int timeout = CHAMELIUM_HOTPLUG_TIMEOUT;
 			chamelium_unplug(data.chamelium, data.ports[i]);
-			mon = igt_watch_uevents();
 			chamelium_plug(data.chamelium, data.ports[i]);
-			igt_assert(chamelium_wait_for_hotplug(mon, &timeout));
-			igt_cleanup_uevents(mon);
+			chamelium_wait_for_conn_status_change(&data.display,
+							      data.chamelium,
+							      data.ports[i],
+							      DRM_MODE_CONNECTED);
 			igt_assert_f(chamelium_reprobe_connector(&data.display,
 								 data.chamelium,
 								 data.ports[i]) == DRM_MODE_CONNECTED,
