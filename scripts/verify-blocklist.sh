@@ -1,13 +1,14 @@
 #!/bin/sh
+# SPDX-License-Identifier: MIT
 
-# Verify that all entries in a blacklist file are still valid
+# Verify that all entries in a blocklist file are still valid
 
 usage() {
-    echo "Usage: $0 <path-to-igt-runner> <test-binary-directory> <blacklist-files ...>"
+    echo "Usage: $0 <path-to-igt-runner> <test-binary-directory> <blocklist-files ...>"
     echo
     echo " path-to-igt-runner: For example build/runner/igt_runner"
     echo " test-binary-directory: For example build/tests"
-    echo " blacklist-files: For example tests/intel-ci/blacklist.txt"
+    echo " blocklist-files: For example tests/intel-ci/i915.blocklist.txt"
     exit 2
 }
 
