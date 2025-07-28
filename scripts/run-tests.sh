@@ -150,7 +150,7 @@ print_help() {
 	echo "  -v              enable verbose mode"
 	echo "  -x <regex>      exclude tests that match the regular expression"
 	echo "                  (can be used more than once)"
-	echo "  -b              blacklist file to use for filtering"
+	echo "  -b              blocklist file to use for filtering"
 	echo "                  (can be used more than once)"
 	echo "                  (not supported by Piglit)"
 	echo "  -R              resume interrupted test where the partial results"
