@@ -1,0 +1,1 @@
+verify-blocklist.sh
