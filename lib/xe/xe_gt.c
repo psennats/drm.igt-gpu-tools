@@ -185,8 +185,11 @@ int xe_gt_stats_get_count(int fd, int gt, const char *stat)
 		minor(st.st_rdev), gt);
 	f = fopen(path, "r");
 
-	igt_assert_f(f, "Failed to open /sys/kernel/debug/dri/%d/gt%d/stats",
-		     minor(st.st_rdev), gt);
+	if (!f) {
+		igt_warn("Failed to open /sys/kernel/debug/dri/%d/gt%d/stats",
+			 minor(st.st_rdev), gt);
+		return -1;
+	}
 
 	while (fgets(tlb_path, sizeof(tlb_path), f)) {
 		if (strstr(tlb_path, stat) != NULL) {
