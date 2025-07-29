@@ -11,12 +11,18 @@
  * Test category: functionality test
  */
 
+#include <dirent.h>
 #include <limits.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/ioctl.h>
+
+#include <linux/i2c-dev.h>
+#include <linux/i2c.h>
 
 #include "igt.h"
 #include "lib/igt_device.h"
+#include "lib/igt_kmod.h"
 #include "lib/igt_pm.h"
 #include "lib/igt_sysfs.h"
 #include "lib/igt_syncobj.h"
@@ -37,6 +43,10 @@
 #define USERPTR (0x1 << 0)
 #define PREFETCH (0x1 << 1)
 #define UNBIND_ALL (0x1 << 2)
+
+/* AMC slave details */
+#define I2C_AMC_ADDR	0x40
+#define I2C_AMC_REG	0x00
 
 enum mem_op {
 	READ,
@@ -779,6 +789,88 @@ static void test_mocs_suspend_resume(device_t device, enum igt_suspend_state s_s
 	}
 }
 
+static int find_i2c_adapter(device_t device, int sysfs_fd)
+{
+	int adapter_fd, i2c_adapter = -1;
+	struct dirent *dirent;
+	char adapter[32];
+	DIR *dir;
+
+	/* Make sure the /dev/i2c-* files exist */
+	igt_require(igt_kmod_load("i2c-dev", NULL) == 0);
+
+	snprintf(adapter, sizeof(adapter), "%s.%hu", "device/i2c_designware",
+		 (device.pci_xe->bus << 8) | (device.pci_xe->dev));
+	adapter_fd = openat(sysfs_fd, adapter, O_RDONLY);
+	igt_require_fd(adapter_fd);
+
+	dir = fdopendir(adapter_fd);
+	igt_assert(dir);
+
+	/* Find the i2c adapter */
+	while ((dirent = readdir(dir))) {
+		if (strncmp(dirent->d_name, "i2c-", 4) == 0) {
+			sscanf(dirent->d_name, "i2c-%d", &i2c_adapter);
+			break;
+		}
+	}
+
+	closedir(dir);
+	close(adapter_fd);
+	return i2c_adapter;
+}
+
+/**
+ * SUBTEST: %s-i2c
+ * Description: Validate %arg[1] transition before and after i2c adapter access.
+ * Functionality: pm-d3
+ * GPU requirements: D3 feature should be supported
+ *
+ * arg[1]:
+ *
+ * @d3hot:	d3hot
+ * @d3cold:	d3cold
+ */
+static void i2c_test(device_t device, int sysfs_fd, enum igt_acpi_d_state d_state)
+{
+	uint8_t addr = I2C_AMC_ADDR, reg = I2C_AMC_REG, buf;
+	int i2c_adapter, i2c_fd;
+	char i2c_dev[16];
+	struct i2c_msg msgs[] = {
+		{
+			.addr = addr,
+			.flags = 0,
+			.len = sizeof(reg),
+			.buf = &reg,
+		}, {
+			.addr = addr,
+			.flags = I2C_M_RD,
+			.len = sizeof(buf),
+			.buf = &buf,
+		}
+	};
+	struct i2c_rdwr_ioctl_data msgset = {
+		.msgs = msgs,
+		.nmsgs = ARRAY_SIZE(msgs),
+	};
+
+	i2c_adapter = find_i2c_adapter(device, sysfs_fd);
+	igt_assert_lte(0, i2c_adapter);
+
+	snprintf(i2c_dev, sizeof(i2c_dev), "/dev/i2c-%hd", i2c_adapter);
+	i2c_fd = open(i2c_dev, O_RDWR);
+	igt_assert_fd(i2c_fd);
+
+	/* Make sure open() doesn't wake the device */
+	igt_assert(in_d3(device, d_state));
+
+	/* Perform an i2c transaction to trigger adapter wake */
+	igt_info("Accessing slave 0x%hhx on %s\n", addr, i2c_dev);
+	igt_assert_lte(0, igt_ioctl(i2c_fd, I2C_RDWR, &msgset));
+
+	close(i2c_fd);
+}
+
 igt_main
 {
 	device_t device;
@@ -886,6 +978,13 @@ igt_main
 		igt_subtest_f("%s-basic-exec", d->name) {
 			igt_assert(setup_d3(device, d->state));
 			test_exec(device, 1, 1, NO_SUSPEND, d->state, 0);
+			cleanup_d3(device);
+		}
+
+		igt_subtest_f("%s-i2c", d->name) {
+			igt_assert(setup_d3(device, d->state));
+			i2c_test(device, sysfs_fd, d->state);
+			igt_assert(in_d3(device, d->state));
 			cleanup_d3(device);
 		}
 
