@@ -281,7 +281,8 @@ static double pmu_active_percentage(struct xe_engine *engine)
 	double percentage;
 
 	percentage = (pmu_active_ticks * 100) / pmu_total_ticks;
-	return percentage;
+
+	return clamp(percentage, 0., 100.);
 }
 
 static int
