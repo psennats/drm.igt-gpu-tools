@@ -106,12 +106,24 @@ const double tolerance = 0.1;
 static char xe_device[NAME_MAX];
 static bool autoprobe;
 static int total_exec_quantum;
+static bool has_engine_active_ticks;
 
 #define test_each_engine(test, fd, hwe) \
 	igt_subtest_with_dynamic(test) \
 		xe_for_each_engine(fd, hwe) \
 			igt_dynamic_f("engine-%s%d", xe_engine_class_string(hwe->engine_class), \
 				      hwe->engine_instance)
+
+static bool has_event(const char *device, const char *event)
+{
+	char buf[512];
+
+	snprintf(buf, sizeof(buf),
+		 "/sys/bus/event_source/devices/%s/events/%s",
+		 device,
+		 event);
+	return (!!access(buf, F_OK));
+}
 
 static int open_pmu(int xe, uint64_t config)
 {
@@ -190,6 +202,8 @@ static uint64_t get_event_config(unsigned int gt, struct drm_xe_engine_class_ins
 {
 	uint64_t pmu_config = 0;
 	int ret;
+
+	igt_skip_on(has_engine_active_ticks);
 
 	ret = perf_event_config(xe_device, event, &pmu_config);
 	igt_assert(ret >= 0);
@@ -907,6 +921,7 @@ igt_main
 		fd = drm_open_driver(DRIVER_XE);
 		xe_perf_device(fd, xe_device, sizeof(xe_device));
 		num_engines = xe_number_engines(fd);
+		has_engine_active_ticks = has_event(xe_device, "engine-active-ticks");
 	}
 
 	igt_describe("Validate PMU gt-c6 residency counters when idle");
