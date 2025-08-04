@@ -96,12 +96,12 @@
  */
 
 /**
- * SUBTEST: async-cursor-crc-framebuffer-change
+ * SUBTEST: cursor-tearing-framebuffer-change
  * Description: Validate cursor IOCTLs tearing via framebuffer changes.
  */
 
 /**
- * SUBTEST: async-cursor-crc-position-change
+ * SUBTEST: cursor-tearing-position-change
  * Description: Validate cursor IOCTLs tearing via cursor position change.
  */
 
@@ -1113,8 +1113,8 @@ static void run_tests_on_pipe(data_t *data)
 				1.f, 0.f, 0.f, &data->timed_fb[1]);
 	}
 
-	igt_describe("Validate CRC with two cursors");
-	igt_subtest_with_dynamic("async-cursor-crc-framebuffer-change") {
+	igt_describe("Validate cursor updates don't cause tearing with framebuffer changes");
+	igt_subtest_with_dynamic("cursor-tearing-framebuffer-change") {
 		for_each_pipe_with_single_output(&data->display, pipe, data->output) {
 			if (execution_constraint(pipe))
 				continue;
@@ -1132,8 +1132,8 @@ static void run_tests_on_pipe(data_t *data)
 		}
 	}
 
-	igt_describe("Validate CRC with two cursors and cursor position change");
-	igt_subtest_with_dynamic("async-cursor-crc-position-change") {
+	igt_describe("Validate cursor updates don't cause tearing with position changes");
+	igt_subtest_with_dynamic("cursor-tearing-position-change") {
 		for_each_pipe_with_single_output(&data->display, pipe, data->output) {
 			if (execution_constraint(pipe))
 				continue;
