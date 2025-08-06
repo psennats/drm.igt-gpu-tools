@@ -650,6 +650,7 @@ static void test_invalid(data_t *data)
 	struct igt_fb fb[2];
 	drmModeModeInfo *mode;
 	int flags;
+	uint64_t mod1, mod2;
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
@@ -659,10 +660,20 @@ static void test_invalid(data_t *data)
 
 	flags = DRM_MODE_PAGE_FLIP_ASYNC | DRM_MODE_PAGE_FLIP_EVENT;
 
+	mod1 = data->plane->async_modifiers[0];
+	mod2 = data->plane->async_modifiers[data->plane->async_format_mod_count - 1];
+
+	/* Need at least 2 different modifiers to test invalid case */
+	igt_require_f(data->plane->async_format_mod_count >= 2 && mod1 != mod2,
+		      "Need at least 2 different async modifiers for invalid test\n");
+
+	igt_info("using modifier1 %s and modifier2 %s\n",
+		 igt_fb_modifier_name(mod1), igt_fb_modifier_name(mod2));
+
 	igt_create_fb(data->drm_fd, width, height, DRM_FORMAT_XRGB8888,
-		      I915_FORMAT_MOD_X_TILED, &fb[0]);
+		      mod1, &fb[0]);
 	igt_create_fb(data->drm_fd, width, height, DRM_FORMAT_XRGB8888,
-		      I915_FORMAT_MOD_Y_TILED, &fb[1]);
+		      mod2, &fb[1]);
 
 	igt_plane_set_fb(data->plane, &fb[0]);
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
@@ -1165,11 +1176,6 @@ igt_main
 		test_init_ops(&data);
 		/* TODO: support more vendors */
 		igt_require(is_intel_device(data.drm_fd));
-		igt_require(igt_display_has_format_mod(&data.display, DRM_FORMAT_XRGB8888,
-						       I915_FORMAT_MOD_X_TILED));
-		igt_require(igt_display_has_format_mod(&data.display, DRM_FORMAT_XRGB8888,
-						       I915_FORMAT_MOD_Y_TILED));
-
 		run_test(&data, test_invalid);
 	}
 
