@@ -1256,6 +1256,60 @@ static void test_enable_no_encoders(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: enable-too-many-encoders
+ * Description: Try to enable a VKMS device with too many encoders and test that
+ *              it fails.
+ */
+
+static void test_enable_too_many_encoders(void)
+{
+	igt_vkms_t *dev;
+	char encoder_names[VKMS_MAX_PIPELINE_ITEMS][10];
+	int ret;
+
+	igt_vkms_config_t cfg = {
+		.device_name = __func__,
+		.planes = {
+			{
+				.name = "plane0",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc0" },
+			},
+		},
+		.crtcs = {
+			{ .name = "crtc0" },
+		},
+		.encoders = {},
+		.connectors = {
+			{
+				.name = "connector0",
+				.possible_encoders = { "encoder0" },
+			},
+		},
+	};
+
+	for (int n = 0; n < 32; n++) {
+		ret = snprintf(encoder_names[n], sizeof(encoder_names[n]),
+			       "encoder%d", n);
+		igt_assert(ret >= 0 && ret < sizeof(encoder_names[n]));
+
+		cfg.encoders[n] = (igt_vkms_encoder_config_t){
+			.name = encoder_names[n],
+			.possible_crtcs = { "crtc0" }
+		};
+	}
+
+	dev = igt_vkms_device_create_from_config(&cfg);
+	igt_assert(dev);
+
+	igt_vkms_device_set_enabled(dev, true);
+	igt_assert(!igt_vkms_device_is_enabled(dev));
+	igt_assert(!device_exists(__func__));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -1291,6 +1345,7 @@ igt_main
 		{ "enable-no-crtcs", test_enable_no_crtcs },
 		{ "enable-too-many-crtcs", test_enable_too_many_crtcs },
 		{ "enable-no-encoders", test_enable_no_encoders },
+		{ "enable-too-many-encoders", test_enable_too_many_encoders },
 	};
 
 	igt_fixture {
