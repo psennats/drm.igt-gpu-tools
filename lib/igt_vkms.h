@@ -111,6 +111,7 @@ void igt_vkms_crtc_set_writeback_enabled(igt_vkms_t *dev, const char *name,
 					 bool writeback);
 
 void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name);
+bool igt_vkms_device_remove_encoder(igt_vkms_t *dev, const char *name);
 bool igt_vkms_encoder_attach_crtc(igt_vkms_t *dev, const char *encoder_name,
 				  const char *crtc_name);
 bool igt_vkms_encoder_detach_crtc(igt_vkms_t *dev, const char *encoder_name,

@@ -862,6 +862,18 @@ void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name)
 }
 
 /**
+ * igt_vkms_device_remove_encoder:
+ * @dev: Device to remove the encoder from
+ * @name: Encoder name
+ *
+ * Remove an existing encoder from the VKMS device.
+ */
+bool igt_vkms_device_remove_encoder(igt_vkms_t *dev, const char *name)
+{
+	return remove_pipeline_item(dev, VKMS_PIPELINE_ITEM_ENCODER, name);
+}
+
+/**
  * igt_vkms_encoder_attach_crtc:
  * @dev: Target device
  * @encoder_name: Target encoder name
