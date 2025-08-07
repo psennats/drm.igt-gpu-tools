@@ -22,6 +22,7 @@
 
 #define VKMS_ROOT_DIR_NAME		"vkms"
 #define VKMS_FILE_ENABLED		"enabled"
+#define VKMS_FILE_PLANE_TYPE		"type"
 
 enum vkms_pipeline_item {
 	VKMS_PIPELINE_ITEM_PLANE,
@@ -131,6 +132,20 @@ static void get_pipeline_item_path(igt_vkms_t *dev,
 	igt_assert(ret >= 0 && ret < len);
 }
 
+static void get_pipeline_item_file_path(igt_vkms_t *dev,
+					enum vkms_pipeline_item item,
+					const char *name, const char *filename,
+					char *path, size_t len)
+{
+	char item_path[PATH_MAX];
+	int ret;
+
+	get_pipeline_item_path(dev, item, name, item_path, sizeof(item_path));
+
+	ret = snprintf(path, len, "%s/%s", item_path, filename);
+	igt_assert(ret >= 0 && ret < len);
+}
+
 static void add_pipeline_item(igt_vkms_t *dev, enum vkms_pipeline_item item,
 			      const char *name)
 {
@@ -192,6 +207,22 @@ void igt_vkms_get_plane_path(igt_vkms_t *dev, const char *name, char *path,
 			     size_t len)
 {
 	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_PLANE, name, path, len);
+}
+
+/**
+ * igt_vkms_get_plane_type_path:
+ * @dev: Device containing the plane
+ * @name: Plane name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the plane "type" file path.
+ */
+void igt_vkms_get_plane_type_path(igt_vkms_t *dev, const char *name, char *path,
+				  size_t len)
+{
+	get_pipeline_item_file_path(dev, VKMS_PIPELINE_ITEM_PLANE, name,
+				    VKMS_FILE_PLANE_TYPE, path, len);
 }
 
 /**
@@ -377,4 +408,20 @@ void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled)
 void igt_vkms_device_add_plane(igt_vkms_t *dev, const char *name)
 {
 	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_PLANE, name);
+}
+
+/**
+ * igt_vkms_plane_get_type:
+ * @dev: Device the plane belongs to
+ * @name: Plane name
+ *
+ * Return the plane type.
+ */
+int igt_vkms_plane_get_type(igt_vkms_t *dev, const char *name)
+{
+	char path[PATH_MAX];
+
+	igt_vkms_get_plane_type_path(dev, name, path, sizeof(path));
+
+	return read_int(path);
 }

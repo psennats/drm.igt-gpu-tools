@@ -25,6 +25,8 @@ void igt_require_vkms_configfs(void);
 void igt_vkms_get_device_enabled_path(igt_vkms_t *dev, char *path, size_t len);
 void igt_vkms_get_plane_path(igt_vkms_t *dev, const char *name, char *path,
 			     size_t len);
+void igt_vkms_get_plane_type_path(igt_vkms_t *dev, const char *name, char *path,
+				  size_t len);
 
 igt_vkms_t *igt_vkms_device_create(const char *name);
 void igt_vkms_device_destroy(igt_vkms_t *dev);
@@ -34,5 +36,6 @@ bool igt_vkms_device_is_enabled(igt_vkms_t *dev);
 void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled);
 
 void igt_vkms_device_add_plane(igt_vkms_t *dev, const char *name);
+int igt_vkms_plane_get_type(igt_vkms_t *dev, const char *name);
 
 #endif /* __IGT_VKMS_H__ */
