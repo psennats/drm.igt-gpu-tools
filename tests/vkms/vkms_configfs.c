@@ -356,6 +356,31 @@ static void test_crtc_default_values(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: crtc-wrong-values
+ * Description: Check that setting unexpected values doesn't work.
+ */
+
+static void test_crtc_wrong_values(void)
+{
+	igt_vkms_t *dev;
+	char path[PATH_MAX];
+
+	/* Test invalid values for "writeback" */
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_vkms_device_add_crtc(dev, "crtc0");
+	igt_vkms_crtc_set_writeback_enabled(dev, "crtc0", true);
+	igt_assert(igt_vkms_crtc_is_writeback_enabled(dev, "crtc0"));
+	igt_vkms_get_crtc_writeback_path(dev, "crtc0", path, sizeof(path));
+
+	assert_wrong_bool_values(path);
+	igt_assert(igt_vkms_crtc_is_writeback_enabled(dev, "crtc0"));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -371,6 +396,7 @@ igt_main
 		{ "plane-valid-values", test_plane_valid_values },
 		{ "crtc-default-files", test_crtc_default_files },
 		{ "crtc-default-values", test_crtc_default_values },
+		{ "crtc-wrong-values", test_crtc_wrong_values },
 	};
 
 	igt_fixture {

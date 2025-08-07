@@ -508,3 +508,21 @@ bool igt_vkms_crtc_is_writeback_enabled(igt_vkms_t *dev, const char *name)
 
 	return read_bool(path);
 }
+
+/**
+ * igt_vkms_crtc_set_writeback_enabled:
+ * @dev: Device the CRTC belongs to
+ * @name: CRTC name
+ * @writeback: Enable or disable the writeback connector
+ *
+ * Set the VKMS CRTC writeback connector is status.
+ */
+void igt_vkms_crtc_set_writeback_enabled(igt_vkms_t *dev, const char *name,
+					 bool writeback)
+{
+	char path[PATH_MAX];
+
+	igt_vkms_get_crtc_writeback_path(dev, name, path, sizeof(path));
+
+	write_bool(path, writeback);
+}
