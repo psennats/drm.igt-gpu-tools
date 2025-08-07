@@ -273,6 +273,21 @@ void igt_vkms_get_encoder_path(igt_vkms_t *dev, const char *name, char *path,
 }
 
 /**
+ * igt_vkms_get_connector_path:
+ * @dev: Device containing the connector
+ * @name: Connector name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the connector path.
+ */
+void igt_vkms_get_connector_path(igt_vkms_t *dev, const char *name, char *path,
+				 size_t len)
+{
+	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name, path, len);
+}
+
+/**
  * igt_vkms_device_create:
  * @name: VKMS device name
  *
@@ -552,4 +567,16 @@ void igt_vkms_crtc_set_writeback_enabled(igt_vkms_t *dev, const char *name,
 void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name)
 {
 	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_ENCODER, name);
+}
+
+/**
+ * igt_vkms_device_add_connector:
+ * @dev: Device to add the connector to
+ * @name: Connector name
+ *
+ * Add a new connector to the VKMS device.
+ */
+void igt_vkms_device_add_connector(igt_vkms_t *dev, const char *name)
+{
+	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name);
 }

@@ -433,6 +433,38 @@ static void test_encoder_default_files(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: connector-default-files
+ * Description: Test that creating a connector creates the default files and
+ *              directories.
+ */
+
+static void test_connector_default_files(void)
+{
+	igt_vkms_t *dev;
+	char path[PATH_MAX];
+
+	static const char *files[] = {
+		"status",
+	};
+
+	static const char *dirs[] = {
+		"possible_encoders",
+	};
+
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_vkms_device_add_connector(dev, "connector0");
+	igt_vkms_get_connector_path(dev, "connector0", path, sizeof(path));
+
+	assert_default_files(path,
+			     files, ARRAY_SIZE(files),
+			     dirs, ARRAY_SIZE(dirs));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -451,6 +483,7 @@ igt_main
 		{ "crtc-wrong-values", test_crtc_wrong_values },
 		{ "crtc-valid-values", test_crtc_valid_values },
 		{ "encoder-default-files", test_encoder_default_files },
+		{ "connector-default-files", test_connector_default_files },
 	};
 
 	igt_fixture {
