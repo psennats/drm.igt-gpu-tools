@@ -804,6 +804,18 @@ void igt_vkms_device_add_crtc(igt_vkms_t *dev, const char *name)
 }
 
 /**
+ * igt_vkms_device_remove_crtc:
+ * @dev: Device to remove the CRTC from
+ * @name: CRTC name
+ *
+ * Remove an existing CRTC from the VKMS device.
+ */
+bool igt_vkms_device_remove_crtc(igt_vkms_t *dev, const char *name)
+{
+	return remove_pipeline_item(dev, VKMS_PIPELINE_ITEM_CRTC, name);
+}
+
+/**
  * igt_vkms_crtc_is_writeback_enabled:
  * @dev: Device the CRTC belongs to
  * @name: CRTC name
