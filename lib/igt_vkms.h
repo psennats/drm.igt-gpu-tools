@@ -10,6 +10,8 @@
 
 #include <stdbool.h>
 
+#define VKMS_MAX_PIPELINE_ITEMS	40
+
 /**
  * igt_vkms_t:
  * @path: VKMS root directory inside configfs mounted directory
@@ -19,6 +21,46 @@
 typedef struct igt_vkms {
 	char *path;
 } igt_vkms_t;
+
+typedef struct igt_vkms_crtc_config {
+	const char *name;
+	bool writeback; /* Default: false */
+} igt_vkms_crtc_config_t;
+
+typedef struct igt_vkms_plane_config {
+	const char *name;
+	int type; /* Default: DRM_PLANE_TYPE_OVERLAY */
+	const char *possible_crtcs[VKMS_MAX_PIPELINE_ITEMS];
+} igt_vkms_plane_config_t;
+
+typedef struct igt_vkms_encoder_config {
+	const char *name;
+	const char *possible_crtcs[VKMS_MAX_PIPELINE_ITEMS];
+} igt_vkms_encoder_config_t;
+
+typedef struct igt_vkms_connector_config {
+	const char *name;
+	int status; /* Default: DRM_MODE_CONNECTED */
+	const char *possible_encoders[VKMS_MAX_PIPELINE_ITEMS];
+} igt_vkms_connector_config_t;
+
+/**
+ * igt_vkms_config_t:
+ * @device_name: Device name
+ * @planes: NULL terminated list of plane configurations
+ * @crtcs: NULL terminated list of CRTC configurations
+ * @encoders: NULL terminated list of encoders configurations
+ * @connectors: NULL terminated list of connector configurations
+ *
+ * Structure used to create a VKMS device from a static configuration.
+ */
+typedef struct igt_vkms_config {
+	const char *device_name;
+	igt_vkms_plane_config_t planes[VKMS_MAX_PIPELINE_ITEMS];
+	igt_vkms_crtc_config_t crtcs[VKMS_MAX_PIPELINE_ITEMS];
+	igt_vkms_encoder_config_t encoders[VKMS_MAX_PIPELINE_ITEMS];
+	igt_vkms_connector_config_t connectors[VKMS_MAX_PIPELINE_ITEMS];
+} igt_vkms_config_t;
 
 void igt_require_vkms_configfs(void);
 
@@ -46,6 +88,7 @@ void igt_vkms_get_connector_possible_encoders_path(igt_vkms_t *dev,
 						   size_t len);
 
 igt_vkms_t *igt_vkms_device_create(const char *name);
+igt_vkms_t *igt_vkms_device_create_from_config(igt_vkms_config_t *cfg);
 void igt_vkms_device_destroy(igt_vkms_t *dev);
 void igt_vkms_destroy_all_devices(void);
 

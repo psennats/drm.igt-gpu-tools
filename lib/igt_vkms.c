@@ -465,6 +465,94 @@ igt_vkms_t *igt_vkms_device_create(const char *name)
 	return dev;
 }
 
+/**
+ * igt_vkms_device_create_from_config:
+ * @cfg: Device configuration
+ *
+ * Create a VKMS device and set all the parameters specified by the
+ * configuration.
+ */
+igt_vkms_t *igt_vkms_device_create_from_config(igt_vkms_config_t *cfg)
+{
+	igt_vkms_t *dev;
+	igt_vkms_plane_config_t *plane;
+	igt_vkms_crtc_config_t *crtc;
+	igt_vkms_encoder_config_t *encoder;
+	igt_vkms_connector_config_t *connector;
+	const char *name;
+	int n, i;
+
+	igt_debug("Creating device from configuration:\n");
+	igt_debug("\t- Device name: %s\n", cfg->device_name);
+
+	dev = igt_vkms_device_create(cfg->device_name);
+	if (!dev)
+		return NULL;
+
+	for (n = 0; (crtc = &cfg->crtcs[n])->name; n++) {
+		igt_debug("\t- CRTC %d:\n", n);
+		igt_debug("\t\t- name: %s\n", crtc->name);
+		igt_debug("\t\t- writeback: %d\n", crtc->writeback);
+
+		igt_vkms_device_add_crtc(dev, crtc->name);
+		igt_vkms_crtc_set_writeback_enabled(dev, crtc->name,
+						    crtc->writeback);
+	}
+
+	for (n = 0; (plane = &cfg->planes[n])->name; n++) {
+		igt_debug("\t- Plane %d:\n", n);
+		igt_debug("\t\t- name: %s\n", plane->name);
+		igt_debug("\t\t- type: %d\n", plane->type);
+		igt_debug("\t\t- possible_crtcs:\n");
+
+		igt_vkms_device_add_plane(dev, plane->name);
+		igt_vkms_plane_set_type(dev, plane->name, plane->type);
+
+		for (i = 0; (name = plane->possible_crtcs[i]); i++) {
+			igt_debug("\t\t\t- %s\n", name);
+
+			igt_vkms_plane_attach_crtc(dev, plane->name, name);
+		}
+	}
+
+	for (n = 0; (encoder = &cfg->encoders[n])->name; n++) {
+		igt_debug("\t- Encoder %d:\n", n);
+		igt_debug("\t\t- name: %s\n", encoder->name);
+		igt_debug("\t\t- possible_crtcs:\n");
+
+		igt_vkms_device_add_encoder(dev, encoder->name);
+
+		for (i = 0; (name = encoder->possible_crtcs[i]); i++) {
+			igt_debug("\t\t\t- %s\n", name);
+
+			igt_vkms_encoder_attach_crtc(dev, encoder->name, name);
+		}
+	}
+
+	for (n = 0; (connector = &cfg->connectors[n])->name; n++) {
+		if (connector->status == 0)
+			connector->status = DRM_MODE_CONNECTED;
+
+		igt_debug("\t- Connector %d:\n", n);
+		igt_debug("\t\t- name: %s\n", connector->name);
+		igt_debug("\t\t- status: %d\n", connector->status);
+		igt_debug("\t\t- possible_encoders:\n");
+
+		igt_vkms_device_add_connector(dev, connector->name);
+		igt_vkms_connector_set_status(dev, connector->name,
+					      connector->status);
+
+		for (i = 0; (name = connector->possible_encoders[i]); i++) {
+			igt_debug("\t\t\t- %s\n", name);
+
+			igt_vkms_connector_attach_encoder(dev, connector->name,
+							  name);
+		}
+	}
+
+	return dev;
+}
+
 static int detach_pipeline_items(const char *path, const struct stat *info,
 				 const int typeflag, struct FTW *pathinfo)
 {
