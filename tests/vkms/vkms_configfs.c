@@ -102,6 +102,20 @@ static void assert_wrong_bool_values(const char *path)
 	}
 }
 
+static bool attach(const char *src_path, const char *dst_path,
+		   const char *link_name)
+{
+	char link_path[PATH_MAX];
+	int ret;
+
+	ret = snprintf(link_path, sizeof(link_path), "%s/%s", src_path, link_name);
+	igt_assert(ret >= 0 && ret < sizeof(link_path));
+
+	ret = symlink(dst_path, link_path);
+
+	return ret == 0;
+}
+
 /**
  * SUBTEST: device-default-files
  * Description: Test that creating a VKMS device creates the default files and
@@ -564,6 +578,69 @@ static void test_connector_valid_values(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: attach-plane-to-crtc
+ * Description: Check that errors are handled while attaching planes to CRTCs.
+ */
+
+static void test_attach_plane_to_crtc(void)
+{
+	igt_vkms_t *dev1;
+	igt_vkms_t *dev2;
+	char plane1[PATH_MAX];
+	char crtc1[PATH_MAX];
+	char connector1[PATH_MAX];
+	char crtc2[PATH_MAX];
+	char dev2_enabled_path[PATH_MAX];
+	bool ok;
+
+	dev1 = igt_vkms_device_create("test_attach_plane_to_crtc_1");
+	igt_assert(dev1);
+
+	dev2 = igt_vkms_device_create("test_attach_plane_to_crtc_2");
+	igt_assert(dev2);
+
+	igt_vkms_device_add_plane(dev1, "plane1");
+	igt_vkms_device_add_crtc(dev1, "crtc1");
+	igt_vkms_device_add_connector(dev1, "connector1");
+	igt_vkms_device_add_crtc(dev2, "crtc2");
+
+	igt_vkms_get_plane_possible_crtcs_path(dev1, "plane1", plane1, sizeof(plane1));
+	igt_vkms_get_crtc_path(dev1, "crtc1", crtc1, sizeof(crtc1));
+	igt_vkms_get_connector_path(dev1, "connector1", connector1, sizeof(connector1));
+	igt_vkms_get_crtc_path(dev2, "crtc2", crtc2, sizeof(crtc2));
+	igt_vkms_get_device_enabled_path(dev2, dev2_enabled_path, sizeof(dev2_enabled_path));
+
+	/* Error: Attach a plane to a connector */
+	ok = attach(plane1, connector1, "connector");
+	igt_assert_f(!ok, "Attaching plane1 to connector1 should fail\n");
+
+	/* Error: Attach a plane to a random file */
+	ok = attach(plane1, dev2_enabled_path, "file");
+	igt_assert_f(!ok, "Attaching plane1 to a random file should fail\n");
+
+	/* Error: Attach a plane to a CRTC from other device */
+	ok = attach(plane1, crtc2, "crtc2");
+	igt_assert_f(!ok, "Attaching plane1 to crtc2 should fail\n");
+
+	/* OK: Attaching plane1 to crtc1 */
+	ok = igt_vkms_plane_attach_crtc(dev1, "plane1", "crtc1");
+	igt_assert_f(ok, "Error attaching plane1 to crtc1\n");
+
+	/* Error: Attaching plane1 to crtc1 twice */
+	ok = attach(plane1, crtc1, "crtc1_duplicated");
+	igt_assert_f(!ok, "Error attaching plane1 to crtc1 twice should fail");
+
+	/* OK: Detaching and attaching again */
+	ok = igt_vkms_plane_detach_crtc(dev1, "plane1", "crtc1");
+	igt_assert_f(ok, "Error detaching plane1 from crtc1\n");
+	ok = igt_vkms_plane_attach_crtc(dev1, "plane1", "crtc1");
+	igt_assert_f(ok, "Error attaching plane1 to crtc1\n");
+
+	igt_vkms_device_destroy(dev1);
+	igt_vkms_device_destroy(dev2);
+}
+
 igt_main
 {
 	struct {
@@ -586,6 +663,7 @@ igt_main
 		{ "connector-default-values", test_connector_default_values },
 		{ "connector-wrong-values", test_connector_wrong_values },
 		{ "connector-valid-values", test_connector_valid_values },
+		{ "attach-plane-to-crtc", test_attach_plane_to_crtc },
 	};
 
 	igt_fixture {

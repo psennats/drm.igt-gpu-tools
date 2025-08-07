@@ -27,6 +27,8 @@ void igt_vkms_get_plane_path(igt_vkms_t *dev, const char *name, char *path,
 			     size_t len);
 void igt_vkms_get_plane_type_path(igt_vkms_t *dev, const char *name, char *path,
 				  size_t len);
+void igt_vkms_get_plane_possible_crtcs_path(igt_vkms_t *dev, const char *name,
+					    char *path, size_t len);
 void igt_vkms_get_crtc_path(igt_vkms_t *dev, const char *name, char *path,
 			    size_t len);
 void igt_vkms_get_crtc_writeback_path(igt_vkms_t *dev, const char *name,
@@ -48,6 +50,10 @@ void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled);
 void igt_vkms_device_add_plane(igt_vkms_t *dev, const char *name);
 int igt_vkms_plane_get_type(igt_vkms_t *dev, const char *name);
 void igt_vkms_plane_set_type(igt_vkms_t *dev, const char *name, int type);
+bool igt_vkms_plane_attach_crtc(igt_vkms_t *dev, const char *plane_name,
+				const char *crtc_name);
+bool igt_vkms_plane_detach_crtc(igt_vkms_t *dev, const char *plane_name,
+				const char *crtc_name);
 
 void igt_vkms_device_add_crtc(igt_vkms_t *dev, const char *name);
 bool igt_vkms_crtc_is_writeback_enabled(igt_vkms_t *dev, const char *name);

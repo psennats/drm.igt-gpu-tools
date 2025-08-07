@@ -162,6 +162,81 @@ static void add_pipeline_item(igt_vkms_t *dev, enum vkms_pipeline_item item,
 		     path, errno, strerror(errno));
 }
 
+static const char *get_attach_dir_name(enum vkms_pipeline_item item)
+{
+	switch (item) {
+	case VKMS_PIPELINE_ITEM_PLANE:
+		return "possible_crtcs";
+	case VKMS_PIPELINE_ITEM_ENCODER:
+		return "possible_crtcs";
+	case VKMS_PIPELINE_ITEM_CONNECTOR:
+		return "possible_encoders";
+	default:
+		break;
+	}
+
+	igt_assert(!"Cannot be reached: Unknown VKMS attach directory name");
+}
+
+static void get_attach_dir_path(igt_vkms_t *dev, enum vkms_pipeline_item item,
+				const char *name, char *path, size_t len)
+{
+	const char *item_dir_name;
+	const char *attach_dir_name;
+	int ret;
+
+	item_dir_name = get_pipeline_item_dir_name(item);
+	attach_dir_name = get_attach_dir_name(item);
+
+	ret = snprintf(path, len, "%s/%s/%s/%s", dev->path, item_dir_name, name,
+		       attach_dir_name);
+	igt_assert(ret >= 0 && ret < len);
+}
+
+static bool attach_pipeline_item(igt_vkms_t *dev,
+				 enum vkms_pipeline_item src_item,
+				 const char *src_item_name,
+				 enum vkms_pipeline_item dst_item,
+				 const char *dst_item_name)
+{
+	char src_attach_path[PATH_MAX];
+	char src_path[PATH_MAX];
+	char dst_path[PATH_MAX];
+	int ret;
+
+	get_attach_dir_path(dev, src_item, src_item_name, src_attach_path,
+			    sizeof(src_attach_path));
+	ret = snprintf(src_path, sizeof(src_path), "%s/%s", src_attach_path,
+		       dst_item_name);
+	igt_assert(ret >= 0 && ret < sizeof(src_path));
+
+	get_pipeline_item_path(dev, dst_item, dst_item_name, dst_path,
+			       sizeof(dst_path));
+
+	ret = symlink(dst_path, src_path);
+	return ret == 0;
+}
+
+static bool detach_pipeline_item(igt_vkms_t *dev,
+				 enum vkms_pipeline_item src_item,
+				 const char *src_item_name,
+				 const char *dst_item_name)
+{
+	char attach_path[PATH_MAX];
+	char link_path[PATH_MAX];
+	int ret;
+
+	get_attach_dir_path(dev, src_item, src_item_name, attach_path,
+			    sizeof(attach_path));
+
+	ret = snprintf(link_path, sizeof(link_path), "%s/%s", attach_path,
+		       dst_item_name);
+	igt_assert(ret >= 0 && ret < sizeof(link_path));
+
+	ret = unlink(link_path);
+	return ret == 0;
+}
+
 /**
  * igt_require_vkms_configfs:
  *
@@ -225,6 +300,21 @@ void igt_vkms_get_plane_type_path(igt_vkms_t *dev, const char *name, char *path,
 {
 	get_pipeline_item_file_path(dev, VKMS_PIPELINE_ITEM_PLANE, name,
 				    VKMS_FILE_PLANE_TYPE, path, len);
+}
+
+/**
+ * igt_vkms_get_plane_possible_crtcs_path:
+ * @dev: Device containing the plane
+ * @name: Plane name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the plane "possible_crtcs" directory path.
+ */
+void igt_vkms_get_plane_possible_crtcs_path(igt_vkms_t *dev, const char *name,
+					    char *path, size_t len)
+{
+	get_attach_dir_path(dev, VKMS_PIPELINE_ITEM_PLANE, name, path, len);
 }
 
 /**
@@ -526,6 +616,36 @@ void igt_vkms_plane_set_type(igt_vkms_t *dev, const char *name, int type)
 	igt_vkms_get_plane_type_path(dev, name, path, sizeof(path));
 
 	write_int(path, type);
+}
+
+/**
+ * igt_vkms_plane_attach_crtc:
+ * @dev: Target device
+ * @plane_name: Target plane name
+ * @crtc_name: Destination CRTC name
+ *
+ * Attach a plane to a CRTC. Return true on success and false on error.
+ */
+bool igt_vkms_plane_attach_crtc(igt_vkms_t *dev, const char *plane_name,
+				const char *crtc_name)
+{
+	return attach_pipeline_item(dev, VKMS_PIPELINE_ITEM_PLANE, plane_name,
+				    VKMS_PIPELINE_ITEM_CRTC, crtc_name);
+}
+
+/**
+ * igt_vkms_plane_detach_crtc:
+ * @dev: Target device
+ * @plane_name: Target plane name
+ * @crtc_name: Destination CRTC name
+ *
+ * Detach a plane from a CRTC. Return true on success and false on error.
+ */
+bool igt_vkms_plane_detach_crtc(igt_vkms_t *dev, const char *plane_name,
+				const char *crtc_name)
+{
+	return detach_pipeline_item(dev, VKMS_PIPELINE_ITEM_PLANE, plane_name,
+				    crtc_name);
 }
 
 /**
