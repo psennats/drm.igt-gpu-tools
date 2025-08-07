@@ -23,6 +23,13 @@
 #define VKMS_ROOT_DIR_NAME		"vkms"
 #define VKMS_FILE_ENABLED		"enabled"
 
+enum vkms_pipeline_item {
+	VKMS_PIPELINE_ITEM_PLANE,
+	VKMS_PIPELINE_ITEM_CRTC,
+	VKMS_PIPELINE_ITEM_ENCODER,
+	VKMS_PIPELINE_ITEM_CONNECTOR,
+};
+
 /**
  * SECTION:igt_vkms
  * @short_description: Helpers to create and configure VKMS devices
@@ -96,6 +103,48 @@ static void write_bool(const char *path, bool value)
 	write_int(path, value ? 1 : 0);
 }
 
+static const char *get_pipeline_item_dir_name(enum vkms_pipeline_item item)
+{
+	switch (item) {
+	case VKMS_PIPELINE_ITEM_PLANE:
+		return "planes";
+	case VKMS_PIPELINE_ITEM_CRTC:
+		return "crtcs";
+	case VKMS_PIPELINE_ITEM_ENCODER:
+		return "encoders";
+	case VKMS_PIPELINE_ITEM_CONNECTOR:
+		return "connectors";
+	}
+
+	igt_assert(!"Cannot be reached: Unknown VKMS pipeline item type");
+}
+
+static void get_pipeline_item_path(igt_vkms_t *dev,
+				   enum vkms_pipeline_item item,
+				   const char *name, char *path, size_t len)
+{
+	const char *item_dir_name;
+	int ret;
+
+	item_dir_name = get_pipeline_item_dir_name(item);
+	ret = snprintf(path, len, "%s/%s/%s", dev->path, item_dir_name, name);
+	igt_assert(ret >= 0 && ret < len);
+}
+
+static void add_pipeline_item(igt_vkms_t *dev, enum vkms_pipeline_item item,
+			      const char *name)
+{
+	char path[PATH_MAX];
+	int ret;
+
+	get_pipeline_item_path(dev, item, name, path, sizeof(path));
+
+	ret = mkdir(path, 0777);
+	igt_assert_f(ret == 0,
+		     "Unable to mkdir directory '%s'. Got errno=%d (%s)\n",
+		     path, errno, strerror(errno));
+}
+
 /**
  * igt_require_vkms_configfs:
  *
@@ -128,6 +177,21 @@ void igt_vkms_get_device_enabled_path(igt_vkms_t *dev, char *path, size_t len)
 
 	ret = snprintf(path, len, "%s/%s", dev->path, VKMS_FILE_ENABLED);
 	igt_assert(ret >= 0 && ret < len);
+}
+
+/**
+ * igt_vkms_get_plane_path:
+ * @dev: Device containing the plane
+ * @name: Plane name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the plane path.
+ */
+void igt_vkms_get_plane_path(igt_vkms_t *dev, const char *name, char *path,
+			     size_t len)
+{
+	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_PLANE, name, path, len);
 }
 
 /**
@@ -301,4 +365,16 @@ void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled)
 	igt_vkms_get_device_enabled_path(dev, path, sizeof(path));
 
 	write_bool(path, enabled);
+}
+
+/**
+ * igt_vkms_device_add_plane:
+ * @dev: Device to add the plane to
+ * @name: Plane name
+ *
+ * Add a new plane to the VKMS device.
+ */
+void igt_vkms_device_add_plane(igt_vkms_t *dev, const char *name)
+{
+	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_PLANE, name);
 }

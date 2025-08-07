@@ -178,6 +178,38 @@ static void test_device_wrong_values(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: plane-default-files
+ * Description: Test that creating a plane creates the default files and
+ *              directories.
+ */
+
+static void test_plane_default_files(void)
+{
+	igt_vkms_t *dev;
+	char path[PATH_MAX];
+
+	static const char *files[] = {
+		"type",
+	};
+
+	static const char *dirs[] = {
+		"possible_crtcs",
+	};
+
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_vkms_device_add_plane(dev, "plane0");
+	igt_vkms_get_plane_path(dev, "plane0", path, sizeof(path));
+
+	assert_default_files(path,
+			     files, ARRAY_SIZE(files),
+			     dirs, ARRAY_SIZE(dirs));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -187,6 +219,7 @@ igt_main
 		{ "device-default-files", test_device_default_files },
 		{ "device-default-values", test_device_default_values },
 		{ "device-wrong-values", test_device_wrong_values },
+		{ "plane-default-files", test_plane_default_files },
 	};
 
 	igt_fixture {
