@@ -405,6 +405,34 @@ static void test_crtc_valid_values(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: encoder-default-files
+ * Description: Test that creating a encoder creates the default files and
+ *              directories.
+ */
+
+static void test_encoder_default_files(void)
+{
+	igt_vkms_t *dev;
+	char path[PATH_MAX];
+
+	static const char *dirs[] = {
+		"possible_crtcs",
+	};
+
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_vkms_device_add_encoder(dev, "encoder0");
+	igt_vkms_get_encoder_path(dev, "encoder0", path, sizeof(path));
+
+	assert_default_files(path,
+			     NULL, 0,
+			     dirs, ARRAY_SIZE(dirs));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -422,6 +450,7 @@ igt_main
 		{ "crtc-default-values", test_crtc_default_values },
 		{ "crtc-wrong-values", test_crtc_wrong_values },
 		{ "crtc-valid-values", test_crtc_valid_values },
+		{ "encoder-default-files", test_encoder_default_files },
 	};
 
 	igt_fixture {

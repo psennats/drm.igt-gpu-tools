@@ -258,6 +258,21 @@ void igt_vkms_get_crtc_writeback_path(igt_vkms_t *dev, const char *name,
 }
 
 /**
+ * igt_vkms_get_encoder_path:
+ * @dev: Device containing the encoder
+ * @name: Encoder name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the encoder path.
+ */
+void igt_vkms_get_encoder_path(igt_vkms_t *dev, const char *name, char *path,
+			       size_t len)
+{
+	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_ENCODER, name, path, len);
+}
+
+/**
  * igt_vkms_device_create:
  * @name: VKMS device name
  *
@@ -525,4 +540,16 @@ void igt_vkms_crtc_set_writeback_enabled(igt_vkms_t *dev, const char *name,
 	igt_vkms_get_crtc_writeback_path(dev, name, path, sizeof(path));
 
 	write_bool(path, writeback);
+}
+
+/**
+ * igt_vkms_device_add_encoder:
+ * @dev: Device to add the encoder to
+ * @name: Encoder name
+ *
+ * Add a new encoder to the VKMS device.
+ */
+void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name)
+{
+	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_ENCODER, name);
 }
