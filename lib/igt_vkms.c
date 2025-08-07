@@ -193,6 +193,18 @@ static void get_attach_dir_path(igt_vkms_t *dev, enum vkms_pipeline_item item,
 	igt_assert(ret >= 0 && ret < len);
 }
 
+static bool remove_pipeline_item(igt_vkms_t *dev, enum vkms_pipeline_item item,
+				 const char *name)
+{
+	char path[PATH_MAX];
+	int ret;
+
+	get_pipeline_item_path(dev, item, name, path, sizeof(path));
+
+	ret = rmdir(path);
+	return ret == 0;
+}
+
 static bool attach_pipeline_item(igt_vkms_t *dev,
 				 enum vkms_pipeline_item src_item,
 				 const char *src_item_name,
@@ -696,6 +708,18 @@ void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled)
 void igt_vkms_device_add_plane(igt_vkms_t *dev, const char *name)
 {
 	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_PLANE, name);
+}
+
+/**
+ * igt_vkms_device_remove_plane:
+ * @dev: Device to remove the plane from
+ * @name: Plane name
+ *
+ * Remove an existing plane from the VKMS device.
+ */
+bool igt_vkms_device_remove_plane(igt_vkms_t *dev, const char *name)
+{
+	return remove_pipeline_item(dev, VKMS_PIPELINE_ITEM_PLANE, name);
 }
 
 /**

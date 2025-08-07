@@ -131,6 +131,85 @@ static bool device_exists(const char *name)
 	return find_device(name, &card);
 }
 
+static void assert_device_config(igt_vkms_config_t *cfg)
+{
+	struct igt_device_card card;
+	drmModeResPtr res;
+	drmModePlaneResPtr plane_res;
+	drmModeConnectorPtr connector_res;
+	igt_vkms_crtc_config_t *crtc;
+	igt_vkms_connector_config_t *connector;
+	bool found;
+	int n_planes = 0;
+	int n_crtcs = 0;
+	int n_encoders = 0;
+	int n_connectors = 0;
+	int n_connector_status_cfg[4] = {0};
+	int n_connector_status_drm[4] = {0};
+	int fd;
+
+	found = find_device(cfg->device_name, &card);
+	igt_assert_f(found, "Device '%s' not found\n", cfg->device_name);
+
+	fd = igt_open_card(&card);
+	igt_assert_f(fd >= 0, "Error opening device '%s' at path '%s'\n",
+		     cfg->device_name, card.card);
+	igt_assert_f(!drmSetClientCap(fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1),
+		     "Error setting DRM_CLIENT_CAP_UNIVERSAL_PLANES\n");
+	igt_assert_f(!drmSetClientCap(fd, DRM_CLIENT_CAP_ATOMIC, 1),
+		     "Error setting DRM_CLIENT_CAP_ATOMIC\n");
+	igt_assert_f(!drmSetClientCap(fd, DRM_CLIENT_CAP_WRITEBACK_CONNECTORS, 1),
+		     "Error setting DRM_CLIENT_CAP_WRITEBACK_CONNECTORS\n");
+
+	res = drmModeGetResources(fd);
+	igt_assert_f(res, "Error getting resources\n");
+	plane_res = drmModeGetPlaneResources(fd);
+	igt_assert_f(plane_res, "Error getting plane resources\n");
+
+	for (int n = 0; (&cfg->planes[n])->name; n++)
+		n_planes++;
+
+	for (int n = 0; (crtc = &cfg->crtcs[n])->name; n++) {
+		n_crtcs++;
+
+		if (crtc->writeback) {
+			n_encoders++;
+			n_connectors++;
+			n_connector_status_cfg[DRM_MODE_UNKNOWNCONNECTION]++;
+		}
+	}
+
+	for (int n = 0; (&cfg->encoders[n])->name; n++)
+		n_encoders++;
+
+	for (int n = 0; (connector = &cfg->connectors[n])->name; n++) {
+		n_connectors++;
+		n_connector_status_cfg[connector->status]++;
+	}
+
+	for (int n = 0; n < res->count_connectors; n++) {
+		connector_res = drmModeGetConnectorCurrent(fd,
+							   res->connectors[n]);
+		n_connector_status_drm[connector_res->connection]++;
+		drmModeFreeConnector(connector_res);
+	}
+
+	igt_assert_eq(n_planes, plane_res->count_planes);
+	igt_assert_eq(n_crtcs, res->count_crtcs);
+	igt_assert_eq(n_encoders, res->count_encoders);
+	igt_assert_eq(n_connectors, res->count_connectors);
+	igt_assert_eq(n_connector_status_cfg[DRM_MODE_CONNECTED],
+		      n_connector_status_drm[DRM_MODE_CONNECTED]);
+	igt_assert_eq(n_connector_status_cfg[DRM_MODE_DISCONNECTED],
+		      n_connector_status_drm[DRM_MODE_DISCONNECTED]);
+	igt_assert_eq(n_connector_status_cfg[DRM_MODE_UNKNOWNCONNECTION],
+		      n_connector_status_drm[DRM_MODE_UNKNOWNCONNECTION]);
+
+	drmModeFreePlaneResources(plane_res);
+	drmModeFreeResources(res);
+	close(fd);
+}
+
 /**
  * SUBTEST: device-default-files
  * Description: Test that creating a VKMS device creates the default files and
@@ -1492,6 +1571,69 @@ static void test_enable_too_many_connectors(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: enabled-plane-cannot-change
+ * Description: Test that, once a VKMS device is enabled, the plane values can't
+ *              change and that deleting it or the attached CRTCs doesn't change
+ *              the VKMS device.
+ */
+
+static void test_enabled_plane_cannot_change(void)
+{
+	igt_vkms_t *dev;
+
+	igt_vkms_config_t cfg = {
+		.device_name = __func__,
+		.planes = {
+			{
+				.name = "plane0",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc0"},
+			},
+			{
+				.name = "plane1",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc1"},
+			},
+		},
+		.crtcs = {
+			{ .name = "crtc0" },
+			{ .name = "crtc1" },
+		},
+		.encoders = {
+			{ .name = "encoder0", .possible_crtcs = { "crtc0" } },
+			{ .name = "encoder1", .possible_crtcs = { "crtc1" } },
+		},
+		.connectors = {
+			{
+				.name = "connector0",
+				.possible_encoders = { "encoder0", "encoder1" },
+			},
+		},
+	};
+
+	dev = igt_vkms_device_create_from_config(&cfg);
+	igt_assert(dev);
+
+	igt_vkms_device_set_enabled(dev, true);
+	igt_assert(igt_vkms_device_is_enabled(dev));
+	assert_device_config(&cfg);
+
+	/* Try to change values */
+	igt_vkms_plane_set_type(dev, "plane0", DRM_PLANE_TYPE_OVERLAY);
+	igt_assert_eq(igt_vkms_plane_get_type(dev, "plane0"),
+		      DRM_PLANE_TYPE_PRIMARY);
+
+	igt_assert(!igt_vkms_plane_attach_crtc(dev, "plane0", "crtc1"));
+
+	/* Deleting pipeline items doesn't affect the device */
+	igt_assert(igt_vkms_plane_detach_crtc(dev, "plane0", "crtc0"));
+	igt_assert(igt_vkms_device_remove_plane(dev, "plane0"));
+	assert_device_config(&cfg);
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -1532,6 +1674,7 @@ igt_main
 		{ "enable-crtc-no-encoder", test_enable_crtc_no_encoder },
 		{ "enable-no-connectors", test_enable_no_connectors },
 		{ "enable-too-many-connectors", test_enable_too_many_connectors },
+		{ "enabled-plane-cannot-change", test_enabled_plane_cannot_change },
 	};
 
 	igt_fixture {
