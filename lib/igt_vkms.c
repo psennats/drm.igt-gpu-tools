@@ -24,6 +24,7 @@
 #define VKMS_FILE_ENABLED		"enabled"
 #define VKMS_FILE_PLANE_TYPE		"type"
 #define VKMS_FILE_CRTC_WRITEBACK	"writeback"
+#define VKMS_FILE_CONNECTOR_STATUS	"status"
 
 enum vkms_pipeline_item {
 	VKMS_PIPELINE_ITEM_PLANE,
@@ -285,6 +286,22 @@ void igt_vkms_get_connector_path(igt_vkms_t *dev, const char *name, char *path,
 				 size_t len)
 {
 	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name, path, len);
+}
+
+/**
+ * igt_vkms_get_connector_status_path:
+ * @dev: Device containing the connector
+ * @name: Connector name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the connector "status" file path.
+ */
+void igt_vkms_get_connector_status_path(igt_vkms_t *dev, const char *name,
+					char *path, size_t len)
+{
+	get_pipeline_item_file_path(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name,
+				    VKMS_FILE_CONNECTOR_STATUS, path, len);
 }
 
 /**
@@ -579,4 +596,20 @@ void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name)
 void igt_vkms_device_add_connector(igt_vkms_t *dev, const char *name)
 {
 	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name);
+}
+
+/**
+ * igt_vkms_connector_get_status:
+ * @dev: Device the connector belongs to
+ * @name: Connector name
+ *
+ * Return the connector status.
+ */
+int igt_vkms_connector_get_status(igt_vkms_t *dev, const char *name)
+{
+	char path[PATH_MAX];
+
+	igt_vkms_get_connector_status_path(dev, name, path, sizeof(path));
+
+	return read_int(path);
 }
