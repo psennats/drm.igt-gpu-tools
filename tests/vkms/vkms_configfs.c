@@ -230,6 +230,55 @@ static void test_plane_default_values(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: plane-wrong-values
+ * Description: Check that setting unexpected values doesn't work.
+ */
+
+static void test_plane_wrong_values(void)
+{
+	struct invalid_value invalid_type_values[] = {
+		{ "", 0 },
+		{ "\0", 1 },
+		{ "-1", 2 },
+		{ "4", 1 },
+		{ "primary", 8 },
+		{ "overlay", 8 },
+	};
+	igt_vkms_t *dev;
+	char path[PATH_MAX];
+	int fd;
+	int ret;
+
+	/* Create a device with a primary plane */
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_vkms_device_add_plane(dev, "plane0");
+	igt_vkms_plane_set_type(dev, "plane0", DRM_PLANE_TYPE_PRIMARY);
+	igt_assert_eq(igt_vkms_plane_get_type(dev, "plane0"),
+		      DRM_PLANE_TYPE_PRIMARY);
+	igt_vkms_get_plane_type_path(dev, "plane0", path, sizeof(path));
+
+	/* Test invalid values for "type" */
+	for (int i = 0; i < ARRAY_SIZE(invalid_type_values); i++) {
+		struct invalid_value v = invalid_type_values[i];
+
+		fd = open(path, O_WRONLY);
+		igt_assert_f(fd >= 0, "Error opening '%s'\n", path);
+
+		ret = write(fd, v.value, v.size);
+		igt_assert_f(ret <= 0, "Error writing '%s' to '%s'", v.value, path);
+
+		close(fd);
+	}
+
+	igt_assert_eq(igt_vkms_plane_get_type(dev, "plane0"),
+		      DRM_PLANE_TYPE_PRIMARY);
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -241,6 +290,7 @@ igt_main
 		{ "device-wrong-values", test_device_wrong_values },
 		{ "plane-default-files", test_plane_default_files },
 		{ "plane-default-values", test_plane_default_values },
+		{ "plane-wrong-values", test_plane_wrong_values },
 	};
 
 	igt_fixture {

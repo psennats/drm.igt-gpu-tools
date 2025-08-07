@@ -37,5 +37,6 @@ void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled);
 
 void igt_vkms_device_add_plane(igt_vkms_t *dev, const char *name);
 int igt_vkms_plane_get_type(igt_vkms_t *dev, const char *name);
+void igt_vkms_plane_set_type(igt_vkms_t *dev, const char *name, int type);
 
 #endif /* __IGT_VKMS_H__ */

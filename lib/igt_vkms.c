@@ -425,3 +425,26 @@ int igt_vkms_plane_get_type(igt_vkms_t *dev, const char *name)
 
 	return read_int(path);
 }
+
+/**
+ * igt_vkms_plane_set_type:
+ * @dev: Device the plane belongs to
+ * @name: Plane name
+ * @type: DRM_PLANE_TYPE_OVERLAY, DRM_PLANE_TYPE_PRIMARY or
+ * DRM_PLANE_TYPE_CURSOR
+ *
+ * Set a new type for the plane
+ */
+void igt_vkms_plane_set_type(igt_vkms_t *dev, const char *name, int type)
+{
+	char path[PATH_MAX];
+
+	if (type != DRM_PLANE_TYPE_OVERLAY &&
+	    type != DRM_PLANE_TYPE_PRIMARY &&
+	    type != DRM_PLANE_TYPE_CURSOR)
+		igt_assert(!"Cannot be reached: Unknown plane type");
+
+	igt_vkms_get_plane_type_path(dev, name, path, sizeof(path));
+
+	write_int(path, type);
+}
