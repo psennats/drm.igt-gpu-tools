@@ -490,6 +490,8 @@ subdir('v3d')
 
 subdir('vc4')
 
+subdir('vkms')
+
 subdir('vmwgfx')
 
 gen_testlist = find_program('generate_testlist.sh')

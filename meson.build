@@ -290,6 +290,7 @@ msmdir = join_paths(libexecdir, 'msm')
 panfrostdir = join_paths(libexecdir, 'panfrost')
 v3ddir = join_paths(libexecdir, 'v3d')
 vc4dir = join_paths(libexecdir, 'vc4')
+vkmsdir = join_paths(libexecdir, 'vkms')
 vmwgfxdir = join_paths(libexecdir, 'vmwgfx')
 mandir = get_option('mandir')
 pkgconfigdir = join_paths(libdir, 'pkgconfig')
@@ -352,6 +353,12 @@ if get_option('use_rpath')
 	endforeach
 	vc4_rpathdir = join_paths(vc4_rpathdir, libdir)
 
+	vkms_rpathdir = '$ORIGIN'
+	foreach p : vkmsdir.split('/')
+		vkms_rpathdir = join_paths(vkms_rpathdir, '..')
+	endforeach
+	vkms_rpathdir = join_paths(vkms_rpathdir, libdir)
+
 	vmwgfx_rpathdir = '$ORIGIN'
 	foreach p : vmwgfxdir.split('/')
 		vmwgfx_rpathdir = join_paths(vmwgfx_rpathdir, '..')
@@ -365,6 +372,7 @@ else
 	panfrost_rpathdir = ''
 	v3d_rpathdir = ''
 	vc4_rpathdir = ''
+	vkms_rpathdir = ''
 	vmwgfx_rpathdir = ''
 endif
 
