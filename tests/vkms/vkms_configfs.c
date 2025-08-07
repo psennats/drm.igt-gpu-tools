@@ -706,6 +706,73 @@ static void test_attach_encoder_to_crtc(void)
 	igt_vkms_device_destroy(dev2);
 }
 
+/**
+ * SUBTEST: attach-connector-to-encoder
+ * Description: Check that errors are handled while attaching connectors to
+ *              encoders.
+ */
+
+static void test_attach_connector_to_encoder(void)
+{
+	igt_vkms_t *dev1;
+	igt_vkms_t *dev2;
+	char crtc1[PATH_MAX];
+	char encoder1[PATH_MAX];
+	char connector1[PATH_MAX];
+	char encoder2[PATH_MAX];
+	char crtc1_writeback_path[PATH_MAX];
+	bool ok;
+
+	dev1 = igt_vkms_device_create("test_attach_encoder_to_crtc_1");
+	igt_assert(dev1);
+
+	dev2 = igt_vkms_device_create("test_attach_encoder_to_crtc_2");
+	igt_assert(dev2);
+
+	igt_vkms_device_add_crtc(dev1, "crtc1");
+	igt_vkms_device_add_encoder(dev1, "encoder1");
+	igt_vkms_device_add_connector(dev1, "connector1");
+	igt_vkms_device_add_encoder(dev2, "encoder2");
+
+	igt_vkms_get_crtc_path(dev1, "crtc1", crtc1, sizeof(crtc1));
+	igt_vkms_get_encoder_path(dev1, "encoder1", encoder1, sizeof(encoder1));
+	igt_vkms_get_connector_possible_encoders_path(dev1, "connector1",
+						      connector1,
+						      sizeof(connector1));
+	igt_vkms_get_encoder_path(dev2, "encoder2", encoder2, sizeof(encoder2));
+	igt_vkms_get_crtc_writeback_path(dev1, "crtc1", crtc1_writeback_path,
+					 sizeof(crtc1_writeback_path));
+
+	/* Error: Attach a connector to a CRTC */
+	ok = attach(connector1, crtc1, "crtc");
+	igt_assert_f(!ok, "Attaching connector1 to crtc1 should fail\n");
+
+	/* Error: Attach a connector to a random file */
+	ok = attach(connector1, crtc1_writeback_path, "file");
+	igt_assert_f(!ok, "Attaching connector1 to a random file should fail\n");
+
+	/* Error: Attach a connector to an encoder from other device */
+	ok = attach(connector1, encoder2, "encoder2");
+	igt_assert_f(!ok, "Attaching connector1 to encoder2 should fail\n");
+
+	/* OK: Attaching connector1 to encoder1 */
+	ok = igt_vkms_connector_attach_encoder(dev1, "connector1", "encoder1");
+	igt_assert_f(ok, "Error attaching plane1 to crtc1\n");
+
+	/* Error: Attaching connector1 to encoder1 twice */
+	ok = attach(connector1, encoder1, "encoder1_duplicated");
+	igt_assert_f(!ok, "Error attaching connector1 to encoder1 twice should fail");
+
+	/* OK: Detaching and attaching again */
+	ok = igt_vkms_connector_detach_encoder(dev1, "connector1", "encoder1");
+	igt_assert_f(ok, "Error detaching connector1 from encoder1\n");
+	ok = igt_vkms_connector_attach_encoder(dev1, "connector1", "encoder1");
+	igt_assert_f(ok, "Error attaching connector1 to encoder1\n");
+
+	igt_vkms_device_destroy(dev1);
+	igt_vkms_device_destroy(dev2);
+}
+
 igt_main
 {
 	struct {
@@ -730,6 +797,7 @@ igt_main
 		{ "connector-valid-values", test_connector_valid_values },
 		{ "attach-plane-to-crtc", test_attach_plane_to_crtc },
 		{ "attach-encoder-to-crtc", test_attach_encoder_to_crtc },
+		{ "attach-connector-to-encoder", test_attach_connector_to_encoder },
 	};
 
 	igt_fixture {

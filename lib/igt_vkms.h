@@ -41,6 +41,9 @@ void igt_vkms_get_connector_path(igt_vkms_t *dev, const char *name, char *path,
 				 size_t len);
 void igt_vkms_get_connector_status_path(igt_vkms_t *dev, const char *name,
 					char *path, size_t len);
+void igt_vkms_get_connector_possible_encoders_path(igt_vkms_t *dev,
+						   const char *name, char *path,
+						   size_t len);
 
 igt_vkms_t *igt_vkms_device_create(const char *name);
 void igt_vkms_device_destroy(igt_vkms_t *dev);
@@ -72,5 +75,11 @@ void igt_vkms_device_add_connector(igt_vkms_t *dev, const char *name);
 int igt_vkms_connector_get_status(igt_vkms_t *dev, const char *name);
 void igt_vkms_connector_set_status(igt_vkms_t *dev, const char *name,
 				   int status);
+bool igt_vkms_connector_attach_encoder(igt_vkms_t *dev,
+				       const char *connector_name,
+				       const char *encoder_name);
+bool igt_vkms_connector_detach_encoder(igt_vkms_t *dev,
+				       const char *connector_name,
+				       const char *encoder_name);
 
 #endif /* __IGT_VKMS_H__ */

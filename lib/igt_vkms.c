@@ -410,6 +410,22 @@ void igt_vkms_get_connector_status_path(igt_vkms_t *dev, const char *name,
 }
 
 /**
+ * igt_vkms_get_connector_possible_encoders_path:
+ * @dev: Device containing the connector
+ * @name: Connector name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the connector "possible_encoders" directory path.
+ */
+void igt_vkms_get_connector_possible_encoders_path(igt_vkms_t *dev,
+						   const char *name, char *path,
+						   size_t len)
+{
+	get_attach_dir_path(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name, path, len);
+}
+
+/**
  * igt_vkms_device_create:
  * @name: VKMS device name
  *
@@ -802,4 +818,38 @@ void igt_vkms_connector_set_status(igt_vkms_t *dev, const char *name,
 	igt_vkms_get_connector_status_path(dev, name, path, sizeof(path));
 
 	write_int(path, status);
+}
+
+/**
+ * igt_vkms_connector_attach_encoder:
+ * @dev: Target device
+ * @connector_name: Target connector name
+ * @encoder_name: Destination encoder name
+ *
+ * Attach a connector to an encoder. Return true on success and false on error.
+ */
+bool igt_vkms_connector_attach_encoder(igt_vkms_t *dev,
+				       const char *connector_name,
+				       const char *encoder_name)
+{
+	return attach_pipeline_item(dev, VKMS_PIPELINE_ITEM_CONNECTOR,
+				    connector_name, VKMS_PIPELINE_ITEM_ENCODER,
+				    encoder_name);
+}
+
+/**
+ * igt_vkms_connector_detach_encoder:
+ * @dev: Target device
+ * @connector_name: Target connector name
+ * @encoder_name: Destination encoder name
+ *
+ * Detach a connector from an encoder. Return true on success and false on
+ * error.
+ */
+bool igt_vkms_connector_detach_encoder(igt_vkms_t *dev,
+				       const char *connector_name,
+				       const char *encoder_name)
+{
+	return detach_pipeline_item(dev, VKMS_PIPELINE_ITEM_CONNECTOR,
+				    connector_name, encoder_name);
 }
