@@ -226,6 +226,21 @@ void igt_vkms_get_plane_type_path(igt_vkms_t *dev, const char *name, char *path,
 }
 
 /**
+ * igt_vkms_get_crtc_path:
+ * @dev: Device containing the CRTC
+ * @name: CRTC name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the plane path.
+ */
+void igt_vkms_get_crtc_path(igt_vkms_t *dev, const char *name, char *path,
+			    size_t len)
+{
+	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_CRTC, name, path, len);
+}
+
+/**
  * igt_vkms_device_create:
  * @name: VKMS device name
  *
@@ -447,4 +462,16 @@ void igt_vkms_plane_set_type(igt_vkms_t *dev, const char *name, int type)
 	igt_vkms_get_plane_type_path(dev, name, path, sizeof(path));
 
 	write_int(path, type);
+}
+
+/**
+ * igt_vkms_device_add_crtc:
+ * @dev: Device to add the CRTC to
+ * @name: CRTC name
+ *
+ * Add a new CRTC to the VKMS device.
+ */
+void igt_vkms_device_add_crtc(igt_vkms_t *dev, const char *name)
+{
+	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_CRTC, name);
 }
