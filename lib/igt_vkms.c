@@ -23,6 +23,7 @@
 #define VKMS_ROOT_DIR_NAME		"vkms"
 #define VKMS_FILE_ENABLED		"enabled"
 #define VKMS_FILE_PLANE_TYPE		"type"
+#define VKMS_FILE_CRTC_WRITEBACK	"writeback"
 
 enum vkms_pipeline_item {
 	VKMS_PIPELINE_ITEM_PLANE,
@@ -238,6 +239,22 @@ void igt_vkms_get_crtc_path(igt_vkms_t *dev, const char *name, char *path,
 			    size_t len)
 {
 	get_pipeline_item_path(dev, VKMS_PIPELINE_ITEM_CRTC, name, path, len);
+}
+
+/**
+ * igt_vkms_get_crtc_writeback_path:
+ * @dev: Device containing the CRTC
+ * @name: CRTC name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the CRTC "writeback" file path.
+ */
+void igt_vkms_get_crtc_writeback_path(igt_vkms_t *dev, const char *name,
+				      char *path, size_t len)
+{
+	get_pipeline_item_file_path(dev, VKMS_PIPELINE_ITEM_CRTC, name,
+				    VKMS_FILE_CRTC_WRITEBACK, path, len);
 }
 
 /**
@@ -474,4 +491,20 @@ void igt_vkms_plane_set_type(igt_vkms_t *dev, const char *name, int type)
 void igt_vkms_device_add_crtc(igt_vkms_t *dev, const char *name)
 {
 	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_CRTC, name);
+}
+
+/**
+ * igt_vkms_crtc_is_writeback_enabled:
+ * @dev: Device the CRTC belongs to
+ * @name: CRTC name
+ *
+ * Indicate whether a VKMS CRTC writeback connector is enabled or not.
+ */
+bool igt_vkms_crtc_is_writeback_enabled(igt_vkms_t *dev, const char *name)
+{
+	char path[PATH_MAX];
+
+	igt_vkms_get_crtc_writeback_path(dev, name, path, sizeof(path));
+
+	return read_bool(path);
 }
