@@ -1162,6 +1162,59 @@ static void test_enable_no_crtcs(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: enable-too-many-crtcs
+ * Description: Try to enable a VKMS device with too many CRTCs and test that it
+ *              fails.
+ */
+
+static void test_enable_too_many_crtcs(void)
+{
+	igt_vkms_t *dev;
+	char crtc_names[VKMS_MAX_PIPELINE_ITEMS][7];
+	int ret;
+
+	igt_vkms_config_t cfg = {
+		.device_name = __func__,
+		.planes = {
+			{
+				.name = "plane0",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc0" },
+			},
+		},
+		.crtcs = {},
+		.encoders = {
+			{ .name = "encoder0", .possible_crtcs = { "crtc0" } },
+		},
+		.connectors = {
+			{
+				.name = "connector0",
+				.possible_encoders = { "encoder0" },
+			},
+		},
+	};
+
+	for (int n = 0; n < 32; n++) {
+		ret = snprintf(crtc_names[n], sizeof(crtc_names[n]),
+			       "crtc%d", n);
+		igt_assert(ret >= 0 && ret < sizeof(crtc_names[n]));
+
+		cfg.crtcs[n] = (igt_vkms_crtc_config_t){
+			.name = crtc_names[n],
+		};
+	}
+
+	dev = igt_vkms_device_create_from_config(&cfg);
+	igt_assert(dev);
+
+	igt_vkms_device_set_enabled(dev, true);
+	igt_assert(!igt_vkms_device_is_enabled(dev));
+	igt_assert(!device_exists(__func__));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -1195,6 +1248,7 @@ igt_main
 		{ "enable-multiple-cursor-planes", test_enable_multiple_cursor_planes },
 		{ "enable-plane-no-crtcs", test_enable_plane_no_crtcs },
 		{ "enable-no-crtcs", test_enable_no_crtcs },
+		{ "enable-too-many-crtcs", test_enable_too_many_crtcs },
 	};
 
 	igt_fixture {
