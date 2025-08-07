@@ -21,6 +21,7 @@
 
 #include "drmtest.h"
 #include "igt.h"
+#include "igt_device_scan.h"
 #include "igt_vkms.h"
 
 struct invalid_value {
@@ -114,6 +115,20 @@ static bool attach(const char *src_path, const char *dst_path,
 	ret = symlink(dst_path, link_path);
 
 	return ret == 0;
+}
+
+static bool find_device(const char *name, struct igt_device_card *card)
+{
+	igt_devices_scan();
+
+	return igt_device_find_card_by_sysname(name, card);
+}
+
+static bool device_exists(const char *name)
+{
+	struct igt_device_card card;
+
+	return find_device(name, &card);
 }
 
 /**
@@ -773,6 +788,29 @@ static void test_attach_connector_to_encoder(void)
 	igt_vkms_device_destroy(dev2);
 }
 
+/**
+ * SUBTEST: enable-no-pipeline-items
+ * Description: Try to enable a VKMS device without adding any pipeline items
+ *              and test that it fails.
+ */
+
+static void test_enable_no_pipeline_items(void)
+{
+	igt_vkms_t *dev;
+
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	/* Try to enable it and check that the device is not set as enabled */
+	igt_vkms_device_set_enabled(dev, true);
+	igt_assert(!igt_vkms_device_is_enabled(dev));
+
+	/* Check that no actual device was created*/
+	igt_assert(!device_exists(__func__));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -798,6 +836,7 @@ igt_main
 		{ "attach-plane-to-crtc", test_attach_plane_to_crtc },
 		{ "attach-encoder-to-crtc", test_attach_encoder_to_crtc },
 		{ "attach-connector-to-encoder", test_attach_connector_to_encoder },
+		{ "enable-no-pipeline-items", test_enable_no_pipeline_items },
 	};
 
 	igt_fixture {
