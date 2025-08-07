@@ -102,6 +102,23 @@ static void test_device_default_files(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: device-default-values
+ * Description: Check that the default values for the device are correct.
+ */
+
+static void test_device_default_values(void)
+{
+	igt_vkms_t *dev;
+
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_assert(!igt_vkms_device_is_enabled(dev));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -109,6 +126,7 @@ igt_main
 		void (*fn)(void);
 	} tests[] = {
 		{ "device-default-files", test_device_default_files },
+		{ "device-default-values", test_device_default_values },
 	};
 
 	igt_fixture {

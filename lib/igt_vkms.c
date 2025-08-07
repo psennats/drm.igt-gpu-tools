@@ -7,15 +7,21 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ftw.h>
 #include <limits.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "igt.h"
 #include "igt_vkms.h"
 
 #define VKMS_ROOT_DIR_NAME		"vkms"
+#define VKMS_FILE_ENABLED		"enabled"
 
 /**
  * SECTION:igt_vkms
@@ -46,6 +52,50 @@ static const char *mount_vkms_configfs(void)
 	return vkms_root_path;
 }
 
+static int read_int(const char *path)
+{
+	FILE *file;
+	int value;
+	int ret;
+
+	file = fopen(path, "r");
+	igt_assert_f(file, "Error opening '%s'\n", path);
+
+	ret = fscanf(file, "%d", &value);
+	fclose(file);
+	igt_assert_f(ret == 1, "Error reading integer from '%s'\n", path);
+
+	return value;
+}
+
+static bool read_bool(const char *path)
+{
+	int ret;
+
+	ret = read_int(path);
+
+	return !!ret;
+}
+
+static void write_int(const char *path, int value)
+{
+	FILE *file;
+	int ret;
+
+	file = fopen(path, "w");
+	igt_assert_f(file, "Error opening '%s'\n", path);
+
+	ret = fprintf(file, "%d", value);
+	igt_assert_f(ret >= 0, "Error writing to '%s'\n", path);
+
+	fclose(file);
+}
+
+static void write_bool(const char *path, bool value)
+{
+	write_int(path, value ? 1 : 0);
+}
+
 /**
  * igt_require_vkms_configfs:
  *
@@ -62,6 +112,22 @@ void igt_require_vkms_configfs(void)
 	igt_require(dir);
 	if (dir)
 		closedir(dir);
+}
+
+/**
+ * igt_vkms_get_device_enabled_path:
+ * @dev: Device to get the enabled path from
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the device "enabled" file path.
+ */
+void igt_vkms_get_device_enabled_path(igt_vkms_t *dev, char *path, size_t len)
+{
+	int ret;
+
+	ret = snprintf(path, len, "%s/%s", dev->path, VKMS_FILE_ENABLED);
+	igt_assert(ret >= 0 && ret < len);
 }
 
 /**
@@ -166,6 +232,8 @@ void igt_vkms_device_destroy(igt_vkms_t *dev)
 
 	igt_assert(dev);
 
+	igt_vkms_device_set_enabled(dev, false);
+
 	ret = remove_device_dir(dev);
 	igt_assert_f(ret == 0,
 		     "Unable to rmdir device directory '%s'. Got errno=%d (%s)\n",
@@ -203,4 +271,34 @@ void igt_vkms_destroy_all_devices(void)
 	}
 
 	closedir(dir);
+}
+
+/**
+ * igt_vkms_device_is_enabled:
+ * @dev: The device to check
+ *
+ * Indicate whether a VKMS device is enabled or not.
+ */
+bool igt_vkms_device_is_enabled(igt_vkms_t *dev)
+{
+	char path[PATH_MAX];
+
+	igt_vkms_get_device_enabled_path(dev, path, sizeof(path));
+
+	return read_bool(path);
+}
+
+/**
+ * igt_vkms_device_set_enabled:
+ * @dev: Device to enable or disable
+ *
+ * Enable or disable a VKMS device.
+ */
+void igt_vkms_device_set_enabled(igt_vkms_t *dev, bool enabled)
+{
+	char path[PATH_MAX];
+
+	igt_vkms_get_device_enabled_path(dev, path, sizeof(path));
+
+	write_bool(path, enabled);
 }
