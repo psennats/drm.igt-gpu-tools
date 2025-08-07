@@ -1812,6 +1812,89 @@ static void test_enabled_connector_cannot_change(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: enabled-connector-hot-plug
+ * Description: Test that, once a VKMS device is enabled, the connectors can be
+ *              hot-plugged and unplugged.
+ */
+
+static void test_enabled_connector_hot_plug(void)
+{
+	igt_vkms_t *dev;
+	drmModeConnection status;
+
+	igt_vkms_config_t cfg = {
+		.device_name = __func__,
+		.planes = {
+			{
+				.name = "plane0",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc0"},
+			},
+			{
+				.name = "plane1",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc1"},
+			},
+		},
+		.crtcs = {
+			{ .name = "crtc0", .writeback = true },
+			{ .name = "crtc1", .writeback = true },
+		},
+		.encoders = {
+			{ .name = "encoder0", .possible_crtcs = { "crtc0" } },
+			{ .name = "encoder1", .possible_crtcs = { "crtc1" } },
+		},
+		.connectors = {
+			{
+				.name = "connector0",
+				.status = DRM_MODE_DISCONNECTED,
+				.possible_encoders = { "encoder0" },
+			},
+			{
+				.name = "connector1",
+				.status = DRM_MODE_DISCONNECTED,
+				.possible_encoders = { "encoder1" },
+			},
+		},
+	};
+
+	dev = igt_vkms_device_create_from_config(&cfg);
+	igt_assert(dev);
+
+	igt_vkms_device_set_enabled(dev, true);
+	igt_assert(igt_vkms_device_is_enabled(dev));
+	assert_device_config(&cfg);
+
+	/* Connect both connectors */
+	cfg.connectors[0].status = DRM_MODE_CONNECTED;
+	igt_vkms_connector_set_status(dev, "connector0", DRM_MODE_CONNECTED);
+	status = igt_vkms_connector_get_status(dev, "connector0");
+	igt_assert_eq(status, DRM_MODE_CONNECTED);
+	assert_device_config(&cfg);
+
+	cfg.connectors[1].status = DRM_MODE_CONNECTED;
+	igt_vkms_connector_set_status(dev, "connector1", DRM_MODE_CONNECTED);
+	status = igt_vkms_connector_get_status(dev, "connector1");
+	igt_assert_eq(status, DRM_MODE_CONNECTED);
+	assert_device_config(&cfg);
+
+	/* Set one to unknown connection and disconnect the other one */
+	cfg.connectors[0].status = DRM_MODE_UNKNOWNCONNECTION;
+	igt_vkms_connector_set_status(dev, "connector0", DRM_MODE_UNKNOWNCONNECTION);
+	status = igt_vkms_connector_get_status(dev, "connector0");
+	igt_assert_eq(status, DRM_MODE_UNKNOWNCONNECTION);
+	assert_device_config(&cfg);
+
+	cfg.connectors[1].status = DRM_MODE_DISCONNECTED;
+	igt_vkms_connector_set_status(dev, "connector1", DRM_MODE_DISCONNECTED);
+	status = igt_vkms_connector_get_status(dev, "connector1");
+	igt_assert_eq(status, DRM_MODE_DISCONNECTED);
+	assert_device_config(&cfg);
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -1856,6 +1939,7 @@ igt_main
 		{ "enabled-crtc-cannot-change", test_enabled_crtc_cannot_change },
 		{ "enabled-encoder-cannot-change", test_enabled_encoder_cannot_change },
 		{ "enabled-connector-cannot-change", test_enabled_connector_cannot_change },
+		{ "enabled-connector-hot-plug", test_enabled_connector_hot_plug },
 	};
 
 	igt_fixture {
