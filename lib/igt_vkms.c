@@ -364,6 +364,21 @@ void igt_vkms_get_encoder_path(igt_vkms_t *dev, const char *name, char *path,
 }
 
 /**
+ * igt_vkms_get_encoder_possible_crtcs_path:
+ * @dev: Device containing the encoder
+ * @name: Encoder name
+ * @path: Output path
+ * @len: Maximum @path length
+ *
+ * Returns the encoder "possible_crtcs" directory path.
+ */
+void igt_vkms_get_encoder_possible_crtcs_path(igt_vkms_t *dev, const char *name,
+					      char *path, size_t len)
+{
+	get_attach_dir_path(dev, VKMS_PIPELINE_ITEM_ENCODER, name, path, len);
+}
+
+/**
  * igt_vkms_get_connector_path:
  * @dev: Device containing the connector
  * @name: Connector name
@@ -704,6 +719,37 @@ void igt_vkms_crtc_set_writeback_enabled(igt_vkms_t *dev, const char *name,
 void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name)
 {
 	add_pipeline_item(dev, VKMS_PIPELINE_ITEM_ENCODER, name);
+}
+
+/**
+ * igt_vkms_encoder_attach_crtc:
+ * @dev: Target device
+ * @encoder_name: Target encoder name
+ * @crtc_name: Destination CRTC name
+ *
+ * Attach an encoder to a CRTC. Return true on success and false on error.
+ */
+bool igt_vkms_encoder_attach_crtc(igt_vkms_t *dev, const char *encoder_name,
+				  const char *crtc_name)
+{
+	return attach_pipeline_item(dev, VKMS_PIPELINE_ITEM_ENCODER,
+				    encoder_name, VKMS_PIPELINE_ITEM_CRTC,
+				    crtc_name);
+}
+
+/**
+ * igt_vkms_encoder_detach_crtc:
+ * @dev: Target device
+ * @encoder_name: Target encoder name
+ * @crtc_name: Destination CRTC name
+ *
+ * Detach an encoder from a CRTC. Return true on success and false on error.
+ */
+bool igt_vkms_encoder_detach_crtc(igt_vkms_t *dev, const char *encoder_name,
+				  const char *crtc_name)
+{
+	return detach_pipeline_item(dev, VKMS_PIPELINE_ITEM_ENCODER,
+				    encoder_name, crtc_name);
 }
 
 /**
