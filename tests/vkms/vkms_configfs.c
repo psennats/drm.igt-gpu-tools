@@ -485,6 +485,55 @@ static void test_connector_default_values(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: connector-wrong-values
+ * Description: Check that setting unexpected values doesn't work.
+ */
+
+static void test_connector_wrong_values(void)
+{
+	struct invalid_value invalid_status_values[] = {
+		{ "", 0 },
+		{ "\0", 1 },
+		{ "-1", 2 },
+		{ "0", 1 },
+		{ "4", 1 },
+		{ "connected", 10 },
+	};
+	igt_vkms_t *dev;
+	char path[PATH_MAX];
+	int fd;
+	int ret;
+
+	/* Create a device with a disconnected connector */
+	dev = igt_vkms_device_create(__func__);
+	igt_assert(dev);
+
+	igt_vkms_device_add_connector(dev, "connector0");
+	igt_vkms_connector_set_status(dev, "connector0", DRM_MODE_DISCONNECTED);
+	igt_assert_eq(igt_vkms_connector_get_status(dev, "connector0"),
+		      DRM_MODE_DISCONNECTED);
+	igt_vkms_get_connector_status_path(dev, "connector0", path, sizeof(path));
+
+	/* Test invalid values for "status" */
+	for (int i = 0; i < ARRAY_SIZE(invalid_status_values); i++) {
+		struct invalid_value v = invalid_status_values[i];
+
+		fd = open(path, O_WRONLY);
+		igt_assert_f(fd >= 0, "Error opening '%s'\n", path);
+
+		ret = write(fd, v.value, v.size);
+		igt_assert(ret <= 0);
+
+		close(fd);
+	}
+
+	igt_assert_eq(igt_vkms_connector_get_status(dev, "connector0"),
+		      DRM_MODE_DISCONNECTED);
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -505,6 +554,7 @@ igt_main
 		{ "encoder-default-files", test_encoder_default_files },
 		{ "connector-default-files", test_connector_default_files },
 		{ "connector-default-values", test_connector_default_values },
+		{ "connector-wrong-values", test_connector_wrong_values },
 	};
 
 	igt_fixture {

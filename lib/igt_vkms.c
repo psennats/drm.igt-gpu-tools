@@ -613,3 +613,27 @@ int igt_vkms_connector_get_status(igt_vkms_t *dev, const char *name)
 
 	return read_int(path);
 }
+
+/**
+ * igt_vkms_connector_set_status:
+ * @dev: Device the connector belongs to
+ * @name: Connector name
+ * @type: DRM_MODE_CONNECTED, DRM_MODE_DISCONNECTED or
+ * DRM_MODE_UNKNOWNCONNECTION
+ *
+ * Set a new status for the connector
+ */
+void igt_vkms_connector_set_status(igt_vkms_t *dev, const char *name,
+				   int status)
+{
+	char path[PATH_MAX];
+
+	if (status != DRM_MODE_CONNECTED &&
+	    status != DRM_MODE_DISCONNECTED &&
+	    status != DRM_MODE_UNKNOWNCONNECTION)
+		igt_assert(!"Cannot be reached: Unknown connector status");
+
+	igt_vkms_get_connector_status_path(dev, name, path, sizeof(path));
+
+	write_int(path, status);
+}

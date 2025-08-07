@@ -58,5 +58,7 @@ void igt_vkms_device_add_encoder(igt_vkms_t *dev, const char *name);
 
 void igt_vkms_device_add_connector(igt_vkms_t *dev, const char *name);
 int igt_vkms_connector_get_status(igt_vkms_t *dev, const char *name);
+void igt_vkms_connector_set_status(igt_vkms_t *dev, const char *name,
+				   int status);
 
 #endif /* __IGT_VKMS_H__ */
