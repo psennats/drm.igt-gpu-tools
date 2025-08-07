@@ -917,6 +917,18 @@ void igt_vkms_device_add_connector(igt_vkms_t *dev, const char *name)
 }
 
 /**
+ * igt_vkms_device_remove_connector:
+ * @dev: Device to remove the connector from
+ * @name: Connector name
+ *
+ * Remove an existing connector from the VKMS device.
+ */
+bool igt_vkms_device_remove_connector(igt_vkms_t *dev, const char *name)
+{
+	return remove_pipeline_item(dev, VKMS_PIPELINE_ITEM_CONNECTOR, name);
+}
+
+/**
  * igt_vkms_connector_get_status:
  * @dev: Device the connector belongs to
  * @name: Connector name
