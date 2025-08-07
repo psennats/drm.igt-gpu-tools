@@ -850,6 +850,62 @@ static void test_enable_no_planes(void)
 	igt_vkms_device_destroy(dev);
 }
 
+/**
+ * SUBTEST: enable-too-many-planes
+ * Description: Try to enable a VKMS device with too many planes and test that
+ *              it fails.
+ */
+
+static void test_enable_too_many_planes(void)
+{
+	igt_vkms_t *dev;
+	char plane_names[VKMS_MAX_PIPELINE_ITEMS][8];
+	int ret;
+
+	igt_vkms_config_t cfg = {
+		.device_name = __func__,
+		.planes = {
+			{
+				.name = "plane0",
+				.type = DRM_PLANE_TYPE_PRIMARY,
+				.possible_crtcs = { "crtc0" },
+			},
+		},
+		.crtcs = {
+			{ .name = "crtc0" },
+		},
+		.encoders = {
+			{ .name = "encoder0", .possible_crtcs = { "crtc0" } },
+		},
+		.connectors = {
+			{
+				.name = "connector0",
+				.possible_encoders = { "encoder0" },
+			},
+		},
+	};
+
+	for (int n = 1; n < 32; n++) {
+		ret = snprintf(plane_names[n], sizeof(plane_names[n]),
+			       "plane%d", n);
+		igt_assert(ret >= 0 && ret < sizeof(plane_names[n]));
+
+		cfg.planes[n] = (igt_vkms_plane_config_t){
+			.name = plane_names[n],
+			.possible_crtcs = { "crtc0" },
+		};
+	}
+
+	dev = igt_vkms_device_create_from_config(&cfg);
+	igt_assert(dev);
+
+	igt_vkms_device_set_enabled(dev, true);
+	igt_assert(!igt_vkms_device_is_enabled(dev));
+	igt_assert(!device_exists(__func__));
+
+	igt_vkms_device_destroy(dev);
+}
+
 igt_main
 {
 	struct {
@@ -877,6 +933,7 @@ igt_main
 		{ "attach-connector-to-encoder", test_attach_connector_to_encoder },
 		{ "enable-no-pipeline-items", test_enable_no_pipeline_items },
 		{ "enable-no-planes", test_enable_no_planes },
+		{ "enable-too-many-planes", test_enable_too_many_planes },
 	};
 
 	igt_fixture {
