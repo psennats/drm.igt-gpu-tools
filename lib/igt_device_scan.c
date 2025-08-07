@@ -231,6 +231,7 @@ struct igt_device {
 	char *subsystem;
 	char *syspath;
 	char *devnode;
+	char *sysname;
 
 	/* /dev/dri/... paths */
 	char *drm_card;
@@ -680,6 +681,7 @@ static struct igt_device *igt_device_new_from_udev(struct udev_device *dev,
 	idev->syspath = strdup_nullsafe(udev_device_get_syspath(dev));
 	idev->subsystem = strdup_nullsafe(udev_device_get_subsystem(dev));
 	idev->devnode = strdup_nullsafe(udev_device_get_devnode(dev));
+	idev->sysname = strdup_nullsafe(udev_device_get_sysname(dev));
 
 	if (idev->devnode && strstr(idev->devnode, "/dev/dri/card"))
 		idev->drm_card = strdup(idev->devnode);
@@ -2143,6 +2145,26 @@ bool igt_device_card_match_pci(const char *filter,
 			struct igt_device_card *card)
 {
        return __igt_device_card_match(filter, card, true);
+}
+
+bool igt_device_find_card_by_sysname(const char *sysname,
+				     struct igt_device_card *card)
+{
+	struct igt_device *dev;
+
+	igt_assert(card);
+	igt_assert(sysname);
+
+	memset(card, 0, sizeof(*card));
+
+	igt_list_for_each_entry(dev, &igt_devs.all, link) {
+		if (strcmp(dev->sysname, sysname) == 0) {
+			__copy_dev_to_card(dev, card);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**
