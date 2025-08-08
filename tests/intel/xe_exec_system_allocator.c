@@ -775,6 +775,7 @@ partial(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 #define THREADS			(0x1 << 23)
 #define PROCESSES		(0x1 << 24)
 #define PREFETCH_BENCHMARK	(0x1 << 25)
+#define PREFETCH_SYS_BENCHMARK	(0x1 << 26)
 
 #define N_MULTI_FAULT		4
 
@@ -955,6 +956,10 @@ partial(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
  * Description: Prefetch a 64M buffer 128 times, measure bandwidth of prefetch
  * Test category: performance test
  *
+ * SUBTEST: prefetch-sys-benchmark
+ * Description: Prefetch a 64M buffer 128 times, measure bandwidth of prefetch in both directions
+ * Test category: performance test
+ *
  * SUBTEST: threads-shared-vm-shared-alloc-many-stride-malloc
  * Description: Create multiple threads with a shared VM triggering faults on different hardware engines to same addresses
  * Test category: stress test
@@ -1022,7 +1027,7 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	struct aligned_alloc_type aligned_alloc_type;
 	uint32_t mem_region = vram_if_possible(fd, eci->gt_id);
 	uint32_t region = mem_region & 4 ? 2 : mem_region & 2 ? 1 : 0;
-	uint64_t prefetch_ns = 0;
+	uint64_t prefetch_ns = 0, prefetch_sys_ns = 0;
 	const char *pf_count_stat = "svm_pagefault_count";
 
 	if (flags & MULTI_FAULT) {
@@ -1350,8 +1355,25 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 				} else {
 					igt_assert_eq(data[idx].data,
 						      READ_VALUE(&data[idx]));
-					if (flags & PREFETCH_BENCHMARK)
+					if (flags & PREFETCH_SYS_BENCHMARK) {
+						struct timespec tv = {};
+						u64 start, end;
+
+						sync[0].addr = to_user_pointer(bind_ufence);
+
+						start = igt_nsec_elapsed(&tv);
+						xe_vm_prefetch_async(fd, vm, 0, 0, addr, bo_size, sync,
+								     1, 0);
+						end = igt_nsec_elapsed(&tv);
+
+						xe_wait_ufence(fd, bind_ufence, USER_FENCE_VALUE, 0,
+							       FIVE_SEC);
+						bind_ufence[0] = 0;
+
+						prefetch_sys_ns += (end - start);
+					} else if (flags & PREFETCH_BENCHMARK) {
 						memset(data, 5, bo_size);
+					}
 
 					if (flags & MULTI_FAULT) {
 						for (j = 1; j < N_MULTI_FAULT; ++j) {
@@ -1438,10 +1460,16 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 		prev_idx = idx;
 	}
 
-	if (flags & PREFETCH_BENCHMARK)
-		igt_info("Prefetch execution took %.3fms, %.1f5 GB/s\n",
+	if (flags & PREFETCH_BENCHMARK) {
+		igt_info("Prefetch VRAM execution took %.3fms, %.1f5 GB/s\n",
 			 1e-6 * prefetch_ns,
 			 bo_size * n_execs  / (float)prefetch_ns);
+
+		if (flags & PREFETCH_SYS_BENCHMARK)
+			igt_info("Prefetch SYS execution took %.3fms, %.1f5 GB/s\n",
+				 1e-6 * prefetch_sys_ns,
+				 bo_size * n_execs  / (float)prefetch_sys_ns);
+	}
 
 	if (!(flags & FAULT) && flags & PREFETCH &&
 	    (flags & MMAP || !(flags & (NEW | THREADS | PROCESSES)))) {
@@ -1916,6 +1944,12 @@ igt_main
 		xe_for_each_engine(fd, hwe)
 			test_exec(fd, hwe, 1, 128, SZ_64M, 0, 0, NULL,
 				  NULL, PREFETCH | PREFETCH_BENCHMARK);
+
+	igt_subtest_f("prefetch-sys-benchmark")
+		xe_for_each_engine(fd, hwe)
+			test_exec(fd, hwe, 1, 128, SZ_64M, 0, 0, NULL,
+				  NULL, PREFETCH | PREFETCH_BENCHMARK |
+				  PREFETCH_SYS_BENCHMARK);
 
 	igt_subtest("threads-shared-vm-shared-alloc-many-stride-malloc")
 		threads(fd, 1, 128, 0, 256, SHARED_ALLOC, true);
