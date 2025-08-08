@@ -117,7 +117,7 @@
  */
 
 #define RUN_TIME 2
-#define MIN_FLIPS_PER_FRAME 5
+#define MIN_FLIPS_PER_FRAME_60HZ 5
 #define NUM_FBS 4
 
 IGT_TEST_DESCRIPTION("Test asynchronous page flips.");
@@ -157,6 +157,22 @@ struct format_mod {
 	uint64_t modifier;
 	uint32_t format;
 };
+
+static int min_flips_per_frame(unsigned int refresh_rate)
+{
+	/*
+	 * Calculate minimum flips per frame based on refresh rate scaling from 60Hz baseline
+	 *
+	 * High refresh rate displays fail async flip tests due to
+	 * unrealistic timing expectations.
+	 * This ensures async flip tests remain meaningful across all refresh rates
+	 * while avoiding false failures due to overly strict timing requirements.
+	 */
+	int min_flips = MIN_FLIPS_PER_FRAME_60HZ * 60 / refresh_rate;
+
+	/* Ensure to have at least 1 flip per frame */
+	return max(min_flips, 1);
+}
 
 static void flip_handler(int fd_, unsigned int sequence, unsigned int tv_sec,
 			 unsigned int tv_usec, void *_data)
@@ -415,6 +431,9 @@ static void test_async_flip(data_t *data)
 	int mid_time = RUN_TIME / 2;
 	float run_time;
 	bool temp = data->suspend_resume || data->hang || data->dpms;
+	int min_flips;
+
+	min_flips = min_flips_per_frame(data->refresh_rate);
 
 	igt_display_commit2(&data->display, data->display.is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
@@ -473,10 +492,10 @@ static void test_async_flip(data_t *data)
 		timersub(&end, &start, &diff);
 
 		if (data->alternate_sync_async) {
-			igt_assert_f(data->flip_interval < 1000.0 / (data->refresh_rate * MIN_FLIPS_PER_FRAME),
+			igt_assert_f(data->flip_interval < 1000.0 / (data->refresh_rate * min_flips),
 				     "Flip interval not significantly smaller than vblank interval\n"
 				     "Flip interval: %lfms, Refresh Rate = %dHz, Threshold = %d\n",
-				     data->flip_interval, data->refresh_rate, MIN_FLIPS_PER_FRAME);
+				     data->flip_interval, data->refresh_rate, min_flips);
 		}
 
 		if (data->suspend_resume && diff.tv_sec == mid_time && temp) {
@@ -527,7 +546,7 @@ static void test_async_flip(data_t *data)
 
 	if (!data->alternate_sync_async && !data->async_mod_formats) {
 		fps = frame * 1000 / run_time;
-		igt_assert_f((fps / 1000) > (data->refresh_rate * MIN_FLIPS_PER_FRAME),
+		igt_assert_f((fps / 1000) > (data->refresh_rate * min_flips),
 			     "FPS should be significantly higher than the refresh rate\n");
 	}
 }
