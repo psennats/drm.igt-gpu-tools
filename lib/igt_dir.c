@@ -79,7 +79,7 @@ int igt_dir_get_fd_path(int fd, char *path, size_t path_len)
 	if (len == -1)
 		return -1;
 
-	path[path_len] = '\0';
+	path[len] = '\0';
 
 	return 0;
 }
