@@ -102,7 +102,6 @@ igt_main
 				igt_debug("RAM: %" PRIu64 ", child count: %d\n",
 					  ram_mb, child_count);
 
-				test_compute_preempt(xe, hwe, false, EXECENV_PREF_SYSTEM);
 				igt_fork(child, child_count)
 					test_compute_preempt(xe, hwe, false, EXECENV_PREF_SYSTEM);
 				igt_waitchildren();
@@ -129,7 +128,6 @@ igt_main
 				igt_debug("RAM: %" PRIu64 ", child count: %d\n",
 					  ram_mb, child_count);
 
-				test_compute_preempt(xe, hwe, false, EXECENV_PREF_SYSTEM);
 				igt_fork(child, child_count)
 					test_compute_preempt(xe, hwe, false, EXECENV_PREF_SYSTEM);
 				igt_waitchildren();
@@ -156,7 +154,6 @@ igt_main
 				igt_debug("VRAM: %" PRIu64 ", child count: %d\n",
 					  vram_mb, child_count);
 
-				test_compute_preempt(xe, hwe, false, EXECENV_PREF_VRAM);
 				igt_fork(child, child_count)
 					test_compute_preempt(xe, hwe, false, EXECENV_PREF_VRAM);
 				igt_waitchildren();
@@ -183,7 +180,6 @@ igt_main
 				igt_debug("VRAM: %" PRIu64 ", child count: %d\n",
 					  vram_mb, child_count);
 
-				test_compute_preempt(xe, hwe, false, EXECENV_PREF_VRAM);
 				igt_fork(child, child_count)
 					test_compute_preempt(xe, hwe, false, EXECENV_PREF_VRAM);
 				igt_waitchildren();
