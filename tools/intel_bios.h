@@ -44,14 +44,6 @@ struct bdb_legacy_child_devices {
 #define BDB_DRIVER_SDVO_LVDS	2
 #define BDB_DRIVER_EDP		3
 
-struct edp_power_seq {
-	uint16_t t3;
-	uint16_t t7;
-	uint16_t t9;
-	uint16_t t10;
-	uint16_t t12;
-} __attribute__ ((packed));
-
 /* Block 52 contains MiPi Panel info
  * 6 such enteries will there. Index into correct
  * entery is based on the panel_index in #40 LFP

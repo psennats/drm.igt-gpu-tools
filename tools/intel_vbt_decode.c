@@ -2367,12 +2367,12 @@ static void dump_edp(struct context *context,
 
 		printf("\tPanel %d%s\n", i, panel_str(context, i));
 
-		printf("\t\tPower Sequence: T3 %d T7 %d T9 %d T10 %d T12 %d\n",
-		       edp->power_seqs[i].t3,
-		       edp->power_seqs[i].t7,
+		printf("\t\tPower Sequence: T1-T3 %d T8 %d T9 %d T10 %d T11-T12 %d\n",
+		       edp->power_seqs[i].t1_t3,
+		       edp->power_seqs[i].t8,
 		       edp->power_seqs[i].t9,
 		       edp->power_seqs[i].t10,
-		       edp->power_seqs[i].t12);
+		       edp->power_seqs[i].t11_t12);
 
 		bpp = panel_bits(edp->color_depth, i, 2);
 
