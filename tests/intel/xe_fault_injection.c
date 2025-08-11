@@ -256,7 +256,7 @@ static void ignore_fail_dump_in_dmesg(const char function_name[], bool enable)
  * @xe_sriov_init:			xe_sriov_init
  * @xe_tile_init_early:			xe_tile_init_early
  * @xe_uc_fw_init:			xe_uc_fw_init
- * @xe_wa_init:				xe_wa_init
+ * @xe_wa_gt_init:			xe_wa_gt_init
  * @xe_wopcm_init:			xe_wopcm_init
  */
 static int
@@ -562,7 +562,7 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 		{ "xe_sriov_init" },
 		{ "xe_tile_init_early" },
 		{ "xe_uc_fw_init" },
-		{ "xe_wa_init" },
+		{ "xe_wa_gt_init" },
 		{ "xe_wopcm_init", 0, true },
 		{ }
 	};
