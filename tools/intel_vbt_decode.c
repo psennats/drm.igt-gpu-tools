@@ -1196,7 +1196,7 @@ static void dump_child_device(struct context *context,
 	       dvo_port(child->dvo_port), child->dvo_port);
 
 	printf("\t\tAIM I2C pin: 0x%02x\n", child->i2c_pin);
-	printf("\t\tAIM Slave address: 0x%02x\n", child->slave_addr);
+	printf("\t\tAIM Target address: 0x%02x\n", child->target_addr);
 	printf("\t\tDDC pin: 0x%02x\n", child->ddc_pin);
 	printf("\t\tEDID buffer ptr: 0x%02x\n", child->edid_ptr);
 	printf("\t\tDVO config: 0x%02x\n", child->dvo_cfg);
@@ -1204,7 +1204,7 @@ static void dump_child_device(struct context *context,
 	if (context->bdb->version < 155) {
 		printf("\t\tDVO2 Port: 0x%02x (%s)\n", child->dvo2_port, dvo_port(child->dvo2_port));
 		printf("\t\tI2C2 pin: 0x%02x\n", child->i2c2_pin);
-		printf("\t\tSlave2 address: 0x%02x\n", child->slave2_addr);
+		printf("\t\tTarget2 address: 0x%02x\n", child->target2_addr);
 		printf("\t\tDDC2 pin: 0x%02x\n", child->ddc2_pin);
 	} else {
 		if (context->bdb->version >= 244)
