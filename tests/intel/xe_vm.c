@@ -2191,86 +2191,6 @@ static bool pxp_interface_supported(int fd)
 	return ret != -EINVAL;
 }
 
-/**
- * SUBTEST: bind-flag-invalid
- * Functionality: bind
- * Description: Ensure invalid bind flags are rejected.
- * Test category: negative test
- */
-static void bind_flag_invalid(int fd)
-{
-	uint32_t bo, bo_size = xe_get_default_alignment(fd);
-	uint64_t addr = 0x1a0000;
-	uint32_t vm;
-	struct drm_xe_vm_bind bind;
-	struct drm_xe_sync sync[1] = {
-		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
-	};
-
-	vm = xe_vm_create(fd, 0, 0);
-	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0), 0);
-	sync[0].handle = syncobj_create(fd, 0);
-
-	memset(&bind, 0, sizeof(bind));
-	bind.vm_id = vm;
-	bind.num_binds = 1;
-	bind.bind.obj = bo;
-	bind.bind.range = bo_size;
-	bind.bind.addr = addr;
-	bind.bind.op = DRM_XE_VM_BIND_OP_MAP;
-	bind.bind.pat_index = intel_get_pat_idx_wb(fd);
-	bind.num_syncs = 1;
-	bind.syncs = (uintptr_t)sync;
-
-	/* Using valid flags should work */
-	bind.bind.flags = 0;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-	syncobj_reset(fd, &sync[0].handle, 1);
-
-	bind.bind.flags = DRM_XE_VM_BIND_FLAG_READONLY;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-	syncobj_reset(fd, &sync[0].handle, 1);
-
-	bind.bind.flags = DRM_XE_VM_BIND_FLAG_IMMEDIATE;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-	syncobj_reset(fd, &sync[0].handle, 1);
-
-	if (pxp_interface_supported(fd)) {
-		bind.bind.flags = DRM_XE_VM_BIND_FLAG_CHECK_PXP;
-		igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-		igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-		syncobj_reset(fd, &sync[0].handle, 1);
-	}
-
-	bind.bind.flags = DRM_XE_VM_BIND_FLAG_NULL;
-	bind.bind.obj = 0;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-	syncobj_reset(fd, &sync[0].handle, 1);
-	bind.bind.obj = bo;
-
-	bind.bind.flags = DRM_XE_VM_BIND_FLAG_DUMPABLE;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-	syncobj_reset(fd, &sync[0].handle, 1);
-
-	/* Using invalid flags should not work */
-	bind.bind.flags = 1 << 5;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	do_ioctl_err(fd, DRM_IOCTL_XE_VM_BIND, &bind, EINVAL);
-
-	/* Using valid flags should still work */
-	bind.bind.flags = 0;
-	igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
-	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
-
-	syncobj_destroy(fd, sync[0].handle);
-	xe_vm_destroy(fd, vm);
-}
-
 static void __bind_flag_valid(int fd, uint32_t bo, struct drm_xe_vm_bind bind,
 			      struct drm_xe_vm_bind_op *bind_ops, int num_binds)
 {
@@ -2293,6 +2213,9 @@ static void __bind_flag_valid(int fd, uint32_t bo, struct drm_xe_vm_bind bind,
 			bind_ops[j].obj = valid_flags[i] == DRM_XE_VM_BIND_FLAG_NULL ? 0 : bo;
 		}
 
+		if (num_binds == 1)
+			bind.bind = bind_ops[0];
+
 		igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
 		igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
 		syncobj_reset(fd, &sync[0].handle, 1);
@@ -2300,6 +2223,11 @@ static void __bind_flag_valid(int fd, uint32_t bo, struct drm_xe_vm_bind bind,
 }
 
 /**
+ * SUBTEST: bind-flag-invalid
+ * Functionality: bind
+ * Description: Ensure invalid bind flags are rejected.
+ * Test category: negative test
+ *
  * SUBTEST: bind-array-flag-invalid
  * Functionality: bind
  * Description: Ensure invalid bind flags are rejected when submitting an array of binds.
@@ -2317,7 +2245,7 @@ static void test_bind_flag_invalid(int fd, int num_binds)
 		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
 	};
 
-	igt_assert(num_binds > 1);
+	igt_assert(num_binds > 0);
 
 	vm = xe_vm_create(fd, 0, 0);
 	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0), 0);
@@ -2333,7 +2261,8 @@ static void test_bind_flag_invalid(int fd, int num_binds)
 	}
 
 	memset(&bind, 0, sizeof(bind));
-	bind.vector_of_binds = to_user_pointer(bind_ops);
+	if (num_binds > 1)
+		bind.vector_of_binds = to_user_pointer(bind_ops);
 	bind.num_binds = num_binds;
 	bind.syncs = to_user_pointer(sync);
 	bind.num_syncs = 1;
@@ -2347,6 +2276,9 @@ static void test_bind_flag_invalid(int fd, int num_binds)
 		bind_ops[i].flags = BIT(30);
 		bind_ops[i].obj = bo;
 	}
+
+	if (num_binds == 1)
+		bind.bind = bind_ops[0];
 
 	do_ioctl_err(fd, DRM_IOCTL_XE_VM_BIND, &bind, EINVAL);
 
@@ -2676,7 +2608,7 @@ igt_main
 		userptr_invalid(fd);
 
 	igt_subtest("bind-flag-invalid")
-		bind_flag_invalid(fd);
+		test_bind_flag_invalid(fd, 1);
 
 	igt_subtest("compact-64k-pages")
 		xe_for_each_engine(fd, hwe) {
