@@ -2271,6 +2271,93 @@ static void bind_flag_invalid(int fd)
 	xe_vm_destroy(fd, vm);
 }
 
+static void __bind_flag_valid(int fd, uint32_t bo, struct drm_xe_vm_bind bind,
+			      struct drm_xe_vm_bind_op *bind_ops, int num_binds)
+{
+	struct drm_xe_sync *sync = from_user_pointer(bind.syncs);
+	unsigned int valid_flags[] = {
+		0,
+		DRM_XE_VM_BIND_FLAG_READONLY,
+		DRM_XE_VM_BIND_FLAG_IMMEDIATE,
+		DRM_XE_VM_BIND_FLAG_NULL,
+		DRM_XE_VM_BIND_FLAG_DUMPABLE,
+		DRM_XE_VM_BIND_FLAG_CHECK_PXP,
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(valid_flags); i++) {
+		if (!pxp_interface_supported(fd) && valid_flags[i] == DRM_XE_VM_BIND_FLAG_CHECK_PXP)
+			continue;
+
+		for (int j = 0; j < num_binds; j++) {
+			bind_ops[j].flags = valid_flags[i];
+			bind_ops[j].obj = valid_flags[i] == DRM_XE_VM_BIND_FLAG_NULL ? 0 : bo;
+		}
+
+		igt_ioctl(fd, DRM_IOCTL_XE_VM_BIND, &bind);
+		igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
+		syncobj_reset(fd, &sync[0].handle, 1);
+	}
+}
+
+/**
+ * SUBTEST: bind-array-flag-invalid
+ * Functionality: bind
+ * Description: Ensure invalid bind flags are rejected when submitting an array of binds.
+ * Test category: negative test
+ */
+static void test_bind_flag_invalid(int fd, int num_binds)
+{
+	struct drm_xe_vm_bind_op *bind_ops;
+	struct drm_xe_vm_bind bind;
+	uint32_t vm;
+
+	uint32_t bo, bo_size = xe_get_default_alignment(fd);
+	uint64_t addr = 0x1a0000;
+	struct drm_xe_sync sync[1] = {
+		{ .type = DRM_XE_SYNC_TYPE_SYNCOBJ, .flags = DRM_XE_SYNC_FLAG_SIGNAL, },
+	};
+
+	igt_assert(num_binds > 1);
+
+	vm = xe_vm_create(fd, 0, 0);
+	bo = xe_bo_create(fd, vm, bo_size, vram_if_possible(fd, 0), 0);
+	sync[0].handle = syncobj_create(fd, 0);
+
+	bind_ops = calloc(num_binds, sizeof(*bind_ops));
+	for (int i = 0; i < num_binds; i++) {
+		bind_ops[i].addr = addr + i * bo_size;
+		bind_ops[i].range = bo_size;
+		bind_ops[i].obj = bo;
+		bind_ops[i].op = DRM_XE_VM_BIND_OP_MAP;
+		bind_ops[i].pat_index = intel_get_pat_idx_wb(fd);
+	}
+
+	memset(&bind, 0, sizeof(bind));
+	bind.vector_of_binds = to_user_pointer(bind_ops);
+	bind.num_binds = num_binds;
+	bind.syncs = to_user_pointer(sync);
+	bind.num_syncs = 1;
+	bind.vm_id = vm;
+
+	/* Using valid flags should work */
+	__bind_flag_valid(fd, bo, bind, bind_ops, num_binds);
+
+	/* Using invalid flags should not work */
+	for (int i = 0; i < num_binds; i++) {
+		bind_ops[i].flags = BIT(30);
+		bind_ops[i].obj = bo;
+	}
+
+	do_ioctl_err(fd, DRM_IOCTL_XE_VM_BIND, &bind, EINVAL);
+
+	/* Using valid flags should still work */
+	__bind_flag_valid(fd, bo, bind, bind_ops, num_binds);
+
+	syncobj_destroy(fd, sync[0].handle);
+	gem_close(fd, bo);
+	xe_vm_destroy(fd, vm);
+}
+
 /**
  * SUBTEST: invalid-flag-%s
  * Functionality: ioctl_input_validation
@@ -2657,6 +2744,9 @@ igt_main
 	igt_subtest("bind-array-conflict-error-inject")
 		xe_for_each_engine(fd, hwe)
 			test_bind_array_conflict(fd, hwe, false, true);
+
+	igt_subtest("bind-array-flag-invalid")
+		test_bind_flag_invalid(fd, 16);
 
 	for (bind_size = 0x1ull << 21; bind_size <= 0x1ull << 31;
 	     bind_size = bind_size << 1) {
