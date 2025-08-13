@@ -1031,6 +1031,13 @@ amdgpu_device_ip_block_add(struct amdgpu_ip_block_version *ip_block_version)
 
 	amdgpu_ips.ip_blocks[amdgpu_ips.num_ip_blocks++] = ip_block_version;
 
+	if (ip_block_version->funcs &&
+		(!ip_block_version->funcs->gfx_program_compute ||
+		 !ip_block_version->funcs->gfx_dispatch_direct ||
+		 !ip_block_version->funcs->gfx_write_confirm )) {
+		amd_ip_blocks_ex_init(ip_block_version->funcs);
+	}
+
 	return 0;
 }
 

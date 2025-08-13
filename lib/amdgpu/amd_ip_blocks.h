@@ -206,6 +206,7 @@ struct amdgpu_ring_context {
 	struct drm_amdgpu_info_uq_fw_areas info;
 };
 
+struct amdgpu_cmd_base;
 
 struct amdgpu_ip_funcs {
 	uint32_t	family_id;
@@ -231,6 +232,32 @@ struct amdgpu_ip_funcs {
 	void (*userq_create)(amdgpu_device_handle device_handle, struct amdgpu_ring_context *ctxt, unsigned int type);
 	void (*userq_submit)(amdgpu_device_handle device, struct amdgpu_ring_context *ring_context, unsigned int ip_type, uint64_t mc_address);
 	void (*userq_destroy)(amdgpu_device_handle device_handle, struct amdgpu_ring_context *ctxt, unsigned int type);
+
+	/* program minimal compute pipeline for a raw PM4 launch */
+	void (*gfx_program_compute)(
+		const struct amdgpu_ip_funcs *funcs,
+		struct amdgpu_cmd_base *base,
+		uint64_t code_addr,
+		uint64_t user_data0_addr,
+		uint32_t rsrc1_dw,
+		uint32_t rsrc2_or_tmp,
+		uint32_t thr_x, uint32_t thr_y, uint32_t thr_z
+	);
+
+	/* launch a direct dispatch (grid + family flags) */
+	void (*gfx_dispatch_direct)(
+		const struct amdgpu_ip_funcs *funcs,
+		struct amdgpu_cmd_base *base,
+		uint32_t grid_x, uint32_t grid_y, uint32_t grid_z,
+		uint32_t flags
+	);
+
+	/* WRITE_DATA with WR_CONFIRM (or family equivalent) */
+	void (*gfx_write_confirm)(
+		const struct amdgpu_ip_funcs *funcs,
+		struct amdgpu_cmd_base *base,
+		uint64_t dst_addr, uint32_t value
+	);
 };
 
 extern const struct amdgpu_ip_block_version gfx_v6_0_ip_block;
@@ -320,4 +347,8 @@ amdgpu_bo_alloc_and_map_uq(amdgpu_device_handle device_handle, unsigned int size
 int
 amdgpu_timeline_syncobj_wait(amdgpu_device_handle device_handle,
 				 uint32_t timeline_syncobj_handle, uint64_t point);
+
+void
+amd_ip_blocks_ex_init(struct amdgpu_ip_funcs *funcs);
+
 #endif
