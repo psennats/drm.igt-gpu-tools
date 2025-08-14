@@ -40,7 +40,6 @@
 
 #include "igt_aux.h"
 #include "igt_halffloat.h"
-#include "intel_bios.h"
 #include "intel_chipset.h"
 #include "intel_io.h"
 #include "drmtest.h"
@@ -54,6 +53,16 @@ typedef uint64_t u64;
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"
+
+/* additional macros for parsing */
+#define DEVICE_TYPE_DP_DVI		0x68d6
+#define DEVICE_TYPE_DVI			0x68d2
+#define DEVICE_TYPE_MIPI		0x7cc2
+
+struct bdb_legacy_child_devices {
+	uint8_t child_dev_size;
+	uint8_t devices[0]; /* presumably 7 * 33 */
+} __attribute__ ((packed));
 
 #define YESNO(val) ((val) ? "yes" : "no")
 
@@ -1816,10 +1825,10 @@ static void dump_lfp_data(struct context *context,
 }
 
 static const char * const lvds_config[] = {
-	[BDB_DRIVER_NO_LVDS] = "No LVDS",
-	[BDB_DRIVER_INT_LVDS] = "Integrated LVDS",
-	[BDB_DRIVER_SDVO_LVDS] = "SDVO LVDS",
-	[BDB_DRIVER_EDP] = "Embedded DisplayPort",
+	[BDB_DRIVER_FEATURE_NO_LVDS] = "No LVDS",
+	[BDB_DRIVER_FEATURE_INT_LVDS] = "Integrated LVDS",
+	[BDB_DRIVER_FEATURE_SDVO_LVDS] = "SDVO LVDS",
+	[BDB_DRIVER_FEATURE_INT_SDVO_LVDS] = "Embedded DisplayPort",
 };
 
 static const char *default_algorithm(bool algorithm)
