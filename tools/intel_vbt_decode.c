@@ -40,8 +40,9 @@
 
 #include "igt_aux.h"
 #include "igt_halffloat.h"
-#include "intel_io.h"
+#include "intel_bios.h"
 #include "intel_chipset.h"
+#include "intel_io.h"
 #include "drmtest.h"
 
 /* kernel types for intel_vbt_defs.h */
@@ -2842,7 +2843,7 @@ static void dump_mipi_config(struct context *context,
 		printf("\tPanel %d%s\n", i, panel_str(context, i));
 
 		printf("\t\tGeneral Param\n");
-		printf("\t\t\t BTA disable: %s\n", config->bta ? "Disabled" : "Enabled");
+		printf("\t\t\t BTA disable: %s\n", config->bta_enabled ? "Disabled" : "Enabled");
 		printf("\t\t\t Panel Rotation: %d degrees\n", config->rotation * 90);
 
 		printf("\t\t\t Video Mode Color Format: ");
@@ -2859,16 +2860,16 @@ static void dump_mipi_config(struct context *context,
 		printf("\t\t\t PPS GPIO Pins: %s \n",
 		       config->pwm_blc ? "Using SOC" : "Using PMIC");
 		printf("\t\t\t CABC Support: %s\n",
-		       config->cabc ? "supported" : "not supported");
+		       config->cabc_supported ? "supported" : "not supported");
 		printf("\t\t\t Mode: %s\n",
-		       config->cmd_mode ? "COMMAND" : "VIDEO");
+		       config->is_cmd_mode ? "COMMAND" : "VIDEO");
 		printf("\t\t\t Video transfer mode: %s (0x%x)\n",
-		       config->vtm == 1 ? "non-burst with sync pulse" :
-		       config->vtm == 2 ? "non-burst with sync events" :
-		       config->vtm == 3 ? "burst" : "<unknown>",
-		       config->vtm);
+		       config->video_transfer_mode == 1 ? "non-burst with sync pulse" :
+		       config->video_transfer_mode == 2 ? "non-burst with sync events" :
+		       config->video_transfer_mode == 3 ? "burst" : "<unknown>",
+		       config->video_transfer_mode);
 		printf("\t\t\t Dithering: %s\n",
-		       config->dithering ? "done in Display Controller" : "done in Panel Controller");
+		       config->enable_dithering ? "done in Display Controller" : "done in Panel Controller");
 
 		printf("\t\tPort Desc\n");
 		printf("\t\t\t Pixel overlap: %d\n", config->pixel_overlap);
@@ -2883,9 +2884,9 @@ static void dump_mipi_config(struct context *context,
 
 		printf("\t\tDphy Flags\n");
 		printf("\t\t\t Clock Stop: %s\n",
-		       config->clk_stop ? "ENABLED" : "DISABLED");
+		       config->enable_clk_stop ? "ENABLED" : "DISABLED");
 		printf("\t\t\t EOT disabled: %s\n\n",
-		       config->eot_disabled ? "EOT not to be sent" : "EOT to be sent");
+		       config->eot_pkt_disabled ? "EOT not to be sent" : "EOT to be sent");
 
 		printf("\t\tHSTxTimeOut: 0x%x\n", config->hs_tx_timeout);
 		printf("\t\tLPRXTimeOut: 0x%x\n", config->lp_rx_timeout);
