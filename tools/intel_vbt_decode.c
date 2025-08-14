@@ -2852,7 +2852,7 @@ static void dump_mipi_config(struct context *context,
 		printf("\tPanel %d%s\n", i, panel_str(context, i));
 
 		printf("\t\tGeneral Param\n");
-		printf("\t\t\t BTA disable: %s\n", config->bta_enabled ? "Disabled" : "Enabled");
+		printf("\t\t\t BTA disable: %s\n", config->bta_disable ? "Disabled" : "Enabled");
 		printf("\t\t\t Panel Rotation: %d degrees\n", config->rotation * 90);
 
 		printf("\t\t\t Video Mode Color Format: ");
