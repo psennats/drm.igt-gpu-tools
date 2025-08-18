@@ -7519,3 +7519,22 @@ drmModePropertyBlobRes *igt_get_writeback_formats_blob(igt_output_t *output)
 
 	return blob;
 }
+
+/**
+ * igt_get_connected_output_count:
+ * @display: pointer to igt_display_t
+ *
+ * Get the number of actively connected outputs.
+ *
+ * Returns: the count of connected outputs.
+ */
+uint32_t igt_get_connected_output_count(igt_display_t *display)
+{
+	uint32_t conn_outputs = 0;
+
+	for (int i = 0; i < display->n_outputs; i++) {
+		if (igt_output_is_connected(&display->outputs[i]))
+			conn_outputs++;
+	}
+	return conn_outputs;
+}
