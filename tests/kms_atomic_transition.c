@@ -1210,6 +1210,9 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(transition_tests); i++) {
+		if (strstr(transition_tests[i].name, "modeset"))
+			update_debug_mask_if_ci(DRM_UT_DRIVER);
+
 		igt_describe(transition_tests[i].desc);
 		igt_subtest_with_dynamic_f("%s", transition_tests[i].name) {
 			pipe_count = 0;
@@ -1250,6 +1253,9 @@ igt_main_args("", long_opts, help_str, opt_handler, &data)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(modeset_tests); i++) {
+		if (igt_get_connected_output_count(&data.display) > 2)
+			update_debug_mask_if_ci(DRM_UT_DRIVER);
+
 		igt_describe_f("%s", modeset_tests[i].desc);
 		igt_subtest_with_dynamic_f("%s", modeset_tests[i].name) {
 			for (j = 1; j <= count; j++) {
