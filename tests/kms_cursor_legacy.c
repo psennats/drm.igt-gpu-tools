@@ -1748,13 +1748,14 @@ static void flip_vs_cursor_busy_crc(igt_display_t *display, bool atomic)
 		igt_assert_crc_equal(&crcs[i], &test_crc);
 	}
 
+	igt_pipe_crc_stop(pipe_crc);
+
 	/* Clean-up */
 	igt_plane_set_fb(plane_primary, NULL);
 	igt_plane_set_fb(cursor, NULL);
 	igt_output_set_pipe(output, PIPE_NONE);
 	igt_display_commit2(display, display->is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
 
-	igt_pipe_crc_stop(pipe_crc);
 	igt_remove_fb(display->drm_fd, &fb_info[1]);
 	igt_remove_fb(display->drm_fd, &fb_info[0]);
 	igt_remove_fb(display->drm_fd, &cursor_fb);
