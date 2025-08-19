@@ -135,6 +135,9 @@ igt_main
 			drmModeFreeConnector(connector);
 		}
 
+		if (res)
+			drmModeFreeResources(res);
+
 		drm_close_driver(drm_fd);
 	}
 }
