@@ -34,13 +34,13 @@
 #include "xe/xe_query.h"
 
 /**
- * SUBTEST:
- * Description: Tests 3D mode setting.
+ * SUBTEST: basic
+ * Description: Tests basic 3D mode setting.
  */
 
 IGT_TEST_DESCRIPTION("Tests 3D mode setting.");
 
-igt_simple_main
+igt_main
 {
 	int drm_fd;
 	drmModeRes *res;
@@ -48,84 +48,93 @@ igt_simple_main
 	const struct edid *edid;
 	int mode_count, connector_id;
 
-	drm_fd = drm_open_driver_master(DRIVER_ANY);
+	igt_fixture {
+		drm_fd = drm_open_driver_master(DRIVER_ANY);
 
-	res = drmModeGetResources(drm_fd);
-	igt_require(res);
-
-	igt_assert_f(drmSetClientCap(drm_fd, DRM_CLIENT_CAP_STEREO_3D, 1) >= 0,
-		     "Failed to enable STEREO_3D capability.\n");
-
-	/* find an hdmi connector */
-	for (int i = 0; i < res->count_connectors; i++) {
-		connector = drmModeGetConnectorCurrent(drm_fd, res->connectors[i]);
-		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
-			break;
-		drmModeFreeConnector(connector);
-		connector = NULL;
-	}
-	igt_require_f(connector, "No HDMI connector found.\n");
-
-	kmstest_unset_all_crtcs(drm_fd, res);
-
-	edid = igt_kms_get_3d_edid();
-
-	kmstest_force_edid(drm_fd, connector, edid);
-	if (!kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_ON))
-		igt_skip("Could not force connector on\n");
-
-	connector_id = connector->connector_id;
-
-	/* check for 3D modes */
-	mode_count = 0;
-	connector = drmModeGetConnectorCurrent(drm_fd, connector_id);
-	for (int i = 0; i < connector->count_modes; i++) {
-		if (connector->modes[i].flags & DRM_MODE_FLAG_3D_MASK)
-			mode_count++;
+		res = drmModeGetResources(drm_fd);
+		igt_require(res);
 	}
 
-	igt_assert_f(mode_count, "3D modes not detected.\n");
+	igt_subtest("basic") {
+		igt_assert_f(drmSetClientCap(drm_fd, DRM_CLIENT_CAP_STEREO_3D, 1) >= 0,
+			     "Failed to enable STEREO_3D capability.\n");
 
-	/* set 3D modes */
-	igt_info("Testing:\n");
-	for (int i = 0; i < connector->count_modes; i++) {
-		int fb_id;
-		struct kmstest_connector_config config;
-		int crtc_mask = -1;
-		int ret;
-
-		if (!(connector->modes[i].flags & DRM_MODE_FLAG_3D_MASK))
-			continue;
-
-		/* create a configuration */
-		ret = kmstest_get_connector_config(drm_fd, connector_id,
-						   crtc_mask, &config);
-		if (ret != true) {
-			igt_info("Error creating configuration for:\n  ");
-			kmstest_dump_mode(&connector->modes[i]);
-
-			continue;
+		/* find an hdmi connector */
+		for (int i = 0; i < res->count_connectors; i++) {
+			connector = drmModeGetConnectorCurrent(drm_fd, res->connectors[i]);
+			if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
+				break;
+			drmModeFreeConnector(connector);
+			connector = NULL;
 		}
 
-		igt_info("  ");
-		kmstest_dump_mode(&connector->modes[i]);
+		igt_require_f(connector, "No HDMI connector found.\n");
 
-		/* create stereo framebuffer */
-		fb_id = igt_create_stereo_fb(drm_fd, &connector->modes[i],
-					     igt_bpp_depth_to_drm_format(32, 24),
-					     DRM_FORMAT_MOD_LINEAR);
+		kmstest_unset_all_crtcs(drm_fd, res);
 
-		ret = drmModeSetCrtc(drm_fd, config.crtc->crtc_id, fb_id, 0, 0,
-				     &connector->connector_id, 1,
-				     &connector->modes[i]);
+		edid = igt_kms_get_3d_edid();
 
-		igt_assert(ret == 0);
+		kmstest_force_edid(drm_fd, connector, edid);
+		if (!kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_ON))
+			igt_skip("Could not force connector on\n");
+
+		connector_id = connector->connector_id;
+
+		/* check for 3D modes */
+		mode_count = 0;
+		connector = drmModeGetConnectorCurrent(drm_fd, connector_id);
+		for (int i = 0; i < connector->count_modes; i++) {
+			if (connector->modes[i].flags & DRM_MODE_FLAG_3D_MASK)
+				mode_count++;
+		}
+
+		igt_assert_f(mode_count, "3D modes not detected.\n");
+
+		/* set 3D modes */
+		igt_info("Testing:\n");
+		for (int i = 0; i < connector->count_modes; i++) {
+			int fb_id;
+			struct kmstest_connector_config config;
+			int crtc_mask = -1;
+			int ret;
+
+			if (!(connector->modes[i].flags & DRM_MODE_FLAG_3D_MASK))
+				continue;
+
+			/* create a configuration */
+			ret = kmstest_get_connector_config(drm_fd, connector_id,
+							   crtc_mask, &config);
+			if (!ret) {
+				igt_info("Error creating configuration for:\n  ");
+				kmstest_dump_mode(&connector->modes[i]);
+
+				continue;
+			}
+
+			igt_info("  ");
+			kmstest_dump_mode(&connector->modes[i]);
+
+			/* create stereo framebuffer */
+			fb_id = igt_create_stereo_fb(drm_fd, &connector->modes[i],
+						     igt_bpp_depth_to_drm_format(32, 24),
+						     DRM_FORMAT_MOD_LINEAR);
+
+			ret = drmModeSetCrtc(drm_fd, config.crtc->crtc_id, fb_id, 0, 0,
+					     &connector->connector_id, 1,
+					     &connector->modes[i]);
+
+			igt_assert(ret == 0);
+		}
 	}
 
-	kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_UNSPECIFIED);
-	kmstest_force_edid(drm_fd, connector, NULL);
+	igt_fixture {
+		if (connector) {
+			kmstest_force_connector(drm_fd, connector, FORCE_CONNECTOR_UNSPECIFIED);
+			kmstest_force_edid(drm_fd, connector, NULL);
 
-	drmModeFreeConnector(connector);
+			drmModeFreeConnector(connector);
+		}
 
-	drm_close_driver(drm_fd);
+		drm_close_driver(drm_fd);
+	}
 }
