@@ -27,6 +27,8 @@ struct subm_opts {
 	uint32_t exec_quantum_ms;
 	uint32_t preempt_timeout_us;
 	double outlier_treshold;
+	/* --inflight=0 => auto; >=1 => explicit K */
+	unsigned int inflight;
 };
 
 struct subm_work_desc {
@@ -495,9 +497,9 @@ static void log_sample_values(char *id, struct subm_stats *stats,
 }
 
 #define MIN_NUM_REPEATS 25
-#define MIN_EXEC_QUANTUM_MS 8
+#define MIN_EXEC_QUANTUM_MS 1
 #define MAX_EXEC_QUANTUM_MS 32
-#define MIN_JOB_DURATION_MS 16
+#define MIN_JOB_DURATION_MS 2
 #define MAX_TOTAL_DURATION_MS 15000
 #define PREFERRED_TOTAL_DURATION_MS 10000
 #define MAX_PREFERRED_REPEATS 100
@@ -569,6 +571,25 @@ static int adjust_num_repeats(int duration_ms, int num_threads)
 	return max(optimal_repeats, MIN_NUM_REPEATS);
 }
 
+/* inflight K selection:
+ *   user_k == 0  => auto
+ *   user_k >= 1  => explicit K
+ */
+static unsigned int select_inflight_k(unsigned int duration_ms,
+				      unsigned int user_k,
+				      bool nonpreempt)
+{
+	if (user_k)
+		return user_k >= 1 ? user_k : 1;
+	if (nonpreempt)
+		return 1;
+	if (duration_ms <= 12)
+		return 4;
+	if (duration_ms <= 20)
+		return 3;
+	return 2;
+}
+
 static struct vf_sched_params prepare_vf_sched_params(int num_threads,
 						      int min_num_repeats,
 						      int job_timeout_ms,
@@ -629,12 +650,14 @@ static void throughput_ratio(int pf_fd, int num_vfs, const struct subm_opts *opt
 	struct job_sched_params job_sched_params = prepare_job_sched_params(num_vfs + 1,
 									    job_timeout_ms,
 									    opts);
+	const unsigned int k = select_inflight_k(job_sched_params.duration_ms,
+						 opts->inflight, false);
 
-	igt_info("eq=%ums pt=%uus duration=%ums repeats=%d num_vfs=%d job_timeout=%ums\n",
+	igt_info("eq=%ums pt=%uus duration=%ums repeats=%d inflight=%u num_vfs=%d job_timeout=%ums\n",
 		 job_sched_params.sched_params.exec_quantum_ms,
 		 job_sched_params.sched_params.preempt_timeout_us,
 		 job_sched_params.duration_ms, job_sched_params.num_repeats,
-		 num_vfs + 1, job_timeout_ms);
+		 k, num_vfs + 1, job_timeout_ms);
 
 	init_vf_ids(vf_ids, ARRAY_SIZE(vf_ids),
 		    &(struct init_vf_ids_opts){ .shuffle = true,
@@ -663,7 +686,7 @@ static void throughput_ratio(int pf_fd, int num_vfs, const struct subm_opts *opt
 		igt_assert_fd(vf_fd);
 		set->data[n].opts = opts;
 		subm_init(&set->data[n].subm, vf_fd, vf_ids[n], 0,
-			  xe_engine(vf_fd, 0)->instance, 1);
+			  xe_engine(vf_fd, 0)->instance, k);
 		subm_workload_init(&set->data[n].subm,
 				   &(struct subm_work_desc){
 					.duration_ms = job_sched_params.duration_ms,
@@ -728,10 +751,11 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 			       vf_sched_params.preempt_timeout_us / USEC_PER_MSEC;
 	int preemptible_end = 1;
 	uint8_t vf_ids[num_vfs + 1 /*PF*/];
+	const unsigned int k = select_inflight_k(duration_ms, opts->inflight, true);
 
-	igt_info("eq=%ums pt=%uus duration=%" PRIu64 "ms num_vfs=%d job_timeout=%ums\n",
+	igt_info("eq=%ums pt=%uus duration=%" PRIu64 "ms inflight=%u num_vfs=%d job_timeout=%ums\n",
 		 vf_sched_params.exec_quantum_ms, vf_sched_params.preempt_timeout_us,
-		 duration_ms, num_vfs, job_timeout_ms);
+		 duration_ms, k, num_vfs, job_timeout_ms);
 
 	init_vf_ids(vf_ids, ARRAY_SIZE(vf_ids),
 		    &(struct init_vf_ids_opts){ .shuffle = true,
@@ -760,7 +784,7 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 		igt_assert_fd(vf_fd);
 		set->data[n].opts = opts;
 		subm_init(&set->data[n].subm, vf_fd, vf_ids[n], 0,
-			  xe_engine(vf_fd, 0)->instance, 1);
+			  xe_engine(vf_fd, 0)->instance, k);
 		subm_workload_init(&set->data[n].subm,
 				   &(struct subm_work_desc){
 					.duration_ms = duration_ms,
@@ -798,6 +822,7 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 static struct subm_opts subm_opts = {
 	.sync_method = SYNC_BARRIER,
 	.outlier_treshold = 0.1,
+	.inflight = 0,
 };
 
 static bool extended_scope;
@@ -824,6 +849,16 @@ static int subm_opts_handler(int opt, int opt_index, void *data)
 		subm_opts.outlier_treshold = atoi(optarg) / 100.0;
 		igt_info("Outlier threshold: %.2f\n", subm_opts.outlier_treshold);
 		break;
+	case 'i': {
+		int val = atoi(optarg);
+
+		subm_opts.inflight = val > 0 ? val : 0;
+		if (subm_opts.inflight)
+			igt_info("In-flight submissions: %u\n", subm_opts.inflight);
+		else
+			igt_info("In-flight submissions: auto (0)\n");
+		break;
+	}
 	default:
 		return IGT_OPT_HANDLER_ERROR;
 	}
@@ -837,6 +872,7 @@ static const struct option long_opts[] = {
 	{ .name = "threshold", .has_arg = true, .val = 't', },
 	{ .name = "eq_ms", .has_arg = true, .val = 'q', },
 	{ .name = "pt_us", .has_arg = true, .val = 'p', },
+	{ .name = "inflight", .has_arg = true, .val = 'i', },
 	{}
 };
 
@@ -845,7 +881,8 @@ static const char help_str[] =
 	"  --sync\tThreads synchronization method: 0 - none 1 - barrier (Default 1)\n"
 	"  --threshold\tSample outlier threshold (Default 0.1)\n"
 	"  --eq_ms\texec_quantum_ms\n"
-	"  --pt_us\tpreempt_timeout_us\n";
+	"  --pt_us\tpreempt_timeout_us\n"
+	"  --inflight\tNumber of submissions kept in flight per VF (0=auto)\n";
 
 igt_main_args("", long_opts, help_str, subm_opts_handler, NULL)
 {
