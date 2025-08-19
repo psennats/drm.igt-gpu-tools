@@ -39,6 +39,7 @@ struct subm_stats {
 	igt_stats_t samples;
 	uint64_t start_timestamp;
 	uint64_t end_timestamp;
+	uint64_t *complete_ts; /* absolute completion timestamps (ns) */
 	unsigned int num_early_finish;
 	unsigned int concurrent_execs;
 	double concurrent_rate;
@@ -54,13 +55,14 @@ struct subm {
 	uint32_t vm;
 	struct drm_xe_engine_class_instance hwe;
 	uint32_t exec_queue_id;
-	/* K slots (K BOs / addresses / mapped spinners / done fences) */
+	/* K slots (K BOs / addresses / mapped spinners / done fences / submit timestamps) */
 	unsigned int slots;
 	uint64_t *addr;
 	uint32_t *bo;
 	size_t bo_size;
 	struct xe_spin **spin;
 	uint32_t *done_fence;
+	uint64_t *submit_ts;
 	struct drm_xe_sync sync[1];
 	struct drm_xe_exec exec;
 };
@@ -101,8 +103,9 @@ static void subm_init(struct subm *s, int fd, int vf_num, uint64_t addr,
 	s->bo = calloc(s->slots, sizeof(*s->bo));
 	s->spin = calloc(s->slots, sizeof(*s->spin));
 	s->done_fence = calloc(s->slots, sizeof(*s->done_fence));
+	s->submit_ts = calloc(s->slots, sizeof(*s->submit_ts));
 
-	igt_assert(s->addr && s->bo && s->spin && s->done_fence);
+	igt_assert(s->addr && s->bo && s->spin && s->done_fence && s->submit_ts);
 
 	base = addr ? addr : 0x1a0000;
 	stride = ALIGN(s->bo_size, 0x10000);
@@ -136,6 +139,7 @@ static void subm_fini(struct subm *s)
 	free(s->bo);
 	free(s->spin);
 	free(s->done_fence);
+	free(s->submit_ts);
 }
 
 static void subm_workload_init(struct subm *s, struct subm_work_desc *work)
@@ -167,6 +171,8 @@ static void subm_exec_slot(struct subm *s, unsigned int slot)
 	s->exec.num_syncs = 1;
 	s->exec.syncs = to_user_pointer(&s->sync[0]);
 	s->exec.address = s->addr[slot];
+	igt_gettime(&tv);
+	s->submit_ts[slot] = (uint64_t)tv.tv_sec * (uint64_t)NSEC_PER_SEC + (uint64_t)tv.tv_nsec;
 	xe_exec(s->fd, &s->exec);
 }
 
@@ -212,9 +218,11 @@ static void subm_exec_loop(struct subm *s, struct subm_stats *stats,
 	for (i = 0; i < s->work.repeats; ++i) {
 		unsigned int slot = i % inflight;
 
-		igt_gettime(&tv);
 		subm_wait_slot(s, slot, INT64_MAX);
-		igt_stats_push(&stats->samples, igt_nsec_elapsed(&tv));
+		igt_gettime(&tv);
+		stats->complete_ts[i] = (uint64_t)tv.tv_sec * (uint64_t)NSEC_PER_SEC +
+					(uint64_t)tv.tv_nsec;
+		igt_stats_push(&stats->samples, stats->complete_ts[i] - s->submit_ts[slot]);
 
 		if (!subm_is_work_complete(s, slot)) {
 			stats->num_early_finish++;
@@ -322,8 +330,10 @@ static void subm_set_fini(struct subm_set *set)
 
 	subm_set_close_handles(set);
 
-	for (i = 0; i < set->ndata; ++i)
+	for (i = 0; i < set->ndata; ++i) {
 		igt_stats_fini(&set->data[i].stats.samples);
+		free(set->data[i].stats.complete_ts);
+	}
 
 	subm_set_free_data(set);
 }
@@ -384,16 +394,22 @@ static void compute_common_time_frame_stats(struct subm_set *set)
 	struct subm_stats *stats;
 	uint64_t common_start = 0;
 	uint64_t common_end = UINT64_MAX;
+	uint64_t first_ts, last_ts;
 
-	/* Find the common time frame */
+	/* Find common window from completion timestamps */
 	for (i = 0; i < ndata; i++) {
 		stats = &data[i].stats;
 
-		if (stats->start_timestamp > common_start)
-			common_start = stats->start_timestamp;
+		if (!stats->samples.n_values)
+			continue;
 
-		if (stats->end_timestamp < common_end)
-			common_end = stats->end_timestamp;
+		first_ts = stats->complete_ts[0];
+		last_ts = stats->complete_ts[stats->samples.n_values - 1];
+
+		if (first_ts > common_start)
+			common_start = first_ts;
+		if (last_ts < common_end)
+			common_end = last_ts;
 	}
 
 	igt_info("common time frame: [%" PRIu64 ";%" PRIu64 "] %.2fms\n",
@@ -404,8 +420,7 @@ static void compute_common_time_frame_stats(struct subm_set *set)
 
 	/* Compute concurrent_rate for each sample set within the common time frame */
 	for (i = 0; i < ndata; i++) {
-		uint64_t total_samples_duration = 0;
-		uint64_t samples_duration_in_common_frame = 0;
+		const double window_s = (common_end - common_start) * 1e-9;
 
 		stats = &data[i].stats;
 		stats->concurrent_execs = 0;
@@ -413,29 +428,20 @@ static void compute_common_time_frame_stats(struct subm_set *set)
 		stats->concurrent_mean = 0.0;
 
 		for (j = 0; j < stats->samples.n_values; j++) {
-			uint64_t sample_start = stats->start_timestamp + total_samples_duration;
-			uint64_t sample_end = sample_start + stats->samples.values_u64[j];
+			uint64_t cts = stats->complete_ts[j];
 
-			if (sample_start >= common_start &&
-			    sample_end <= common_end) {
+			if (cts >= common_start && cts <= common_end) {
 				stats->concurrent_execs++;
-				samples_duration_in_common_frame +=
-					stats->samples.values_u64[j];
+				stats->concurrent_mean += stats->samples.values_u64[j];
 			}
-
-			total_samples_duration += stats->samples.values_u64[j];
 		}
 
-		stats->concurrent_rate = samples_duration_in_common_frame ?
-				     (double)stats->concurrent_execs /
-					     (samples_duration_in_common_frame *
-					      1e-9) :
-				     0.0;
+		stats->concurrent_rate = (window_s > 0.0) ?
+					 ((double)stats->concurrent_execs / window_s) : 0.0;
 		stats->concurrent_mean = stats->concurrent_execs ?
-				      (double)samples_duration_in_common_frame /
-					      stats->concurrent_execs :
-				      0.0;
-		igt_info("[%s] Throughput = %.4f execs/s mean duration=%.4fms nsamples=%d\n",
+					 (double)stats->concurrent_mean /
+					 stats->concurrent_execs : 0.0;
+		igt_info("[%s] Throughput = %.4f execs/s mean submit->signal latency=%.4fms nsamples=%d\n",
 			 data[i].subm.id, stats->concurrent_rate, stats->concurrent_mean * 1e-6,
 			 stats->concurrent_execs);
 	}
@@ -665,6 +671,8 @@ static void throughput_ratio(int pf_fd, int num_vfs, const struct subm_opts *opt
 					.repeats = job_sched_params.num_repeats });
 		igt_stats_init_with_size(&set->data[n].stats.samples,
 					 set->data[n].subm.work.repeats);
+		set->data[n].stats.complete_ts = calloc(set->data[n].subm.work.repeats,
+							sizeof(uint64_t));
 		if (set->sync_method == SYNC_BARRIER)
 			set->data[n].barrier = &set->barrier;
 	}
@@ -760,6 +768,8 @@ static void nonpreempt_engine_resets(int pf_fd, int num_vfs,
 					.repeats = MIN_NUM_REPEATS });
 		igt_stats_init_with_size(&set->data[n].stats.samples,
 					 set->data[n].subm.work.repeats);
+		set->data[n].stats.complete_ts = calloc(set->data[n].subm.work.repeats,
+							sizeof(uint64_t));
 		if (set->sync_method == SYNC_BARRIER)
 			set->data[n].barrier = &set->barrier;
 	}
