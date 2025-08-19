@@ -105,67 +105,14 @@ static uint32_t create_regular_rcs_queue(int fd, uint32_t vm)
 	return xe_exec_queue_create(fd, vm, &inst, 0);
 }
 
-static int query_pxp_status(int fd)
-{
-	struct drm_xe_query_pxp_status *pxp_query;
-	struct drm_xe_device_query query = {
-		.extensions = 0,
-		.query = DRM_XE_DEVICE_QUERY_PXP_STATUS,
-		.size = 0,
-		.data = 0,
-	};
-	int ret;
-
-	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
-		return -errno;
-
-	pxp_query = malloc(query.size);
-	igt_assert(pxp_query);
-	memset(pxp_query, 0, query.size);
-
-	query.data = to_user_pointer(pxp_query);
-
-	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
-		ret = -errno;
-	else
-		ret = pxp_query->status;
-
-	free(pxp_query);
-
-	return ret;
-}
-
 static bool is_pxp_hw_supported(int fd)
 {
-	int pxp_status;
-	int i = 0;
+	int ret = xe_wait_for_pxp_init(fd);
 
-	/* PXP init completes after driver init, so we might have to wait for it */
-	while (i++ < 50) {
-		pxp_status = query_pxp_status(fd);
+	/* -EINVAL means the PXP interface is not available */
+	igt_require(ret != -EINVAL);
 
-		/* -EINVAL means the PXP interface is not available */
-		igt_require(pxp_status != -EINVAL);
-
-		/* -ENODEV means PXP not supported or disabled */
-		if (pxp_status == -ENODEV)
-			return false;
-
-		/* status 1 means pxp is ready */
-		if (pxp_status == 1)
-			return true;
-
-		/*
-		 * 0 means init still in progress, any other remaining state
-		 * is an error
-		 */
-		igt_assert_eq(pxp_status, 0);
-
-		usleep(50*1000);
-	}
-
-	igt_assert_f(0, "PXP failed to initialize within the timeout\n");
-	return false;
+	return ret == 0;
 }
 
 /**

@@ -1035,6 +1035,87 @@ uint32_t *xe_hwconfig_lookup_value(int fd, enum intel_hwconfig attribute, uint32
 	return NULL;
 }
 
+/**
+ * xe_query_pxp_status:
+ * @fd: xe device fd
+ *
+ * Returns the PXP status value if PXP is supported, a negative errno otherwise.
+ * See DRM_XE_DEVICE_QUERY_PXP_STATUS documentation for the possible errno
+ * values and their meaning.
+ */
+int xe_query_pxp_status(int fd)
+{
+	struct drm_xe_query_pxp_status *pxp_query;
+	struct drm_xe_device_query query = {
+		.extensions = 0,
+		.query = DRM_XE_DEVICE_QUERY_PXP_STATUS,
+		.size = 0,
+		.data = 0,
+	};
+	int ret;
+
+	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
+		return -errno;
+
+	pxp_query = malloc(query.size);
+	igt_assert(pxp_query);
+	memset(pxp_query, 0, query.size);
+
+	query.data = to_user_pointer(pxp_query);
+
+	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
+		ret = -errno;
+	else
+		ret = pxp_query->status;
+
+	free(pxp_query);
+
+	return ret;
+}
+
+/**
+ * xe_wait_for_pxp_init:
+ * @fd: xe device fd
+ *
+ * Returns 0 once PXP is initialized and ready, -EINVAL if PXP is not supported
+ * in the kernel, -ENODEV if PXP is not supported in HW. This function asserts
+ * if something went wrong during PXP initialization.
+ */
+int xe_wait_for_pxp_init(int fd)
+{
+	int pxp_status;
+	int i = 0;
+
+	/* PXP init completes after driver init, so we might have to wait for it */
+	while (i++ < 50) {
+		pxp_status = xe_query_pxp_status(fd);
+
+		/*
+		 * -EINVAL and -ENODEV are both valid return values and they
+		 * respectively indicate that the the PXP interface is not
+		 * available (i.e., kernel too old) and that PXP is not
+		 * supported or disabled in HW.
+		 */
+		if (pxp_status == -EINVAL || pxp_status == -ENODEV)
+			return pxp_status;
+
+		/* status 1 means pxp is ready */
+		if (pxp_status == 1)
+			return 0;
+
+		/*
+		 * 0 means init still in progress, any other remaining state
+		 * is an unexpected error
+		 */
+		igt_assert_eq(pxp_status, 0);
+
+		usleep(50*1000);
+	}
+
+	igt_assert_f(0, "PXP failed to initialize within the timeout\n");
+	return -ETIMEDOUT;
+}
+
 igt_constructor
 {
 	xe_device_cache_init();

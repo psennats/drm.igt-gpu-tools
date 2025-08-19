@@ -2177,18 +2177,7 @@ test_mmap_style_bind(int fd, struct drm_xe_engine_class_instance *eci,
 
 static bool pxp_interface_supported(int fd)
 {
-	struct drm_xe_device_query query = {
-		.extensions = 0,
-		.query = DRM_XE_DEVICE_QUERY_PXP_STATUS,
-		.size = 0,
-		.data = 0,
-	};
-	int ret = 0;
-
-	if (igt_ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query))
-		ret = -errno;
-
-	return ret != -EINVAL;
+	return xe_query_pxp_status(fd) != -EINVAL;
 }
 
 static void __bind_flag_valid(int fd, uint32_t bo, struct drm_xe_vm_bind bind,

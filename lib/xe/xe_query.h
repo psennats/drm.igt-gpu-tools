@@ -136,6 +136,8 @@ bool xe_is_media_gt(int fd, int gt);
 bool xe_is_main_gt(int fd, int gt);
 uint16_t xe_gt_get_tile_id(int fd, int gt);
 uint32_t *xe_hwconfig_lookup_value(int fd, enum intel_hwconfig attribute, uint32_t *len);
+int xe_query_pxp_status(int fd);
+int xe_wait_for_pxp_init(int fd);
 
 struct xe_device *xe_device_get(int fd);
 void xe_device_put(int fd);
