@@ -340,25 +340,43 @@ static void probe_fail_guc(int fd, const char pci_slot[], const char function_na
  * @xe_hw_engine_group_add_exec_queue:    xe_hw_engine_group_add_exec_queue
  * @xe_vm_add_compute_exec_queue:         xe_vm_add_compute_exec_queue
  * @xe_exec_queue_create_bind:            xe_exec_queue_create_bind
+ * @xe_pxp_exec_queue_add:                xe_pxp_exec_queue_add
  */
+
+#define EXEC_QUEUE_LR	BIT(0)
+#define EXEC_QUEUE_PXP	BIT(1)
 static void
 exec_queue_create_fail(int fd, struct drm_xe_engine_class_instance *instance,
 		       const char pci_slot[], const char function_name[],
 		       unsigned int flags)
 {
 	uint32_t exec_queue_id;
-	uint32_t vm = xe_vm_create(fd, flags, 0);
+	struct drm_xe_ext_set_property ext = { 0 };
+	uint64_t ext_ptr = 0;
+	uint32_t vm;
+
+	if (flags & EXEC_QUEUE_PXP) {
+		igt_require(xe_wait_for_pxp_init(fd) == 0);
+
+		ext.base.name = DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY,
+		ext.property = DRM_XE_EXEC_QUEUE_SET_PROPERTY_PXP_TYPE,
+		ext.value = DRM_XE_PXP_TYPE_HWDRM;
+		ext_ptr = to_user_pointer(&ext);
+	}
+
+	vm = xe_vm_create(fd, flags & EXEC_QUEUE_LR ? DRM_XE_VM_CREATE_FLAG_LR_MODE : 0, 0);
+
 	/* sanity check */
-	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id), 0);
+	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, ext_ptr, &exec_queue_id), 0);
 	xe_exec_queue_destroy(fd, exec_queue_id);
 
 	ignore_dmesg_errors_from_dut(pci_slot);
 	injection_list_add(function_name);
 	set_retval(function_name, INJECT_ERRNO);
-	igt_assert(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id) != 0);
+	igt_assert(__xe_exec_queue_create(fd, vm, 1, 1, instance, ext_ptr, &exec_queue_id) != 0);
 	injection_list_remove(function_name);
 
-	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, 0, &exec_queue_id), 0);
+	igt_assert_eq(__xe_exec_queue_create(fd, vm, 1, 1, instance, ext_ptr, &exec_queue_id), 0);
 	xe_exec_queue_destroy(fd, exec_queue_id);
 }
 
@@ -587,7 +605,8 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 	const struct section exec_queue_create_fail_functions[] = {
 		{ "xe_exec_queue_create", 0 },
 		{ "xe_hw_engine_group_add_exec_queue", 0 },
-		{ "xe_vm_add_compute_exec_queue", DRM_XE_VM_CREATE_FLAG_LR_MODE },
+		{ "xe_vm_add_compute_exec_queue", EXEC_QUEUE_LR },
+		{ "xe_pxp_exec_queue_add", EXEC_QUEUE_PXP },
 		{ }
 	};
 
