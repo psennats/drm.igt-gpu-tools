@@ -2028,12 +2028,14 @@ stdio_read_func(void *closure, unsigned char* data, unsigned int size)
 
 cairo_surface_t *igt_cairo_image_surface_create_from_png(const char *filename)
 {
-	cairo_surface_t *image;
+	cairo_surface_t *image = NULL;
 	FILE *f;
 
 	f = igt_fopen_data(filename);
-	image = cairo_image_surface_create_from_png_stream(&stdio_read_func, f);
-	fclose(f);
+	if (f) {
+		image = cairo_image_surface_create_from_png_stream(&stdio_read_func, f);
+		fclose(f);
+	}
 
 	return image;
 }
