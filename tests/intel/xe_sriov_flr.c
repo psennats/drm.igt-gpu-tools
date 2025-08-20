@@ -21,7 +21,7 @@
  * TEST: xe_sriov_flr
  * Category: Core
  * Mega feature: SR-IOV
- * Sub-category: Reset tests
+ * Sub-category: SR-IOV Reset tests
  * Functionality: FLR
  * Description: Examine behavior of SR-IOV VF FLR
  *
