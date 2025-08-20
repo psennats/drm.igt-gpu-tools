@@ -145,7 +145,7 @@ static void vram_d3cold_threshold_restore(int sig)
 {
 	int fd, sysfs_fd;
 
-	fd = drm_open_driver(DRIVER_XE);
+	fd = drm_open_driver_master(DRIVER_XE);
 	sysfs_fd = igt_sysfs_open(fd);
 
 	set_vram_d3cold_threshold(sysfs_fd, orig_threshold);
