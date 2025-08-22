@@ -527,14 +527,17 @@ test_cm(int fd, int gt, int class, int n_exec_queues, int n_execs,
 		}
 	}
 
-	j = flags & INVALIDATE && n_execs ? n_execs - 1 : 0;
+	/* Wait for all execs to complete, and the xe_wait_ufence need to be run at least once. */
+	if (flags & INVALIDATE && n_execs) {
+		j = flags & RACE ? (n_execs/2 + 1) : n_execs-1;
+		if (j >= n_execs)
+			j = n_execs - 1;
+	} else {
+		j = 0;
+	}
 	for (i = j; i < n_execs; i++)
 		xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
 			       exec_queues[i % n_exec_queues], NSEC_PER_SEC);
-
-	/* Wait for all execs to complete */
-	if (flags & INVALIDATE)
-		usleep(250000);
 
 	sync[0].addr = to_user_pointer(&data[0].vm_sync);
 	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
