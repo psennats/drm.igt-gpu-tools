@@ -128,6 +128,7 @@ enum chip_class {
 	GFX10,
 	GFX10_3,
 	GFX11,
+	GFX12,
 	NUM_GFX_VERSIONS
 };
 

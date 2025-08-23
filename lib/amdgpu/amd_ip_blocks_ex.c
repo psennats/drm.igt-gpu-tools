@@ -139,6 +139,44 @@ static void gfx_program_compute_gfx11(
 	base->emit(base, tz);
 }
 
+static void gfx_program_compute_gfx12(
+	const struct amdgpu_ip_funcs *f,
+	struct amdgpu_cmd_base *base,
+	uint64_t code, uint64_t udata0,
+	uint32_t rsrc1, uint32_t rsrc2,
+	uint32_t tx, uint32_t ty, uint32_t tz)
+{
+	base->emit(base, PACKET3(PKT3_CONTEXT_CONTROL, 1));
+	base->emit(base, 0x80000000);
+	base->emit(base, 0x80000000);
+
+	base->emit(base, PACKET3(PKT3_SET_SH_REG, 2));
+	base->emit(base, f->get_reg_offset(COMPUTE_PGM_LO));
+	base->emit(base, (uint32_t)(code >> 8));
+	base->emit(base, (uint32_t)(code >> 40));
+
+	base->emit(base, PACKET3(PKT3_SET_SH_REG, 2));
+	base->emit(base, f->get_reg_offset(COMPUTE_PGM_RSRC1));
+	base->emit(base, rsrc1);
+	base->emit(base, rsrc2);
+
+	base->emit(base, PACKET3(PKT3_SET_SH_REG, 2));
+	base->emit(base, f->get_reg_offset(COMPUTE_USER_DATA_0));
+	base->emit(base, (uint32_t)udata0);
+	base->emit(base, (uint32_t)(udata0 >> 32));
+
+	base->emit(base, PACKET3(PKT3_SET_SH_REG, 1));
+	base->emit(base, f->get_reg_offset(COMPUTE_RESOURCE_LIMITS));
+	base->emit(base, 0);
+
+	base->emit(base, PACKET3(PKT3_SET_SH_REG, 3));
+	base->emit(base, f->get_reg_offset(COMPUTE_NUM_THREAD_X));
+	base->emit(base, tx);
+	base->emit(base, ty);
+	base->emit(base, tz);
+}
+
+
 static void gfx_dispatch_direct_gfx11(
 	const struct amdgpu_ip_funcs *f,
 	struct amdgpu_cmd_base *base,
@@ -172,7 +210,8 @@ void amd_ip_blocks_ex_init(struct amdgpu_ip_funcs *funcs)
 		funcs->gfx_dispatch_direct = gfx_dispatch_direct_gfx11;
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:
-		/*TODO*/
+		funcs->gfx_program_compute =gfx_program_compute_gfx12;
+		funcs->gfx_dispatch_direct = gfx_dispatch_direct_gfx11;
 		break;
 	default:
 		break;

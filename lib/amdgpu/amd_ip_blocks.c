@@ -1031,13 +1031,21 @@ amdgpu_device_ip_block_add(struct amdgpu_ip_block_version *ip_block_version)
 
 	amdgpu_ips.ip_blocks[amdgpu_ips.num_ip_blocks++] = ip_block_version;
 
+	return 0;
+}
+
+static int
+amdgpu_device_ip_block_ex_setup(struct amdgpu_ip_block_version *ip_block_version)
+{
+	if (amdgpu_ips.num_ip_blocks >= AMD_IP_MAX)
+		return -1;
+
 	if (ip_block_version->funcs &&
 		(!ip_block_version->funcs->gfx_program_compute ||
 		 !ip_block_version->funcs->gfx_dispatch_direct ||
 		 !ip_block_version->funcs->gfx_write_confirm )) {
 		amd_ip_blocks_ex_init(ip_block_version->funcs);
 	}
-
 	return 0;
 }
 
@@ -1221,9 +1229,11 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 		{"GFX10",				GFX10},
 		{"GFX10_3",				GFX10_3},
 		{"GFX11",				GFX11},
+		{"GFX12",				GFX12},
 		{},
 	};
 	struct chip_info *info = &g_chip;
+	int i;
 
 	g_pChip = &g_chip;
 
@@ -1318,7 +1328,9 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 	igt_info("amdgpu: %s (family_id, chip_external_rev): (%u, %u)\n",
 				info->name, amdinfo->family_id, amdinfo->chip_external_rev);
 
-	if (info->family >= CHIP_GFX1100) {
+	if (info->family >= CHIP_GFX1200) {
+		info->chip_class = GFX12;
+	} else if (info->family >= CHIP_GFX1100) {
 		info->chip_class = GFX11;
 	} else if (info->family >= CHIP_SIENNA_CICHLID) {
 		info->chip_class = GFX10_3;
@@ -1348,30 +1360,62 @@ int setup_amdgpu_ip_blocks(uint32_t major, uint32_t minor, struct amdgpu_gpu_inf
 	case GFX10:/* tested */
 	case GFX10_3: /* tested */
 	case GFX11: /* tested */
-		amdgpu_device_ip_block_add(&gfx_v8_x_ip_block);
-		amdgpu_device_ip_block_add(&compute_v8_x_ip_block);
-		amdgpu_device_ip_block_add(&sdma_v3_x_ip_block);
-		/*
-		 * The handling of a particular family _id is done into
-		 * each function and as a result the field family_id would be overwritten
-		 * during initialization which matches to actual family_id.
-		 * The initial design assumed that for different GPU families, we may
-		 * have different implementations, but it is not necessary.
-		 * TO DO: move family id as a parameter into IP functions and
-		 * remove it as a field
-		 */
-		for (int i = 0; i <  amdgpu_ips.num_ip_blocks; i++) {
-			amdgpu_ips.ip_blocks[i]->funcs->family_id = amdinfo->family_id;
-			amdgpu_ips.ip_blocks[i]->funcs->chip_external_rev = amdinfo->chip_external_rev;
-			amdgpu_ips.ip_blocks[i]->funcs->chip_rev = amdinfo->chip_rev;
-		}
+	case GFX12: /* tested */
 		/* extra precaution if re-factor again */
 		igt_assert_eq(gfx_v8_x_ip_block.major, 8);
 		igt_assert_eq(compute_v8_x_ip_block.major, 8);
 		igt_assert_eq(sdma_v3_x_ip_block.major, 3);
 
+		/* Add three default IP blocks: GFX, Compute, and SDMA.
+		 *
+		 * These represent the base hardware engines available on the ASIC.
+		 * - gfx_v8_x_ip_block: graphics + compute pipeline control
+		 * - compute_v8_x_ip_block: dedicated compute support (user queues, shaders)
+		 * - sdma_v3_x_ip_block: asynchronous DMA engine for buffer transfers
+		 */
+		amdgpu_device_ip_block_add(&gfx_v8_x_ip_block);
+		amdgpu_device_ip_block_add(&compute_v8_x_ip_block);
+		amdgpu_device_ip_block_add(&sdma_v3_x_ip_block);
+
+		/* Assign the actual hardware identifiers to all registered IP blocks.
+		 *
+		 * These fields are taken from amdinfo (queried from the kernel):
+		 * - family_id: ASIC family (gfx9/gfx10/gfx11/gfx12, etc.)
+		 * - chip_external_rev: revision exposed to firmware
+		 * - chip_rev: internal revision used by HW-specific hooks
+		 */
+		for (i = 0; i < amdgpu_ips.num_ip_blocks; i++) {
+			amdgpu_ips.ip_blocks[i]->funcs->family_id = amdinfo->family_id;
+			amdgpu_ips.ip_blocks[i]->funcs->chip_external_rev = amdinfo->chip_external_rev;
+			amdgpu_ips.ip_blocks[i]->funcs->chip_rev = amdinfo->chip_rev;
+		}
+
+		/* Configure ASIC-specific function hooks.
+		 *
+		 * Depending on family_id, each IP block installs the correct
+		 * callback implementations for:
+		 * - PM4 packet encoding (e.g., gfx10/gfx11/gfx12 differences)
+		 * - Register offsets (PGM_LO/PGM_RSRC, etc.)
+		 * - Compute and dispatch programming
+		 *
+		 * This ensures that test code emits commands in the correct
+		 * hardware-specific format for the active GPU.
+		 */
+		for (i = 0; i < amdgpu_ips.num_ip_blocks; i++)
+			amdgpu_device_ip_block_ex_setup(amdgpu_ips.ip_blocks[i]);
+
+		/* Sanity-check the initialized IP blocks to ensure the family_id matches
+		 * the ASIC info from the kernel. If these assertions fail, it usually
+		 * means that:
+		 * - IP block registration order changed, or
+		 * - amdinfo data mismatches the active hooks, or
+		 * - future refactoring broke expected initialization paths.
+		 */
 		igt_assert_eq(gfx_v8_x_ip_block.funcs->family_id, amdinfo->family_id);
 		igt_assert_eq(sdma_v3_x_ip_block.funcs->family_id, amdinfo->family_id);
+
+
+
 		break;
 	default:
 		igt_info("amdgpu: GFX11 or old.\n");

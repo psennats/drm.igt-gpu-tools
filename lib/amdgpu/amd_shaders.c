@@ -30,27 +30,77 @@
 #define DATA_OFFSET 1024
 
 #define SWAP_32(num) (((num & 0xff000000) >> 24) | \
-		      ((num & 0x0000ff00) << 8) | \
-		      ((num & 0x00ff0000) >> 8) | \
-		      ((num & 0x000000ff) << 24))
-/**
+				((num & 0x0000ff00) << 8) | \
+				((num & 0x00ff0000) >> 8) | \
+				((num & 0x000000ff) << 24))
+/*
+ * C equivalent of the shader_bin below. This tiny compute kernel performs a
+ * busy-wait loop, then writes the constant value 42 into a GPU virtual
+ * address passed via COMPUTE_USER_DATA_0..1. This shader is intentionally
+ * simple and designed to work across all GFX generations.
  *
- *s_mov_b32 s2, 0
- * s_cmp_gt_u32 s2, 0x98967f
- * ;;
- * s_cbranch_scc1 4
- * s_add_i32 s2, s2, 1
- * s_cmp_gt_u32 s2, 0x98967f
- * ;;
- * s_cbranch_scc0 65532
- * s_mov_b32 s3, 0xf000
- * ;;
- * s_mov_b32 s2, -1
- * v_mov_b32_e32 v0, 42
- * buffer_store_dword v0, off, s[0:3], 0
- * ;;
- * s_endpgm
+ * Host-side logic equivalent in C:
+ *
+ *	static void gpu_shader_standalone(volatile u32 *dst, u64 iters)
+ *	{
+ *		Busy loop comparable to the ISA spin, prevents compiler optimization.
+ *		for (u64 i = 0; i <= iters; i++)
+ *			asm volatile("" ::: "memory");
+ *
+ *		After spin completes, write sentinel value 42.
+ *		*dst = 42;
+ *	}
+ *
+ * The binary shader blob generated below executes equivalent logic on the GPU.
  */
+
+/*
+ * Shader ISA: spin_store_flat.s
+ *
+ * This kernel expects a 64-bit flat/global address provided in s[0:1]
+ * (passed via COMPUTE_USER_DATA_0..1) and behaves as follows:
+ *
+ *	1) Initialize a counter register (s2 = 0).
+ *	2) Increment s2 until it exceeds 0x0098967f (~10 million).
+ *	3) When the loop completes, store the literal 42 at *(u32 *)(s1:s0).
+ *	4) Terminate with s_endpgm.
+ *
+ * Notes:
+ *	- Uses flat/global addressing — no buffer SRD required.
+ *	- Works with 1x1x1 dispatches; single work-item.
+ *	- Safe for all GFX generations; no HW-specific instructions.
+ *
+ * Annotated assembly:
+ *
+ *	.text
+ *	.p2align 8
+ *	.globl spin_store_flat
+ *	.type	spin_store_flat,@function
+ *
+ * spin_store_flat:
+ *	s_mov_b32 s2, 0				Initialize loop counter.
+ *
+ *	s_cmp_gt_u32 s2, 0x0098967f		Early exit if counter exceeds limit.
+ *	s_cbranch_scc1 .Lexit
+ *
+ * .Lloop:
+ *	s_add_i32 s2, s2, 1			Increment counter.
+ *	s_cmp_gt_u32 s2, 0x0098967f		Continue looping if below threshold.
+ *	s_cbranch_scc0 .Lloop
+ *
+ *	v_mov_b32_e32 v0, 42			Load value 42 into v0.
+ *	v_mov_b32_e32 v1, s0			Load address low bits into v1.
+ *	v_mov_b32_e32 v2, s1			Load address high bits into v2.
+ *
+ *	flat_store_dword v[1:2], v0		Store 42 to *(u32 *)(s1:s0).
+ *
+ * .Lexit:
+ *	s_endpgm				End program.
+ *
+ *	.size spin_store_flat, .-spin_store_flat
+ */
+
+
 static  const
 uint32_t shader_bin[] = {
 	SWAP_32(0x800082be), SWAP_32(0x02ff08bf), SWAP_32(0x7f969800), SWAP_32(0x040085bf),
