@@ -73,6 +73,12 @@ static void test_engines_allowed_invalid(int configfs_device_fd)
 		"rcs0asdf",
 	};
 
+	/*
+	 * These only test if engine parsing is correct, so just make sure
+	 * there's no device bound
+	 */
+	igt_kmod_unbind("xe", bus_addr);
+
 	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
 		const char *v = values[i];
 
@@ -92,6 +98,12 @@ static void test_engines_allowed(int configfs_device_fd)
 		"bcs0\nrcs0", "bcs0\nrcs0\n",
 		"rcs000",
 	};
+
+	/*
+	 * These only test if engine parsing is correct, so just make sure
+	 * there's no device bound
+	 */
+	igt_kmod_unbind("xe", bus_addr);
 
 	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
 		const char *v = values[i];
