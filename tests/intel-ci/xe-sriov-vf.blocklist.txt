@@ -4,4 +4,56 @@
 #
 # Prevent potential module reloads during tests
 #
-igt@xe_module_load
+igt@xe_module_load@.*
+#
+# tests applicable for PF only
+#
+igt@sriov_basic.*
+igt@xe_eudebug_sriov.*
+igt@xe_pmu@.*fn-engine-activity.*
+igt@xe_sriov.*
+#
+# display related tests
+#
+igt@fbdev.*
+igt@kms.*
+igt@testdisplay
+igt@xe_pat@.*display.*
+igt@xe_pxp@.*display.*
+#
+# power management related tests
+#
+igt@xe_gt_freq.*
+igt@xe_pm_residency.*
+#
+# OA is disabled in VF mode
+#
+igt@xe_oa@.*
+igt@xe_fault_injection@oa-add-config-fail-xe_oa_alloc_regs
+igt@xe_query@.*query-oa-units
+#
+# engine utilization data not available in VF mode
+#
+igt@xe_drm_fdinfo@.*utilization.*
+#
+# EU stall feature not available in VF mode
+#
+igt@xe_eu_stall.*
+#
+# The "mocs" debugfs entry is expected to be missing in VF mode
+#
+igt@xe_exec_reset@gt-mocs-reset
+igt@xe_live_ktest@xe_mocs
+igt@xe_pm@.*-mocs
+#
+# PCI power management capability not present in VF mode
+#
+igt@xe_pm@.*d3
+#
+# freq0 node not available for VF
+#
+igt@xe_pmu@gt-frequency
+#
+# The feature query_cs_cycles is not supported on VF
+#
+igt@xe_query@.*cs-cycles
