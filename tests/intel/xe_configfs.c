@@ -101,15 +101,19 @@ static void test_engines_allowed(int configfs_device_fd)
 	}
 }
 
-static int create_device_configfs_group(int configfs_fd, int fd)
+static void set_bus_addr(int fd)
 {
-	int configfs_device_fd;
 	struct pci_device *pci_dev;
-	mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 
 	pci_dev = igt_device_get_pci_device(fd);
 	snprintf(bus_addr, sizeof(bus_addr), "%04x:%02x:%02x.%01x",
 		 pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func);
+}
+
+static int create_device_configfs_group(int configfs_fd)
+{
+	mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+	int configfs_device_fd;
 
 	configfs_device_fd = igt_fs_create_dir(configfs_fd, bus_addr, mode);
 	igt_assert(configfs_device_fd);
@@ -120,17 +124,22 @@ static int create_device_configfs_group(int configfs_fd, int fd)
 igt_main
 {
 	int fd, configfs_fd, configfs_device_fd;
+	uint32_t devid;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
+		devid = intel_get_drm_devid(fd);
+		set_bus_addr(fd);
+		drm_close_driver(fd);
+
 		configfs_fd = igt_configfs_open("xe");
 		igt_require(configfs_fd != -1);
-		configfs_device_fd = create_device_configfs_group(configfs_fd, fd);
+		configfs_device_fd = create_device_configfs_group(configfs_fd);
 	}
 
 	igt_describe("Validate survivability mode");
 	igt_subtest("survivability-mode") {
-		igt_require(IS_BATTLEMAGE(intel_get_drm_devid(fd)));
+		igt_require(IS_BATTLEMAGE(devid));
 		igt_install_exit_handler(restore);
 		test_survivability_mode(configfs_device_fd);
 	}
@@ -151,6 +160,5 @@ igt_main
 		igt_fs_remove_dir(configfs_fd, bus_addr);
 		close(configfs_device_fd);
 		close(configfs_fd);
-		close(fd);
 	}
 }
