@@ -26,7 +26,17 @@ static char bus_addr[NAME_MAX];
 
 static void restore(int sig)
 {
+	int configfs_fd;
+
 	igt_kmod_unbind("xe", bus_addr);
+
+	/* Drop all custom configfs settings from subtests */
+	configfs_fd = igt_configfs_open("xe");
+	if (configfs_fd >= 0)
+		igt_fs_remove_dir(configfs_fd, bus_addr);
+	close(configfs_fd);
+
+	/* Bind again a clean driver with no custom settings */
 	igt_kmod_bind("xe", bus_addr);
 }
 
@@ -164,7 +174,6 @@ igt_main
 		test_engines_allowed(configfs_device_fd);
 
 	igt_fixture {
-		igt_fs_remove_dir(configfs_fd, bus_addr);
 		close(configfs_device_fd);
 		close(configfs_fd);
 	}
