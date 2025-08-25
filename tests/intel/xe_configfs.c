@@ -26,7 +26,6 @@ static char bus_addr[NAME_MAX];
 
 static void restore(int sig)
 {
-	/* Restore after survivability mode */
 	igt_kmod_unbind("xe", bus_addr);
 	igt_kmod_bind("xe", bus_addr);
 }
@@ -147,26 +146,22 @@ igt_main
 		configfs_fd = igt_configfs_open("xe");
 		igt_require(configfs_fd != -1);
 		configfs_device_fd = create_device_configfs_group(configfs_fd);
+		igt_install_exit_handler(restore);
 	}
 
 	igt_describe("Validate survivability mode");
 	igt_subtest("survivability-mode") {
 		igt_require(IS_BATTLEMAGE(devid));
-		igt_install_exit_handler(restore);
 		test_survivability_mode(configfs_device_fd);
 	}
 
 	igt_describe("Validate engines_allowed with invalid options");
-	igt_subtest("engines-allowed-invalid") {
-		igt_install_exit_handler(restore);
+	igt_subtest("engines-allowed-invalid")
 		test_engines_allowed_invalid(configfs_device_fd);
-	}
 
 	igt_describe("Validate engines_allowed");
-	igt_subtest("engines-allowed") {
-		igt_install_exit_handler(restore);
+	igt_subtest("engines-allowed")
 		test_engines_allowed(configfs_device_fd);
-	}
 
 	igt_fixture {
 		igt_fs_remove_dir(configfs_fd, bus_addr);
