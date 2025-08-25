@@ -11,12 +11,14 @@
                 "default-testlist": "FULL",
                 "update-from-file": {
                     "exclude-type": "regex-ignorecase",
-                    "append-value-if-not-excluded": "Xe FULL",
+                    "append-value-if-not-excluded": "Xe FULL, Xe FULL VM",
                     "include": [
-                        { "Xe BAT": "../intel-ci/xe-fast-feedback.testlist" }
+                        { "Xe BAT, Xe BAT VF, Xe BAT VM": "../intel-ci/xe-fast-feedback.testlist" }
                     ],
                     "exclude": [
-                        { "Xe BAT, Xe FULL": "../intel-ci/xe.blocklist.txt" }
+                        { "Xe BAT, Xe BAT VF, Xe BAT VM, Xe FULL, Xe FULL VM": "../intel-ci/xe.blocklist.txt" },
+                        { "Xe BAT VF": "../intel-ci/xe-sriov-vf.blocklist.txt"},
+                        { "Xe BAT VM, Xe FULL VM": "../intel-ci/xe-sriov-vm.blocklist.txt"}
                     ]
                 },
                 "order": [
