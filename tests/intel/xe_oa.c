@@ -307,6 +307,8 @@ static struct oa_format lnl_oa_formats[XE_OA_FORMAT_MAX] = {
 		.bc_report = 0 },
 };
 
+static bool oa_trace = false;
+static uint32_t oa_trace_buf_mb = 1;
 static int drm_fd = -1;
 static int sysfs = -1;
 static int pm_fd = -1;
@@ -387,6 +389,31 @@ static u32 get_stream_status(int fd)
 	errno = _e;
 
 	return status.oa_status;
+}
+
+static void enable_trace_log(void)
+{
+	char cmd[64] = {0};
+
+	if (!oa_trace)
+		return;
+
+	snprintf(cmd, sizeof(cmd) - 1, "echo %d > /sys/kernel/debug/tracing/buffer_size_kb", oa_trace_buf_mb * 1024);
+	system(cmd);
+	system("echo 0 > /sys/kernel/debug/tracing/tracing_on");
+	system("echo > /sys/kernel/debug/tracing/trace");
+	system("echo 1 > /sys/kernel/debug/tracing/events/xe/enable");
+	system("echo 1 > /sys/kernel/debug/tracing/events/xe/xe_reg_rw/enable");
+	system("echo 1 > /sys/kernel/debug/tracing/tracing_on");
+}
+
+static void disable_trace_log(void)
+{
+	if (!oa_trace)
+		return;
+
+	system("echo 0 > /sys/kernel/debug/tracing/tracing_on");
+	system("cat /sys/kernel/debug/tracing/trace");
 }
 
 static void
@@ -4919,7 +4946,39 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 	igt_require_f(hwe, "no render engine\n"); \
 	igt_dynamic_f("rcs-%d", hwe->engine_instance)
 
-igt_main
+static int opt_handler(int opt, int opt_index, void *data)
+{
+	uint32_t tmp;
+
+	switch (opt) {
+	case 'b':
+		tmp = strtoul(optarg, NULL, 0);
+		if (tmp <= 20 && tmp >= 1)
+			oa_trace_buf_mb = tmp;
+
+		igt_debug("Trace buffer %d Mb\n", oa_trace_buf_mb);
+		break;
+	case 't':
+		oa_trace = true;
+		igt_debug("Trace enabled\n");
+		break;
+	default:
+		return IGT_OPT_HANDLER_ERROR;
+	}
+
+	return IGT_OPT_HANDLER_SUCCESS;
+}
+
+static const char *help_str =  "  --trace		| -t\t\tEnable ftrace\n"
+			       "  --trace_buf_size_mb	| -b\t\tSet ftrace buffer size in MB (default = 1, min = 1, max = 20)\n";
+
+static struct option long_options[] = {
+	{"trace", 0, 0, 't'},
+	{"trace_buf_size_mb", 0, 0, 'b'},
+	{ NULL, 0, 0, 0 }
+};
+
+igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 {
 	const struct sync_section {
 		const char *name;
@@ -4963,6 +5022,7 @@ igt_main
 		 */
 		igt_assert_eq(drm_fd, -1);
 
+		enable_trace_log();
 		drm_fd = drm_open_driver(DRIVER_XE);
 		xe_dev = xe_device_get(drm_fd);
 
@@ -5196,5 +5256,6 @@ igt_main
 			intel_xe_perf_free(intel_xe_perf);
 
 		drm_close_driver(drm_fd);
+		disable_trace_log();
 	}
 }
