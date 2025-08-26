@@ -4534,6 +4534,60 @@ static void closed_fd_and_unmapped_access(const struct drm_xe_engine_class_insta
 }
 
 /**
+ * SUBTEST: tail-address-wrap
+ * Description: Test tail address wrap on odd format sizes. Ensure that the
+ * format size is not a power of 2. This means that the last report will not be
+ * broken down across the OA buffer end. Instead it will be written to the
+ * beginning of the OA buffer. We will check the end of the buffer to ensure it
+ * has zeroes in it.
+ */
+static void
+test_tail_address_wrap(const struct drm_xe_engine_class_instance *hwe, size_t oa_buffer_size)
+{
+	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	u64 exponent = max_oa_exponent_for_period_lte(20000);
+	u64 buffer_size = oa_buffer_size ?: buffer_fill_size;
+	u64 fmt = test_set->perf_oa_format;
+	u64 properties[] = {
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
+		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
+		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, exponent,
+		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
+		DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, buffer_size,
+	};
+	struct intel_xe_oa_open_prop param = {
+		.num_properties = ARRAY_SIZE(properties) / 2,
+		.properties_ptr = to_user_pointer(properties),
+	};
+	u32 fmt_size = get_oa_format(fmt).size;
+	u32 zero_size = buffer_size % fmt_size;
+	u32 *zero_area, *buffer_end, *buffer_start;
+
+	igt_require(zero_size);
+
+	stream_fd = __perf_open(drm_fd, &param, false);
+	set_fd_flags(stream_fd, O_CLOEXEC);
+
+	wait_for_oa_buffer_overflow(stream_fd, 100);
+
+	buffer_start = mmap(0, buffer_size, PROT_READ, MAP_PRIVATE, stream_fd, 0);
+	igt_assert(buffer_start);
+
+	zero_area = buffer_start + (buffer_size - zero_size) / 4;
+	buffer_end = buffer_start + buffer_size / 4;
+
+	dump_report(zero_area, zero_size / 4, "zero_area");
+	while (zero_area < buffer_end)
+		igt_assert_eq(*zero_area++, 0);
+
+	munmap(buffer_start, buffer_size);
+
+	__perf_close(stream_fd);
+}
+
+/**
  * SUBTEST: map-oa-buffer
  * Description: Verify mapping of oa buffer
  *
@@ -5089,6 +5143,14 @@ igt_main
 		igt_subtest_with_dynamic("closed-fd-and-unmapped-access")
 			__for_one_hwe_in_oag(hwe)
 				closed_fd_and_unmapped_access(hwe);
+	}
+
+	igt_subtest_with_dynamic("tail-address-wrap") {
+		long k = random() % num_buf_sizes;
+
+		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
+		__for_one_hwe_in_oag_w_arg(hwe, buf_sizes[k].name)
+			test_tail_address_wrap(hwe, buf_sizes[k].size);
 	}
 
 	igt_subtest_group {
