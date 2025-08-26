@@ -110,6 +110,19 @@ struct intel_xe_perf_devinfo {
 	/* Number of threads in one EU */
 	uint64_t eu_threads_count;
 
+	/* Squidi Total Count */
+	uint32_t n_sq_idis;
+	/* L3 Bank Count */
+	uint32_t l3_banks;
+	/* Number of L3 nodes */
+	uint32_t n_l3_nodes;
+	/* Number of depth pipes */
+	uint32_t n_depth_pipes;
+	/* Number of geometry pipes */
+	uint32_t n_geom_pipes;
+	/* Number of color pipes */
+	uint32_t n_color_pipes;
+
 	/**
 	 * Maximu number of slices present on this device (can be more than
 	 * num_slices if some slices are fused).

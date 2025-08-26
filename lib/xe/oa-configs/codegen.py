@@ -128,7 +128,6 @@ class Set:
         return self.xml.find(path)
 
 
-#TODO add SqidiTotalCount, L3BankTotalCount, L3NodeTotalCount
 hw_vars_mapping = {
     "$EuCoresTotalCount": { 'c': "perf->devinfo.n_eus", 'desc': "The total number of execution units" },
     "$EuSlicesTotalCount": { 'c': "perf->devinfo.n_eu_slices" },
@@ -164,6 +163,14 @@ hw_vars_mapping = {
     "$ComputeEngineTotalCount": { 'c': "perf->devinfo.n_eus", 'desc': "The total number of execution units" },
 
     "$CopyEngineTotalCount": { 'c': "perf->devinfo.n_eus", 'desc': "The total number of execution units" },
+
+    "$SqidiTotalCount": { 'c': "perf->devinfo.n_sq_idis", 'desc': "Total number of SQIDI units" },
+    "$L3BankTotalCount": { 'c': "perf->devinfo.l3_banks", 'desc': "Total L3 bank count" },
+    "$L3NodeTotalCount": { 'c': "perf->devinfo.n_l3_nodes", 'desc': "Total L3 node count" },
+
+    "$GeometryPipeTotalCount": { 'c': "perf->devinfo.n_geom_pipes", 'desc': "The total number of geometry pipelines" },
+    "$DepthPipeTotalCount": { 'c': "perf->devinfo.n_depth_pipes", 'desc': "The total number of depth pipelines" },
+    "$ColorPipeTotalCount": { 'c': "perf->devinfo.n_color_pipes", 'desc': "The total number of color pipelines" },
 }
 
 def is_hw_var(name):
