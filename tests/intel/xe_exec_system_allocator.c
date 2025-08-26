@@ -18,6 +18,7 @@
 
 #include "igt.h"
 #include "lib/igt_syncobj.h"
+#include "lib/intel_compute.h"
 #include "lib/intel_reg.h"
 #include "xe_drm.h"
 
@@ -1728,6 +1729,57 @@ processes(int fd, int n_exec_queues, int n_execs, size_t bo_size,
 	munmap(pdata, sizeof(*pdata));
 }
 
+/**
+ * SUBTEST: compute
+ * Description: Run a simple compute kernel with the system allocator
+ * Test category: functionality test
+ */
+static void
+test_compute(int fd, struct drm_xe_engine_class_instance *eci, size_t size)
+{
+	struct drm_xe_sync sync = {
+		.type = DRM_XE_SYNC_TYPE_USER_FENCE,
+		.flags = DRM_XE_SYNC_FLAG_SIGNAL,
+		.timeline_value = USER_FENCE_VALUE,
+	};
+	struct bo_sync {
+		uint64_t sync;
+	} *bo_sync;
+	uint32_t vm;
+	struct user_execenv env = {
+		.array_size = size / sizeof(float),
+	};
+	float *compute_input, *compute_output;
+	int i;
+
+	vm = xe_vm_create(fd, DRM_XE_VM_CREATE_FLAG_LR_MODE | DRM_XE_VM_CREATE_FLAG_FAULT_MODE, 0);
+	bo_sync = aligned_alloc(xe_get_default_alignment(fd), sizeof(*bo_sync));
+	sync.addr = to_user_pointer(&bo_sync->sync);
+	bind_system_allocator(&sync, 1);
+	xe_wait_ufence(fd, &bo_sync->sync, USER_FENCE_VALUE, 0, FIVE_SEC);
+
+	compute_input = aligned_alloc(SZ_2M, size);
+	igt_assert(compute_input);
+	compute_output = aligned_alloc(SZ_2M, size);
+	igt_assert(compute_output);
+
+	for (i = 0; i < env.array_size; i++)
+		compute_input[i] = rand() / (float)RAND_MAX;
+
+	env.input_addr = to_user_pointer(compute_input);
+	env.output_addr = to_user_pointer(compute_output);
+	env.vm = vm;
+	run_intel_compute_kernel(fd, &env, EXECENV_PREF_SYSTEM);
+
+	for (i = 0; i < env.array_size; i++)
+		igt_assert_eq_double(compute_input[i] * compute_input[i], compute_output[i]);
+
+	free(compute_output);
+	free(compute_input);
+	unbind_system_allocator();
+	xe_vm_destroy(fd, vm);
+}
+
 struct section {
 	const char *name;
 	unsigned int flags;
@@ -2025,6 +2077,10 @@ igt_main
 		igt_subtest_f("processes-evict-%s", s->name)
 			processes_evict(fd, SZ_8M, SZ_1M, s->flags);
 	}
+
+	igt_subtest("compute")
+		xe_for_each_engine(fd, hwe)
+			test_compute(fd, hwe, SZ_2M);
 
 	igt_fixture {
 		xe_device_put(fd);
