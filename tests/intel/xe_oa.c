@@ -1052,8 +1052,8 @@ static void pec_sanity_check_reports(const u32 *report0, const u32 *report1,
 		return;
 	}
 
-	dump_report(report0, set->perf_raw_size, "pec_report0");
-	dump_report(report1, set->perf_raw_size, "pec_report1");
+	dump_report(report0, set->perf_raw_size / 4, "pec_report0");
+	dump_report(report1, set->perf_raw_size / 4, "pec_report1");
 
 	pec_sanity_check(report0, report1, set);
 }
