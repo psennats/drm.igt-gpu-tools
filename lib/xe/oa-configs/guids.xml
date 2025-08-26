@@ -2780,4 +2780,8 @@
     <guid config_hash="6dc1bd4e8d8b49cc9776701db836ffe9" mdapi_config_hash="cee63b3642783febd3bcbf45629c5e1c" id="765ea760-ca86-475a-a807-7c75f44b39c9" chipset="ptl" name="VectorEngineProfile" />
     <guid config_hash="b87d3a3dfab7193309deb13aeb595589" mdapi_config_hash="1950d62ef4b729af4494d76ca3ec8101" id="64c274c2-3df8-44c7-a779-085e27d474d3" chipset="ptl" name="VectorEngineStalls" />
     <guid config_hash="2c8d8862e0eab0c587f2a2c18d96ad3b" mdapi_config_hash="89ebddf1d2af3b8acb33e7e3488086be" id="cf90eca9-c696-4e2c-8f48-0574b1745a58" chipset="ptl" name="TestOa" />
+    <guid config_hash="fa51b79e41eee554b987318329311a87" mdapi_config_hash="1482e5fb4140673ab53699e280064b30" id="c8770c23-1a3a-4869-89e8-2e22ea9af5cd" chipset="ptl" name="XvePipelineRasterizationProfile" />
+    <guid config_hash="9ba03e5fddcfeaa0491b3a9b4ec1b634" mdapi_config_hash="1ecdf9e15989b70c1ca406e745876727" id="dac47689-630c-4a44-a9e9-e8c94e3a33c4" chipset="ptl" name="XvePipelineRaytracingProfile" />
+    <guid config_hash="daed5f485b35c73cf7376a59c886992e" mdapi_config_hash="98662c6a0439289f06b36a78a73fc4b5" id="2d53df97-44b8-4bf1-aa33-2de98fe6f6ad" chipset="ptl" name="MediaSet1" />
+    <guid config_hash="d32738bc3e05a752254ccd370a891c90" mdapi_config_hash="883c847bdfecb4051eb3fde4009cf4ec" id="36cf7053-8097-4389-bc5d-a652553de240" chipset="ptl" name="MediaSet2" />
 </guids>

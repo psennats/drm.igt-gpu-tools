@@ -182,8 +182,6 @@ mtl_chipset_oa_formats = {
 
 xe2_chipset_oa_formats = {
     '576B_PEC64LL': xe2_chipset_params_pec,
-    # We only care about 576B_PEC64LL metrics in Xe2, entries below is just to
-    # surpress warnings
     '256B_GENERIC_NOA16': xehpsdv_chipset_params,
     '128B_MPEC8_NOA16': mtl_chipset_oam_samedia_params,
 }
@@ -262,11 +260,12 @@ def read_token_to_rpn_read_oam(chipset, token, raw_offsets, oa_format):
         report_size = chipsets[chipset][oa_format]['oa_report_size']
 
         if offset < a_offset:
-            if offset == 8:
+            if offset in (0, 4, 8):
                 return "GPU_TIME 0 READ"
-            elif offset == 24:
+            elif offset in (12, 24):
                 return "GPU_CLOCK 0 READ"
             else:
+                print_err(f"Unhandled offset in read_token_to_rpn_read_oam: {offset} (token: {token}, chipset: {chipset}, oa_format: {oa_format})")
                 assert 0
         elif offset < b_offset:
             a_cnt_offset = int((offset - a_offset) / den)
@@ -297,6 +296,14 @@ def read_token_to_rpn_read_oam(chipset, token, raw_offsets, oa_format):
                 return "C " + str(idx - 48) + " READ"
             else:
                 return "{0} READ".format(read_value(chipset, offset, oa_format))
+        else:
+            if idx == 0:
+                return "GPU_TIME 0 READ"
+            elif idx == 1:
+                return "GPU_CLOCK 0 READ"
+            else:
+                print_err(f"Unhandled delta offset in read_token_to_rpn_read_oam: {offset} (token: {token}, chipset: {chipset}, oa_format: {oa_format})")
+                assert 0
 
     assert 0
 
@@ -359,7 +366,7 @@ def read_token_to_rpn_read_oag(chipset, token, raw_offsets, oa_format):
         report_size = chipsets[chipset][oa_format]['oa_report_size']
 
         if offset < a_offset:
-            if offset == 4:
+            if offset in (0, 4, 8):
                 return "GPU_TIME 0 READ"
             elif offset == 12:
                 assert chipset != "HSW" # Only for Gen8+
