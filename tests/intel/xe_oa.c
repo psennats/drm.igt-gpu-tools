@@ -4450,6 +4450,7 @@ static void mmap_wait_for_periodic_reports(void *oa_vaddr, uint32_t n,
 	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
 	uint64_t fmt = test_set->perf_oa_format;
 	uint32_t num_periodic_reports = 0;
+	uint32_t report_words = get_oa_format(fmt).size >> 2;
 	uint32_t *reports;
 
 	while (num_periodic_reports < n) {
@@ -4457,7 +4458,7 @@ static void mmap_wait_for_periodic_reports(void *oa_vaddr, uint32_t n,
 		num_periodic_reports = 0;
 		for (reports = (uint32_t *)oa_vaddr;
 		     reports[0] && oa_timestamp(reports, fmt) && oa_report_is_periodic(reports);
-		     reports += get_oa_format(fmt).size) {
+		     reports += report_words) {
 			num_periodic_reports++;
 		}
 	}
