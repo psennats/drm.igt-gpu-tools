@@ -105,7 +105,6 @@
 #define SDMA_NOP  0x0
 #define SDMA_OP_INDIRECT                                0x4
 #define SDMA_OP_PROTECTED_FENCE             0x5
-#define SDMA6_SUB_OP_PROTECTED_FENCE             0x1
-#define SDMA7_SUB_OP_PROTECTED_FENCE             0x3
+#define SDMA_SUB_OP_PROTECTED_FENCE             0x3
 
 #endif
