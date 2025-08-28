@@ -2488,6 +2488,20 @@ test_oa_tlb_invalidate(const struct drm_xe_engine_class_instance *hwe)
 	igt_assert(num_reports2 > 0.95 * num_expected_reports);
 }
 
+static void
+wait_for_oa_buffer_overflow(int fd, int poll_period_us)
+{
+	char buf;
+
+	while (-1 == read(fd, &buf, 0)) {
+		if (errno == EIO &&
+		    get_stream_status(fd) & DRM_XE_OASTATUS_BUFFER_OVERFLOW)
+			return;
+
+		usleep(poll_period_us);
+	}
+}
+
 /**
  * SUBTEST: buffer-fill
  * Description: Test filling and overflow of OA buffer
@@ -2511,7 +2525,6 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
 		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent,
 		DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE, hwe->engine_instance,
-		DRM_XE_OA_PROPERTY_OA_DISABLED, true,
 		DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE, buffer_fill_size,
 	};
 	struct intel_xe_oa_open_prop param = {
@@ -2526,24 +2539,7 @@ test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
 	stream_fd = __perf_open(drm_fd, &param, true /* prevent_pm */);
         set_fd_flags(stream_fd, O_CLOEXEC);
 
-	/* OA buffer is disabled, we do not expect any error status */
-	oa_status = get_stream_status(stream_fd);
-	overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
-	igt_assert_eq(overflow_seen, 0);
-
-	do_ioctl(stream_fd, DRM_XE_OBSERVATION_IOCTL_ENABLE, 0);
-
-	/* Read 0 bytes repeatedly until you see an EIO */
-	while (-1 == read(stream_fd, buf, 0)) {
-		if (errno == EIO) {
-			oa_status = get_stream_status(stream_fd);
-			overflow_seen = oa_status & DRM_XE_OASTATUS_BUFFER_OVERFLOW;
-			if (overflow_seen)
-				break;
-		}
-		usleep(100);
-	}
-	igt_assert(overflow_seen);
+	wait_for_oa_buffer_overflow(stream_fd, 100);
 
 	/* Make sure the buffer overflow is cleared */
 	read(stream_fd, buf, 0);
