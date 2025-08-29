@@ -917,24 +917,46 @@ bool xe_has_media_gt(int fd)
 }
 
 /**
+ * xe_gt_type:
+ * @fd: xe device fd
+ * @gt: gt id
+ *
+ * Returns the type of @gt for device @fd (e.g.,
+ * DRM_XE_QUERY_GT_TYPE_MAIN, DRM_XE_QUERY_GT_TYPE_MEDIA).
+ */
+uint16_t xe_gt_type(int fd, int gt)
+{
+	struct xe_device *xe_dev = find_in_cache(fd);
+
+	igt_assert(xe_dev);
+	igt_assert_f(gt >= 0 && gt < xe_number_gt(fd),
+		     "gt %d out of range [0..%d)\n", gt, xe_number_gt(fd));
+
+	return xe_dev->gt_list->gt_list[gt].type;
+}
+
+/**
  * xe_is_media_gt:
  * @fd: xe device fd
  * @gt: gt id
  *
- * Returns true if @gt for device @fd is media GT, otherwise false.
+ * Returns true if @gt for device @fd is MEDIA GT, otherwise false.
  */
 bool xe_is_media_gt(int fd, int gt)
 {
-	struct xe_device *xe_dev;
+	return xe_gt_type(fd, gt) == DRM_XE_QUERY_GT_TYPE_MEDIA;
+}
 
-	xe_dev = find_in_cache(fd);
-	igt_assert(xe_dev);
-	igt_assert(gt < xe_number_gt(fd));
-
-	if (xe_dev->gt_list->gt_list[gt].type == DRM_XE_QUERY_GT_TYPE_MEDIA)
-		return true;
-
-	return false;
+/**
+ * xe_is_main_gt:
+ * @fd: xe device fd
+ * @gt: gt id
+ *
+ * Returns true if @gt for device @fd is MAIN GT, otherwise false.
+ */
+bool xe_is_main_gt(int fd, int gt)
+{
+	return xe_gt_type(fd, gt) == DRM_XE_QUERY_GT_TYPE_MAIN;
 }
 
 /**
