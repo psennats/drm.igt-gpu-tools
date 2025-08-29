@@ -2774,6 +2774,10 @@
     <guid config_hash="6dc1bd4e8d8b49cc9776701db836ffe9" mdapi_config_hash="cee63b3642783febd3bcbf45629c5e1c" id="dfe5251f-af3e-434c-b627-38490f2213da" chipset="bmg" name="VectorEngineProfile" />
     <guid config_hash="b87d3a3dfab7193309deb13aeb595589" mdapi_config_hash="1950d62ef4b729af4494d76ca3ec8101" id="d008dcae-2a82-4929-a94d-2ba1e9c569d6" chipset="bmg" name="VectorEngineStalls" />
     <guid config_hash="6723e2305bfd92e1d94c4242e476ee36" mdapi_config_hash="8c21cff2375af4159f5abd0ef05ee97a" id="9ec392a7-4c77-4253-a28a-85240821e82c" chipset="bmg" name="TestOa" />
+    <guid config_hash="c7b6f592e1c39533b9a1eeecc2687226" mdapi_config_hash="c0632c53c9183132f0034fce4aed0e10" id="a94b753d-d342-4eef-a865-c71b0d2f1359" chipset="bmg" name="XvePipelineRasterizationProfile" />
+    <guid config_hash="421c414831e0e456e46d819b7de7e797" mdapi_config_hash="1f02792f434e4215a4bd9abf384dc74d" id="961f1fa0-0c8e-4c16-bcaf-cb6704c96eda" chipset="bmg" name="XvePipelineRaytracingProfile" />
+    <guid config_hash="daed5f485b35c73cf7376a59c886992e" mdapi_config_hash="1487e5095d81be198fb4c52d5ff8e946" id="eecad08f-ddb6-40cb-9abb-dbbdafd0c47a" chipset="bmg" name="MediaSet1" />
+    <guid config_hash="74821ef3fc37586d03e7c14362df4474" mdapi_config_hash="883c847bdfecb4051eb3fde4009cf4ec" id="7b0b93c9-d355-4179-af35-6db495ca6388" chipset="bmg" name="MediaSet2" />
     <guid config_hash="208c3c79f1b4db2f86277292566d3f10" mdapi_config_hash="1fbaf5ad061ccf96ff7d4e108cbcf3ae" id="a78beb3a-98d1-48cc-86ee-29bb3cc3b5a7" chipset="ptl" name="RenderBasic" />
     <guid config_hash="39eb89a5a9a33ab05bce6069f77e0cbb" mdapi_config_hash="24837cfd6478062c78968430d5f8a902" id="751a8e91-f8cd-49ba-95ef-28f45fd4ded6" chipset="ptl" name="ComputeBasic" />
     <guid config_hash="955739b43332e61729e0a7a032188c02" mdapi_config_hash="d9be0378dd2dd6a5f85f71d156d21b43" id="b7f6cc1f-8092-44c2-8889-82ca13aa736a" chipset="ptl" name="DepthProfile" />
