@@ -276,30 +276,14 @@ unsigned int drm_get_chipset(int fd)
 
 static const char *chipset_to_str(int chipset)
 {
-	switch (chipset) {
-	case DRIVER_INTEL:
+	if (chipset == DRIVER_INTEL)
 		return "intel";
-	case DRIVER_V3D:
-		return "v3d";
-	case DRIVER_VC4:
-		return "vc4";
-	case DRIVER_VGEM:
-		return "vgem";
-	case DRIVER_AMDGPU:
-		return "amdgpu";
-	case DRIVER_PANFROST:
-		return "panfrost";
-	case DRIVER_MSM:
-		return "msm";
-	case DRIVER_XE:
-		return "xe";
-	case DRIVER_VMWGFX:
-		return "vmwgfx";
-	case DRIVER_ANY:
-		return "any";
-	default:
-		return "other";
-	}
+
+	for (int i = 0, end = ARRAY_SIZE(modules); i < end; i++)
+		if (modules[i].bit == chipset)
+			return modules[i].module;
+
+	return chipset == DRIVER_ANY ? "any" : "other";
 }
 
 
