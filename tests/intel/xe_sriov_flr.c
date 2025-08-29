@@ -596,8 +596,9 @@ static void ggtt_subcheck_init(struct subcheck_data *data)
 {
 	struct ggtt_data *gdata = (struct ggtt_data *)data;
 
-	if (xe_is_media_gt(data->pf_fd, data->gt)) {
-		set_skip_reason(data, "GGTT unavailable on media GT\n");
+	if (!xe_is_main_gt(data->pf_fd, data->gt)) {
+		set_skip_reason(data, "GGTT provisioning not exposed on GT%d (non-MAIN)\n",
+				data->gt);
 		return;
 	}
 
@@ -813,6 +814,9 @@ static int populate_vf_lmem_sizes(struct subcheck_data *data)
 	igt_assert(ldata->vf_lmem_size);
 
 	xe_for_each_gt(data->pf_fd, gt) {
+		if (!xe_is_main_gt(data->pf_fd, gt))
+			continue;
+
 		ret = xe_sriov_pf_debugfs_read_provisioned_ranges(data->pf_fd,
 								  XE_SRIOV_SHARED_RES_LMEM,
 								  gt, &ranges, &nr_ranges);
