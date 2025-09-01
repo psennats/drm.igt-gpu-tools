@@ -178,3 +178,11 @@ igt@kms_fbc_dirty_rect.*
 # platforms connected to different displays.
 ###############################################
 igt@kms_sysfs_edid_timing
+##################################################################
+# Chamelium V1 HDMI receiver supports a maximum resolution
+# of 4K @ 30Hz. This test enforces an EDID with 4K @ 60Hz,
+# which exceeds the capabilities of V1 hardware and results
+# in failures. Temporarily blocklist this test until V3 Chamelium
+# boards (which support 4K @ 60Hz) are available in the test environment.
+##################################################################
+igt@kms_chamelium_edid@hdmi-edid-stress-resolution-4k
