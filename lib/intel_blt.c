@@ -2117,6 +2117,7 @@ static void emit_blt_mem_set(int fd, uint64_t ahnd,
 	int b;
 	uint32_t *batch;
 	uint32_t value;
+	uint32_t devid = intel_get_drm_devid(fd);
 
 	dst_offset = get_offset_pat_index(ahnd, mem->dst.handle, mem->dst.size,
 					  0, mem->dst.pat_index);
@@ -2131,7 +2132,11 @@ static void emit_blt_mem_set(int fd, uint64_t ahnd,
 	batch[b++] = mem->dst.pitch - 1;
 	batch[b++] = dst_offset;
 	batch[b++] = dst_offset << 32;
-	batch[b++] = value | mem->dst.mocs_index;
+	if (intel_graphics_ver(devid) >= IP_VER(20, 0))
+		batch[b++] = value | (mem->dst.mocs_index << 3);
+	else
+		batch[b++] = value | mem->dst.mocs_index;
+
 	batch[b++] = MI_BATCH_BUFFER_END;
 
 	munmap(batch, mem->bb.size);
