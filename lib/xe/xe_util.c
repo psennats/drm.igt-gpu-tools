@@ -218,13 +218,17 @@ void xe_bind_unbind_async(int xe, uint32_t vm, uint32_t bind_engine,
 
 	if (num_binds == 1) {
 		if ((bind_ops[0].op & 0xffff) == DRM_XE_VM_BIND_OP_MAP)
-			xe_vm_bind_async(xe, vm, bind_engine, bind_ops[0].obj, 0,
-					 bind_ops[0].addr, bind_ops[0].range,
-					 syncs, num_syncs);
+			igt_assert_eq(__xe_vm_bind(xe, vm, bind_engine, bind_ops[0].obj,
+						   0, bind_ops[0].addr, bind_ops[0].range,
+						   DRM_XE_VM_BIND_OP_MAP, 0,
+						   syncs, num_syncs, 0,
+						   bind_ops[0].pat_index, 0), 0);
 		else
-			xe_vm_unbind_async(xe, vm, bind_engine, 0,
-					   bind_ops[0].addr, bind_ops[0].range,
-					   syncs, num_syncs);
+			igt_assert_eq(__xe_vm_bind(xe, vm, bind_engine, 0,
+						   0, bind_ops[0].addr, bind_ops[0].range,
+						   DRM_XE_VM_BIND_OP_UNMAP, 0,
+						   syncs, num_syncs, 0,
+						   bind_ops[0].pat_index, 0), 0);
 	} else {
 		xe_vm_bind_array(xe, vm, bind_engine, bind_ops,
 				 num_binds, syncs, num_syncs);
