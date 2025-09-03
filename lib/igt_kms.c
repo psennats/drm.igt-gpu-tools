@@ -6376,7 +6376,9 @@ bool igt_max_bpc_constraint(igt_display_t *display, enum pipe pipe,
 		    !igt_check_bigjoiner_support(display))
 			continue;
 
-		igt_display_commit2(display, display->is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY);
+		if (igt_display_try_commit2(display,
+					    display->is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY))
+			continue;
 
 		if (!igt_check_output_bpc_equal(display->drm_fd, pipe,
 						output->name, bpc))
