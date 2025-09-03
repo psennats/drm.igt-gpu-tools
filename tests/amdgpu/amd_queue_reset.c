@@ -722,7 +722,7 @@ run_test_child(amdgpu_device_handle device, struct shmbuf *sh_mem,
 
 		if (is_dispatch) {
 			ret = amdgpu_memcpy_dispatch_test(device, local_context, job.ip, job.ring_id, 0,version,
-					job.error, &err_codes);
+					job.error, &err_codes, false);
 		} else {
 			ret = amdgpu_write_linear(device, local_context,
 					ip_block_test, &job, &err_codes);
