@@ -97,6 +97,7 @@ enum {
 	TEST_INVALID_METADATA_SIZES = 1 << 4,
 	TEST_INVALID_HDR = 1 << 5,
 	TEST_BRIGHTNESS = 1 << 6,
+	TEST_NEEDS_DSC = 1 << 7,
 };
 
 /* BPC connector state. */
@@ -491,8 +492,19 @@ static void test_static_toggle(data_t *data, enum pipe pipe,
 	igt_plane_set_size(data->primary, data->w, data->h);
 	set_hdr_output_metadata(data, NULL);
 	igt_output_set_prop_value(data->output, IGT_CONNECTOR_MAX_BPC, 8);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_enable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_enabled(data->fd, output->name));
+	}
+
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 	igt_assert_output_bpc_equal(data->fd, pipe, output->name, 8);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_disable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_disabled(data->fd, output->name));
+	}
 
 	/* Apply HDR metadata and 10bpc. We expect a modeset for entering. */
 	set_hdr_output_metadata(data, &hdr);
@@ -518,10 +530,21 @@ static void test_static_toggle(data_t *data, enum pipe pipe,
 	/* Disable HDR metadata and drop back to 8bpc. We expect a modeset for exiting. */
 	set_hdr_output_metadata(data, NULL);
 	igt_output_set_prop_value(data->output, IGT_CONNECTOR_MAX_BPC, 8);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_enable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_enabled(data->fd, output->name));
+	}
+
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 	igt_assert_output_bpc_equal(data->fd, pipe, output->name, 8);
 
 	igt_assert_crc_equal(&ref_crc, &new_crc);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_disable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_disabled(data->fd, output->name));
+	}
 
 cleanup:
 	test_fini(data);
@@ -558,7 +581,7 @@ static void fill_hdr_output_metadata_sdr(struct hdr_output_metadata *meta)
 	meta->hdmi_metadata_type1.max_cll = 0;
 }
 
-static void test_static_swap(data_t *data, enum pipe pipe, igt_output_t *output)
+static void test_static_swap(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 {
 	igt_display_t *display = &data->display;
 	igt_crc_t ref_crc, new_crc;
@@ -577,8 +600,19 @@ static void test_static_swap(data_t *data, enum pipe pipe, igt_output_t *output)
 	igt_plane_set_fb(data->primary, &afb);
 	igt_plane_set_size(data->primary, data->w, data->h);
 	igt_output_set_prop_value(data->output, IGT_CONNECTOR_MAX_BPC, 8);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_enable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_enabled(data->fd, output->name));
+	}
+
 	igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 	igt_assert_output_bpc_equal(data->fd, pipe, output->name, 8);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_disable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_disabled(data->fd, output->name));
+	}
 
 	/* Enter HDR, a modeset is allowed here. */
 	fill_hdr_output_metadata_st2048(&hdr);
@@ -602,6 +636,10 @@ static void test_static_swap(data_t *data, enum pipe pipe, igt_output_t *output)
 	else
 		igt_display_commit_atomic(display, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_enable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_enabled(data->fd, output->name));
+	}
 	/* Enter SDR via metadata, no modeset allowed for
 	 * amd driver, whereas a modeset is required for
 	 * intel driver. */
@@ -622,6 +660,11 @@ static void test_static_swap(data_t *data, enum pipe pipe, igt_output_t *output)
 
 	/* Verify that the CRC didn't change while cycling metadata. */
 	igt_assert_crc_equal(&ref_crc, &new_crc);
+
+	if (flags & TEST_NEEDS_DSC) {
+		igt_force_dsc_disable(data->fd, output->name);
+		igt_assert(igt_is_force_dsc_disabled(data->fd, output->name));
+	}
 
 	test_fini(data);
 	igt_remove_fb(data->fd, &afb);
@@ -722,6 +765,11 @@ static void test_hdr(data_t *data, uint32_t flags)
 				break;
 			}
 
+			if (igt_is_dsc_enabled(data->fd, output->name))
+				flags |= TEST_NEEDS_DSC;
+			else
+				flags &= ~TEST_NEEDS_DSC;
+
 			set_hdr_output_metadata(data, NULL);
 			igt_display_commit2(display, display->is_atomic ?
 					    COMMIT_ATOMIC : COMMIT_LEGACY);
@@ -736,7 +784,7 @@ static void test_hdr(data_t *data, uint32_t flags)
 					     TEST_INVALID_HDR | TEST_BRIGHTNESS))
 					test_static_toggle(data, pipe, output, flags);
 				if (flags & TEST_SWAP)
-					test_static_swap(data, pipe, output);
+					test_static_swap(data, pipe, output, flags);
 				if (flags & TEST_INVALID_METADATA_SIZES)
 					test_invalid_metadata_sizes(data, output);
 			}
