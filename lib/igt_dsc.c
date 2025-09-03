@@ -125,6 +125,31 @@ int igt_force_dsc_enable(int drmfd, char *connector_name)
 }
 
 /**
+ * igt_is_force_dsc_disabled:
+ * @drmfd: A drm file descriptor
+ * @connector_name: Name of the libdrm connector we're going to use
+ *
+ * Returns: True if DSC is force enable is disabled (via debugfs) for the given connector,
+ * false otherwise.
+ */
+bool igt_is_force_dsc_disabled(int drmfd, char *connector_name)
+{
+	return check_dsc_debugfs(drmfd, connector_name, "Force_DSC_Enable: no");
+}
+
+/**
+ * igt_force_dsc_disable:
+ * @drmfd: A drm file descriptor
+ * @connector_name: Name of the libdrm connector we're going to use
+ *
+ * Returns: 0 on success or negative error code, in case of failure.
+ */
+int igt_force_dsc_disable(int drmfd, char *connector_name)
+{
+	return write_dsc_debugfs(drmfd, connector_name, "i915_dsc_fec_support", "0");
+}
+
+/**
  * igt_force_dsc_enable_bpc:
  * @drmfd: A drm file descriptor
  * @connector_name: Name of the libdrm connector we're going to use
