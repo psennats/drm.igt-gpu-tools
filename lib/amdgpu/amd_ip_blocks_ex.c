@@ -4,6 +4,7 @@
  */
 
 #include <stdint.h>
+#include "ioctl_wrappers.h"
 #include "amd_ip_blocks.h"
 #include "amd_PM4.h"
 #include "amdgpu_asic_addr.h"
@@ -186,11 +187,43 @@ static void gfx_dispatch_direct_gfx11(
 	gfx_dispatch_direct_default(f, base, gx, gy, gz, 0x00000045);
 }
 
+static void gfx_emit_nops_default(struct amdgpu_cmd_base *base, uint32_t count)
+{
+	uint32_t i;
+
+	for (i = 0; i < count; i++)
+		base->emit(base, PACKET3(PACKET3_NOP, 0));
+}
+
+static void gfx_write_data_mem_default(
+	const struct amdgpu_ip_funcs *funcs,
+	struct amdgpu_cmd_base *base,
+	uint32_t engine_sel,
+	uint64_t dst_addr,
+	uint32_t value,
+	bool wr_confirm)
+{
+	uint32_t flags = WRITE_DATA_DST_SEL(5);	/* memory address */
+
+	flags |= WRITE_DATA_ENGINE_SEL(engine_sel);
+	if (wr_confirm)
+		flags |= WR_CONFIRM;
+
+	base->emit(base, PACKET3(PACKET3_WRITE_DATA, 3));
+	base->emit(base, flags);
+	base->emit(base, lower_32_bits(dst_addr));
+	base->emit(base, upper_32_bits(dst_addr));
+	base->emit(base, value);
+}
+
+
 void amd_ip_blocks_ex_init(struct amdgpu_ip_funcs *funcs)
 {
 	funcs->gfx_program_compute = gfx_program_compute_default;
 	funcs->gfx_dispatch_direct = gfx_dispatch_direct_default;
 	funcs->gfx_write_confirm = gfx_write_confirm_default;
+	funcs->gfx_emit_nops = gfx_emit_nops_default;
+	funcs->gfx_write_data_mem = gfx_write_data_mem_default;
 
 	switch (funcs->family_id) {
 	case AMDGPU_FAMILY_RV:

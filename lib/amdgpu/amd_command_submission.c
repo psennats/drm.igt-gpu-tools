@@ -690,3 +690,147 @@ void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 
 	free(ring_context);
 }
+
+/*
+ * Weak wrapper: use amdgpu_bo_cpu_cache_flush() if present (newer libdrm),
+ * otherwise act as a no-op to keep older libdrm builds working.
+ */
+extern int amdgpu_bo_cpu_cache_flush(amdgpu_bo_handle bo)
+	__attribute__((weak));
+
+static int local_bo_cpu_cache_flush(amdgpu_bo_handle bo)
+{
+	if (amdgpu_bo_cpu_cache_flush)
+		return amdgpu_bo_cpu_cache_flush(bo);
+	return 0;
+}
+
+void
+amdgpu_command_ce_write_fence(amdgpu_device_handle dev,
+					  amdgpu_context_handle ctx)
+{
+	int r;
+	const unsigned nop_dw = 256 * 1024;
+	const unsigned total_dw = nop_dw + 5;	/* NOPs + WRITE_DATA(5 DW) */
+	amdgpu_bo_handle dst_bo;
+	amdgpu_va_handle dst_va_handle;
+	uint64_t dst_mc_address;
+	uint32_t *dst_cpu;
+	amdgpu_bo_handle ib_bo;
+	amdgpu_va_handle ib_va_handle;
+	uint64_t ib_mc_address;
+	uint32_t *ib_cpu;
+	unsigned ib_size_bytes = total_dw * sizeof(uint32_t);
+	unsigned dw = 0;
+	bool do_cache_flush = true;
+	bool do_timing = true;
+	struct timespec ts_start;
+	uint64_t fence_delta_usec = 0, visible_delta_usec = 0;
+	struct amdgpu_cs_ib_info ib_info;
+	struct amdgpu_cs_request req;
+	struct amdgpu_cs_fence fence;
+	uint32_t expired = 0;
+	struct amdgpu_cmd_base *base = get_cmd_base();
+	const struct amdgpu_ip_block_version *ip_block =
+		get_ip_block(dev, AMD_IP_GFX);
+
+	/* destination buffer */
+	r = amdgpu_bo_alloc_and_map(dev, 4096, 4096,
+				    AMDGPU_GEM_DOMAIN_GTT, 0,
+				    &dst_bo, (void **)&dst_cpu,
+				    &dst_mc_address, &dst_va_handle);
+	igt_assert_eq(r, 0);
+	dst_cpu[0] = 0;
+	if (do_cache_flush) {
+		r = local_bo_cpu_cache_flush(dst_bo);
+		igt_assert_eq(r, 0);
+	}
+
+	/* command buffer (IB) */
+	r = amdgpu_bo_alloc_and_map(dev, ib_size_bytes, 4096,
+				    AMDGPU_GEM_DOMAIN_GTT, 0,
+				    &ib_bo, (void **)&ib_cpu,
+				    &ib_mc_address, &ib_va_handle);
+	igt_assert_eq(r, 0);
+
+	/* attach PM4 builder */
+	base->attach_buf(base, ib_cpu, ib_size_bytes);
+
+	/* large NOP train via hook */
+	ip_block->funcs->gfx_emit_nops(base, nop_dw);
+
+	/* CE WRITE_DATA (mem dst) via hook, write 0xdeadbeef to dst */
+	ip_block->funcs->gfx_write_data_mem(ip_block->funcs, base,
+					    2,			/* CE engine sel */
+					    dst_mc_address,
+					    0xdeadbeef,
+					    true);		/* WR_CONFIRM */
+
+	dw = base->cdw;
+	igt_assert_eq(dw, total_dw);
+
+	/* flush IB CPU caches if supported */
+	r = local_bo_cpu_cache_flush(ib_bo);
+	igt_assert_eq(r, 0);
+
+	/* submit CE IB */
+	memset(&ib_info, 0, sizeof(ib_info));
+	ib_info.ib_mc_address = ib_mc_address;
+	ib_info.size = dw;
+	ib_info.flags = AMDGPU_IB_FLAG_CE;
+
+	memset(&req, 0, sizeof(req));
+	req.ip_type = AMDGPU_HW_IP_GFX;
+	req.ring = 0;
+	req.number_of_ibs = 1;
+	req.ibs = &ib_info;
+	req.resources = NULL;
+	req.fence_info.handle = NULL;
+
+	if (do_timing)
+		igt_gettime(&ts_start);
+
+	r = amdgpu_cs_submit(ctx, 0, &req, 1);
+	igt_assert_eq(r, 0);
+
+	/* wait fence */
+	memset(&fence, 0, sizeof(fence));
+	fence.context = ctx;
+	fence.ip_type = req.ip_type;
+	fence.ip_instance = 0;
+	fence.ring = req.ring;
+	fence.fence = req.seq_no;
+	r = amdgpu_cs_query_fence_status(&fence,
+					 AMDGPU_TIMEOUT_INFINITE, 0, &expired);
+	igt_assert_eq(r, 0);
+	igt_assert(expired);
+	if (do_timing)
+		fence_delta_usec = igt_nsec_elapsed(&ts_start) / 1000;
+
+	/* poll until visible */
+	for (;;) {
+		if (do_cache_flush) {
+			r = local_bo_cpu_cache_flush(dst_bo);
+			igt_assert_eq(r, 0);
+		}
+		if (dst_cpu[0] == 0xdeadbeef) {
+			if (do_timing)
+				visible_delta_usec = igt_nsec_elapsed(&ts_start) / 1000;
+			break;
+		}
+		usleep(1000);
+	}
+
+	if (do_timing) {
+		igt_info("ce-write-fence: visible after %llu us (fence) and %llu us total\n",
+			 (unsigned long long)fence_delta_usec,
+			 (unsigned long long)visible_delta_usec);
+	}
+
+	igt_assert_eq(dst_cpu[0], 0xdeadbeef);
+
+	amdgpu_bo_unmap_and_free(ib_bo, ib_va_handle, ib_mc_address, ib_size_bytes);
+	amdgpu_bo_unmap_and_free(dst_bo, dst_va_handle, dst_mc_address, 4096);
+	free_cmd_base(base);
+}
+

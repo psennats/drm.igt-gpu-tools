@@ -258,6 +258,31 @@ struct amdgpu_ip_funcs {
 		struct amdgpu_cmd_base *base,
 		uint64_t dst_addr, uint32_t value
 	);
+
+	/* Emit 'count' PACKET3 NOPs on the GFX ring. */
+	void (*gfx_emit_nops)(
+		struct amdgpu_cmd_base *base,
+		uint32_t count
+	);
+
+	/*
+	 * Emit a PACKET3 WRITE_DATA targeting a memory address.
+	 *
+	 * @engine_sel: engine selection per packet encoding
+	 *              (e.g., ME=0, PFP=1, CE=2, MEC=3 when applicable)
+	 * @dst_addr:   destination GPU address (64-bit)
+	 * @value:      32-bit value to write
+	 * @wr_confirm: whether to set WR_CONFIRM in the packet
+	 */
+	void (*gfx_write_data_mem)(
+		const struct amdgpu_ip_funcs *funcs,
+		struct amdgpu_cmd_base *base,
+		uint32_t engine_sel,
+		uint64_t dst_addr,
+		uint32_t value,
+		bool wr_confirm
+	);
+
 };
 
 extern const struct amdgpu_ip_block_version gfx_v6_0_ip_block;

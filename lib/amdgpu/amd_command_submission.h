@@ -46,4 +46,7 @@ void amdgpu_command_submission_const_fill_helper(amdgpu_device_handle device,
 void amdgpu_command_submission_copy_linear_helper(amdgpu_device_handle device,
 						 const struct amdgpu_ip_block_version *ip_block,
 						 bool user_queue);
+
+void  amdgpu_command_ce_write_fence(amdgpu_device_handle dev,
+					  amdgpu_context_handle ctx);
 #endif
