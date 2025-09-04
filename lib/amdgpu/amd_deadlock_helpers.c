@@ -200,7 +200,6 @@ amdgpu_wait_memory(amdgpu_device_handle device_handle, unsigned int ip_type, uin
 
 	amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
 							 ib_result_mc_address, 4096);
-	amdgpu_cs_ctx_free(context_handle);
 	free_cmd_base(base_cmd);
 }
 
