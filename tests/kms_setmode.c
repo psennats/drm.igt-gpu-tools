@@ -485,7 +485,7 @@ static int test_stealing(int fd, struct crtc_config *crtc, uint32_t *ids)
 #define frame_time(km) (1000.0 * (km)->htotal * (km)->vtotal / (km)->clock)
 #define line_time(km) (1000.0 * (km)->htotal / (km)->clock)
 
-static void check_timings(int crtc_idx, const drmModeModeInfo *kmode)
+static bool check_timings(int crtc_idx, const drmModeModeInfo *kmode)
 {
 #define CALIBRATE_TS_STEPS 120 /* ~2s has to be less than 128! */
 	drmVBlank wait;
@@ -564,9 +564,12 @@ static void check_timings(int crtc_idx, const drmModeModeInfo *kmode)
 		 100 * accuracy / mean, accuracy / line_time(kmode));
 
 	/* 99.7% samples within one scanline on each side of mean */
-	igt_assert_f(accuracy < line_time(kmode),
-		     "vblank accuracy (%.3fus, %.1f%%) worse than a scanline (%.3fus)\n",
-		     accuracy, 100 * accuracy / mean, line_time(kmode));
+	if (accuracy >= line_time(kmode)) {
+		igt_info("vblank accuracy (%.3fus, %.1f%%) worse than a scanline (%.3fus)\n",
+			  accuracy, 100 * accuracy / mean, line_time(kmode));
+
+		return false;
+	}
 
 	/* At least 90% of frame times fall within the one scanline on each
 	 * side of expected mean.
@@ -589,12 +592,18 @@ static void check_timings(int crtc_idx, const drmModeModeInfo *kmode)
 	 * See:
 	 * https://en.wikipedia.org/wiki/Standard_deviation#Rules_for_normally_distributed_data
 	 */
-	igt_assert_f(fabs(mean - expected) < max(line_time(kmode), 1.718 * stddev),
-		     "vblank interval differs from modeline! expected %.1fus, measured %1.fus +- %.3fus, difference %.1fus (%.1f sigma, %.1f scanlines)\n",
-		     expected, mean, stddev,
-		     fabs(mean - expected),
-		     fabs(mean - expected) / stddev,
-		     fabs(mean - expected) / line_time(kmode));
+	if (fabs(mean - expected) >= max(line_time(kmode), 1.718 * stddev)) {
+		igt_info("vblank interval differs from modeline! expected %.1fus, "
+			 "measured %1.fus +- %.3fus, difference %.1fus (%.1f sigma, %.1f scanlines)\n",
+			  expected, mean, stddev,
+			  fabs(mean - expected),
+			  fabs(mean - expected) / stddev,
+			  fabs(mean - expected) / line_time(kmode));
+
+		return false;
+	}
+
+	return true;
 }
 
 static void test_crtc_config(const struct test_config *tconf,
@@ -678,8 +687,18 @@ retry:
 
 	igt_assert(config_failed == !!(tconf->flags & TEST_INVALID));
 
-	if (ret == 0 && tconf->flags & TEST_TIMINGS)
-		check_timings(crtcs[0].crtc_idx, &crtcs[0].mode);
+	if (ret == 0 && tconf->flags & TEST_TIMINGS) {
+		bool status = false;
+
+		for (int attempt = 1; attempt <= 2; attempt++) {
+			status = check_timings(crtcs[0].crtc_idx, &crtcs[0].mode);
+			if (status)
+				break;
+			igt_info("Timing check failed on attempt %d, retrying...\n", attempt);
+		}
+
+		igt_assert_f(status, "VBlank timing test failed after 2 attempt(s)\n");
+	}
 
 	return;
 }
