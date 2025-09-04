@@ -180,6 +180,7 @@ static void run_extendedmode_basic(data_t *data,
 
 static void run_extendedmode_test(data_t *data) {
 	enum pipe pipe1, pipe2;
+	bool sim_flag = igt_run_in_simulation();
 	igt_output_t *output1, *output2;
 	igt_display_t *display = &data->display;
 
@@ -215,12 +216,14 @@ static void run_extendedmode_test(data_t *data) {
 				}
 			}
 			/*
-			 * For simulation env, no need to run
-			 * test with each valid output on pipe.
+			 * In simulation env, only run the test once with a
+			 * single valid pipe/output pair instead of all combos.
 			 */
-			if (igt_run_in_simulation())
+			if (sim_flag)
 				break;
 		}
+		if (sim_flag)
+			break;
 	}
 }
 
