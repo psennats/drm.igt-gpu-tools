@@ -3496,8 +3496,8 @@ static void scaledprimary_subtest(const struct test_mode *t)
 	do_assertions(DONT_ASSERT_CRC);
 
 	/*
-	 * On gen >= 9 HW, FBC is not enabled on a plane with a Y offset
-	 * that isn't divisible by 4, because it causes FIFO underruns.
+	 * For display versions 9 through 12, FBC is not enabled on a plane with
+	 * a Y offset that isn't divisible by 4, because it causes FIFO underruns.
 	 *
 	 * Check that FBC is disabled.
 	 */
@@ -3505,7 +3505,7 @@ static void scaledprimary_subtest(const struct test_mode *t)
 			    reg->x + reg->w / 4, (reg->y + src_y_upscale) | 3);
 	igt_fb_set_size(&new_fb, reg->plane, reg->w / 2, reg->h / 2);
 	igt_display_commit2(&drm.display, COMMIT_UNIVERSAL);
-	do_assertions(DONT_ASSERT_CRC | (gen >= 9 ? ASSERT_FBC_DISABLED : 0));
+	do_assertions(DONT_ASSERT_CRC | ((gen >= 9 && gen <= 12) ? ASSERT_FBC_DISABLED : 0));
 
 	/* Back to the good and old blue fb. */
 	igt_plane_set_fb(reg->plane, old_fb);
