@@ -876,6 +876,7 @@ igt_main
 	device_t device;
 	uint32_t d3cold_allowed;
 	int sysfs_fd;
+	bool has_runtime_pm;
 
 	const struct s_state {
 		const char *name;
@@ -915,7 +916,7 @@ igt_main
 		test_exec(device, 1, 1, NO_SUSPEND, NO_RPM, 0);
 
 		igt_pm_get_d3cold_allowed(device.pci_slot_name, &d3cold_allowed);
-		igt_assert(igt_setup_runtime_pm(device.fd_xe));
+		has_runtime_pm = igt_setup_runtime_pm(device.fd_xe);
 		sysfs_fd = igt_sysfs_open(device.fd_xe);
 		device.res = drmModeGetResources(device.fd_xe);
 
@@ -954,6 +955,7 @@ igt_main
 
 		for (const struct d_state *d = d_states; d->name; d++) {
 			igt_subtest_f("%s-%s-basic-exec", s->name, d->name) {
+				igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 				igt_assert(setup_d3(device, d->state));
 				test_exec(device, 1, 2, s->state, NO_RPM, 0);
 				cleanup_d3(device);
@@ -970,18 +972,21 @@ igt_main
 
 	for (const struct d_state *d = d_states; d->name; d++) {
 		igt_subtest_f("%s-basic", d->name) {
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 			igt_assert(setup_d3(device, d->state));
 			igt_assert(in_d3(device, d->state));
 			cleanup_d3(device);
 		}
 
 		igt_subtest_f("%s-basic-exec", d->name) {
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 			igt_assert(setup_d3(device, d->state));
 			test_exec(device, 1, 1, NO_SUSPEND, d->state, 0);
 			cleanup_d3(device);
 		}
 
 		igt_subtest_f("%s-i2c", d->name) {
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 			igt_assert(setup_d3(device, d->state));
 			i2c_test(device, sysfs_fd, d->state);
 			igt_assert(in_d3(device, d->state));
@@ -989,6 +994,7 @@ igt_main
 		}
 
 		igt_subtest_f("%s-multiple-execs", d->name) {
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 			igt_assert(setup_d3(device, d->state));
 			test_exec(device, 16, 32, NO_SUSPEND, d->state, 0);
 			cleanup_d3(device);
@@ -997,6 +1003,7 @@ igt_main
 		igt_describe_f("Validate mmap memory mappings with system region,"
 			       "when device along with parent bridge in %s", d->name);
 		igt_subtest_f("%s-mmap-system", d->name) {
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 			igt_assert(setup_d3(device, d->state));
 			test_mmap(device, system_memory(device.fd_xe), 0,
 				  READ, d->state);
@@ -1008,7 +1015,10 @@ igt_main
 		igt_describe_f("Validate mmap memory mappings with vram region,"
 			     "when device along with parent bridge in %s", d->name);
 		igt_subtest_f("%s-mmap-vram", d->name) {
-			int delay_ms = igt_pm_get_autosuspend_delay(device.pci_xe);
+			int delay_ms;
+
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
+			delay_ms = igt_pm_get_autosuspend_delay(device.pci_xe);
 
 			/* Give some auto suspend delay to validate rpm active during page fault */
 			igt_pm_set_autosuspend_delay(device.pci_xe, 1000);
@@ -1026,6 +1036,7 @@ igt_main
 
 		igt_describe_f("Validate the contents of mocs registers over %s state", d->name);
 		igt_subtest_f("%s-mocs", d->name) {
+			igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 			igt_assert(setup_d3(device, d->state));
 			test_mocs_suspend_resume(device, NO_SUSPEND, d->state);
 			cleanup_d3(device);
@@ -1035,6 +1046,7 @@ igt_main
 	igt_describe("Validate whether card is limited to d3hot,"
 		     "if vram used > vram threshold");
 	igt_subtest("vram-d3cold-threshold") {
+		igt_require_f(has_runtime_pm, "Runtime PM not available\n");
 		orig_threshold = get_vram_d3cold_threshold(sysfs_fd);
 		igt_install_exit_handler(vram_d3cold_threshold_restore);
 		test_vram_d3cold_threshold(device, sysfs_fd);
@@ -1043,7 +1055,8 @@ igt_main
 	igt_fixture {
 		close(sysfs_fd);
 		igt_pm_set_d3cold_allowed(device.pci_slot_name, d3cold_allowed);
-		igt_restore_runtime_pm();
+		if (has_runtime_pm)
+			igt_restore_runtime_pm();
 		drmModeFreeResources(device.res);
 		drm_close_driver(device.fd_xe);
 	}
