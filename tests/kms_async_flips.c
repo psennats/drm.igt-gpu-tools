@@ -151,6 +151,7 @@ typedef struct {
 	bool linear_modifier;
 	unsigned int plane_format;
 	bool async_mod_formats;
+	bool single_pipe;
 } data_t;
 
 struct format_mod {
@@ -935,6 +936,9 @@ static void run_test(data_t *data, void (*test)(data_t *))
 			test_init_fbs(data);
 			test(data);
 		}
+		/* Restrict to single pipe in simulation */
+		if (data->single_pipe)
+			break;
 	}
 }
 
@@ -1213,8 +1217,10 @@ igt_main
 		test_init_ops(&data);
 		/* Devices without CRC can't run this test */
 		igt_require_pipe_crc(data.drm_fd);
-
+		if (igt_run_in_simulation())
+			data.single_pipe = true;
 		run_test(&data, test_crc);
+		data.single_pipe = false;
 	}
 
 	igt_describe("Use CRC to verify async flip scans out the correct framebuffer "
@@ -1223,9 +1229,11 @@ igt_main
 		test_init_ops(&data);
 		/* Devices without CRC can't run this test */
 		igt_require_pipe_crc(data.drm_fd);
-
+		if (igt_run_in_simulation())
+			data.single_pipe = true;
 		data.atomic_path = true;
 		run_test(&data, test_crc);
+		data.single_pipe = false;
 	}
 
 	igt_describe("Verify the async flip functionality after suspend and resume cycle");
@@ -1246,16 +1254,22 @@ igt_main
 		igt_require(is_intel_device(data.drm_fd));
 		test_init_ops(&data);
 		data.hang = true;
+		if (igt_run_in_simulation())
+			data.single_pipe = true;
 		run_test(&data, test_async_flip);
 		data.hang = false;
+		data.single_pipe = false;
 	}
 
 	igt_describe("Verify the async flip functionality after dpms cycle");
 	igt_subtest_with_dynamic("async-flip-dpms") {
 		test_init_ops(&data);
 		data.dpms = true;
+		if (igt_run_in_simulation())
+			data.single_pipe = true;
 		run_test(&data, test_async_flip);
 		data.dpms = false;
+		data.single_pipe = false;
 	}
 
 	igt_fixture {
