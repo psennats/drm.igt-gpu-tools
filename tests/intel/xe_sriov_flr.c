@@ -1012,13 +1012,13 @@ static void clear_tests(int pf_fd, int num_vfs, flr_exec_strategy exec_strategy)
 	};
 	const unsigned int num_checks = num_gts + 3;
 	struct subcheck checks[num_checks];
-	int i;
+	int i = 0, gt_id;
 
 	memset(mmio, 0, sizeof(mmio));
 
-	for (i = 0; i < num_gts; ++i) {
+	xe_for_each_gt(pf_fd, gt_id) {
 		gdata[i] = (struct ggtt_data){
-			.base = { .pf_fd = pf_fd, .num_vfs = num_vfs, .gt = i },
+			.base = { .pf_fd = pf_fd, .num_vfs = num_vfs, .gt = gt_id },
 			.mmio = &xemmio
 		};
 		checks[i] = (struct subcheck){
@@ -1029,6 +1029,7 @@ static void clear_tests(int pf_fd, int num_vfs, flr_exec_strategy exec_strategy)
 			.verify_vf = ggtt_subcheck_verify_vf,
 			.cleanup = ggtt_subcheck_cleanup
 		};
+		i++;
 	}
 	checks[i++] = (struct subcheck) {
 		.data = (struct subcheck_data *)&ldata,
