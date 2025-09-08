@@ -271,6 +271,12 @@ static int safe_pipe_read(int pipe[2], void *buf, int nbytes, int timeout_ms)
 		if (!ret) {
 			catch_child_failure();
 			t += interval_ms;
+		} else if (ret == -1) {
+			if (errno == EINTR) {
+				ret = 0;
+				continue;
+			}
+			return -errno;
 		}
 	} while (!ret && t < timeout_ms);
 
