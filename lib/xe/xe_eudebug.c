@@ -1106,6 +1106,9 @@ static void *debugger_worker_loop(void *data)
 		ret = poll(&p, 1, timeout_ms);
 
 		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+
 			igt_info("poll failed with errno %d\n", errno);
 			break;
 		}
