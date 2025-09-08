@@ -927,12 +927,13 @@ bool xe_has_media_gt(int fd)
 uint16_t xe_gt_type(int fd, int gt)
 {
 	struct xe_device *xe_dev = find_in_cache(fd);
+	const struct drm_xe_gt *xe_gt;
 
 	igt_assert(xe_dev);
-	igt_assert_f(gt >= 0 && gt < xe_number_gt(fd),
-		     "gt %d out of range [0..%d)\n", gt, xe_number_gt(fd));
+	xe_gt = drm_xe_get_gt(xe_dev, gt);
+	igt_assert(xe_gt);
 
-	return xe_dev->gt_list->gt_list[gt].type;
+	return xe_gt->type;
 }
 
 /**
