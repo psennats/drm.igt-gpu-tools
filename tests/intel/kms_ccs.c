@@ -812,7 +812,7 @@ static struct igt_fb *get_fb(data_t *data, u64 modifier, double r, double g,
 		fb = get_fb(data, modifier, r, g, b, width, height,
 			    data->format);
 
-		igt_xe2_blit_with_dst_pat(fb, temp_fb, intel_get_pat_idx_wt(fb->fd));
+		igt_xe2_blit_with_dst_pat(fb, temp_fb, intel_get_pat_idx_uc_comp(fb->fd));
 		access_flat_ccs_surface(fb, true);
 		return fb;
 
