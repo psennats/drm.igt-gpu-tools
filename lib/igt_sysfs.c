@@ -226,6 +226,7 @@ int igt_sysfs_open(int device)
 char *xe_sysfs_gt_path(int xe_device, int gt, char *path, int pathlen)
 {
 	struct stat st;
+	struct xe_device *xe_dev;
 
 	if (xe_device < 0)
 		return NULL;
@@ -233,12 +234,12 @@ char *xe_sysfs_gt_path(int xe_device, int gt, char *path, int pathlen)
 	if (igt_debug_on(fstat(xe_device, &st)) || igt_debug_on(!S_ISCHR(st.st_mode)))
 		return NULL;
 
-	if (IS_PONTEVECCHIO(intel_get_drm_devid(xe_device)))
-		snprintf(path, pathlen, "/sys/dev/char/%d:%d/device/tile%d/gt%d",
-			 major(st.st_rdev), minor(st.st_rdev), gt, gt);
-	else
-		snprintf(path, pathlen, "/sys/dev/char/%d:%d/device/tile0/gt%d",
-			 major(st.st_rdev), minor(st.st_rdev), gt);
+	xe_dev = xe_device_get(xe_device);
+
+	igt_assert(xe_dev);
+
+	snprintf(path, pathlen, "/sys/dev/char/%d:%d/device/tile%d/gt%d",
+		 major(st.st_rdev), minor(st.st_rdev), xe_get_tile(xe_dev, gt), gt);
 
 	if (!access(path, F_OK))
 		return path;
@@ -307,7 +308,7 @@ char *
 xe_sysfs_engine_path(int xe_device, int gt, int class, char *path, int pathlen)
 {
 	struct stat st;
-	int tile = IS_PONTEVECCHIO(intel_get_drm_devid(xe_device)) ? gt : 0;
+	char base_path[96];
 
 	if (xe_device < 0)
 		return NULL;
@@ -315,8 +316,8 @@ xe_sysfs_engine_path(int xe_device, int gt, int class, char *path, int pathlen)
 	if (igt_debug_on(fstat(xe_device, &st)) || igt_debug_on(!S_ISCHR(st.st_mode)))
 		return NULL;
 
-	snprintf(path, pathlen, "/sys/dev/char/%d:%d/device/tile%d/gt%d/engines/%s",
-		 major(st.st_rdev), minor(st.st_rdev), tile, gt,
+	xe_sysfs_gt_path(xe_device, gt, base_path, sizeof(base_path));
+	snprintf(path, pathlen, "%s/engines/%s", base_path,
 		 xe_engine_class_short_string(class));
 
 	if (!access(path, F_OK))

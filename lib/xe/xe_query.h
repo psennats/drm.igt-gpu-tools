@@ -39,6 +39,9 @@ struct xe_device {
 	/** @gt_mask: bitmask of GT IDs */
 	uint64_t gt_mask;
 
+	/** @tile_mask: bitmask of Tile IDs */
+	uint64_t tile_mask;
+
 	/** @memory_regions: bitmask of all memory regions */
 	uint64_t memory_regions;
 
@@ -101,6 +104,7 @@ unsigned int xe_dev_max_gt(int fd);
 uint64_t all_memory_regions(int fd);
 uint64_t system_memory(int fd);
 const struct drm_xe_gt *drm_xe_get_gt(struct xe_device *xe_dev, int gt_id);
+int xe_get_tile(struct xe_device *xe_dev, int gt_id);
 uint64_t vram_memory(int fd, int gt);
 uint64_t vram_if_possible(int fd, int gt);
 struct drm_xe_engine *xe_engines(int fd);
