@@ -359,6 +359,13 @@ igt_main
 						      modifier_str(modifier_idx))
 						draw_method_subtest(method, format_idx,
 								    modifier);
+					/*
+					 * In simulation env, limit test runtime by checking
+					 * only first supported format instead of iterating
+					 * all formats.
+					 */
+					if (igt_run_in_simulation())
+						break;
 				}
 			}
 			if (!found_supported_format)
