@@ -1151,6 +1151,8 @@ run_tests_for_pipe(data_t *data)
 							       ctm_tests[i].fb_colors,
 							       ctm_tests[i].ctm,
 							       ctm_tests[i].iter);
+				if (igt_run_in_simulation())
+					break;
 			}
 		}
 	}
@@ -1162,6 +1164,9 @@ run_tests_for_pipe(data_t *data)
 	igt_subtest_with_dynamic("deep-color") {
 		for_each_pipe(&data->display, pipe) {
 			run_deep_color_tests_for_pipe(data, pipe);
+
+			if (igt_run_in_simulation())
+				break;
 		}
 	}
 }
