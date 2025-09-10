@@ -514,7 +514,7 @@ uint64_t xe_bo_mmap_offset(int fd, uint32_t bo)
 	return mmo.offset;
 }
 
-static void *__xe_bo_map(int fd, uint16_t bo, size_t size, int prot)
+static void *__xe_bo_map(int fd, uint32_t bo, size_t size, int prot)
 {
 	uint64_t mmo;
 	void *map;
