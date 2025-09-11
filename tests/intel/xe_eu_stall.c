@@ -648,7 +648,7 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 {
 	bool blocking_read = true;
 	struct xe_device *xe_dev;
-	int drm_fd, idx;
+	int drm_fd;
 	uint32_t devid;
 	struct stat sb;
 
@@ -665,10 +665,8 @@ igt_main_args("e:g:o:r:u:w:", long_options, help_str, opt_handler, NULL)
 		query_eu_stall_data = xe_dev->eu_stall;
 		igt_assert(query_eu_stall_data->num_sampling_rates > 0);
 		/* If the user doesn't pass a sampling rate, use a mid sampling rate */
-		if (p_rate == 0) {
-			idx = query_eu_stall_data->num_sampling_rates / 2;
-			p_rate = query_eu_stall_data->sampling_rates[idx];
-		}
+		if (p_rate == 0)
+			p_rate = query_eu_stall_data->sampling_rates[0];
 
 		if (output_file) {
 			output = fopen(output_file, "w");
