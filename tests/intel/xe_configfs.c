@@ -9,6 +9,7 @@
 #include "igt_device.h"
 #include "igt_fs.h"
 #include "igt_kmod.h"
+#include "igt_sriov_device.h"
 #include "igt_sysfs.h"
 #include "xe/xe_query.h"
 
@@ -146,10 +147,12 @@ igt_main
 {
 	int fd, configfs_fd, configfs_device_fd;
 	uint32_t devid;
+	bool is_vf_device;
 
 	igt_fixture {
 		fd = drm_open_driver(DRIVER_XE);
 		devid = intel_get_drm_devid(fd);
+		is_vf_device = intel_is_vf_device(fd);
 		set_bus_addr(fd);
 		drm_close_driver(fd);
 
@@ -162,6 +165,7 @@ igt_main
 	igt_describe("Validate survivability mode");
 	igt_subtest("survivability-mode") {
 		igt_require(IS_BATTLEMAGE(devid));
+		igt_require_f(!is_vf_device, "survivability mode not supported in VF\n");
 		test_survivability_mode(configfs_device_fd);
 	}
 
