@@ -39,12 +39,14 @@ static struct param {
 	int vram_percent;
 	int min_size_kb;
 	int max_size_kb;
+	bool user_set_max_size;
 	bool verify;
 } params = {
 	.num_objs = 0,
 	.vram_percent = OVERCOMMIT_VRAM_PERCENT,
 	.min_size_kb = MIN_OBJ_KB,
 	.max_size_kb = MAX_OBJ_KB,
+	.user_set_max_size = false,
 };
 
 struct object {
@@ -343,6 +345,35 @@ static void set_config(int fd, uint32_t flags, const struct param *param,
 	igt_debug("nproc: %d, mem per proc: %dMB\n", nproc, config->mb_per_proc);
 }
 
+static void adjust_params_for_vram_size(uint64_t vram_sz)
+{
+	int recommended_max_size_kb;
+	int max_object_mb = vram_sz / MIN_OBJ_KB;
+
+	/* max_object_mb clamped between 2MB and 256MB */
+	max_object_mb = max_t(int, 2, min_t(int, max_object_mb, 256));
+	recommended_max_size_kb = max_object_mb * 1024;
+
+	igt_info("Detected VRAM (%"PRIu64"MB): Using %d%% for test, max object size: %dMB ",
+		 vram_sz, params.vram_percent, max_object_mb);
+
+	if (params.user_set_max_size) {
+		if (params.max_size_kb > recommended_max_size_kb) {
+			igt_warn("User specified size (%dMB) may not "
+				 "be optimal for %"PRIu64"MB VRAM "
+				 "(recommended size: %dMB)", params.max_size_kb / 1024, vram_sz,
+				 recommended_max_size_kb / 1024);
+		} else {
+			igt_info("Using user max object size: %dMB (recommended: %dMB)",
+				 params.max_size_kb / 1024, recommended_max_size_kb / 1024);
+		}
+	} else {
+		params.max_size_kb = recommended_max_size_kb;
+		igt_info("Adjusted settings: %d%% VRAM, %dMB max object\n",
+			 params.vram_percent, params.max_size_kb / 1024);
+	}
+}
+
 static void evict_ccs(int fd, uint32_t flags, const struct param *param)
 {
 	struct config config;
@@ -440,6 +471,7 @@ static int opt_handler(int opt, int opt_index, void *data)
 		break;
 	case 'S':
 		params.max_size_kb = atoi(optarg);
+		params.user_set_max_size = true;
 		igt_debug("Max size kb: %d\n", params.max_size_kb);
 		break;
 	case 'V':
@@ -492,6 +524,7 @@ igt_main_args("bdDn:p:s:S:V", NULL, help_str, opt_handler, NULL)
 		{ },
 	};
 	uint64_t vram_size;
+	uint64_t vram_mb;
 	bool has_flatccs;
 	int fd;
 
@@ -500,6 +533,11 @@ igt_main_args("bdDn:p:s:S:V", NULL, help_str, opt_handler, NULL)
 		igt_require(xe_has_vram(fd));
 		vram_size = xe_visible_vram_size(fd, 0);
 		igt_assert(vram_size);
+		vram_mb = vram_size / (1024 * 1024);
+		/* Adjust when resizable-BAR is turned off in BIOS */
+		if (vram_mb <= 256)
+			adjust_params_for_vram_size(vram_mb);
+
 		has_flatccs = HAS_FLATCCS(intel_get_drm_devid(fd));
 	}
 
