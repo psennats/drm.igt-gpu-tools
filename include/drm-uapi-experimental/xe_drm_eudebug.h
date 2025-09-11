@@ -19,9 +19,9 @@ extern "C" {
  */
 
 /* XXX: BEGIN section moved from xe_drm.h as temporary solution */
-#define DRM_XE_EUDEBUG_CONNECT		0x0c
-#define DRM_XE_DEBUG_METADATA_CREATE	0x0d
-#define DRM_XE_DEBUG_METADATA_DESTROY	0x0e
+#define DRM_XE_EUDEBUG_CONNECT		0x0e
+#define DRM_XE_DEBUG_METADATA_CREATE	0x0f
+#define DRM_XE_DEBUG_METADATA_DESTROY	0x10
 
 /* ... */
 
