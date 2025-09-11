@@ -69,12 +69,12 @@ void xe_spin_init(struct xe_spin *spin, struct xe_spin_opts *opts)
 		spin->batch[b++] = CS_GPR(START_TS);
 	}
 
-	loop_addr = opts->addr + b * sizeof(uint32_t);
-
 	spin->batch[b++] = MI_STORE_DWORD_IMM_GEN4;
 	spin->batch[b++] = start_addr;
 	spin->batch[b++] = start_addr >> 32;
 	spin->batch[b++] = 0xc0ffee;
+
+	loop_addr = opts->addr + b * sizeof(uint32_t);
 
 	if (opts->preempt)
 		spin->batch[b++] = MI_ARB_CHECK;
