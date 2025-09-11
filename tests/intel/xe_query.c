@@ -196,9 +196,9 @@ test_query_engines(int fd)
 
 	xe_for_each_engine(fd, hwe) {
 		igt_assert(hwe);
-		igt_info("engine %d: %s, engine instance: %d, tile: TILE-%d\n", i++,
-			 xe_engine_class_string(hwe->engine_class), hwe->engine_instance,
-								    hwe->gt_id);
+		igt_info("engine %d: %s, engine instance: %d, gt: GT-%d, tile: TILE-%d\n",
+			i++, xe_engine_class_string(hwe->engine_class),
+			hwe->engine_instance, hwe->gt_id, xe_gt_get_tile_id(fd, hwe->gt_id));
 	}
 
 	igt_assert_lt(0, i);
