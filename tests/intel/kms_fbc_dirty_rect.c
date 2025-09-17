@@ -73,6 +73,7 @@ typedef struct {
 		FEATURE_COUNT = 8,
 		FEATURE_DEFAULT = 8,
 	} feature;
+	bool is_simulation;
 } data_t;
 
 static void set_damage_clip_w(struct drm_mode_rect *damage, int x1, int y1, int width, int height)
@@ -449,12 +450,16 @@ igt_main
 		igt_display_require_output(&data.display);
 		igt_require_f(intel_display_ver(intel_get_drm_devid(data.drm_fd)) >= 30,
 			      "FBC with dirty region is not supported\n");
+		data.is_simulation = igt_run_in_simulation();
 	}
 
 	igt_subtest_with_dynamic("fbc-dirty-rectangle-out-visible-area") {
+		bool single_pipe = false;
 		data.feature = FEATURE_FBC;
 
 		for_each_pipe(&data.display, data.pipe) {
+			if (single_pipe)
+				break;
 			for_each_valid_output_on_pipe(&data.display, data.pipe, data.output) {
 				data.format = DRM_FORMAT_XRGB8888;
 
@@ -464,14 +469,20 @@ igt_main
 					fbc_dirty_rectangle_test(&data,
 						fbc_dirty_rectangle_outside_visible_region);
 				}
+				single_pipe = data.is_simulation;
+				if (single_pipe)
+					break;
 			}
 		}
 	}
 
 	igt_subtest_with_dynamic("fbc-dirty-rectangle-dirtyfb-tests") {
+		bool single_pipe = false;
 		data.feature = FEATURE_FBC;
 
 		for_each_pipe(&data.display, data.pipe) {
+			if (single_pipe)
+				break;
 			for_each_valid_output_on_pipe(&data.display, data.pipe, data.output) {
 				data.format = DRM_FORMAT_XRGB8888;
 
@@ -481,6 +492,9 @@ igt_main
 					fbc_dirty_rectangle_test(&data,
 							fbc_dirty_rectangle_dirtyfb);
 				}
+				single_pipe = data.is_simulation;
+				if (single_pipe)
+					break;
 			}
 		}
 	}
@@ -488,12 +502,13 @@ igt_main
 	igt_subtest_with_dynamic("fbc-dirty-rectangle-different-formats") {
 		uint32_t formats[] = {DRM_FORMAT_XRGB8888, DRM_FORMAT_ARGB8888, DRM_FORMAT_RGB565};
 		int num_formats = ARRAY_SIZE(formats);
-
+		bool single_pipe = false;
 		data.feature = FEATURE_FBC;
 
 		for_each_pipe(&data.display, data.pipe) {
+			if (single_pipe)
+				break;
 			for_each_valid_output_on_pipe(&data.display, data.pipe, data.output) {
-
 				for (int i = 0; i < num_formats; i++) {
 					igt_dynamic_f("pipe-%s-%s-format-%s",
 						       kmstest_pipe_name(data.pipe),
@@ -504,6 +519,9 @@ igt_main
 							fbc_dirty_rectangle_basic);
 					}
 				}
+				single_pipe = data.is_simulation;
+				if (single_pipe)
+					break;
 			}
 		}
 	}
