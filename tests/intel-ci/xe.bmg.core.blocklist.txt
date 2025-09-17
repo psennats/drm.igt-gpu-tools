@@ -56,6 +56,8 @@ igt@xe_eudebug_online@.*
 igt@xe_exec_sip@.*
 igt@xe_exec_sip_eudebug@.*
 igt@xe_live_ktest@xe_eudebug
+igt@xe_eudebug_sriov@deny-sriov
+igt@xe_eudebug_sriov@deny-eudebug
 ##################################################################
 # Expected Skip as per the current behaviour
 ##################################################################
@@ -71,4 +73,17 @@ igt@xe_evict@evict-(beng-)?mixed-many-threads-small$
 igt@xe_evict@evict-(beng-)?mixed-threads-large$
 igt@xe_evict@evict-(beng-)?threads-large$
 igt@xe_evict@evict-(beng-)?large-multi-vm-cm$
+##################################################################
+# pxp support not available for BMG
+##################################################################
+igt@xe_pxp@(?!pxp-bo-alloc$|pxp-queue-alloc$).*
+##################################################################
+# I2c tests needs AMC capable BMG in CI
+##################################################################
+igt@xe_pm@d3hot-i2c
+##################################################################
+# Hugepages tests needs extra setting in CI
+# echo 128 >  /proc/sys/vm/nr_hugepages
+##################################################################
+igt@xe_exec_system_allocator@.*huge.*
 ##################################################################

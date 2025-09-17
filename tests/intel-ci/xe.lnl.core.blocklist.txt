@@ -22,6 +22,8 @@ igt@xe_noexec_ping_pong
 igt@xe_pm@d3-mmap-vram
 igt@xe_pm@d3hot-mmap-vram
 igt@xe_sysfs_tile@physical_vram_size_bytes
+igt@xe_vm@out-of-memory
+igt@xe_compute_preempt@compute-preempt-many-vram.*
 ##################################################################
 # No d3cold support for LNL
 ##################################################################
@@ -82,4 +84,16 @@ igt@xe_live_ktest@xe_eudebug
 ##################################################################
 igt@xe_oa@oa-tlb-invalidate
 igt@xe_oa@unprivileged-single-ctx-counters
+igt@xe_pmu@.*fn.*
+igt@xe_mmap@pci-membarrier.*
+igt@xe_module_load@force-load
+##################################################################
+# I2c tests needs AMC capable machines in CI
+#################################################################
+igt@xe_pm@d3hot-i2c
+##################################################################
+# Hugepages tests needs extra setting in CI
+# echo 128 >  /proc/sys/vm/nr_hugepages
+##################################################################
+igt@xe_exec_system_allocator@.*huge.*
 ##################################################################
