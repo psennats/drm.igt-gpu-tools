@@ -55,7 +55,7 @@
 IGT_TEST_DESCRIPTION(
    "Use the display CRC support to validate mmap write to an already uncached future scanout buffer.");
 
-#define ROUNDS 10
+#define ROUNDS (igt_run_in_simulation() ? 5 : 10)
 
 typedef struct {
 	int drm_fd;
