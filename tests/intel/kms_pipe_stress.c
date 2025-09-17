@@ -610,7 +610,7 @@ static void stress_pipes(struct data *data, struct timespec *start,
 }
 
 #define MIN_DURATION_SEC 5.0
-#define MIN_ITERATIONS 20
+#define MIN_ITERATIONS (igt_run_in_simulation() ? 5 : 20)
 
 static void stress(struct data *data)
 {
