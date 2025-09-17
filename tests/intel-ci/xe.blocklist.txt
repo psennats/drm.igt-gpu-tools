@@ -110,13 +110,6 @@ igt@sriov_basic@enable-vfs-autoprobe-on$
 igt@sriov_basic@enable-vfs-bind-unbind-each$
 igt@sriov_basic@bind-unbind-vf$
 ##################################################################
-# Exclude xe_evict tests that are not expected to succeed
-# due to missing TTM exhaustive eviction
-##################################################################
-igt@xe_evict@.*-multi-vm-cm.*
-igt@xe_evict@.*-threads-.*
-# igt@xe_evict@.*-cm.* # Rebind and VM_BIND may race.
-##################################################################
 # Chamelium V1 HDMI receiver supports a maximum resolution
 # of 4K @ 30Hz. This test enforces an EDID with 4K @ 60Hz,
 # which exceeds the capabilities of V1 hardware and results
