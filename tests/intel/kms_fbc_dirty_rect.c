@@ -510,6 +510,10 @@ igt_main
 				break;
 			for_each_valid_output_on_pipe(&data.display, data.pipe, data.output) {
 				for (int i = 0; i < num_formats; i++) {
+					/* on simulation platforms , limit to single format */
+					if (data.is_simulation && i > 0)
+						break;
+
 					igt_dynamic_f("pipe-%s-%s-format-%s",
 						       kmstest_pipe_name(data.pipe),
 						       igt_output_name(data.output),
