@@ -517,6 +517,46 @@ static void __aligned_partial_free(struct aligned_alloc_type  *aligned_alloc_typ
  * SUBTEST: madvise-atomic-inc
  * Description: Tests madvise atomic operations
  * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-max-pat-index-multi-vma
+ * Description: Tests madvise max pat index multi operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-max-pat-index-single-vma
+ * Description: Test madvise with max pat index single operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-uc-comp-single-vma
+ * Description: Tests madvise with uc-comp single operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-uc-comp-multi-vma
+ * Description: Tests madvise with uc-comp multi operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-uc-multi-vma
+ * Description: Tests madvise with uc multi operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-uc-single-vma
+ * Description: Tests madvise with uc single operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-wb-multi-vma
+ * Description: Tests madvise with wb multi operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-wb-single-vma
+ * Description: Tests madvise with wb single operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-wt-multi-vma
+ * Description: Tests madvise with wt multi operations
+ * Test category: functionality test
+ *
+ * SUBTEST: pat-index-madvise-pat-idx-wt-single-vma
+ * Description: Tests madvise with wt single operations
+ * Test category: functionality test
  */
 
 static void
@@ -863,6 +903,7 @@ partial(int fd, struct drm_xe_engine_class_instance *eci, unsigned int flags)
 #define PREFETCH_SAME_ATTR		(0x1ull << 39)
 #define PREFERRED_LOC_ATOMIC_UND	(0x1ull << 40)
 #define MADVISE_ATOMIC_DEVICE		(0x1ull << 41)
+#define MADVISE_PAT_INDEX		(0x1ull << 42)
 
 #define N_MULTI_FAULT		4
 
@@ -1130,7 +1171,7 @@ xe_vm_parse_execute_madvise(int fd, uint32_t vm, struct test_exec_data *data,
 			    size_t bo_size,
 			    struct drm_xe_engine_class_instance *eci,
 			    uint64_t addr, unsigned long long flags,
-			    struct drm_xe_sync *sync)
+			    struct drm_xe_sync *sync, uint8_t (*pat_value)(int))
 {
 	uint32_t bo_flags, bo = 0;
 
@@ -1204,32 +1245,74 @@ xe_vm_parse_execute_madvise(int fd, uint32_t vm, struct test_exec_data *data,
 		xe_vm_madvise_atomic_attr(fd, vm, to_user_pointer(data), bo_size / 2,
 					  DRM_XE_ATOMIC_GLOBAL);
 	}
+
+	if (flags & MADVISE_PAT_INDEX) {
+		uint32_t num_ranges;
+		struct drm_xe_mem_range_attr *mem_attrs;
+
+		if (bo_size)
+			bo_size = ALIGN(bo_size, SZ_4K);
+
+		if (flags & MADVISE_MULTI_VMA) {
+			xe_vm_madvixe_pat_attr(fd, vm, to_user_pointer(data) + bo_size,
+					       bo_size / 2, pat_value(fd));
+			xe_vm_madvixe_pat_attr(fd, vm, to_user_pointer(data), bo_size,
+					       pat_value(fd));
+			xe_vm_madvixe_pat_attr(fd, vm, to_user_pointer(data) + bo_size / 2,
+					       bo_size / 4, pat_value(fd));
+		} else {
+			xe_vm_madvixe_pat_attr(fd, vm, to_user_pointer(data), bo_size,
+					       pat_value(fd));
+		}
+
+		mem_attrs = xe_vm_get_mem_attr_values_in_range(fd, vm, addr, bo_size, &num_ranges);
+		if (!mem_attrs) {
+			igt_debug("Failed to get memory attributes\n");
+			return;
+		}
+
+		for (uint32_t i = 0; i < num_ranges; i++)
+			igt_assert_eq_u32(mem_attrs[i].pat_index.val, pat_value(fd));
+
+		free(mem_attrs);
+	}
 }
 
 static void
 madvise_prefetch_op(int fd, uint32_t vm, uint64_t addr, size_t bo_size,
 		    unsigned long long flags, struct test_exec_data *data)
 {
-	uint32_t val;
+	struct drm_xe_mem_range_attr *mem_attrs;
+	uint32_t num_ranges;
 
 	if (flags & PREFETCH_SPLIT_VMA) {
 		bo_size = ALIGN(bo_size, SZ_4K);
 
 		xe_vm_prefetch_async(fd, vm, 0, 0, addr, bo_size, NULL, 0, 0);
 
-		val = xe_vm_print_mem_attr_values_in_range(fd, vm, addr,  bo_size);
-
-		igt_debug("num_vmas before madvise = %d\n", val);
+		mem_attrs = xe_vm_get_mem_attr_values_in_range(fd, vm, addr, bo_size, &num_ranges);
+		if (!mem_attrs) {
+			igt_info("Failed to get memory attributes\n");
+			return;
+		}
 
 		xe_vm_madvise_migrate_pages(fd, vm, to_user_pointer(data), bo_size / 2);
 
-		val = xe_vm_print_mem_attr_values_in_range(fd, vm, addr,  bo_size);
+		mem_attrs = xe_vm_get_mem_attr_values_in_range(fd, vm, addr, bo_size, &num_ranges);
+		if (!mem_attrs) {
+			igt_info("Failed to get memory attributes\n");
+			return;
+		}
 
-		igt_debug("num_vmas after madvise= %d\n", val);
 	} else if (flags & PREFETCH_SAME_ATTR) {
 		xe_vm_madvise_atomic_attr(fd, vm, to_user_pointer(data), bo_size,
 					  DRM_XE_ATOMIC_GLOBAL);
-		val = xe_vm_print_mem_attr_values_in_range(fd, vm, addr,  bo_size);
+
+		mem_attrs = xe_vm_get_mem_attr_values_in_range(fd, vm, addr, bo_size, &num_ranges);
+		if (!mem_attrs) {
+			igt_info("Failed to get memory attributes\n");
+			return;
+		}
 
 		xe_vm_prefetch_async(fd, vm, 0, 0, addr, bo_size, NULL, 0,
 				     DRM_XE_CONSULT_MEM_ADVISE_PREF_LOC);
@@ -1240,16 +1323,19 @@ madvise_prefetch_op(int fd, uint32_t vm, uint64_t addr, size_t bo_size,
 		xe_vm_madvise_atomic_attr(fd, vm, to_user_pointer(data), bo_size,
 					  DRM_XE_ATOMIC_GLOBAL);
 
-		val = xe_vm_print_mem_attr_values_in_range(fd, vm, addr,  bo_size);
+		mem_attrs = xe_vm_get_mem_attr_values_in_range(fd, vm, addr, bo_size, &num_ranges);
+		if (!mem_attrs) {
+			igt_info("Failed to get memory attributes\n");
+			return;
 
 		xe_vm_prefetch_async(fd, vm, 0, 0, addr, bo_size, NULL, 0,
 				     DRM_XE_CONSULT_MEM_ADVISE_PREF_LOC);
 
 		xe_vm_madvise_atomic_attr(fd, vm, to_user_pointer(data), bo_size,
 					  DRM_XE_ATOMIC_DEVICE);
-
-		val = xe_vm_print_mem_attr_values_in_range(fd, vm, addr,  bo_size);
+		}
 	}
+	free(mem_attrs);
 }
 
 static void
@@ -1275,7 +1361,7 @@ static void
 test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	  int n_exec_queues, int n_execs, size_t bo_size,
 	  size_t stride, uint32_t vm, void *alloc, pthread_barrier_t *barrier,
-	  unsigned long long flags)
+	  unsigned long long flags, uint8_t (*pat_value)(int))
 {
 	uint64_t addr;
 	struct drm_xe_sync sync[1] = {
@@ -1407,7 +1493,8 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 	addr = to_user_pointer(data);
 
 	if (flags & MADVISE_OP)
-		xe_vm_parse_execute_madvise(fd, vm, data, bo_size, eci, addr, flags, sync);
+		xe_vm_parse_execute_madvise(fd, vm, data, bo_size, eci, addr, flags, sync,
+					    pat_value);
 
 	if (flags & BO_UNMAP) {
 		bo_flags = DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
@@ -1528,7 +1615,8 @@ test_exec(int fd, struct drm_xe_engine_class_instance *eci,
 			next_data = aligned_alloc_type.ptr;
 			igt_assert(next_data);
 
-			xe_vm_parse_execute_madvise(fd, vm, data, bo_size, eci, addr, flags, sync);
+			xe_vm_parse_execute_madvise(fd, vm, data, bo_size, eci, addr, flags, sync,
+						    pat_value);
 			__aligned_partial_free(&aligned_alloc_type);
 
 			b = 0;
@@ -1895,7 +1983,7 @@ static void *thread(void *data)
 
 	test_exec(t->fd, t->eci, t->n_exec_queues, t->n_execs,
 		  t->bo_size, t->stride, t->vm, t->alloc, t->barrier,
-		  t->flags | THREADS);
+		  t->flags | THREADS, NULL);
 
 	return NULL;
 }
@@ -2013,7 +2101,7 @@ static void process(struct drm_xe_engine_class_instance *hwe, int n_exec_queues,
 
 	fd = drm_open_driver(DRIVER_XE);
 	test_exec(fd, hwe, n_exec_queues, n_execs,
-		  bo_size, stride, 0, NULL, NULL, flags | PROCESSES);
+		  bo_size, stride, 0, NULL, NULL, flags | PROCESSES, NULL);
 	drm_close_driver(fd);
 
 	close(map_fd);
@@ -2108,6 +2196,7 @@ test_compute(int fd, struct drm_xe_engine_class_instance *eci, size_t size)
 struct section {
 	const char *name;
 	unsigned long long flags;
+	uint8_t (*fn)(int pat);
 };
 
 igt_main
@@ -2240,6 +2329,31 @@ igt_main
 		  MADVISE_OP | PREFETCH | PREFETCH_SAME_ATTR | ATOMIC_BATCH },
 		{ NULL },
 	};
+
+	const struct section intel_get_pat_idx_functions[] = {
+		{ "madvise-pat-idx-wb-single-vma", MADVISE_OP | MADVISE_PAT_INDEX,
+		  intel_get_pat_idx_wb },
+		{ "madvise-pat-idx-wb-multi-vma", MADVISE_OP | MADVISE_PAT_INDEX |
+		  MADVISE_MULTI_VMA, intel_get_pat_idx_wb },
+		{ "madvise-pat-idx-wt-single-vma", MADVISE_OP | MADVISE_PAT_INDEX,
+		  intel_get_pat_idx_wt },
+		{ "madvise-pat-idx-wt-multi-vma", MADVISE_OP | MADVISE_PAT_INDEX |
+		   MADVISE_MULTI_VMA, intel_get_pat_idx_wt },
+		{ "madvise-pat-idx-uc-single-vma", MADVISE_OP | MADVISE_PAT_INDEX,
+		  intel_get_pat_idx_uc },
+		{ "madvise-pat-idx-uc-multi-vma", MADVISE_OP | MADVISE_PAT_INDEX |
+		   MADVISE_MULTI_VMA, intel_get_pat_idx_uc },
+		{ "madvise-pat-idx-uc-comp-single-vma", MADVISE_OP | MADVISE_PAT_INDEX,
+		  intel_get_pat_idx_uc_comp },
+		{ "madvise-pat-idx-uc-comp-multi-vma", MADVISE_OP | MADVISE_PAT_INDEX |
+		  MADVISE_MULTI_VMA, intel_get_pat_idx_uc_comp },
+		{ "madvise-max-pat-index-single-vma", MADVISE_OP | MADVISE_PAT_INDEX,
+		  intel_get_max_pat_index },
+		{ "madvise-max-pat-index-multi-vma", MADVISE_OP | MADVISE_PAT_INDEX |
+		  MADVISE_MULTI_VMA, intel_get_max_pat_index },
+		{ NULL },
+	};
+
 	int fd;
 
 	igt_fixture {
@@ -2257,52 +2371,52 @@ igt_main
 		igt_subtest_f("once-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 1, 0, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("once-large-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 1, SZ_2M, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("twice-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 2, 0, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("twice-large-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 2, SZ_2M, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("many-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 128, 0, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("many-stride-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 128, 0, 256, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("many-execqueues-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 16, 128, 0, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("many-large-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 128, SZ_2M, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("many-64k-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 128, SZ_64K, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("many-large-execqueues-%s", s->name)
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 16, 128, SZ_2M, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
 
 		igt_subtest_f("threads-many-%s", s->name)
 			threads(fd, 1, 128, 0, 0, s->flags, false);
@@ -2353,13 +2467,13 @@ igt_main
 	igt_subtest_f("prefetch-benchmark")
 		xe_for_each_engine(fd, hwe)
 			test_exec(fd, hwe, 1, 128, SZ_64M, 0, 0, NULL,
-				  NULL, PREFETCH | PREFETCH_BENCHMARK);
+				  NULL, PREFETCH | PREFETCH_BENCHMARK, NULL);
 
 	igt_subtest_f("prefetch-sys-benchmark")
 		xe_for_each_engine(fd, hwe)
 			test_exec(fd, hwe, 1, 128, SZ_64M, 0, 0, NULL,
 				  NULL, PREFETCH | PREFETCH_BENCHMARK |
-				  PREFETCH_SYS_BENCHMARK);
+				  PREFETCH_SYS_BENCHMARK, NULL);
 
 	igt_subtest("threads-shared-vm-shared-alloc-many-stride-malloc")
 		threads(fd, 1, 128, 0, 256, SHARED_ALLOC, true);
@@ -2379,7 +2493,7 @@ igt_main
 	igt_subtest_f("fault")
 		xe_for_each_engine(fd, hwe)
 			test_exec(fd, hwe, 4, 1, SZ_2M, 0, 0, NULL, NULL,
-				  FAULT);
+				  FAULT, NULL);
 
 	for (const struct section *s = psections; s->name; s++) {
 		igt_subtest_f("partial-%s", s->name)
@@ -2440,7 +2554,19 @@ igt_main
 		igt_subtest_f("madvise-%s", s->name) {
 			xe_for_each_engine(fd, hwe)
 				test_exec(fd, hwe, 1, 1, SZ_64K, 0, 0, NULL,
-					  NULL, s->flags);
+					  NULL, s->flags, NULL);
+		}
+	}
+
+	for (const struct section *s = intel_get_pat_idx_functions; s->name; s++) {
+		igt_subtest_f("pat-index-%s", s->name) {
+			if ((strstr(s->name, "madvise-pat-idx-wt-") ||
+			     strstr(s->name, "madvise-pat-idx-uc-comp-")) &&
+			     !xe_has_vram(fd)) {
+				igt_skip("Skipping compression-related PAT index\n");
+			}
+			xe_for_each_engine(fd, hwe)
+				test_exec(fd, hwe, 1, 1, SZ_4M, 0, 0, NULL, NULL, s->flags, s->fn);
 		}
 	}
 
