@@ -26,6 +26,31 @@
 static char bus_addr[NAME_MAX];
 static struct pci_device *pci_dev;
 
+static bool check_registers(const uint32_t reg[], const uint32_t val[],
+			    size_t max)
+{
+	struct intel_mmio_data mmio_data = { };
+	bool ret = false;
+
+	intel_register_access_init(&mmio_data, pci_dev, 0);
+
+	for (int i = 0; i < max && reg[i]; i++) {
+		uint32_t v = intel_register_read(&mmio_data, reg[i]);
+
+		if (v != val[i]) {
+			igt_debug("Expecting [%x]=%x but found %x\n",
+				  reg[i], val[i], v);
+			goto out;
+		}
+	}
+
+	ret = true;
+
+out:
+	intel_register_access_fini(&mmio_data);
+	return ret;
+}
+
 static void restore(int sig)
 {
 	int configfs_fd;
@@ -124,6 +149,142 @@ static void test_engines_allowed(int configfs_device_fd)
 	}
 }
 
+/**
+ * SUBTEST: ctx-restore-post-bb-invalid
+ * Description: Validate ctx_restore_post_bb attribute for invalid values
+ *
+ * SUBTEST: ctx-restore-mid-bb-invalid
+ * Description: Validate ctx_restore_mid_bb attribute for invalid values
+ */
+static void test_ctx_restore_invalid(int configfs_device_fd, const char *type)
+{
+	static const struct value {
+		const char *test;
+		const char *in;
+	} values[] = {
+		{ .test = "invalid-engine",
+		  .in = "foobar cmd 11000001 4F100 DEADBEEF",
+		},
+		{ .test = "invalid-type",
+		  .in = "rcs 11000001 4F100 DEADBEEF",
+		},
+		{ .test = "invalid-number",
+		  .in = "rcs cmd 1100000g 4F100 DEADBEEF",
+		},
+		{ .test = "invalid-number",
+		  .in = "rcs cmd 1100000g 4F100 DEADBEEF",
+		},
+		{ .test = "invalid-reg-addr-only",
+		  .in = "rcs reg 4F100",
+		},
+	};
+	char buf[4096] = { };
+	char file[64] = { };
+
+	snprintf(file, sizeof(file), "ctx_restore_%s_bb", type);
+	igt_sysfs_set(configfs_device_fd, "ctx_restore_post_bb", "");
+
+	/*
+	 * These only test if command parsing is correct,
+	 * so just make sure there's no device bound
+	 */
+	igt_kmod_unbind("xe", bus_addr);
+
+	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+		const struct value *v = &values[i];
+
+		igt_info("Test %s\n", v->test);
+		igt_debug("bb '%s'\n", v->in);
+		igt_assert(!igt_sysfs_set(configfs_device_fd, file, v->in));
+		igt_assert(igt_sysfs_read(configfs_device_fd, file, buf,
+					  sizeof(buf) - 1));
+		if (strcmp(buf, "")) {
+			igt_debug("Expecting empty bb, but found '%s'\n", buf);
+			igt_fail(IGT_EXIT_FAILURE);
+		}
+	}
+}
+
+/**
+ * SUBTEST: ctx-restore-post-bb
+ * Description: Validate ctx_restore_post_bb attribute
+ *
+ * SUBTEST: ctx-restore-mid-bb
+ * Description: Validate ctx_restore_mid_bb attribute
+ */
+static void test_ctx_restore(int configfs_device_fd, const char *type)
+{
+	static const struct value {
+		const char *test;
+		const char *in;
+		const char *out;
+		uint32_t reg[4];
+		uint32_t reg_val[4];
+	} values[] = {
+		/*
+		 * values for the registers just keep incrementing on different
+		 * tests to avoid having tests passing just because the
+		 * previous execution set a specific value in the HW
+		 */
+		{ .test = "cmd-single",
+		  .in = "rcs cmd 11000001 4F100 DEA0BEE0",
+		  .out = "rcs: 11000001 0004f100 dea0bee0\n",
+		  .reg = { 0x4f100 },
+		  .reg_val = { 0xdea0bee0 },
+		},
+		{ .test = "cmd-single-multi-values",
+		  .in = "rcs cmd 11000003 4F100 DEA1BEE1 4F104 DEA2BEE2",
+		  .out = "rcs: 11000003 0004f100 dea1bee1 0004f104 dea2bee2\n",
+		  .reg = { 0x4f100, 0x4f104 },
+		  .reg_val = { 0xdea1bee1, 0xdea2bee2 },
+		},
+		{ .test = "cmd-multi",
+		  .in = "rcs cmd 11000001 4F100 DEA3BEE3\n"
+			"rcs cmd 11000001 4F104 DEA4BEE4",
+		  .out = "rcs: 11000001 0004f100 dea3bee3 11000001 0004f104 dea4bee4\n",
+		  .reg = { 0x4f100, 0x4f104 },
+		  .reg_val = { 0xdea3bee3, 0xdea4bee4 },
+		},
+		{ .test = "reg-single",
+		  .in = "rcs reg 4F100 DEA5BEE5",
+		  .out = "rcs: 11000001 0004f100 dea5bee5\n",
+		  .reg = { 0x4f100 },
+		  .reg_val = { 0xdea5bee5 },
+		},
+		{ .test = "reg-multi",
+		  .in = "rcs reg 4F100 DEA6BEE6\n"
+			"rcs reg 4F104 DEA7BEE7",
+		  .out = "rcs: 11000001 0004f100 dea6bee6 11000001 0004f104 dea7bee7\n",
+		  .reg = { 0x4f100, 0x4f104 },
+		  .reg_val = { 0xdea6bee6, 0xdea7bee7 },
+		},
+	};
+	char buf[4096] = { };
+	char file[64] = { };
+
+	snprintf(file, sizeof(file), "ctx_restore_%s_bb", type);
+
+	for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+		const struct value *v = &values[i];
+
+		igt_kmod_unbind("xe", bus_addr);
+
+		igt_info("Test %s\n", v->test);
+		igt_debug("bb '%s'\n", v->in);
+		igt_assert(igt_sysfs_set(configfs_device_fd, file, v->in));
+
+		igt_assert(igt_sysfs_read(configfs_device_fd, file, buf,
+					  sizeof(buf) - 1));
+		if (strcmp(v->out, buf)) {
+			igt_debug("Expecting '%s' but found '%s'\n", v->out, buf);
+			igt_fail(IGT_EXIT_FAILURE);
+		}
+
+		igt_kmod_bind("xe", bus_addr);
+		igt_assert(check_registers(v->reg, v->reg_val, sizeof(v->reg)));
+	}
+}
+
 static void set_bus_addr(int fd)
 {
 	pci_dev = igt_device_get_pci_device(fd);
@@ -175,6 +336,22 @@ igt_main
 	igt_describe("Validate engines_allowed");
 	igt_subtest("engines-allowed")
 		test_engines_allowed(configfs_device_fd);
+
+	igt_describe("Validate ctx_restore_post_bb with invalid options");
+	igt_subtest("ctx-restore-post-bb-invalid")
+		test_ctx_restore_invalid(configfs_device_fd, "post");
+
+	igt_describe("Validate ctx_restore_post_bb");
+	igt_subtest("ctx-restore-post-bb")
+		test_ctx_restore(configfs_device_fd, "post");
+
+	igt_describe("Validate ctx_restore_mid_bb with invalid options");
+	igt_subtest("ctx-restore-mid-bb-invalid")
+		test_ctx_restore_invalid(configfs_device_fd, "mid");
+
+	igt_describe("Validate ctx_restore_mid_bb");
+	igt_subtest("ctx-restore-mid-bb")
+		test_ctx_restore(configfs_device_fd, "mid");
 
 	igt_fixture {
 		close(configfs_device_fd);
