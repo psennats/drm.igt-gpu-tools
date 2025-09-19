@@ -25,12 +25,12 @@
  *
  */
 
-#include "igt.h"
+#include <drm.h>
 #include <limits.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
-#include <drm.h>
+#include "igt.h"
 
 /**
  * TEST: core getstats
@@ -42,7 +42,7 @@
  * Feature: core
  * Test category: GEM_Legacy
  *
- * SUBTEST:
+ * SUBTEST: basic
  * Description: Tests the DRM_IOCTL_GET_STATS ioctl.
  */
 
@@ -55,15 +55,20 @@
 
 IGT_TEST_DESCRIPTION("Tests the DRM_IOCTL_GET_STATS ioctl.");
 
-igt_simple_main
+igt_main
 {
 	int fd, ret;
 	drm_stats_t stats;
 
-	fd = drm_open_driver(DRIVER_ANY);
+	igt_fixture
+		fd = drm_open_driver(DRIVER_ANY);
 
-	ret = ioctl(fd, DRM_IOCTL_GET_STATS, &stats);
-	igt_assert(ret == 0);
+	igt_describe("Check DRM_IOCTL_GET_STATS ioctl of the first drm device.");
+	igt_subtest("basic") {
+		ret = ioctl(fd, DRM_IOCTL_GET_STATS, &stats);
+		igt_assert(ret == 0);
+	}
 
-	drm_close_driver(fd);
+	igt_fixture
+		drm_close_driver(fd);
 }
