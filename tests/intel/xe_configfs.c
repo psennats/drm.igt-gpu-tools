@@ -24,6 +24,7 @@
  */
 
 static char bus_addr[NAME_MAX];
+static struct pci_device *pci_dev;
 
 static void restore(int sig)
 {
@@ -125,8 +126,6 @@ static void test_engines_allowed(int configfs_device_fd)
 
 static void set_bus_addr(int fd)
 {
-	struct pci_device *pci_dev;
-
 	pci_dev = igt_device_get_pci_device(fd);
 	snprintf(bus_addr, sizeof(bus_addr), "%04x:%02x:%02x.%01x",
 		 pci_dev->domain, pci_dev->bus, pci_dev->dev, pci_dev->func);
