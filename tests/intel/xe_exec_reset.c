@@ -433,7 +433,7 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 
 		err = __xe_wait_ufence(fd, &data[i].exec_sync, USER_FENCE_VALUE,
 				       exec_queues[i % n_exec_queues], &timeout);
-		if (flags & GT_RESET)
+		if (flags & GT_RESET || flags & CAT_ERROR)
 			/* exec races with reset: may return -EIO or complete */
 			igt_assert(err == -EIO || !err);
 		else
