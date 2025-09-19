@@ -23,7 +23,7 @@
  * Functionality: VM rebind
  * Test category: functionality test
  *
- * SUBTEST:
+ * SUBTEST: basic
  * Description:
  *	This test creates compute vms, binds a couple of bos and an exec_queue each,
  *	thus redying it for execution.
@@ -95,12 +95,15 @@ static void test_ping_pong(int fd, struct drm_xe_engine *engine)
 static int fd;
 
 IGT_TEST_DESCRIPTION("Expose compute VM's unnecessary rebinds");
-igt_simple_main
+igt_main
 {
+	igt_fixture
+		fd = drm_open_driver(DRIVER_XE);
 
-	fd = drm_open_driver(DRIVER_XE);
+	igt_describe("Check for unnnecessary rebinds");
+	igt_subtest("basic")
+		test_ping_pong(fd, xe_engine(fd, 0));
 
-	test_ping_pong(fd, xe_engine(fd, 0));
-
-	drm_close_driver(fd);
+	igt_fixture
+		drm_close_driver(fd);
 }
