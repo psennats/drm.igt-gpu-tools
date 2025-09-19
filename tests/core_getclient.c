@@ -25,12 +25,12 @@
  *
  */
 
-#include "igt.h"
-#include <limits.h>
-#include <sys/ioctl.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
 
+#include "igt.h"
 /**
  * TEST: core getclient
  * Description: Tests the DRM_IOCTL_GET_CLIENT ioctl.
@@ -41,35 +41,40 @@
  * Feature: core
  * Test category: GEM_Legacy
  *
- * SUBTEST:
+ * SUBTEST: basic
  * Description: Tests the DRM_IOCTL_GET_CLIENT ioctl.
  */
 
 IGT_TEST_DESCRIPTION("Tests the DRM_IOCTL_GET_CLIENT ioctl.");
 
-igt_simple_main
+igt_main
 {
 	int fd, ret;
 	drm_client_t client;
 
-	fd = drm_open_driver(DRIVER_ANY);
+	igt_fixture
+		fd = drm_open_driver(DRIVER_ANY);
 
-	/* Look for client index 0.  This should exist whether we're operating
-	 * on an otherwise unused drm device, or the X Server is running on
-	 * the device.
-	 */
-	client.idx = 0;
-	ret = ioctl(fd, DRM_IOCTL_GET_CLIENT, &client);
-	igt_assert(ret == 0);
+	igt_describe("Check GET_CLIENT ioctl of the first drm device.");
+	igt_subtest("basic") {
+		/* Look for client index 0.  This should exist whether we're operating
+		 * on an otherwise unused drm device, or the X Server is running on
+		 * the device.
+		 */
+		client.idx = 0;
+		ret = ioctl(fd, DRM_IOCTL_GET_CLIENT, &client);
+		igt_assert(ret == 0);
 
-	/* Look for some absurd client index and make sure it's invalid.
-	 * The DRM drivers currently always return data, so the user has
-	 * no real way to detect when the list has terminated.  That's bad,
-	 * and this test is XFAIL as a result.
-	 */
-	client.idx = 0x7fffffff;
-	ret = ioctl(fd, DRM_IOCTL_GET_CLIENT, &client);
-	igt_assert(ret == -1 && errno == EINVAL);
+		/* Look for some absurd client index and make sure it's invalid.
+		 * The DRM drivers currently always return data, so the user has
+		 * no real way to detect when the list has terminated.  That's bad,
+		 * and this test is XFAIL as a result.
+		 */
+		client.idx = 0x7fffffff;
+		ret = ioctl(fd, DRM_IOCTL_GET_CLIENT, &client);
+		igt_assert(ret == -1 && errno == EINVAL);
+	}
 
-	drm_close_driver(fd);
+	igt_fixture
+		drm_close_driver(fd);
 }
