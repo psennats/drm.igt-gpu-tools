@@ -102,7 +102,7 @@ static char pipe_name(int pipe)
 
 static int pipe_to_plane(uint32_t devid, int pipe)
 {
-	if (intel_gen(devid) >= 4)
+	if (intel_display_ver(devid) >= 4)
 		return pipe;
 
 	switch (pipe) {
@@ -134,9 +134,9 @@ static uint32_t dspoffset_reg(uint32_t devid, int pipe)
 	bool use_tileoff;
 	int plane = pipe_to_plane(devid, pipe);
 
-	if (intel_gen(devid) < 4)
+	if (intel_display_ver(devid) < 4)
 		use_tileoff = false;
-	else if (IS_HASWELL(devid) || IS_BROADWELL(devid) || intel_gen(devid) >= 9)
+	else if (IS_HASWELL(devid) || IS_BROADWELL(devid) || intel_display_ver(devid) >= 9)
 		use_tileoff = true;
 	else
 		use_tileoff = read_reg(PIPE_REG(plane, DSPACNTR)) & DISPLAY_PLANE_TILED;
@@ -154,7 +154,7 @@ static uint32_t dspsurf_reg(uint32_t devid, int pipe, bool async)
 	if (async && (IS_VALLEYVIEW(devid) || IS_CHERRYVIEW(devid)))
 		return PIPE_REG(plane, DSPAADDR_VLV);
 
-	if (intel_gen(devid) < 4)
+	if (intel_display_ver(devid) < 4)
 		return PIPE_REG(plane, DSPABASE);
 	else
 		return PIPE_REG(plane, DSPASURF);
@@ -162,10 +162,10 @@ static uint32_t dspsurf_reg(uint32_t devid, int pipe, bool async)
 
 static int pipe_to_transcoder(uint32_t devid, int pipe)
 {
-	int gen = intel_gen(devid);
+	int display_ver = intel_display_ver(devid);
 
 	if (IS_HASWELL(devid) || IS_BROADWELL(devid) ||
-	    gen == 9 || gen == 10 || gen == 11) {
+	    display_ver == 9 || display_ver == 10 || display_ver == 11) {
 		/* FIXME not 100% robust */
 		if (read_reg(PIPE_REG(pipe, PIPEACONF)) & PIPEACONF_ENABLE)
 			return pipe;
@@ -600,7 +600,7 @@ static void poll_dsl_deiir(uint32_t devid, int pipe, int bit,
 	bit = 1 << bit;
 	dsl = PIPE_REG(pipe, PIPEA_DSL);
 
-	if (intel_gen(devid) >= 8) {
+	if (intel_display_ver(devid) >= 8) {
 		iir = GEN8_DE_PIPE_IIR(pipe);
 		ier = GEN8_DE_PIPE_IER(pipe);
 		imr = GEN8_DE_PIPE_IMR(pipe);
@@ -832,9 +832,9 @@ static void poll_dsl_frametimestamp(uint32_t devid, int pipe,
 
 static uint32_t timestamp_reg(uint32_t devid)
 {
-	if (intel_gen(devid) >= 7)
+	if (intel_display_ver(devid) >= 7)
 		return IVB_TIMESTAMP_CTR;
-	else if (intel_gen(devid) >= 5)
+	else if (intel_display_ver(devid) >= 5)
 		return ILK_TIMESTAMP_HI;
 	else
 		return TIMESTAMP_QW + 4;
@@ -1020,19 +1020,19 @@ static void poll_dsl_flipdone_deiir(uint32_t devid, int pipe, int target_scanlin
 	dsl = PIPE_REG(pipe, PIPEA_DSL);
 	surf = dspsurf_reg(devid, pipe, async);
 
-	if (intel_gen(devid) >= 9)
+	if (intel_display_ver(devid) >= 9)
 		bit = 3;
-	else if (intel_gen(devid) >= 8)
+	else if (intel_display_ver(devid) >= 8)
 		bit = 4;
-	else if (intel_gen(devid) >= 7)
+	else if (intel_display_ver(devid) >= 7)
 		bit = 3 + 5 * pipe;
-	else if (intel_gen(devid) >= 5)
+	else if (intel_display_ver(devid) >= 5)
 		bit = 26 + pipe;
 	else
 		abort();
 	bit = 1 << bit;
 
-	if (intel_gen(devid) >= 8) {
+	if (intel_display_ver(devid) >= 8) {
 		iir = GEN8_DE_PIPE_IIR(pipe);
 		ier = GEN8_DE_PIPE_IER(pipe);
 		imr = GEN8_DE_PIPE_IMR(pipe);
@@ -1448,7 +1448,7 @@ int main(int argc, char *argv[])
 	 * check if the requires registers are
 	 * avilable on the current platform.
 	 */
-	if (intel_gen(devid) == 2) {
+	if (intel_display_ver(devid) == 2) {
 		if (pipe > 1)
 			usage(argv[0]);
 
@@ -1474,7 +1474,7 @@ int main(int argc, char *argv[])
 		default:
 			usage(argv[0]);
 		}
-	} else if (intel_gen(devid) < 5 && !IS_G4X(devid)) {
+	} else if (intel_display_ver(devid) < 5 && !IS_G4X(devid)) {
 		if (pipe > 1)
 			usage(argv[0]);
 
@@ -1497,7 +1497,7 @@ int main(int argc, char *argv[])
 		case TEST_FIELD:
 			break;
 		case TEST_FLIP:
-			if (intel_gen(devid) == 3)
+			if (intel_display_ver(devid) == 3)
 				test = TEST_PAN;
 			break;
 		default:
@@ -1554,9 +1554,9 @@ int main(int argc, char *argv[])
 			usage(argv[0]);
 		}
 	} else {
-		if (pipe > 1 && intel_gen(devid) < 7)
+		if (pipe > 1 && intel_display_ver(devid) < 7)
 			usage(argv[0]);
-		if (pipe > 2 && intel_gen(devid) < 12)
+		if (pipe > 2 && intel_display_ver(devid) < 12)
 			usage(argv[0]);
 		if (pipe > 3)
 			usage(argv[0]);
@@ -1564,7 +1564,7 @@ int main(int argc, char *argv[])
 		if (test_pixelcount)
 			usage(argv[0]);
 
-		if (vrr_push_scanline >= 0 && intel_gen(devid) < 11)
+		if (vrr_push_scanline >= 0 && intel_display_ver(devid) < 11)
 			usage(argv[0]);
 
 		switch (test) {
@@ -1580,7 +1580,7 @@ int main(int argc, char *argv[])
 		case TEST_VRR_PUSH:
 			if (vrr_push_scanline < 0)
 				usage(argv[0]);
-			if (intel_gen(devid) < 11)
+			if (intel_display_ver(devid) < 11)
 				usage(argv[0]);
 			break;
 		case TEST_FLIPCOUNT:
