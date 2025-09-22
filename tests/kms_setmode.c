@@ -238,8 +238,10 @@ static void get_mode_for_crtc(struct crtc_config *crtc,
 	 */
 	for (i = 0; i < crtc->connector_count; i++) {
 		mode = &crtc->cconfs[i].default_mode;
-		if (crtc_supports_mode(crtc, mode))
-			goto found;
+		if (crtc_supports_mode(crtc, mode)) {
+			*mode_ret = *mode;
+			return;
+		}
 	}
 
 	/*
@@ -248,8 +250,10 @@ static void get_mode_for_crtc(struct crtc_config *crtc,
 	 */
 	for (i = 0; i < crtc->cconfs[0].connector->count_modes; i++) {
 		mode = &crtc->cconfs[0].connector->modes[i];
-		if (crtc_supports_mode(crtc, mode))
-			goto found;
+		if (crtc_supports_mode(crtc, mode)) {
+			*mode_ret = *mode;
+			return;
+		}
 	}
 
 	/*
@@ -258,10 +262,11 @@ static void get_mode_for_crtc(struct crtc_config *crtc,
 	 * scaling etc.
 	 */
 	mode = &crtc->cconfs[0].default_mode;
-	for (i = 1; i < crtc->connector_count; i++)
+	for (i = 1; i < crtc->connector_count; i++) {
 		if (crtc->cconfs[i].default_mode.clock < mode->clock)
 			mode = &crtc->cconfs[i].default_mode;
-found:
+	}
+
 	*mode_ret = *mode;
 }
 
