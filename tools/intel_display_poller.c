@@ -1352,14 +1352,14 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		static const struct option long_options[] = {
-			{ .name = "test", .has_arg = required_argument, },
-			{ .name = "pipe", .has_arg = required_argument, },
-			{ .name = "bit", .has_arg = required_argument, },
-			{ .name = "line", .has_arg = required_argument, },
-			{ .name = "fuzz", .has_arg = required_argument, },
-			{ .name = "pixel", .has_arg = no_argument, },
-			{ .name = "async", .has_arg = no_argument, },
-			{ .name = "vrr-push", .has_arg = required_argument, },
+			{ .name = "test", .has_arg = required_argument, .val = 't', },
+			{ .name = "pipe", .has_arg = required_argument, .val = 'p', },
+			{ .name = "bit", .has_arg = required_argument, .val = 'b', },
+			{ .name = "line", .has_arg = required_argument, .val = 'l', },
+			{ .name = "fuzz", .has_arg = required_argument, .val = 'f', },
+			{ .name = "pixel", .has_arg = no_argument, .val = 'x', },
+			{ .name = "async", .has_arg = no_argument, .val = 'a', },
+			{ .name = "vrr-push", .has_arg = required_argument, .val = 'v', },
 			{ },
 		};
 
