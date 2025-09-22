@@ -65,6 +65,7 @@ enum test {
 
 static uint32_t vlv_offset;
 static uint16_t pipe_offset[4] = { 0, 0x1000, 0x2000, 0x3000, };
+static int scanline_offset = 0;
 
 #define PIPE_REG(pipe, reg_a) (pipe_offset[(pipe)] + (reg_a))
 
@@ -83,6 +84,29 @@ static uint16_t read_reg_16(uint32_t reg)
 static uint32_t read_reg(uint32_t reg)
 {
 	return INREG(vlv_offset + reg);
+}
+
+static uint32_t read_scanline(uint32_t reg, bool *field)
+{
+	uint32_t dsl;
+	int scanline;
+
+	dsl = INREG(vlv_offset + reg);
+
+	*field = dsl & 0x80000000;
+	scanline = dsl & ~0x80000000;
+
+	/*
+	 * FIXME would need to know vtotal to make
+	 * this wrap around properly. For now just
+	 * avoid reporting negative numbers and just
+	 * potentially report sligtly incorrect numbers
+	 * near the wraparound point.
+	 *
+	 * scanline_offset==0 by default to avoid people
+	 * shooting themselves in the foot with this.
+	 */
+	return max(scanline + scanline_offset, 0);
 }
 
 static void write_reg_16(uint32_t reg, uint16_t val)
@@ -203,6 +227,7 @@ static void push_vrr(uint32_t devid, int pipe, int vrr_push_scanline)
 {
 	uint32_t dsl = PIPE_REG(pipe, PIPEA_DSL);
 	uint32_t push = trans_reg(devid, pipe, TRANS_PUSH_A);
+	bool field;
 
 	if (vrr_push_scanline < 0)
 		return;
@@ -211,7 +236,7 @@ static void push_vrr(uint32_t devid, int pipe, int vrr_push_scanline)
 		return;
 
 	while (!quit) {
-		uint32_t dsl1 = read_reg(dsl) & ~0x80000000;
+		uint32_t dsl1 = read_scanline(dsl, &field);
 		if (dsl1 == vrr_push_scanline)
 			break;
 	}
@@ -224,8 +249,7 @@ static int wait_scanline(int pipe, int target_scanline, bool *field)
 	uint32_t dsl_reg = PIPE_REG(pipe, PIPEA_DSL);
 
 	while (!quit) {
-		uint32_t dsl = read_reg(dsl_reg);
-		*field = dsl & 0x80000000;
+		uint32_t dsl = read_scanline(dsl_reg, field);
 		dsl &= ~0x80000000;
 		if (dsl == target_scanline)
 			return dsl;
@@ -457,15 +481,10 @@ static void poll_dsl_pipestat(int pipe, int bit,
 	write_reg(iir, iir_mask | iir_bit);
 
 	while (!quit) {
-		dsl1 = read_reg(dsl);
+		dsl1 = read_scanline(dsl, &field1);
 		iir1 = read_reg(iir);
 		iir2 = read_reg(iir);
-		dsl2 = read_reg(dsl);
-
-		field1 = dsl1 & 0x80000000;
-		field2 = dsl2 & 0x80000000;
-		dsl1 &= ~0x80000000;
-		dsl2 &= ~0x80000000;
+		dsl2 = read_scanline(dsl, &field2);
 
 		if (!(iir2 & iir_bit))
 			continue;
@@ -505,15 +524,10 @@ static void poll_dsl_iir_gen2(int pipe, int bit,
 	write_reg_16(IIR, bit);
 
 	while (!quit) {
-		dsl1 = read_reg(dsl);
+		dsl1 = read_scanline(dsl, &field1);
 		iir1 = read_reg_16(IIR);
 		iir2 = read_reg_16(IIR);
-		dsl2 = read_reg(dsl);
-
-		field1 = dsl1 & 0x80000000;
-		field2 = dsl2 & 0x80000000;
-		dsl1 &= ~0x80000000;
-		dsl2 &= ~0x80000000;
+		dsl2 = read_scanline(dsl, &field2);
 
 		if (!(iir2 & bit))
 			continue;
@@ -556,15 +570,10 @@ static void poll_dsl_iir_gen3(int pipe, int bit,
 	write_reg(IIR, bit);
 
 	while (!quit) {
-		dsl1 = read_reg(dsl);
+		dsl1 = read_scanline(dsl, &field1);
 		iir1 = read_reg(IIR);
 		iir2 = read_reg(IIR);
-		dsl2 = read_reg(dsl);
-
-		field1 = dsl1 & 0x80000000;
-		field2 = dsl2 & 0x80000000;
-		dsl1 &= ~0x80000000;
-		dsl2 &= ~0x80000000;
+		dsl2 = read_scanline(dsl, &field2);
 
 		if (!(iir2 & bit))
 			continue;
@@ -622,15 +631,10 @@ static void poll_dsl_deiir(uint32_t devid, int pipe, int bit,
 		push_vrr(devid, pipe, vrr_push_scanline);
 
 		while (!quit) {
-			dsl1 = read_reg(dsl);
+			dsl1 = read_scanline(dsl, &field1);
 			iir1 = read_reg(iir);
 			iir2 = read_reg(iir);
-			dsl2 = read_reg(dsl);
-
-			field1 = dsl1 & 0x80000000;
-			field2 = dsl2 & 0x80000000;
-			dsl1 &= ~0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (iir2 & bit)
 				break;
@@ -670,15 +674,10 @@ static void poll_dsl_framecount_g4x(uint32_t devid, int pipe,
 		push_vrr(devid, pipe, vrr_push_scanline);
 
 		while (!quit) {
-			dsl1 = read_reg(dsl);
+			dsl1 = read_scanline(dsl, &field1);
 			frm1 = read_reg(frm);
 			frm2 = read_reg(frm);
-			dsl2 = read_reg(dsl);
-
-			field1 = dsl1 & 0x80000000;
-			field2 = dsl2 & 0x80000000;
-			dsl1 &= ~0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (frm1 + 1 == frm2)
 				break;
@@ -709,14 +708,9 @@ static void poll_dsl_flipcount_g4x(uint32_t devid, int pipe,
 
 	while (!quit) {
 		usleep(10);
-		dsl1 = read_reg(dsl);
+		dsl1 = read_scanline(dsl, &field1);
 		flp1 = read_reg(flp);
-		dsl2 = read_reg(dsl);
-
-		field1 = dsl1 & 0x80000000;
-		field2 = dsl2 & 0x80000000;
-		dsl1 &= ~0x80000000;
-		dsl2 &= ~0x80000000;
+		dsl2 = read_scanline(dsl, &field2);
 
 		if (field1 != field2)
 			printf("fields are different (%u:%u -> %u:%u)\n",
@@ -765,15 +759,10 @@ static void poll_dsl_framecount_gen3(int pipe, uint32_t *min, uint32_t *max, con
 	dsl = PIPE_REG(pipe, PIPEA_DSL);
 
 	while (!quit) {
-		dsl1 = read_reg(dsl);
+		dsl1 = read_scanline(dsl, &field1);
 		frm1 = read_reg(frm) >> 24;
 		frm2 = read_reg(frm) >> 24;
-		dsl2 = read_reg(dsl);
-
-		field1 = dsl1 & 0x80000000;
-		field2 = dsl2 & 0x80000000;
-		dsl1 &= ~0x80000000;
-		dsl2 &= ~0x80000000;
+		dsl2 = read_scanline(dsl, &field2);
 
 		if (frm1 + 1 != frm2)
 			continue;
@@ -805,15 +794,10 @@ static void poll_dsl_frametimestamp(uint32_t devid, int pipe,
 		push_vrr(devid, pipe, vrr_push_scanline);
 
 		while (!quit) {
-			dsl1 = read_reg(dsl);
+			dsl1 = read_scanline(dsl, &field1);
 			frm1 = read_reg(frm);
 			frm2 = read_reg(frm);
-			dsl2 = read_reg(dsl);
-
-			field1 = dsl1 & 0x80000000;
-			field2 = dsl2 & 0x80000000;
-			dsl1 &= ~0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (frm1 != frm2)
 				break;
@@ -858,9 +842,6 @@ static void poll_dsl_timestamp(uint32_t devid, int pipe, int target_scanline,
 
 		frm1 = read_reg(frm);
 		ts1 = read_reg(ts);
-
-		field1 = dsl1 & 0x80000000;
-		dsl1 &= ~0x80000000;
 
 		min[field1*count+i[field1]] = dsl1;
 		max[field1*count+i[field1]] = ts1 - frm1;
@@ -980,10 +961,7 @@ static void poll_dsl_flipdone_pipestat(uint32_t devid, int pipe, int target_scan
 
 		while (!quit) {
 			pipestat2 = read_reg(pipestat);
-			dsl2 = read_reg(dsl);
-
-			field2 = dsl2 & 0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (pipestat2 & bit)
 				break;
@@ -1065,10 +1043,7 @@ static void poll_dsl_flipdone_deiir(uint32_t devid, int pipe, int target_scanlin
 
 		while (!quit) {
 			iir2 = read_reg(iir);
-			dsl2 = read_reg(dsl);
-
-			field2 = dsl2 & 0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (iir2 & bit)
 				break;
@@ -1116,15 +1091,10 @@ static void poll_dsl_surflive(uint32_t devid, int pipe,
 		push_vrr(devid, pipe, vrr_push_scanline);
 
 		while (!quit) {
-			dsl1 = read_reg(dsl);
+			dsl1 = read_scanline(dsl, &field1);
 			surfl1 = read_reg(surflive) & ~0xfff;
 			surfl2 = read_reg(surflive) & ~0xfff;
-			dsl2 = read_reg(dsl);
-
-			field1 = dsl1 & 0x80000000;
-			field2 = dsl2 & 0x80000000;
-			dsl1 &= ~0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (surfl2 == surf2)
 				break;
@@ -1164,6 +1134,10 @@ static void poll_dsl_wrap(uint32_t devid, int pipe,
 		push_vrr(devid, pipe, vrr_push_scanline);
 
 		while (!quit) {
+			/*
+			 * raw read_reg() instead of read_scanline()
+			 * to avoid scanline_offset screwing this up.
+			 */
 			dsl1 = read_reg(dsl);
 			dsl2 = read_reg(dsl);
 
@@ -1196,13 +1170,8 @@ static void poll_dsl_field(int pipe, uint32_t *min, uint32_t *max, const int cou
 	dsl = PIPE_REG(pipe, PIPEA_DSL);
 
 	while (!quit) {
-		dsl1 = read_reg(dsl);
-		dsl2 = read_reg(dsl);
-
-		field1 = dsl1 & 0x80000000;
-		field2 = dsl2 & 0x80000000;
-		dsl1 &= ~0x80000000;
-		dsl2 &= ~0x80000000;
+		dsl1 = read_scanline(dsl, &field1);
+		dsl2 = read_scanline(dsl, &field2);
 
 		if (field1 == field2)
 			continue;
@@ -1230,15 +1199,10 @@ static void poll_dsl_vrr_push(uint32_t devid, int pipe,
 		push_vrr(devid, pipe, vrr_push_scanline);
 
 		while (!quit) {
-			dsl1 = read_reg(dsl);
+			dsl1 = read_scanline(dsl, &field1);
 			vrr1 = read_reg(vrr);
 			vrr2 = read_reg(vrr);
-			dsl2 = read_reg(dsl);
-
-			field1 = dsl1 & 0x80000000;
-			field2 = dsl2 & 0x80000000;
-			dsl1 &= ~0x80000000;
-			dsl2 &= ~0x80000000;
+			dsl2 = read_scanline(dsl, &field2);
 
 			if (!(vrr2 & 0x40000000))
 				break;
@@ -1330,7 +1294,8 @@ static void __attribute__((noreturn)) usage(const char *name)
 		" -f,--fuzz <target fuzz>\n"
 		" -x,--pixel\n"
 		" -a,--async\n"
-		" -v,--vrr-push <push scanline>\n",
+		" -v,--vrr-push <push scanline>\n"
+		" -o,--scanline-offset <offset>\n",
 		name);
 	exit(1);
 }
@@ -1360,10 +1325,11 @@ int main(int argc, char *argv[])
 			{ .name = "pixel", .has_arg = no_argument, .val = 'x', },
 			{ .name = "async", .has_arg = no_argument, .val = 'a', },
 			{ .name = "vrr-push", .has_arg = required_argument, .val = 'v', },
+			{ .name = "scanline-offset", .has_arg = required_argument, .val = 'o', },
 			{ },
 		};
 
-		int opt = getopt_long(argc, argv, "t:p:b:l:f:xav:", long_options, NULL);
+		int opt = getopt_long(argc, argv, "t:p:b:l:f:xav:o:", long_options, NULL);
 		if (opt == -1)
 			break;
 
@@ -1438,6 +1404,9 @@ int main(int argc, char *argv[])
 			vrr_push_scanline = atoi(optarg);
 			if (vrr_push_scanline < 0)
 				usage(argv[0]);
+			break;
+		case 'o':
+			scanline_offset = atoi(optarg);
 			break;
 		}
 	}
