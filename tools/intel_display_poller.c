@@ -207,6 +207,37 @@ static uint32_t trans_reg(uint32_t devid, int pipe, uint32_t reg)
 	return PIPE_REG(trans, reg);
 }
 
+static bool hsw_ddi_is_hdmi(uint32_t devid, int pipe)
+{
+	uint32_t tmp = read_reg(trans_reg(devid, pipe, PIPE_DDI_FUNC_CTL_A));
+
+	if (!(tmp & PIPE_DDI_FUNC_ENABLE))
+		return false;
+
+	switch (tmp & PIPE_DDI_MODE_SELECT_MASK) {
+	case PIPE_DDI_MODE_SELECT_HDMI:
+	case PIPE_DDI_MODE_SELECT_DVI:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int default_scanline_offset(uint32_t devid, int pipe)
+{
+	int display_ver = intel_display_ver(devid);
+
+	if (display_ver >= 20 || IS_BATTLEMAGE(devid))
+		return 1;
+	else if (display_ver >= 9 ||
+		 IS_BROADWELL(devid) || IS_HASWELL(devid))
+		return hsw_ddi_is_hdmi(devid, pipe) ? 2 : 1;
+	else if (display_ver >= 3)
+		return 1;
+	else
+		return -1;
+}
+
 static void enable_async_flip(uint32_t devid, int pipe, bool enable)
 {
 	int plane = pipe_to_plane(devid, pipe);
@@ -1295,7 +1326,8 @@ static void __attribute__((noreturn)) usage(const char *name)
 		" -x,--pixel\n"
 		" -a,--async\n"
 		" -v,--vrr-push <push scanline>\n"
-		" -o,--scanline-offset <offset>\n",
+		" -o,--scanline-offset <offset>\n"
+		" -O,--auto-scanline-offset\n",
 		name);
 	exit(1);
 }
@@ -1314,6 +1346,7 @@ int main(int argc, char *argv[])
 	uint32_t a, b;
 	enum test test = TEST_INVALID;
 	const int count = ARRAY_SIZE(min)/2;
+	bool auto_scanline_offset = false;
 
 	for (;;) {
 		static const struct option long_options[] = {
@@ -1326,10 +1359,11 @@ int main(int argc, char *argv[])
 			{ .name = "async", .has_arg = no_argument, .val = 'a', },
 			{ .name = "vrr-push", .has_arg = required_argument, .val = 'v', },
 			{ .name = "scanline-offset", .has_arg = required_argument, .val = 'o', },
+			{ .name = "auto-scanline-offset", .has_arg = no_argument, .val = 'O', },
 			{ },
 		};
 
-		int opt = getopt_long(argc, argv, "t:p:b:l:f:xav:o:", long_options, NULL);
+		int opt = getopt_long(argc, argv, "t:p:b:l:f:xav:o:O", long_options, NULL);
 		if (opt == -1)
 			break;
 
@@ -1406,7 +1440,11 @@ int main(int argc, char *argv[])
 				usage(argv[0]);
 			break;
 		case 'o':
+			auto_scanline_offset = false;
 			scanline_offset = atoi(optarg);
+			break;
+		case 'O':
+			auto_scanline_offset = true;
 			break;
 		}
 	}
@@ -1577,6 +1615,9 @@ int main(int argc, char *argv[])
 	}
 
 	intel_register_access_init(&mmio_data, intel_get_pci_device(), 0);
+
+	if (auto_scanline_offset)
+		scanline_offset = default_scanline_offset(devid, pipe);
 
 	printf("%s?\n", test_name(test, pipe, bit, test_pixelcount));
 
