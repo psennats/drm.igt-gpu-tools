@@ -7540,3 +7540,23 @@ uint32_t igt_get_connected_output_count(igt_display_t *display)
 	}
 	return conn_outputs;
 }
+
+/**
+ * Checks if the lobf debugfs
+ * is available for a specific output.
+ *
+ * @drmfd: file descriptor of the DRM device.
+ * @output: output to check.
+ * Returns:
+ *  true if the debugfs is available, false otherwise.
+ */
+bool igt_has_lobf_debugfs(int drmfd, igt_output_t *output)
+{
+        char buf[512];
+        int res;
+
+        res = igt_debugfs_read_connector_file(drmfd, output->name,
+                                              "i915_edp_lobf_info",
+                                              buf, sizeof(buf));
+        return res == 0;
+}
