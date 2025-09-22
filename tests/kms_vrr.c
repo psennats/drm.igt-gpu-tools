@@ -967,12 +967,6 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 			return false;
 		}
 
-		if (!psr_sink_support(data->drm_fd,
-				      data->debugfs_fd, PR_MODE, NULL)) {
-			igt_info("LOBF not supported\n");
-			return false;
-		}
-
 		if (psr_sink_support(data->drm_fd, data->debugfs_fd, PSR_MODE_1, NULL) ||
 		    psr_sink_support(data->drm_fd, data->debugfs_fd, PR_MODE, NULL))
 			psr_disable(data->drm_fd, data->debugfs_fd, NULL);
