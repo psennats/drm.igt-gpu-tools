@@ -61,6 +61,7 @@ enum test {
 	TEST_WRAP,
 	TEST_FIELD,
 	TEST_VRR_PUSH,
+	TEST_DSB_STATUS_LIVE,
 };
 
 static uint32_t vlv_offset;
@@ -1253,6 +1254,46 @@ static void poll_dsl_vrr_push(uint32_t devid, int pipe,
 	}
 }
 
+static void poll_dsl_dsb_status_live(uint32_t devid, int pipe, int bit,
+				     uint32_t *min, uint32_t *max, const int count,
+				     int vrr_push_scanline)
+{
+	uint32_t dsl, dsl1, dsl2;
+	uint32_t dsb, dsb1, dsb2;
+	bool field1, field2;
+	int i[2] = {};
+
+	bit = 1 << bit;
+	dsl = PIPE_REG(pipe, PIPEA_DSL);
+	dsb = PIPE_REG(pipe, DSB_STATUS_0_A);
+
+	while (!quit) {
+		push_vrr(devid, pipe, vrr_push_scanline);
+
+		while (!quit) {
+			dsl1 = read_scanline(dsl, &field1);
+			dsb1 = read_reg(dsb);
+			dsb2 = read_reg(dsb);
+			dsl2 = read_scanline(dsl, &field2);
+
+			if (dsb2 & bit)
+				break;
+		}
+
+		if (dsb1 & bit)
+			continue;
+
+		if (field1 != field2)
+			printf("fields are different (%u:%u -> %u:%u)\n",
+			       field1, dsl1, field2, dsl2);
+
+		min[field1*count+i[field1]] = dsl1;
+		max[field1*count+i[field1]] = dsl2;
+		if (++i[field1] >= count)
+			break;
+	}
+}
+
 static const char *test_name(enum test test, int pipe, int bit, bool test_pixel_count)
 {
 	static char str[64];
@@ -1310,6 +1351,9 @@ static const char *test_name(enum test test, int pipe, int bit, bool test_pixel_
 	case TEST_VRR_PUSH:
 		snprintf(str, sizeof str, "%s / pipe %c / VRR push", type, pipe_name(pipe));
 		return str;
+	case TEST_DSB_STATUS_LIVE:
+		snprintf(str, sizeof str, "%s / pipe %c / DSB_STATUS[%d]", type, pipe_name(pipe), bit);
+		return str;
 	default:
 		return "";
 	}
@@ -1318,7 +1362,7 @@ static const char *test_name(enum test test, int pipe, int bit, bool test_pixel_
 static void __attribute__((noreturn)) usage(const char *name)
 {
 	fprintf(stderr, "Usage: %s [options]\n"
-		" -t,--test <pipestat|iir|framecount|flipcount|frametimestamp|timestamp|pan|flip|flipdone|surflive|wrap|field|vrr-push>\n"
+		" -t,--test <pipestat|iir|framecount|flipcount|frametimestamp|timestamp|pan|flip|flipdone|surflive|wrap|field|vrr-push|dsb-status>\n"
 		" -p,--pipe <pipe>\n"
 		" -b,--bit <bit>\n"
 		" -l,--line <target scanline/pixel>\n"
@@ -1395,6 +1439,8 @@ int main(int argc, char *argv[])
 				test = TEST_FIELD;
 			else if (!strcmp(optarg, "vrr-push"))
 				test = TEST_VRR_PUSH;
+			else if (!strcmp(optarg, "dsb-status-live"))
+				test = TEST_DSB_STATUS_LIVE;
 			else
 				usage(argv[0]);
 			break;
@@ -1590,6 +1636,10 @@ int main(int argc, char *argv[])
 			if (intel_display_ver(devid) < 11)
 				usage(argv[0]);
 			break;
+		case TEST_DSB_STATUS_LIVE:
+			if (intel_display_ver(devid) < 12)
+				usage(argv[0]);
+			break;
 		case TEST_FLIPCOUNT:
 		case TEST_PAN:
 		case TEST_FLIP:
@@ -1706,6 +1756,9 @@ int main(int argc, char *argv[])
 		break;
 	case TEST_VRR_PUSH:
 		poll_dsl_vrr_push(devid, pipe, min, max, count, vrr_push_scanline);
+		break;
+	case TEST_DSB_STATUS_LIVE:
+		poll_dsl_dsb_status_live(devid, pipe, bit, min, max, count, vrr_push_scanline);
 		break;
 	default:
 		assert(0);
