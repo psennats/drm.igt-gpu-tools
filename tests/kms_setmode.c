@@ -256,6 +256,25 @@ static void get_mode_for_crtc(struct crtc_config *crtc,
 		}
 	}
 
+	/* If an eDP connector is present, iterate through its modes and
+	 * pick a mode with lowest clock, since internal panels typically
+	 * dictate the clone mode and may have HRR support, making them
+	 * incompatible with modes supported by external displays.
+	 */
+	for (i = 0; i < crtc->connector_count; i++) {
+		drmModeConnector *conn = crtc->cconfs[i].connector;
+
+		if (conn->connector_type == DRM_MODE_CONNECTOR_eDP) {
+			mode = &conn->modes[0];
+			for (int j = 1; j < conn->count_modes; j++) {
+				if (conn->modes[j].clock < mode->clock)
+					mode = &conn->modes[j];
+			}
+			*mode_ret = *mode;
+			return;
+		}
+	}
+
 	/*
 	 * If none is found then just pick the default mode from all connectors
 	 * with the smallest clock, hope the other connectors can support it by
