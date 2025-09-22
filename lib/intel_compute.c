@@ -1133,8 +1133,11 @@ static void xehp_compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
-	/* Set dynamic sizes */
-	bo_dict[0].size = ALIGN(size, xe_get_default_alignment(fd));
+	/* Set dynamic sizes depending on the driver type(xe vs i915) */
+	bo_dict[0].size = ALIGN(size,
+				(execenv.driver == INTEL_DRIVER_XE) ?
+				xe_get_default_alignment(fd) :
+				gem_detect_safe_alignment(fd));
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
@@ -1733,8 +1736,11 @@ static void xelpg_compute_exec(int fd, const unsigned char *kernel,
 
 	bo_execenv_create(fd, &execenv, eci, user);
 
-	/* Set dynamic sizes */
-	bo_dict[0].size = ALIGN(size, 0x10000);
+	/* Set dynamic sizes depending upon the driver type (xe vs i915)*/
+	bo_dict[0].size = ALIGN(size,
+				(execenv.driver == INTEL_DRIVER_XE) ?
+				xe_get_default_alignment(fd) :
+				gem_detect_safe_alignment(fd));
 	bo_dict[4].size = size_input(execenv.array_size);
 	bo_dict[5].size = size_output(execenv.array_size);
 
