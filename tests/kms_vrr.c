@@ -948,7 +948,7 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 {
 	data->debugfs_fd = igt_debugfs_dir(data->drm_fd);
 
-	if ((flags & (TEST_SEAMLESS_VRR | TEST_SEAMLESS_DRRS | TEST_CMRR | TEST_LINK_OFF)) &&
+	if ((flags & (TEST_SEAMLESS_VRR | TEST_SEAMLESS_DRRS | TEST_CMRR)) &&
 	    output->config.connector->connector_type != DRM_MODE_CONNECTOR_eDP) {
 		igt_info("%s: Connected panel is not eDP.\n", igt_output_name(output));
 		return false;
@@ -961,6 +961,12 @@ static bool output_constraint(data_t *data, igt_output_t *output, uint32_t flags
 	}
 
 	if (flags & TEST_LINK_OFF) {
+		if (!igt_has_lobf_debugfs(data->drm_fd, output)) {
+			igt_info("i915_edp_lobf_status not present for %s\n",
+				 igt_output_name(output));
+			return false;
+		}
+
 		if (!psr_sink_support(data->drm_fd,
 				      data->debugfs_fd, PR_MODE, NULL)) {
 			igt_info("LOBF not supported\n");
