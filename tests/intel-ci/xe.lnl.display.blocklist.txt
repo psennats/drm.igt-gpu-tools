@@ -168,4 +168,4 @@ igt@kms_joiner@basic-max-non-joiner
 igt@kms_psr2_sf@fbc-pr-.*
 igt@kms_psr2_sf@fbc-psr2.*
 igt@kms_psr@fbc-psr2.*
-'igt@kms_psr@fbc-pr.*
+igt@kms_psr@fbc-pr.*
