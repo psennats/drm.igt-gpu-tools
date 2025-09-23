@@ -12,6 +12,7 @@
 
 /* Batch buffer element count, in number of dwords(u32) */
 #define BATCH_DW_COUNT			16
+#define SYSTEM				(0x1 << 12)
 #define LONG_SPIN_REUSE_QUEUE		(0x1 << 11)
 #define LONG_SPIN			(0x1 << 8)
 #define CANCEL				(0x1 << 7)
@@ -79,6 +80,8 @@ xe_legacy_test_mode(int fd, struct drm_xe_engine_class_instance *eci,
 	bo_size = xe_bb_size(fd, bo_size);
 
 	bo = xe_bo_create(fd, vm, bo_size,
+			  flags & SYSTEM ?
+			  system_memory(fd) :
 			  vram_if_possible(fd, eci->gt_id),
 			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	data = xe_bo_map(fd, bo, bo_size);
