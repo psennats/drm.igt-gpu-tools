@@ -40,6 +40,7 @@
 #define HANG		(0x1 << 11)
 #define REBIND_ERROR	(0x1 << 12)
 #define BIND_EXEC_QUEUE	(0x1 << 13)
+#define MANY_QUEUES	(0x1 << 14)
 
 pthread_barrier_t barrier;
 
@@ -539,7 +540,8 @@ test_legacy_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 
 	memset(sync_all, 0, sizeof(sync_all));
 	for (i = 0; i < n_exec_queues; i++) {
-		exec_queues[i] = xe_exec_queue_create(fd, vm, eci, 0);
+		if (!(flags & MANY_QUEUES))
+			exec_queues[i] = xe_exec_queue_create(fd, vm, eci, 0);
 		if (flags & BIND_EXEC_QUEUE)
 			bind_exec_queues[i] = xe_bind_exec_queue_create(fd, vm,
 									0);
@@ -569,6 +571,15 @@ test_legacy_mode(int fd, uint32_t vm, uint64_t addr, uint64_t userptr,
 		uint64_t sdi_addr = addr + sdi_offset;
 		uint64_t exec_addr;
 		int e = i % n_exec_queues;
+
+		if (flags & MANY_QUEUES) {
+			if (exec_queues[e]) {
+				igt_assert(syncobj_wait(fd, &syncobjs[e], 1,
+							INT64_MAX, 0, NULL));
+				xe_exec_queue_destroy(fd, exec_queues[e]);
+			}
+			exec_queues[e] = xe_exec_queue_create(fd, vm, eci, 0);
+		}
 
 		if (flags & HANG && e == hang_exec_queue && i == e) {
 			spin_opts.addr = addr + spin_offset;
@@ -762,6 +773,8 @@ static void *thread(void *data)
  * arg[1]:
  * @basic:
  *	basic
+ * @many-queues:
+ *	many queues
  * @userptr:
  *	userptr
  * @rebind:
@@ -1103,6 +1116,7 @@ igt_main
 		unsigned int flags;
 	} sections[] = {
 		{ "basic", 0 },
+		{ "many-queues", MANY_QUEUES },
 		{ "userptr", USERPTR },
 		{ "rebind", REBIND },
 		{ "rebind-bindexecqueue", REBIND | BIND_EXEC_QUEUE },
