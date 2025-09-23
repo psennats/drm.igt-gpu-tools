@@ -123,6 +123,7 @@ static void test_spin(int fd, struct drm_xe_engine_class_instance *eci,
 #define GT1				(0x1 << 10)
 #define LONG_SPIN_REUSE_QUEUE		(0x1 << 11)
 #define SYSTEM				(0x1 << 12)
+#define COMPRESSION			(0x1 << 13)
 
 /**
  * SUBTEST: %s-cat-error
@@ -702,6 +703,9 @@ static void *thread(void *data)
  * SUBTEST: long-spin-sys-reuse-many-preempt-threads
  * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, use queues again spinners complete, both GTs, use system memory
  *
+ * SUBTEST: long-spin-comp-reuse-many-preempt-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, use queues again spinners complete, both GTs, use compressed memory
+ *
  * SUBTEST: long-spin-reuse-many-preempt-gt0-threads
  * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, use queues again spinners complete, primary GT
  *
@@ -876,6 +880,10 @@ igt_main
 
 	igt_subtest("long-spin-sys-reuse-many-preempt-threads")
 		threads(fd, 2, 16, SYSTEM | LONG_SPIN | PREEMPT |
+			LONG_SPIN_REUSE_QUEUE);
+
+	igt_subtest("long-spin-comp-reuse-many-preempt-threads")
+		threads(fd, 2, 16, COMPRESSION | LONG_SPIN | PREEMPT |
 			LONG_SPIN_REUSE_QUEUE);
 
 	igt_subtest("long-spin-reuse-many-preempt-gt0-threads")

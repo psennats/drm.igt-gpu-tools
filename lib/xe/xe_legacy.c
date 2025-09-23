@@ -3,6 +3,7 @@
  * Copyright © 2025 Intel Corporation
  */
 
+#include "intel_pat.h"
 #include "lib/igt_syncobj.h"
 #include "linux_scaffold.h"
 #include "xe/xe_gt.h"
@@ -12,6 +13,7 @@
 
 /* Batch buffer element count, in number of dwords(u32) */
 #define BATCH_DW_COUNT			16
+#define COMPRESSION			(0x1 << 13)
 #define SYSTEM				(0x1 << 12)
 #define LONG_SPIN_REUSE_QUEUE		(0x1 << 11)
 #define LONG_SPIN			(0x1 << 8)
@@ -72,6 +74,9 @@ xe_legacy_test_mode(int fd, struct drm_xe_engine_class_instance *eci,
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
 
+	if (flags & COMPRESSION)
+		igt_require(intel_gen(intel_get_drm_devid(fd)) >= 20);
+
 	if (flags & CLOSE_FD)
 		fd = drm_open_driver(DRIVER_XE);
 
@@ -79,11 +84,20 @@ xe_legacy_test_mode(int fd, struct drm_xe_engine_class_instance *eci,
 	bo_size = sizeof(*data) * (n_execs + extra_execs);
 	bo_size = xe_bb_size(fd, bo_size);
 
-	bo = xe_bo_create(fd, vm, bo_size,
-			  flags & SYSTEM ?
-			  system_memory(fd) :
-			  vram_if_possible(fd, eci->gt_id),
-			  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	if (flags & COMPRESSION) {
+		bo = xe_bo_create_caching(fd, vm, bo_size,
+					  flags & SYSTEM ?
+					  system_memory(fd) :
+					  vram_if_possible(fd, eci->gt_id),
+					  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM,
+					  DRM_XE_GEM_CPU_CACHING_WC);
+	} else {
+		bo = xe_bo_create(fd, vm, bo_size,
+				  flags & SYSTEM ?
+				  system_memory(fd) :
+				  vram_if_possible(fd, eci->gt_id),
+				  DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
+	}
 	data = xe_bo_map(fd, bo, bo_size);
 
 	for (i = 0; i < n_exec_queues; i++) {
@@ -94,7 +108,14 @@ xe_legacy_test_mode(int fd, struct drm_xe_engine_class_instance *eci,
 	sync[0].handle = syncobj_create(fd, 0);
 
 	/* Binding mechanism based on use_capture_mode */
-	if (use_capture_mode) {
+	if (flags & COMPRESSION) {
+		int ret;
+
+		ret = __xe_vm_bind(fd, vm, 0, bo, 0, addr, bo_size,
+				   DRM_XE_VM_BIND_OP_MAP, 0, sync, 1, 0,
+				   intel_get_pat_idx_uc_comp(fd), 0);
+		igt_assert(!ret);
+	} else if (use_capture_mode) {
 		__xe_vm_bind_assert(fd, vm, 0, bo, 0, addr, bo_size,
 				    DRM_XE_VM_BIND_OP_MAP, flags, sync, 1, 0, 0);
 	} else {
@@ -141,7 +162,8 @@ xe_legacy_test_mode(int fd, struct drm_xe_engine_class_instance *eci,
 
 		xe_exec(fd, &exec);
 
-		if (!i && !(flags & CAT_ERROR) && !use_capture_mode)
+		if (!i && !(flags & CAT_ERROR) && !use_capture_mode &&
+		    !(flags & COMPRESSION))
 			xe_spin_wait_started(&data[i].spin);
 	}
 
@@ -202,7 +224,7 @@ xe_legacy_test_mode(int fd, struct drm_xe_engine_class_instance *eci,
 	xe_vm_unbind_async(fd, vm, 0, 0, addr, bo_size, sync, 1);
 	igt_assert(syncobj_wait(fd, &sync[0].handle, 1, INT64_MAX, 0, NULL));
 
-	if (!use_capture_mode && !(flags & (GT_RESET | CANCEL))) {
+	if (!use_capture_mode && !(flags & (GT_RESET | CANCEL | COMPRESSION))) {
 		for (i = flags & LONG_SPIN ? n_exec_queues : 1;
 		     i < n_execs + extra_execs; i++)
 			igt_assert_eq(data[i].data, 0xc0ffee);
