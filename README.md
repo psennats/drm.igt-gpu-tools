@@ -13,7 +13,7 @@ complicated build procedures or specific testing environments to get useful
 results. Therefore, IGT GPU Tools includes low-level tools and tests
 specifically for development and testing of the DRM Drivers.
 
-Generated documentation for the latest master is published under
+Generated documentation for the latest version is published under
 <https://drm.pages.freedesktop.org/igt-gpu-tools/>.
 
 
@@ -29,7 +29,7 @@ install the dependencies, e.g.:
     # dnf builddep igt-gpu-tools
 
 But keep in mind that this may be slightly outdated and miss some
-recently added dependencies for building the current master.
+recently added dependencies for building the current version.
 
 
 Building
@@ -113,7 +113,7 @@ IGT is packed into nifty docker-compatible containers for ease of execution
 and to avoid having to install all the dependencies. You can use
 podman/docker to to run it on your system.
 
-Oneliner to get you started with the latest master:
+Oneliner to get you started with the latest version:
 
     # podman run --rm --privileged registry.freedesktop.org/drm/igt-gpu-tools/igt:master
 
