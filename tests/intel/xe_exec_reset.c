@@ -116,6 +116,7 @@ static void test_spin(int fd, struct drm_xe_engine_class_instance *eci,
 #define VIRTUAL				(0x1 << 3)
 #define PARALLEL			(0x1 << 4)
 #define CAT_ERROR			(0x1 << 5)
+#define PREEMPT				(0x1 << 6)
 
 /**
  * SUBTEST: %s-cat-error
@@ -295,6 +296,12 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
  * SUBTEST: cat-error
  * Description: Test cat error
  *
+ * SUBTEST: cancel
+ * Description: Test job cancel
+ *
+ * SUBTEST: cancel-preempt
+ * Description: Test job cancel with a preemptable job
+ *
  * SUBTEST: gt-reset
  * Description: Test GT reset
  *
@@ -350,7 +357,7 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 		uint64_t exec_sync;
 		uint32_t data;
 	} *data;
-	struct xe_spin_opts spin_opts = { .preempt = false };
+	struct xe_spin_opts spin_opts = { .preempt = flags & PREEMPT };
 	int i, b;
 
 	igt_assert_lte(n_exec_queues, MAX_N_EXECQUEUES);
@@ -658,6 +665,20 @@ igt_main
 		xe_for_each_engine(fd, hwe)
 			xe_legacy_test_mode(fd, hwe, 2, 2, CAT_ERROR,
 					    LEGACY_MODE_ADDR, false);
+
+	igt_subtest("cancel")
+		xe_for_each_engine(fd, hwe) {
+			xe_legacy_test_mode(fd, hwe, 1, 1, 0,
+					    LEGACY_MODE_ADDR, false);
+			break;
+		}
+
+	igt_subtest("cancel-preempt")
+		xe_for_each_engine(fd, hwe) {
+			xe_legacy_test_mode(fd, hwe, 1, 1, PREEMPT,
+					    LEGACY_MODE_ADDR, false);
+			break;
+		}
 
 	igt_subtest("gt-reset")
 		xe_for_each_engine(fd, hwe)
