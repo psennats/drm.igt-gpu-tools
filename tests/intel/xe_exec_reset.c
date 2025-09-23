@@ -118,6 +118,10 @@ static void test_spin(int fd, struct drm_xe_engine_class_instance *eci,
 #define CAT_ERROR			(0x1 << 5)
 #define PREEMPT				(0x1 << 6)
 #define CANCEL				(0x1 << 7)
+#define LONG_SPIN			(0x1 << 8)
+#define GT0				(0x1 << 9)
+#define GT1				(0x1 << 10)
+#define LONG_SPIN_REUSE_QUEUE		(0x1 << 11)
 
 /**
  * SUBTEST: %s-cat-error
@@ -308,6 +312,18 @@ test_balancer(int fd, int gt, int class, int n_exec_queues, int n_execs,
  *
  * SUBTEST: cancel-timeslice-many-preempt
  * Description: Test job cancel with many preemptable jobs
+ *
+ * SUBTEST: long-spin-many-preempt
+ * Description: Test long spinners with many preemptable jobs
+ *
+ * SUBTEST: long-spin-many-preempt-media
+ * Description: Test long spinners with many preemptable jobs on media GT
+ *
+ * SUBTEST: long-spin-reuse-many-preempt
+ * Description: Test long spinners with many preemptable jobs, use queues again spinners complete
+ *
+ * SUBTEST: long-spin-reuse-many-preempt-media
+ * Description: Test long spinners with many preemptable jobs, use queues again spinners complete on media GT
  *
  * SUBTEST: gt-reset
  * Description: Test GT reset
@@ -642,6 +658,108 @@ gt_mocs_reset(int fd, int gt)
 	free(mocs_contents_post);
 }
 
+struct thread_data {
+	pthread_t thread;
+	pthread_mutex_t *mutex;
+	pthread_cond_t *cond;
+	int fd;
+	struct drm_xe_engine_class_instance *hwe;
+	int n_exec_queue;
+	int n_exec;
+	int flags;
+	bool *go;
+};
+
+static void *thread(void *data)
+{
+	struct thread_data *t = data;
+
+	pthread_mutex_lock(t->mutex);
+	while (*t->go == 0)
+		pthread_cond_wait(t->cond, t->mutex);
+	pthread_mutex_unlock(t->mutex);
+
+	xe_legacy_test_mode(t->fd, t->hwe, t->n_exec_queue, t->n_exec,
+			    t->flags, LEGACY_MODE_ADDR, false);
+
+	return NULL;
+}
+
+/**
+ * SUBTEST: long-spin-many-preempt-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, both GTs
+ *
+ * SUBTEST: long-spin-many-preempt-gt0-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, primary GT
+ *
+ * SUBTEST: long-spin-many-preempt-gt1-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, media GT
+ *
+ * SUBTEST: long-spin-reuse-many-preempt-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, use queues again spinners complete, both GTs
+ *
+ * SUBTEST: long-spin-reuse-many-preempt-gt0-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, use queues again spinners complete, primary GT
+ *
+ * SUBTEST: long-spin-reuse-many-preempt-gt1-threads
+ * Description: Test long spinners with many preemptable jobs on each engine instance with a thread, use queues again spinners complete,  media GT
+ */
+
+static void threads(int fd, int n_exec_queues, int n_execs, unsigned int flags)
+{
+	struct thread_data *threads_data;
+	struct drm_xe_engine_class_instance *hwe;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	int n_engines = 0, i;
+	bool go = false;
+
+	xe_for_each_engine(fd, hwe) {
+		if (hwe->gt_id && (flags & GT0))
+			continue;
+		if (!hwe->gt_id && (flags & GT1))
+			continue;
+
+		++n_engines;
+	}
+
+	threads_data = calloc(n_engines, sizeof(*threads_data));
+	igt_assert(threads_data);
+
+	pthread_mutex_init(&mutex, 0);
+	pthread_cond_init(&cond, 0);
+
+	xe_for_each_engine(fd, hwe) {
+		if (hwe->gt_id && (flags & GT0))
+			continue;
+		if (!hwe->gt_id && (flags & GT1))
+			continue;
+
+		threads_data[i].fd = fd;
+		threads_data[i].mutex = &mutex;
+		threads_data[i].cond = &cond;
+		threads_data[i].hwe = hwe;
+		threads_data[i].n_exec_queue = n_exec_queues;
+		threads_data[i].n_exec = n_execs;
+		threads_data[i].flags = flags;
+		threads_data[i].go = &go;
+
+		pthread_create(&threads_data[i].thread, 0, thread,
+			       &threads_data[i]);
+		++i;
+	}
+
+	pthread_mutex_lock(&mutex);
+	go = true;
+	pthread_cond_broadcast(&cond);
+	pthread_mutex_unlock(&mutex);
+
+	for (i = 0; i < n_engines; ++i)
+		pthread_join(threads_data[i].thread, NULL);
+
+	free(threads_data);
+}
+
 igt_main
 {
 	struct drm_xe_engine_class_instance *hwe;
@@ -700,6 +818,65 @@ igt_main
 					    LEGACY_MODE_ADDR, false);
 			break;
 		}
+
+	igt_subtest("long-spin-many-preempt")
+		xe_for_each_engine(fd, hwe) {
+			xe_legacy_test_mode(fd, hwe, 4, 8,
+					    LONG_SPIN | PREEMPT,
+					    LEGACY_MODE_ADDR, false);
+			break;
+		}
+
+	igt_subtest("long-spin-many-preempt-media")
+		xe_for_each_engine(fd, hwe) {
+			if (!hwe->gt_id)
+				continue;
+			xe_legacy_test_mode(fd, hwe, 4, 8,
+					    LONG_SPIN | PREEMPT,
+					    LEGACY_MODE_ADDR, false);
+			break;
+		}
+
+	igt_subtest("long-spin-reuse-many-preempt")
+		xe_for_each_engine(fd, hwe) {
+			xe_legacy_test_mode(fd, hwe, 4, 8,
+					    LONG_SPIN | PREEMPT |
+					    LONG_SPIN_REUSE_QUEUE,
+					    LEGACY_MODE_ADDR, false);
+			break;
+		}
+
+	igt_subtest("long-spin-reuse-many-preempt-media")
+		xe_for_each_engine(fd, hwe) {
+			if (!hwe->gt_id)
+				continue;
+			xe_legacy_test_mode(fd, hwe, 4, 8,
+					    LONG_SPIN | PREEMPT |
+					    LONG_SPIN_REUSE_QUEUE,
+					    LEGACY_MODE_ADDR, false);
+			break;
+		}
+
+	igt_subtest("long-spin-many-preempt-threads")
+		threads(fd, 2, 16, LONG_SPIN | PREEMPT);
+
+	igt_subtest("long-spin-many-preempt-gt0-threads")
+		threads(fd, 2, 16, LONG_SPIN | PREEMPT | GT0);
+
+	igt_subtest("long-spin-many-preempt-gt1-threads")
+		threads(fd, 2, 16, LONG_SPIN | PREEMPT | GT1);
+
+	igt_subtest("long-spin-reuse-many-preempt-threads")
+		threads(fd, 2, 16, LONG_SPIN | PREEMPT |
+			LONG_SPIN_REUSE_QUEUE);
+
+	igt_subtest("long-spin-reuse-many-preempt-gt0-threads")
+		threads(fd, 2, 16, LONG_SPIN | PREEMPT | GT0 |
+			LONG_SPIN_REUSE_QUEUE);
+
+	igt_subtest("long-spin-reuse-many-preempt-gt1-threads")
+		threads(fd, 2, 16, LONG_SPIN | PREEMPT | GT1 |
+			LONG_SPIN_REUSE_QUEUE);
 
 	igt_subtest("gt-reset")
 		xe_for_each_engine(fd, hwe)
