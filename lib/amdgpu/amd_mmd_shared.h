@@ -25,7 +25,7 @@
 #define VEGA_20_GPCOM_VCPU_DATA1 0x81C5
 #define VEGA_20_UVD_ENGINE_CNTL 0x81C6
 
-#define IB_SIZE		4096
+#define IB_SIZE		8192
 #define MAX_RESOURCES	16
 
 enum decoder_error_type {

@@ -122,7 +122,6 @@ uint32_t jpeg_chroma_base0_0;
 #define JPEG_DEC_LUMA_OFFSET    0
 #define JPEG_DEC_CHROMA_OFFSET  0x4000
 #define JPEG_DEC_SUM            262144
-#define IB_SIZE                 4096
 #define MAX_RESOURCES           16
 
 bool

@@ -12,7 +12,6 @@
 
 IGT_TEST_DESCRIPTION("Test VPE functionality");
 
-#define IB_SIZE			4096
 #define MAX_RESOURCES		16
 
 #define PLANE_WIDTH		1024

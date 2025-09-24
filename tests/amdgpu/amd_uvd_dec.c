@@ -40,11 +40,11 @@ amdgpu_uvd_dec_create(amdgpu_device_handle device_handle,
 
 	r = amdgpu_va_range_alloc(device_handle,
 				  amdgpu_gpu_va_range_general,
-				  IB_SIZE, 1, 0, &va,
+				  req.alloc_size, 1, 0, &va,
 				  &va_handle, 0);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_bo_va_op(buf_handle, 0, IB_SIZE, va, 0, AMDGPU_VA_OP_MAP);
+	r = amdgpu_bo_va_op(buf_handle, 0, req.alloc_size, va, 0, AMDGPU_VA_OP_MAP);
 	igt_assert_eq(r, 0);
 
 	r = amdgpu_bo_cpu_map(buf_handle, &msg);
@@ -80,7 +80,7 @@ amdgpu_uvd_dec_create(amdgpu_device_handle device_handle,
 	r = submit(device_handle, context, i, AMDGPU_HW_IP_UVD);
 	igt_assert_eq(r, 0);
 
-	r = amdgpu_bo_va_op(buf_handle, 0, IB_SIZE, va, 0, AMDGPU_VA_OP_UNMAP);
+	r = amdgpu_bo_va_op(buf_handle, 0, req.alloc_size, va, 0, AMDGPU_VA_OP_UNMAP);
 	igt_assert_eq(r, 0);
 
 	r = amdgpu_va_range_free(va_handle);
@@ -108,7 +108,7 @@ amdgpu_uvd_decode(amdgpu_device_handle device_handle,
 	req.alloc_size = 4 * 1024; /* msg */
 	req.alloc_size += 4 * 1024; /* fb */
 	if (shared_context->family_id >= AMDGPU_FAMILY_VI)
-		req.alloc_size += IB_SIZE; /*it_scaling_table*/
+		req.alloc_size += req.alloc_size; /*it_scaling_table*/
 	req.alloc_size += ALIGN(sizeof(uvd_bitstream), 4 * 1024);
 	req.alloc_size += ALIGN(dpb_size, 4*1024);
 	req.alloc_size += ALIGN(dt_size, 4*1024);
