@@ -1309,6 +1309,25 @@ static void test_planar_settings(data_t *data)
 	} else {
 		igt_debug("Odd height NV12 framebuffer test skipped\n");
 	}
+
+	/* test against intel_plane_check_src_coordinates() in i915 */
+	if (igt_plane_has_format_mod(primary, DRM_FORMAT_NV12,
+				     DRM_FORMAT_MOD_LINEAR)) {
+		int expected_rval = -EINVAL;
+
+		igt_create_fb(data->drm_fd, 810, 590,
+			      DRM_FORMAT_NV12, DRM_FORMAT_MOD_LINEAR, &fb);
+		igt_plane_set_fb(primary, &fb);
+		igt_plane_set_size(primary, 810, 590);
+		igt_plane_set_position(primary, -501, 200);
+		rval = igt_display_try_commit_atomic(&data->display, DRM_MODE_ATOMIC_ALLOW_MODESET |
+						     DRM_MODE_ATOMIC_TEST_ONLY, NULL);
+
+		igt_remove_fb(data->drm_fd, &fb);
+		igt_assert_f(rval == expected_rval, "Odd horizontal pan NV12 framebuffer\n");
+	} else {
+		igt_debug("Odd horizontal pan NV12 framebuffer test skipped\n");
+	}
 }
 
 static bool is_pipe_limit_reached(int count)
