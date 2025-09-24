@@ -110,6 +110,7 @@ static const char *intel_engine_class_string(uint16_t engine_class)
 struct duration {
 	unsigned int min, max;
 	bool unbound;
+	uint32_t requested_ticks;
 };
 
 enum w_type {
@@ -325,6 +326,7 @@ static struct drm_i915_gem_context_param_sseu device_sseu = {
 #define FLAG_SYNCEDCLIENTS	(1<<1)
 #define FLAG_DEPSYNC		(1<<2)
 #define FLAG_SSEU		(1<<3)
+#define FLAG_VERIFY_COMPLETION	(1 << 4)
 
 static void w_step_sync(struct w_step *w)
 {
@@ -1796,10 +1798,12 @@ xe_alloc_step_batch(struct workload *wrk, struct w_step *w)
 		intel_allocator_alloc_with_strategy(vm->ahnd, w->bb_handle, w->bb_size,
 						    0, ALLOC_STRATEGY_LOW_TO_HIGH);
 	xe_vm_bind_sync(fd, vm->id, w->bb_handle, 0, w->xe.exec.address, w->bb_size);
-	xe_spin_init_opts(&w->xe.data->spin, .addr = w->xe.exec.address,
-				   .preempt = (w->preempt_us > 0),
-				   .ctx_ticks = xe_spin_nsec_to_ticks(fd, eq->hwe_list[0].gt_id,
-								      1000LL * get_duration(wrk, w)));
+	w->duration.requested_ticks = xe_spin_nsec_to_ticks(fd, eq->hwe_list[0].gt_id,
+							    1000LL * get_duration(wrk, w));
+	xe_spin_init_opts(&w->xe.data->spin,
+			  .addr = w->xe.exec.address,
+			  .preempt = (w->preempt_us > 0),
+			  .ctx_ticks = w->duration.requested_ticks);
 	w->xe.exec.exec_queue_id = eq->id;
 	w->xe.exec.num_batch_buffer = 1;
 	/* always at least one out fence */
@@ -2652,13 +2656,28 @@ static void do_xe_exec(struct workload *wrk, struct w_step *w)
 		syncobj_reset(fd, &w->xe.syncs[0].handle, 1);
 
 	/* update duration if random */
-	if (w->duration.max != w->duration.min)
+	if (w->duration.max != w->duration.min) {
+		w->duration.requested_ticks = xe_spin_nsec_to_ticks(fd, eq->hwe_list[0].gt_id,
+								    1000LL * get_duration(wrk, w));
 		xe_spin_init_opts(&w->xe.data->spin,
 				  .addr = w->xe.exec.address,
 				  .preempt = (w->preempt_us > 0),
-				  .ctx_ticks = xe_spin_nsec_to_ticks(fd, eq->hwe_list[0].gt_id,
-								     1000LL * get_duration(wrk, w)));
+				  .ctx_ticks = w->duration.requested_ticks);
+	}
 	xe_exec(fd, &w->xe.exec);
+}
+
+static void xe_w_step_sync_and_verify(struct w_step *w)
+{
+	if (!is_xe && w->type != BATCH)
+		return;
+
+	w_step_sync(w);
+
+	if (!w->duration.unbound) {
+		igt_assert(w->duration.requested_ticks && w->xe.data->spin.ticks_delta);
+		igt_assert_lte(w->duration.requested_ticks, ~w->xe.data->spin.ticks_delta);
+	}
 }
 
 static void
@@ -2910,6 +2929,9 @@ static void *run_workload(void *data)
 				close(w->emit_fence);
 				w->emit_fence = -1;
 			}
+
+			if (wrk->flags & FLAG_VERIFY_COMPLETION)
+				xe_w_step_sync_and_verify(w);
 		}
 	}
 
@@ -3108,7 +3130,7 @@ int main(int argc, char **argv)
 	master_prng = time(NULL);
 
 	while ((c = getopt(argc, argv,
-			   "LlhqvsSdc:r:w:W:a:p:I:f:F:D:")) != -1) {
+			   "LlhqvVsSdc:r:w:W:a:p:I:f:F:D:")) != -1) {
 		switch (c) {
 		case 'L':
 			list_devices_arg = true;
@@ -3152,6 +3174,9 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			verbose++;
+			break;
+		case 'V':
+			flags |= FLAG_VERIFY_COMPLETION;
 			break;
 		case 'S':
 			flags |= FLAG_SYNCEDCLIENTS;
