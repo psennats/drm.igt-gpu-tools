@@ -63,6 +63,7 @@
 #include "i915/gem_mman.h"
 
 #include "igt_syncobj.h"
+#include "igt_thread.h"
 #include "intel_allocator.h"
 #include "xe_drm.h"
 #include "xe/xe_ioctl.h"
@@ -3361,6 +3362,8 @@ out:
 err:
 	if (is_xe)
 		xe_device_put(fd);
+
+	igt_thread_assert_no_failures();
 
 	return exitcode;
 }
