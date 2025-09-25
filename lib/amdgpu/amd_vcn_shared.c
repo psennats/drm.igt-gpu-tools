@@ -59,13 +59,6 @@ is_vcn_tests_enable(amdgpu_device_handle device_handle, struct mmd_shared_contex
 		context->vcn_reg_index = 2;
 	}
 
-	/* Skip VCN tests on Radeon RX9000  (GFX12, family_id = 152) */
-	if (context->family_id == AMDGPU_FAMILY_GC_12_0_0 ) {
-		igt_info("Skipping VCN tests on GFX12 RX9000 (family_id = 152)\n");
-		return false;
-	}
-
-
 	return true;
 }
 
