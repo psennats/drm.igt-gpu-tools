@@ -2347,6 +2347,23 @@ static void dump_tv_options(struct context *context,
 	       to_str(underscan_overscan_str, tv->underscan_overscan_hdtv_component));
 }
 
+static const char * const edp_bpp_str[] = {
+	[EDP_18BPP] = "18 bpp",
+	[EDP_24BPP] = "24 bpp",
+	[EDP_30BPP] = "30 bpp",
+};
+
+static const char * const edp_rate_str[] = {
+	[EDP_RATE_1_62] = "1.62Gbps",
+	[EDP_RATE_2_7] = "2.7Gbps",
+	[EDP_RATE_5_4] = "5.4Gbps",
+};
+
+static const char * const edp_preemph_str[] = {
+	[0] = "Low power (200 mV)",
+	[1] = "Default (400 mV)",
+};
+
 static void dump_edp(struct context *context,
 		     const struct bdb_block *block)
 {
@@ -2369,42 +2386,17 @@ static void dump_edp(struct context *context,
 
 		bpp = panel_bits(edp->color_depth, i, 2);
 
-		printf("\t\tPanel color depth: ");
-		switch (bpp) {
-		case EDP_18BPP:
-			printf("18 bpp\n");
-			break;
-		case EDP_24BPP:
-			printf("24 bpp\n");
-			break;
-		case EDP_30BPP:
-			printf("30 bpp\n");
-			break;
-		default:
-			printf("(unknown value %d)\n", bpp);
-			break;
-		}
+		printf("\t\tPanel color depth: %s (0x%x)\n",
+		       to_str(edp_bpp_str, bpp), bpp);
 
 		msa = panel_bits(edp->sdrrs_msa_timing_delay, i, 2);
 		printf("\t\teDP sDRRS MSA Delay: Lane %d\n", msa + 1);
 
 		printf("\t\tFast link params:\n");
-		printf("\t\t\trate: ");
-		switch (edp->fast_link_params[i].rate) {
-		case EDP_RATE_1_62:
-			printf("1.62Gbps\n");
-			break;
-		case EDP_RATE_2_7:
-			printf("2.7Gbpc\n");
-			break;
-		case EDP_RATE_5_4:
-			printf("5.4Gbps\n");
-			break;
-		default:
-			printf("(unknonn value %d)\n",
-			       edp->fast_link_params[i].rate);
-			break;
-		}
+		printf("\t\t\trate: %s (0x%x)\n",
+		       to_str(edp_rate_str, edp->fast_link_params[i].rate),
+		       edp->fast_link_params[i].rate);
+
 		printf("\t\t\tlanes: X%d\n",
 		       edp->fast_link_params[i].lanes + 1);
 		printf("\t\t\tpre-emphasis: %s (0x%x)\n",
@@ -2425,18 +2417,8 @@ static void dump_edp(struct context *context,
 		if (context->bdb->version >= 173) {
 			int val = (edp->edp_vswing_preemph >> (i * 4)) & 0xf;
 
-			printf("\t\tVswing/preemphasis table selection: ");
-			switch (val) {
-			case 0:
-				printf("Low power (200 mV)\n");
-				break;
-			case 1:
-				printf("Default (400 mV)\n");
-				break;
-			default:
-				printf("(unknown value %d)\n", val);
-				break;
-			}
+			printf("\t\tVswing/preemphasis table selection: %s (0x%x)\n",
+			       to_str(edp_preemph_str, val), val);
 		}
 
 		if (context->bdb->version >= 182)
