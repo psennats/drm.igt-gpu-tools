@@ -655,7 +655,7 @@ static int decode_ssc_freq(struct context *context, bool alternate)
 	}
 }
 
-static const char * const panel_fitting[] = {
+static const char * const panel_fitting_str[] = {
 	[0] = "disabled",
 	[1] = "text only",
 	[2] = "graphics only",
@@ -668,7 +668,7 @@ static void dump_general_features(struct context *context,
 	const struct bdb_general_features *features = block_data(block);
 
 	printf("\tPanel fitting: %s (0x%x)\n",
-	       panel_fitting[features->panel_fitting], features->panel_fitting);
+	       to_str(panel_fitting_str, features->panel_fitting), features->panel_fitting);
 	printf("\tFlexaim: %s\n", YESNO(features->flexaim));
 	printf("\tMessage: %s\n", YESNO(features->msg_enable));
 	printf("\tClear screen: %d\n", features->clear_screen);
@@ -1504,28 +1504,28 @@ static void dump_legacy_child_devices(struct context *context,
 			   child_dev_num, defs->child_dev_size);
 }
 
-static const char * const channel_type[] = {
+static const char * const channel_type_str[] = {
 	[0] = "automatic",
 	[1] = "single",
 	[2] = "dual",
 	[3] = "reserved",
 };
 
-static const char * const dps_type[] = {
+static const char * const dps_type_str[] = {
 	[0] = "static DRRS",
 	[1] = "D2PO",
 	[2] = "seamless DRRS",
 	[3] = "reserved",
 };
 
-static const char * const blt_type[] = {
+static const char * const blt_type_str[] = {
 	[0] = "default",
 	[1] = "CCFL",
 	[2] = "LED",
 	[3] = "reserved",
 };
 
-static const char * const pos_type[] = {
+static const char * const pos_type_str[] = {
 	[0] = "inside shell",
 	[1] = "outside shell",
 	[2] = "reserved",
@@ -1562,7 +1562,7 @@ static void dump_lfp_options(struct context *context,
 
 		val = panel_bits(options->lvds_panel_channel_bits, i, 2);
 		printf("\t\tChannel type: %s (0x%x)\n",
-		       channel_type[val], val);
+		       to_str(channel_type_str, val), val);
 
 		printf("\t\tSSC: %s\n",
 		       YESNO(panel_bool(options->ssc_bits, i)));
@@ -1586,11 +1586,11 @@ static void dump_lfp_options(struct context *context,
 
 		val = panel_bits(options->dps_panel_type_bits, i, 2);
 		printf("\t\tDPS type: %s (0x%x)\n",
-		       dps_type[val], val);
+		       to_str(dps_type_str, val), val);
 
 		val = panel_bits(options->blt_control_type_bits, i, 2);
 		printf("\t\tBacklight type: %s (0x%x)\n",
-		       blt_type[val], val);
+		       to_str(blt_type_str, val), val);
 
 		if (context->bdb->version < 200)
 			continue;
@@ -1610,7 +1610,7 @@ static void dump_lfp_options(struct context *context,
 
 		val = panel_bits((options->position), i, 2);
 		printf("\t\tPanel position: %s (0x%x)\n",
-		       pos_type[val], val);
+		       to_str(pos_type_str, val), val);
 	}
 }
 
@@ -1807,7 +1807,7 @@ static void dump_lfp_data(struct context *context,
 	free(ptrs_block);
 }
 
-static const char * const lvds_config[] = {
+static const char * const lvds_config_str[] = {
 	[BDB_DRIVER_FEATURE_NO_LVDS] = "No LVDS",
 	[BDB_DRIVER_FEATURE_INT_LVDS] = "Integrated LVDS",
 	[BDB_DRIVER_FEATURE_SDVO_LVDS] = "SDVO LVDS",
@@ -1869,7 +1869,7 @@ static void dump_driver_feature(struct context *context,
 	printf("\tCRT hotplug: %s\n", YESNO(feature->crt_hotplug));
 
 	printf("\tLVDS config: %s (0x%x)\n",
-	       lvds_config[feature->lvds_config], feature->lvds_config);
+	       to_str(lvds_config_str, feature->lvds_config), feature->lvds_config);
 	printf("\tTV hotplug: %s\n",
 	       YESNO(feature->tv_hotplug));
 
@@ -2325,11 +2325,11 @@ static void dump_efp_list(struct context *context,
 	}
 }
 
-static const char * const underscan_overscan[] = {
-	"Neither",
-	"Underscan/Overscan",
-	"Overscan only",
-	"Underscan only",
+static const char * const underscan_overscan_str[] = {
+	[0] = "Neither",
+	[1] = "Underscan/Overscan",
+	[2] = "Overscan only",
+	[3] = "Underscan only",
 };
 
 static void dump_tv_options(struct context *context,
@@ -2342,9 +2342,9 @@ static void dump_tv_options(struct context *context,
 	printf("\tAdd modes to avoid overscan issue: %s\n",
 	       YESNO(tv->add_modes_to_avoid_overscan_issue));
 	printf("\tUndescan/Overscan for HDTV via DVI: %s\n",
-	       underscan_overscan[tv->underscan_overscan_hdtv_dvi]);
+	       to_str(underscan_overscan_str, tv->underscan_overscan_hdtv_dvi));
 	printf("\tUndescan/Overscan for HDTV via component: %s\n",
-	       underscan_overscan[tv->underscan_overscan_hdtv_component]);
+	       to_str(underscan_overscan_str, tv->underscan_overscan_hdtv_component));
 }
 
 static void dump_edp(struct context *context,
