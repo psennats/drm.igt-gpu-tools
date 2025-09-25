@@ -2415,7 +2415,7 @@ static void dump_edp(struct context *context,
 			       YESNO(panel_bool(edp->edp_t3_optimization, i)));
 
 		if (context->bdb->version >= 173) {
-			int val = (edp->edp_vswing_preemph >> (i * 4)) & 0xf;
+			int val = panel_bits(edp->edp_vswing_preemph, i, 4);
 
 			printf("\t\tVswing/preemphasis table selection: %s (0x%x)\n",
 			       to_str(edp_preemph_str, val), val);
