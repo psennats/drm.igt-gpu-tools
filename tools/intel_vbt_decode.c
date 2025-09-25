@@ -631,6 +631,17 @@ static bool panel_bool(unsigned int value, int panel_type)
 	return panel_bits(value, panel_type, 1);
 }
 
+static const char *_to_str(const char * const strings[],
+			   int num_strings, int value)
+{
+	if (value >= num_strings || value < 0 || strings[value] == NULL)
+		return "<unknown>";
+
+	return strings[value];
+}
+
+#define to_str(strings, value) _to_str((strings), ARRAY_SIZE(strings), (value))
+
 static int decode_ssc_freq(struct context *context, bool alternate)
 {
 	switch (intel_gen(context->devid)) {
@@ -705,26 +716,18 @@ static void dump_general_features(struct context *context,
 	printf("\tDP SSC dongle supported: %s\n", YESNO(features->dp_ssc_dongle_supported));
 }
 
-static const char *inverter_type(u8 type)
-{
-	switch (type) {
-	case 0: return "none/external";
-	case 1: return "I2C";
-	case 2: return "PWM";
-	default: return "<reserved>";
-	}
-}
+static const char * const inverter_type_str[] = {
+	[0] = "none/external",
+	[1] = "I2C",
+	[2] = "PWM",
+};
 
-static const char *i2c_speed(u8 i2c_speed)
-{
-	switch (i2c_speed) {
-	case 0: return "100 kHz";
-	case 1: return "50 kHz";
-	case 2: return "400 kHz";
-	case 3: return "1 MHz";
-	default: return "<unknown>";
-	}
-}
+static const char * const i2c_speed_str[] = {
+	[0] = "100 kHz",
+	[1] = "50 kHz",
+	[2] = "400 kHz",
+	[3] = "1 MHz",
+};
 
 static void dump_backlight_info(struct context *context,
 				const struct bdb_block *block)
@@ -751,7 +754,7 @@ static void dump_backlight_info(struct context *context,
 		blc = &backlight->data[i];
 
 		printf("\t\tInverter type: %s (%u)\n",
-		       inverter_type(blc->type), blc->type);
+		       to_str(inverter_type_str, blc->type), blc->type);
 		printf("\t\tActive low: %s\n", YESNO(blc->active_low_pwm));
 		printf("\t\tPWM freq: %u\n", blc->pwm_freq_hz);
 		printf("\t\tMinimum brightness: %u\n", blc->min_brightness);
@@ -759,7 +762,7 @@ static void dump_backlight_info(struct context *context,
 		if (blc->type == 1) {
 			printf("\t\tI2C pin: 0x%02x\n", blc->i2c_pin);
 			printf("\t\tI2C speed: %s (0x%02x)\n",
-			       i2c_speed(blc->i2c_speed), blc->i2c_speed);
+			       to_str(i2c_speed_str, blc->i2c_speed), blc->i2c_speed);
 			printf("\t\tI2C address: 0x%02x\n", blc->i2c_address);
 			printf("\t\tI2C command: 0x%02x\n", blc->i2c_command);
 		}
@@ -1008,19 +1011,11 @@ static const char *aux_ch(uint8_t aux_ch)
 		return "unknown";
 }
 
-static const char *mipi_bridge_type(uint8_t type)
-{
-	switch (type) {
-	case 1:
-		return "ASUS";
-	case 2:
-		return "Toshiba";
-	case 3:
-		return "Renesas";
-	default:
-		return "unknown";
-	}
-}
+static const char * const mipi_bridge_type_str[] = {
+	[1] = "ASUS",
+	[2] = "Toshiba",
+	[3] = "Renesas",
+};
 
 static void dump_hmdi_max_data_rate(uint8_t hdmi_max_data_rate)
 {
@@ -1090,40 +1085,28 @@ static void dump_dp_max_link_rate(uint16_t version, uint8_t dp_max_link_rate)
 		       link_rate / 100.0f, dp_max_link_rate);
 }
 
-static const char *dp_vswing(u8 vswing)
-{
-	switch (vswing) {
-	case 0: return "0.4V";
-	case 1: return "0.6V";
-	case 2: return "0.8V";
-	case 3: return "1.2V";
-	default: return "<unknown>";
-	}
-}
+static const char * const dp_vswing_str[] = {
+	[0] = "0.4V",
+	[1] = "0.6V",
+	[2] = "0.8V",
+	[3] = "1.2V",
+};
 
-static const char *dp_preemph(u8 preemph)
-{
-	switch (preemph) {
-	case 0: return "0dB";
-	case 1: return "3.5dB";
-	case 2: return "6dB";
-	case 3: return "9.5dB";
-	default: return "<unknown>";
-	}
-}
+static const char * const dp_preemph_str[] = {
+	[0] = "0dB",
+	[1] = "3.5dB",
+	[2] = "6dB",
+	[3] = "9.5dB",
+};
 
-static const char *hdmi_frl_rate(u8 frl_rate)
-{
-	switch (frl_rate) {
-	case 0: return "FRL not supported";
-	case 1: return "3 GT/s";
-	case 2: return "6 GT/s";
-	case 3: return "8 GT/s";
-	case 4: return "10 GT/s";
-	case 5: return "12 GT/s";
-	default: return "<unknown>";
-	}
-}
+static const char * const hdmi_frl_rate_str[] = {
+	[0] = "FRL not supported",
+	[1] = "3 GT/s",
+	[2] = "6 GT/s",
+	[3] = "8 GT/s",
+	[4] = "10 GT/s",
+	[5] = "12 GT/s",
+};
 
 static void dump_child_device(struct context *context,
 			      const struct child_device_config *child)
@@ -1142,27 +1125,27 @@ static void dump_child_device(struct context *context,
 		printf("\t\tSignature: %.*s\n", (int)sizeof(child->device_id), child->device_id);
 	} else {
 		printf("\t\tI2C speed: %s (0x%02x)\n",
-		       i2c_speed(child->i2c_speed), child->i2c_speed);
+		       to_str(i2c_speed_str, child->i2c_speed), child->i2c_speed);
 
 		if (context->bdb->version >= 158) {
 			printf("\t\tDP onboard redriver:\n");
 			printf("\t\t\tpresent: %s\n",
 			       YESNO((child->dp_onboard_redriver_present)));
 			printf("\t\t\tvswing: %s (0x%x)\n",
-			       dp_vswing(child->dp_onboard_redriver_vswing),
+			       to_str(dp_vswing_str, child->dp_onboard_redriver_vswing),
 			       child->dp_onboard_redriver_vswing);
 			printf("\t\t\tpre-emphasis: %s (0x%x)\n",
-			       dp_preemph(child->dp_onboard_redriver_preemph),
+			       to_str(dp_preemph_str, child->dp_onboard_redriver_preemph),
 			       child->dp_onboard_redriver_preemph);
 
 			printf("\t\tDP ondock redriver:\n");
 			printf("\t\t\tpresent: %s\n",
 			       YESNO((child->dp_ondock_redriver_present)));
 			printf("\t\t\tvswing: %s (0x%x)\n",
-			       dp_vswing(child->dp_ondock_redriver_vswing),
+			       to_str(dp_vswing_str, child->dp_ondock_redriver_vswing),
 			       child->dp_ondock_redriver_vswing);
 			printf("\t\t\tpre-emphasis: %s (0x%x)\n",
-			       dp_preemph(child->dp_ondock_redriver_preemph),
+			       to_str(dp_preemph_str, child->dp_ondock_redriver_preemph),
 			       child->dp_ondock_redriver_preemph);
 		}
 
@@ -1196,7 +1179,7 @@ static void dump_child_device(struct context *context,
 			printf("\t\tHDMI Max FRL rate valid: %s\n",
 			       YESNO(child->hdmi_max_frl_rate_valid));
 			printf("\t\tHDMI Max FRL rate: %s (0x%x)\n",
-			       hdmi_frl_rate(child->hdmi_max_frl_rate),
+			       to_str(hdmi_frl_rate_str, child->hdmi_max_frl_rate),
 			       child->hdmi_max_frl_rate);
 		}
 	}
@@ -1255,7 +1238,7 @@ static void dump_child_device(struct context *context,
 		printf("\t\tDVO2 wiring: 0x%02x\n", child->dvo2_wiring);
 	} else {
 		printf("\t\tMIPI bridge type: %02x (%s)\n", child->mipi_bridge_type,
-		       mipi_bridge_type(child->mipi_bridge_type));
+		       to_str(mipi_bridge_type_str, child->mipi_bridge_type));
 	}
 
 	printf("\t\tDevice class extension: 0x%02x\n", child->extended_type);
@@ -2425,10 +2408,10 @@ static void dump_edp(struct context *context,
 		printf("\t\t\tlanes: X%d\n",
 		       edp->fast_link_params[i].lanes + 1);
 		printf("\t\t\tpre-emphasis: %s (0x%x)\n",
-		       dp_preemph(edp->fast_link_params[i].preemphasis),
+		       to_str(dp_preemph_str, edp->fast_link_params[i].preemphasis),
 		       edp->fast_link_params[i].preemphasis);
 		printf("\t\t\tvswing: %s (0x%x)\n",
-		       dp_vswing(edp->fast_link_params[i].vswing),
+		       to_str(dp_vswing_str, edp->fast_link_params[i].vswing),
 		       edp->fast_link_params[i].vswing);
 
 		if (context->bdb->version >= 162)
@@ -2477,10 +2460,10 @@ static void dump_edp(struct context *context,
 
 			printf("\t\tFull link params:\n");
 			printf("\t\t\tpre-emphasis: %s (0x%x)\n",
-			       dp_preemph(edp->full_link_params[i].preemphasis),
+			       to_str(dp_preemph_str, edp->full_link_params[i].preemphasis),
 			       edp->full_link_params[i].preemphasis);
 			printf("\t\t\tvswing: %s (0x%x)\n",
-			       dp_vswing(edp->full_link_params[i].vswing),
+			       to_str(dp_vswing_str, edp->full_link_params[i].vswing),
 			       edp->full_link_params[i].vswing);
 		}
 
