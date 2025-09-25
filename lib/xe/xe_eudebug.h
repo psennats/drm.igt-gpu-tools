@@ -46,6 +46,7 @@ struct xe_eudebug_debugger {
 
 	bool received_sigint;
 	bool handled_sigint;
+	bool received_signal;
 
 	int p_client[2];
 };

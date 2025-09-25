@@ -1084,6 +1084,8 @@ static void debugger_signal_handler(int sig, siginfo_t *info, void *context)
 
 	igt_assert(d);
 
+	d->received_signal = true;
+
 	if (sig == SIGINT)
 		d->received_sigint = true;
 }
@@ -1107,6 +1109,11 @@ static void *debugger_worker_loop(void *data)
 	sa.sa_flags |= SA_SIGINFO;
 	igt_assert_eq(sigaction(SIGINT, &sa, NULL), 0);
 
+	igt_assert_eq(sigaction(SIGTERM, NULL, &sa), 0);
+	sa.sa_sigaction = debugger_signal_handler;
+	sa.sa_flags |= SA_SIGINFO;
+	igt_assert_eq(sigaction(SIGTERM, &sa, NULL), 0);
+
 	do {
 		p.fd = d->fd;
 		ret = poll(&p, 1, timeout_ms);
@@ -1116,8 +1123,12 @@ static void *debugger_worker_loop(void *data)
 		}
 
 		if (ret == -1) {
-			if (errno == EINTR)
-				continue;
+			if (d->received_signal) {
+				d->received_signal = false;
+
+				if (errno == EINTR)
+					continue;
+			}
 
 			igt_info("poll failed with errno %d\n", errno);
 			break;
@@ -1189,6 +1200,7 @@ xe_eudebug_debugger_create(int master_fd, uint64_t flags, void *data)
 	d->ptr = data;
 	d->received_sigint = false;
 	d->handled_sigint = false;
+	d->received_signal = false;
 
 	return d;
 }
