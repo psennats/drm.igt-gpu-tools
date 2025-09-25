@@ -369,28 +369,32 @@ int main(int argc, char *argv[])
 	igt_devices_scan_all_attrs();
 
 	if (igt_device != NULL) {
-		struct igt_device_card card;
+		struct igt_device_card *cards;
+		int matched;
 
 		printf("=== Device filter ===\n");
 		printf("%s\n\n", igt_device);
 
 		printf("=== Testing device open ===\n");
 
-		if (!igt_device_card_match(igt_device, &card)) {
+		matched = igt_device_card_match_all(igt_device, &cards);
+		if (!matched) {
 			printf("No device found for the filter\n\n");
 			ret = -1;
 			goto out;
 		}
 
-		printf("Device detail:\n");
-		print_card(&card);
-		test_device_open(&card);
-		if (fmt.type == IGT_PRINT_DETAIL) {
-			printf("\n");
-			igt_devices_print(&fmt);
+		for (int i = 0; i < matched; i++) {
+			printf("Device detail:\n");
+			print_card(&cards[i]);
+			test_device_open(&cards[i]);
+			if (fmt.type == IGT_PRINT_DETAIL) {
+				printf("\n");
+				igt_devices_print(&fmt);
+			}
+			printf("-------------------------------------------\n");
 		}
-		printf("-------------------------------------------\n");
-
+		free(cards);
 	} else {
 		igt_devices_print(&fmt);
 	}
