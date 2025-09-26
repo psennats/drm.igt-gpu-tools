@@ -1016,7 +1016,7 @@ static bool config_constraint(data_t *data, igt_output_t *output, uint32_t flags
 		return false;
 	}
 
-	if (flags & TEST_SEAMLESS_DRRS)
+	if (flags & TEST_LINK_OFF)
 		goto out;
 
 	/* For Negative tests, panel should be non-vrr. */
@@ -1027,6 +1027,12 @@ static bool config_constraint(data_t *data, igt_output_t *output, uint32_t flags
 
 	if ((flags & ~TEST_NEGATIVE) && !vrr_capable(output)) {
 		igt_info("%s: Can't run VRR tests on non-VRR panel.\n", igt_output_name(output));
+		return false;
+	}
+
+	if ((flags & (TEST_SEAMLESS_VRR | TEST_SEAMLESS_DRRS)) &&
+	    (intel_display_ver(data->drm_fd) >= 14)) {
+		igt_info("DRRS is not supported on LNL and newer platforms\n");
 		return false;
 	}
 
