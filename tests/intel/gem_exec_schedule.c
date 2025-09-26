@@ -2447,6 +2447,7 @@ static void test_pi_ringfull(int fd, const intel_ctx_cfg_t *cfg,
 	struct itimerval itv;
 	IGT_CORK_HANDLE(c);
 	bool *result;
+	bool *sync;
 
 	/*
 	 * We start simple. A low priority client should never prevent a high
@@ -2468,6 +2469,8 @@ static void test_pi_ringfull(int fd, const intel_ctx_cfg_t *cfg,
 
 	result = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
 	igt_assert(result != MAP_FAILED);
+
+	sync = result + 0x100;
 
 	memset(&execbuf, 0, sizeof(execbuf));
 	memset(&obj, 0, sizeof(obj));
@@ -2528,9 +2531,14 @@ static void test_pi_ringfull(int fd, const intel_ctx_cfg_t *cfg,
 
 	/* both parent + child on the same cpu, only parent is RT */
 	bind_to_cpu(0);
+	*sync = 0;
 
 	igt_fork(child, 1) {
 		int err;
+
+		/* We want the parent to always go first */
+		while (!*sync)
+			sched_yield();
 
 		/* Replace our batch to avoid conflicts over shared resources? */
 		if (!(flags & SHARED)) {
@@ -2542,7 +2550,6 @@ static void test_pi_ringfull(int fd, const intel_ctx_cfg_t *cfg,
 
 		igt_debug("Waking parent\n");
 		kill(getppid(), SIGALRM);
-		sched_yield();
 		result[1] = true;
 
 		sigaction(SIGALRM, &sa, NULL);
@@ -2566,17 +2573,19 @@ static void test_pi_ringfull(int fd, const intel_ctx_cfg_t *cfg,
 
 		if (!(flags & SHARED))
 			gem_close(fd, obj[1].handle);
+
+		/* Interrupt parent's execbuf now that the child is done */
+		kill(getppid(), SIGALRM);
 	}
 
+	*sync = 1;
+
 	/* Relinquish CPU just to allow child to create a context */
-	sleep(1);
+	pause();
 	igt_assert_f(result[0], "HP context (child) not created\n");
 	igt_assert_f(!result[1], "Child released too early!\n");
 
 	/* Parent sleeps waiting for ringspace, releasing child */
-	itv.it_value.tv_sec = 0;
-	itv.it_value.tv_usec = 50000;
-	setitimer(ITIMER_REAL, &itv, NULL);
 	igt_debug("LP parent executing\n");
 	igt_assert_eq(__execbuf(fd, &execbuf), -EINTR);
 	igt_assert_f(result[1], "Child was not released!\n");
