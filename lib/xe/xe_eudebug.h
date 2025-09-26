@@ -44,6 +44,8 @@ struct xe_eudebug_debugger {
 	pthread_t worker_thread;
 	enum xe_eudebug_debugger_worker_state worker_state;
 
+	bool received_sigint;
+
 	int p_client[2];
 };
 
