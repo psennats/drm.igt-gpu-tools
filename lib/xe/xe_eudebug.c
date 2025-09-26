@@ -1110,8 +1110,10 @@ static void *debugger_worker_loop(void *data)
 	do {
 		p.fd = d->fd;
 		ret = poll(&p, 1, timeout_ms);
-		if (d->received_sigint)
+		if (d->received_sigint) {
+			d->handled_sigint = true;
 			pthread_exit(NULL);
+		}
 
 		if (ret == -1) {
 			if (errno == EINTR)
@@ -1186,6 +1188,7 @@ xe_eudebug_debugger_create(int master_fd, uint64_t flags, void *data)
 	d->master_fd = master_fd;
 	d->ptr = data;
 	d->received_sigint = false;
+	d->handled_sigint = false;
 
 	return d;
 }
