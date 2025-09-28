@@ -1702,6 +1702,45 @@ int get_pci_addr_from_fd(int fd, struct pci_addr *pci)
 	return 0;
 }
 
+/**
+ * Find corresponding dri_id from PCI address
+ * @param pci Pointer to PCI address structure
+ * @return Found dri_id, -1 if failed
+ */
+int find_dri_id_by_pci(const struct pci_addr *pci)
+{
+	char pci_str[32];
+	char path[256];
+	char buffer[128];
+	FILE *dri_fp;
+	int dri_id;
+
+	if (!pci)
+		return -1;
+
+	snprintf(pci_str, sizeof(pci_str), "%04x:%02x:%02x.%01x",
+	pci->domain, pci->bus, pci->device, pci->function);
+
+	/* Search for corresponding dri_id (typically not very large, limit to 1024 here) */
+	for (dri_id = 0; dri_id < 1024; dri_id++) {
+		snprintf(path, sizeof(path), "/sys/class/drm/card%d/device/uevent", dri_id);
+		dri_fp = fopen(path, "r");
+		if (!dri_fp)
+		continue;
+
+		/* Read uevent file to find matching PCI address */
+		while (fgets(buffer, sizeof(buffer), dri_fp)) {
+			if (strstr(buffer, "PCI_SLOT_NAME=") && strstr(buffer, pci_str)) {
+			fclose(dri_fp);
+			return dri_id;
+			}
+		}
+		fclose(dri_fp);
+	}
+
+	return -1;
+}
+
 /*
  * Function to check if page queue files exist for a given IP block type and PCI address
  */

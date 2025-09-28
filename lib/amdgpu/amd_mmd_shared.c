@@ -203,18 +203,33 @@ mm_queue_test_helper(amdgpu_device_handle device_handle, struct mmd_shared_conte
 	long mask = 0;
 	uint32_t ring_id;
 	char sysfs[125];
+	char dri_dir[128];
+	int dri_id = 0;
 
 	if (!callback)
 		return -1;
 
-	// test is only supported on VCN version >= 4
-	if (context->ip_type == AMD_IP_VCN_UNIFIED)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_vcn_sched_mask",
-				pci->domain, pci->bus, pci->device, pci->function);
-	else if (context->ip_type == AMD_IP_VCN_JPEG)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_jpeg_sched_mask",
-				pci->domain, pci->bus, pci->device, pci->function);
+	snprintf(dri_dir, sizeof(dri_dir) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x",
+		pci->domain, pci->bus, pci->device, pci->function);
 
+	if (access(dri_dir, F_OK) == 0) {
+		// test is only supported on VCN version >= 4
+		if (context->ip_type == AMD_IP_VCN_UNIFIED)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_vcn_sched_mask",
+					pci->domain, pci->bus, pci->device, pci->function);
+		else if (context->ip_type == AMD_IP_VCN_JPEG)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_jpeg_sched_mask",
+					pci->domain, pci->bus, pci->device, pci->function);
+	} else {
+		dri_id = find_dri_id_by_pci(pci);
+		if (dri_id < 0)
+			dri_id = 0;
+
+		if (context->ip_type == AMD_IP_VCN_UNIFIED)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%d/amdgpu_vcn_sched_mask", dri_id);
+		else if (context->ip_type == AMD_IP_VCN_JPEG)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%d/amdgpu_jpeg_sched_mask", dri_id);
+	}
 	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
 	r = access(sysfs, R_OK);
 	if (!r) {
@@ -233,14 +248,16 @@ mm_queue_test_helper(amdgpu_device_handle device_handle, struct mmd_shared_conte
 	mask = sched_mask;
 	for (ring_id = 0;  mask > 0; ring_id++) {
 		/* check sched is ready is on the ring. */
-		if (mask & 1) {
+		if (sched_mask > 1) {
 			igt_info(" Testing on queue %d\n", ring_id);
 			snprintf(cmd, sizeof(cmd) - 1, "sudo echo  0x%x > %s", 0x1 << ring_id, sysfs);
 			r = system(cmd);
 			igt_assert_eq(r, 0);
-			if (callback(device_handle, context, err_type))
-				break;
 		}
+
+		if (callback(device_handle, context, err_type))
+			break;
+
 		mask = mask >> 1;
 	}
 

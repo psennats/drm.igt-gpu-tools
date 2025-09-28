@@ -363,6 +363,9 @@ bool
 is_support_page_queue(enum amd_ip_block_type ip_type, const struct pci_addr *pci);
 
 int
+find_dri_id_by_pci(const struct pci_addr *pci);
+
+int
 amdgpu_bo_alloc_and_map_uq(amdgpu_device_handle device_handle, unsigned int size,
 			       unsigned int alignment, unsigned int heap, uint64_t alloc_flags,
 			       uint64_t mapping_flags, amdgpu_bo_handle *bo, void **cpu,
