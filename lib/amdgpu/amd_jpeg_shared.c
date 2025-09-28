@@ -22,7 +22,7 @@ is_jpeg_tests_enable(amdgpu_device_handle device_handle,
 
 	if (info.hw_ip_version_major == 1)
 		context->jpeg_direct_reg = false;
-	else if (info.hw_ip_version_major > 1 && info.hw_ip_version_major <= 4)
+	else if (info.hw_ip_version_major > 1 && info.hw_ip_version_major <= 5)
 		context->jpeg_direct_reg = true;
 	else
 		return false;
