@@ -291,7 +291,7 @@ static void trap_sigbus(uint32_t *ptr)
 static void test_small_bar(int fd)
 {
 	size_t page_size = xe_get_default_alignment(fd);
-	uint32_t visible_size = xe_visible_vram_size(fd, 0);
+	uint64_t visible_size = xe_visible_vram_size(fd, 0);
 	uint32_t bo;
 	uint64_t mmo;
 	uint32_t *map;
