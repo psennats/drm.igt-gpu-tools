@@ -23,7 +23,13 @@
 #include "xe/xe_query.h"
 #include "xe/xe_util.h"
 
+#define XE_COH_NONE          1
+#define XE_COH_AT_LEAST_1WAY 2
+
 static bool do_slow_check;
+
+static uint32_t create_object(int fd, int r, int size, uint16_t coh_mode,
+			      bool force_cpu_wc);
 
 /**
  * SUBTEST: userptr-coh-none
@@ -419,8 +425,30 @@ static void pat_index_render(struct xe_pat_param *p)
 	}
 
 	/* Write some values from the CPU, potentially dirtying the CPU cache */
-	for (i = 0; i < size / sizeof(uint32_t); i++)
-		p->r1_map[i] = i;
+	if (p->r1_compressed) {
+		uint32_t tmp_bo;
+		uint32_t *tmp_map;
+		uint32_t tmp_region = system_memory(fd);
+		uint8_t tmp_pat_index = intel_get_pat_idx_wb(fd);
+
+		tmp_bo = create_object(fd, tmp_region, size,
+				       XE_COH_AT_LEAST_1WAY, false);
+		tmp_map = xe_bo_map(fd, tmp_bo, size);
+
+		for (i = 0; i < size / sizeof(uint32_t); i++)
+			tmp_map[i] = i;
+
+		xe_fast_copy(fd,
+			     tmp_bo, tmp_region, tmp_pat_index,
+			     p->r1_bo, p->r1, p->r1_pat_index,
+			     size);
+
+		munmap(tmp_map, size);
+		gem_close(fd, tmp_bo);
+	} else {
+		for (i = 0; i < size / sizeof(uint32_t); i++)
+			p->r1_map[i] = i;
+	}
 
 	/* And finally ensure we always see the CPU written values */
 	render_copy(ibb,
@@ -866,9 +894,6 @@ static uint8_t get_pat_idx_wb(int fd, bool *compressed)
 
 	return intel_get_pat_idx_wb(fd);
 }
-
-#define XE_COH_NONE          1
-#define XE_COH_AT_LEAST_1WAY 2
 
 struct pat_index_entry {
 	uint8_t (*get_pat_index)(int fd, bool *compressed);
