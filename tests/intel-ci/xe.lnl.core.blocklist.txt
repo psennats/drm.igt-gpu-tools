@@ -18,7 +18,7 @@ igt@xe_evict@.*
 igt@xe_evict_ccs@.*
 igt@xe_mmap@small-bar
 igt@xe_mmap@vram$
-igt@xe_noexec_ping_pong
+igt@xe_noexec_ping_pong@.*
 igt@xe_pm@d3-mmap-vram
 igt@xe_pm@d3hot-mmap-vram
 igt@xe_sysfs_tile@physical_vram_size_bytes

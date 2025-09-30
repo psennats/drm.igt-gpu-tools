@@ -12,7 +12,7 @@ igt@fbdev@.*
 igt@xe_mmap@vram$
 igt@xe_mmap@small-bar
 igt@xe_sysfs_tile@physical_vram_size_bytes
-igt@xe_noexec_ping_pong
+igt@xe_noexec_ping_pong@.*
 igt@xe_create@create-big-vram
 igt@xe_pm@d3hot-mmap-vram
 igt@xe_compute_preempt@.*vram.*
