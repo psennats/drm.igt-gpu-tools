@@ -49,4 +49,9 @@ void xe_bind_unbind_async(int fd, uint32_t vm, uint32_t bind_engine,
 
 uint32_t xe_nsec_to_ticks(int fd, int gt_id, uint64_t ns);
 
+void xe_fast_copy(int fd,
+		  uint32_t src_bo, uint32_t src_region, uint8_t src_pat_index,
+		  uint32_t dst_bo, uint32_t dst_region, uint8_t dst_pat_index,
+		  uint64_t size);
+
 #endif /* XE_UTIL_H */

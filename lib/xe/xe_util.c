@@ -7,6 +7,8 @@
 #include "igt_core.h"
 #include "igt_syncobj.h"
 #include "igt_sysfs.h"
+#include "intel_blt.h"
+#include "intel_mocs.h"
 #include "intel_pat.h"
 
 #include "xe/xe_ioctl.h"
@@ -279,4 +281,82 @@ uint32_t xe_nsec_to_ticks(int fd, int gt_id, uint64_t nsec)
 	uint32_t refclock = reference_clock(fd, gt_id);
 
 	return div64_u64_round_up(nsec * refclock, NSEC_PER_SEC);
+}
+
+/**
+ * xe_fast_copy: simplify fast-copy from src to dst bo
+ * @fd: opened device
+ * @src_bo: src bo handle
+ * @src_region: src region
+ * @src_pat_index: src pat index
+ * @dst_bo: dst bo handle
+ * @dst_region: dst region
+ * @dst_pat_index: dst pat index
+ * @size: size in bytes for copy. Currently has limitation that it requires
+ * size aligned to 4KiB and must be <= 16MiB.
+ *
+ * Simplify common fast-copy from one bo to another. See @size regarding
+ * operation limitation.
+ */
+void xe_fast_copy(int fd,
+		  uint32_t src_bo, uint32_t src_region, uint8_t src_pat_index,
+		  uint32_t dst_bo, uint32_t dst_region, uint8_t dst_pat_index,
+		  uint64_t size)
+{
+	struct drm_xe_engine_class_instance inst = {
+		.engine_class = DRM_XE_ENGINE_CLASS_COPY,
+	};
+	struct blt_copy_data blt = {};
+	struct blt_copy_object src = {};
+	struct blt_copy_object dst = {};
+	intel_ctx_t *ctx;
+	uint64_t bb_size, stride, width, height;
+	uint32_t vm, exec_queue, bb;
+	uint32_t alignment = xe_get_default_alignment(fd);
+	uint64_t ahnd;
+	int cpp = 4;
+
+	igt_require(size % SZ_4K == 0);
+	igt_require(size <= SZ_16M);
+	igt_require(blt_has_fast_copy(fd));
+
+	width = size >= SZ_16K ? SZ_4K : SZ_4K / cpp;
+	height = size / width / cpp;
+	stride = width * cpp;
+
+	vm = xe_vm_create(fd, 0, 0);
+	exec_queue = xe_exec_queue_create(fd, vm, &inst, 0);
+	ctx = intel_ctx_xe(fd, vm, exec_queue, 0, 0, 0);
+	ahnd = intel_allocator_open_full(fd, ctx->vm, 0, 0,
+					 INTEL_ALLOCATOR_SIMPLE,
+					 ALLOC_STRATEGY_LOW_TO_HIGH,
+					 alignment);
+
+	blt_copy_init(fd, &blt);
+	blt.color_depth = CD_32bit;
+
+	bb_size = xe_bb_size(fd, SZ_4K);
+	bb = xe_bo_create(fd, 0, bb_size, system_memory(fd), 0);
+
+	blt_set_object(&src, src_bo, size, src_region, intel_get_uc_mocs_index(fd),
+		       src_pat_index, T_LINEAR,
+		       COMPRESSION_DISABLED, COMPRESSION_TYPE_3D);
+	blt_set_geom(&src, stride, 0, 0, width, height, 0, 0);
+
+	blt_set_object(&dst, dst_bo, size, dst_region, intel_get_uc_mocs_index(fd),
+		       dst_pat_index, T_LINEAR,
+		       COMPRESSION_DISABLED, COMPRESSION_TYPE_3D);
+	blt_set_geom(&dst, stride, 0, 0, width, height, 0, 0);
+
+	blt_set_copy_object(&blt.src, &src);
+	blt_set_copy_object(&blt.dst, &dst);
+	blt_set_batch(&blt.bb, bb, bb_size, system_memory(fd));
+
+	blt_fast_copy(fd, ctx, NULL, ahnd, &blt);
+
+	gem_close(fd, bb);
+	xe_exec_queue_destroy(fd, exec_queue);
+	xe_vm_destroy(fd, vm);
+	put_ahnd(ahnd);
+	intel_ctx_destroy(fd, ctx);
 }
