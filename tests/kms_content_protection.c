@@ -638,22 +638,20 @@ test_content_protection(enum igt_commit_style commit_style, int content_type)
 
 	for_each_connected_output(display, output) {
 		for_each_pipe(display, pipe) {
-			igt_display_reset(display);
-
-			igt_output_set_pipe(output, pipe);
-			if (!intel_pipe_output_combo_valid(display))
-				continue;
-
-			modeset_with_fb(pipe, output, commit_style);
-
 			if (!output_hdcp_capable(output, content_type))
 				continue;
-
 			if (is_output_hdcp_test_exempt(output)) {
 				igt_info("Skipping HDCP test on %s, as the panel is blocklisted\n",
 					  output->name);
 				continue;
 			}
+
+			igt_display_reset(display);
+			igt_output_set_pipe(output, pipe);
+			if (!intel_pipe_output_combo_valid(display))
+				continue;
+
+			modeset_with_fb(pipe, output, commit_style);
 
 			igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), output->name)
 				test_content_protection_on_output(output, pipe, commit_style, content_type);
