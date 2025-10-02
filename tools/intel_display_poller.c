@@ -208,6 +208,11 @@ static uint32_t trans_reg(uint32_t devid, int pipe, uint32_t reg)
 	return PIPE_REG(trans, reg);
 }
 
+static uint32_t dsb_reg(int pipe, int dsb_id, uint32_t reg)
+{
+	return PIPE_REG(pipe, reg + dsb_id * 0x100);
+}
+
 static bool hsw_ddi_is_hdmi(uint32_t devid, int pipe)
 {
 	uint32_t tmp = read_reg(trans_reg(devid, pipe, PIPE_DDI_FUNC_CTL_A));
@@ -1254,7 +1259,7 @@ static void poll_dsl_vrr_push(uint32_t devid, int pipe,
 	}
 }
 
-static void poll_dsl_dsb_status_live(uint32_t devid, int pipe, int bit,
+static void poll_dsl_dsb_status_live(uint32_t devid, int pipe, int dsb_id, int bit,
 				     uint32_t *min, uint32_t *max, const int count,
 				     int vrr_push_scanline)
 {
@@ -1265,7 +1270,7 @@ static void poll_dsl_dsb_status_live(uint32_t devid, int pipe, int bit,
 
 	bit = 1 << bit;
 	dsl = PIPE_REG(pipe, PIPEA_DSL);
-	dsb = PIPE_REG(pipe, DSB_STATUS_0_A);
+	dsb = dsb_reg(pipe, dsb_id, DSB_STATUS_0_A);
 
 	while (!quit) {
 		push_vrr(devid, pipe, vrr_push_scanline);
@@ -1294,7 +1299,7 @@ static void poll_dsl_dsb_status_live(uint32_t devid, int pipe, int bit,
 	}
 }
 
-static const char *test_name(enum test test, int pipe, int bit, bool test_pixel_count)
+static const char *test_name(enum test test, int pipe, int dsb_id, int bit, bool test_pixel_count)
 {
 	static char str[64];
 	const char *type = test_pixel_count ? "pixel" : "dsl";
@@ -1352,7 +1357,7 @@ static const char *test_name(enum test test, int pipe, int bit, bool test_pixel_
 		snprintf(str, sizeof str, "%s / pipe %c / VRR push", type, pipe_name(pipe));
 		return str;
 	case TEST_DSB_STATUS_LIVE:
-		snprintf(str, sizeof str, "%s / pipe %c / DSB_STATUS[%d]", type, pipe_name(pipe), bit);
+		snprintf(str, sizeof str, "%s / pipe %c / DSB%d / DSB_STATUS[%d]", type, pipe_name(pipe), dsb_id, bit);
 		return str;
 	default:
 		return "";
@@ -1364,6 +1369,7 @@ static void __attribute__((noreturn)) usage(const char *name)
 	fprintf(stderr, "Usage: %s [options]\n"
 		" -t,--test <pipestat|iir|framecount|flipcount|frametimestamp|timestamp|pan|flip|flipdone|surflive|wrap|field|vrr-push|dsb-status>\n"
 		" -p,--pipe <pipe>\n"
+		" -d,--dsb-id <dsb id>\n"
 		" -b,--bit <bit>\n"
 		" -l,--line <target scanline/pixel>\n"
 		" -f,--fuzz <target fuzz>\n"
@@ -1380,7 +1386,8 @@ int main(int argc, char *argv[])
 {
 	struct intel_mmio_data mmio_data;
 	int i;
-	int pipe = 0, bit = 0, target_scanline = 0, target_fuzz = 1;
+	int pipe = 0, dsb_id = 0, bit = 0;
+	int target_scanline = 0, target_fuzz = 1;
 	bool test_pixelcount = false;
 	bool test_async_flip = false;
 	int vrr_push_scanline = -1;
@@ -1396,6 +1403,7 @@ int main(int argc, char *argv[])
 		static const struct option long_options[] = {
 			{ .name = "test", .has_arg = required_argument, .val = 't', },
 			{ .name = "pipe", .has_arg = required_argument, .val = 'p', },
+			{ .name = "dsb-id", .has_arg = required_argument, .val = 'd', },
 			{ .name = "bit", .has_arg = required_argument, .val = 'b', },
 			{ .name = "line", .has_arg = required_argument, .val = 'l', },
 			{ .name = "fuzz", .has_arg = required_argument, .val = 'f', },
@@ -1407,7 +1415,7 @@ int main(int argc, char *argv[])
 			{ },
 		};
 
-		int opt = getopt_long(argc, argv, "t:p:b:l:f:xav:o:O", long_options, NULL);
+		int opt = getopt_long(argc, argv, "t:p:d:b:l:f:xav:o:O", long_options, NULL);
 		if (opt == -1)
 			break;
 
@@ -1457,6 +1465,11 @@ int main(int argc, char *argv[])
 			else
 				usage(argv[0]);
 			if (pipe < 0 || pipe > 3)
+				usage(argv[0]);
+			break;
+		case 'd':
+			dsb_id = atoi(optarg);
+			if (dsb_id < 0 || dsb_id > 2)
 				usage(argv[0]);
 			break;
 		case 'b':
@@ -1669,7 +1682,7 @@ int main(int argc, char *argv[])
 	if (auto_scanline_offset)
 		scanline_offset = default_scanline_offset(devid, pipe);
 
-	printf("%s?\n", test_name(test, pipe, bit, test_pixelcount));
+	printf("%s?\n", test_name(test, pipe, dsb_id, bit, test_pixelcount));
 
 	signal(SIGHUP, sighandler);
 	signal(SIGINT, sighandler);
@@ -1758,7 +1771,7 @@ int main(int argc, char *argv[])
 		poll_dsl_vrr_push(devid, pipe, min, max, count, vrr_push_scanline);
 		break;
 	case TEST_DSB_STATUS_LIVE:
-		poll_dsl_dsb_status_live(devid, pipe, bit, min, max, count, vrr_push_scanline);
+		poll_dsl_dsb_status_live(devid, pipe, dsb_id, bit, min, max, count, vrr_push_scanline);
 		break;
 	default:
 		assert(0);
@@ -1791,7 +1804,7 @@ int main(int argc, char *argv[])
 		b = min(b, max[0*count+i]);
 	}
 
-	printf("%s: [%u] %6u - %6u\n", test_name(test, pipe, bit, test_pixelcount), 0, a, b);
+	printf("%s: [%u] %6u - %6u\n", test_name(test, pipe, dsb_id, bit, test_pixelcount), 0, a, b);
 
 	a = 0;
 	b = 0xffffffff;
@@ -1802,7 +1815,7 @@ int main(int argc, char *argv[])
 		b = min(b, max[1*count+i]);
 	}
 
-	printf("%s: [%u] %6u - %6u\n", test_name(test, pipe, bit, test_pixelcount), 1, a, b);
+	printf("%s: [%u] %6u - %6u\n", test_name(test, pipe, dsb_id, bit, test_pixelcount), 1, a, b);
 
 	return 0;
 }
