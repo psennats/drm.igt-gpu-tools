@@ -56,16 +56,17 @@ int __get_drm_device_name(int fd, char *name, int name_size);
 #define DRIVER_XE	(1 << 7)
 #define DRIVER_VMWGFX   (1 << 8)
 #define DRIVER_VKMS	(1 << 9)
+#define DRIVER_VIRTIO	(1 << 10)
 
 /*
- * Exclude DRVER_VGEM from DRIVER_ANY since if you run on a system
- * with vgem as well as a supported driver, you can end up with a
- * near-100% skip rate if you don't explicitly specify the device,
+ * Exclude DRIVER_VGEM and DRIVER_VIRTIO from DRIVER_ANY since if you run
+ * on a system with them as well as a supported driver, you can end up
+ * with a near-100% skip rate if you don't explicitly specify the device,
  * depending on device-load ordering.
  *
  * Exclude VKMS to prefer hardware drivers.
  */
-#define DRIVER_ANY	~(DRIVER_VGEM | DRIVER_VKMS)
+#define DRIVER_ANY	~(DRIVER_VGEM | DRIVER_VKMS | DRIVER_VIRTIO)
 
 /*
  * Compile friendly enum for i915/xe.
