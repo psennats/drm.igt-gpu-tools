@@ -183,6 +183,13 @@ static bool fbc_wait_until_update(struct drm_info *drm)
 	if (intel_gen(intel_get_drm_devid(drm->fd)) >= 9) {
 		if (!fbc_wait_until_enabled(drm->debugfs_fd))
 			return false;
+		/*
+		 * Skip cursor blinking check when running in simulation mode.
+		 * CRC operations are significantly slower in simulation,
+		 * so CRC checks are avoided to prevent false negatives.
+		 */
+		if (igt_run_in_simulation())
+			return true;
 
 		return fbc_check_cursor_blinking(drm);
 	} else {
