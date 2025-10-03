@@ -2712,7 +2712,7 @@ igt_fb_create_intel_buf(int fd, struct buf_ops *bops,
 				    fb->strides[0],
 				    region,
 				    intel_get_pat_idx_uc(fd),
-				    DEFAULT_MOCS_INDEX);
+				    DISPLAYABLE_MOCS_INDEX);
 	intel_buf_set_name(buf, name);
 
 	/* only really needed for proper CCS handling */

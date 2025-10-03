@@ -1008,6 +1008,8 @@ static void __intel_buf_init(struct buf_ops *bops,
 	buf->pat_index = pat_index;
 	if (mocs_index == DEFAULT_MOCS_INDEX)
 		mocs_index = intel_get_uc_mocs_index(bops->fd);
+	else if (mocs_index == DISPLAYABLE_MOCS_INDEX)
+		mocs_index = intel_get_displayable_mocs_index(bops->fd);
 	buf->mocs_index = mocs_index;
 	IGT_INIT_LIST_HEAD(&buf->link);
 
