@@ -17,25 +17,98 @@
 
 #define SRIOV_DEBUGFS_PATH_MAX 96
 
-static char *xe_sriov_pf_debugfs_path(int pf, unsigned int vf_num, unsigned int gt_num, char *path,
-				      int pathlen)
+enum attr_scope {
+	SCOPE_TILE,
+	SCOPE_GT,
+};
+
+static enum attr_scope attr_scope(const char *attr)
 {
-	char sriov_path[SRIOV_DEBUGFS_PATH_MAX];
+	if (!strncmp(attr, "ggtt_", 5) || !strncmp(attr, "vram_", 5))
+		return SCOPE_TILE;
 
-	if (!igt_debugfs_path(pf, path, pathlen))
-		return NULL;
+	return SCOPE_GT;
+}
 
-	if (vf_num)
-		snprintf(sriov_path, SRIOV_DEBUGFS_PATH_MAX, "/gt%u/vf%u/", gt_num, vf_num);
-	else
-		snprintf(sriov_path, SRIOV_DEBUGFS_PATH_MAX, "/gt%u/pf/", gt_num);
+static int access_attr_path(int dirfd, const char *attr, unsigned int vf_num,
+			    unsigned int tile, unsigned int gt_num,
+			    char *attr_path, size_t path_size)
+{
+	const bool is_vf = vf_num > 0;
+	int n;
 
-	strncat(path, sriov_path, pathlen - strlen(path));
+	switch (attr_scope(attr)) {
+	case SCOPE_TILE:
+		n = is_vf ? snprintf(attr_path, path_size, "sriov/vf%u/tile%u/%s", vf_num,
+				     tile, attr) :
+			    snprintf(attr_path, path_size, "sriov/pf/tile%u/%s", tile, attr);
+		break;
+	case SCOPE_GT:
+		n = is_vf ? snprintf(attr_path, path_size, "sriov/vf%u/tile%u/gt%u/%s",
+				     vf_num, tile, gt_num, attr) :
+			    snprintf(attr_path, path_size, "sriov/pf/tile%u/gt%u/%s", tile,
+				     gt_num, attr);
+		break;
+	};
 
-	if (access(path, F_OK))
-		return NULL;
+	igt_assert(n >= 0 && (size_t)n < path_size);
 
-	return path;
+	return igt_sysfs_has_attr(dirfd, attr_path) ? 0 : -ENOENT;
+}
+
+static int access_legacy_attr_path(int dirfd, const char *attr, unsigned int vf_num,
+				   unsigned int gt_num, char *attr_path,
+				   size_t path_size)
+{
+	const bool is_vf = vf_num > 0;
+	char legacy[64];
+	const char *name = attr;
+	int n;
+
+	/* Map vram_* to lmem_* only for legacy layout */
+	if (!strncmp(attr, "vram_", 5)) {
+		n = snprintf(legacy, sizeof(legacy), "lmem_%s", attr + 5);
+
+		igt_assert(n >= 0 && (size_t)n < sizeof(legacy));
+		name = legacy;
+	}
+
+	n = is_vf ? snprintf(attr_path, path_size, "gt%u/vf%u/%s", gt_num, vf_num, name) :
+		    snprintf(attr_path, path_size, "gt%u/pf/%s", gt_num, name);
+	igt_assert(n >= 0 && (size_t)n < path_size);
+
+	return igt_sysfs_has_attr(dirfd, attr_path) ? 0 : -ENOENT;
+}
+
+static int attr_path_resolve(int pf, unsigned int vf_num, unsigned int gt_num,
+			     const char *attr, int dirfd, char *attr_path,
+			     size_t path_size)
+{
+	struct xe_device *xe_dev = xe_device_get(pf);
+	int tile, ret = 0;
+
+	igt_assert(xe_dev && igt_sriov_is_pf(pf));
+	tile = xe_get_tile(xe_dev, gt_num);
+	if (igt_debug_on(tile < 0))
+		return -ENOENT;
+
+	ret = access_attr_path(dirfd, attr, vf_num, tile, gt_num, attr_path, path_size);
+	if (ret) {
+		char first_path[SRIOV_DEBUGFS_PATH_MAX];
+
+		snprintf(first_path, sizeof(first_path), "%.*s",
+			 (int)((path_size < sizeof(first_path) - 1) ?
+				path_size : sizeof(first_path) - 1),
+			 attr_path);
+
+		ret = access_legacy_attr_path(dirfd, attr, vf_num, gt_num,
+					      attr_path, path_size);
+
+		igt_debug_on_f(ret, "Failed to access '%s'; tried %s, %s\n", attr,
+			       first_path, attr_path);
+	}
+
+	return ret;
 }
 
 /**
@@ -49,26 +122,29 @@ static char *xe_sriov_pf_debugfs_path(int pf, unsigned int vf_num, unsigned int 
  * Opens SR-IOV debugfs attribute @attr for given PF device @pf, VF number @vf_num on GT @gt_num.
  *
  * Returns:
- * File descriptor or -1 on failure.
+ * File descriptor or negative error code on failure.
  */
 int xe_sriov_pf_debugfs_attr_open(int pf, unsigned int vf_num, unsigned int gt_num,
 				  const char *attr, int mode)
 {
-	char path[PATH_MAX];
-	int debugfs;
+	char attr_path[SRIOV_DEBUGFS_PATH_MAX];
+	int dirfd, attr_fd, ret;
 
-	igt_assert(igt_sriov_is_pf(pf) && is_xe_device(pf));
-	igt_assert(gt_num < xe_number_gt(pf));
+	dirfd = igt_debugfs_dir(pf);
+	if (igt_debug_on(dirfd < 0))
+		return -ENOENT;
 
-	if (!xe_sriov_pf_debugfs_path(pf, vf_num, gt_num, path, sizeof(path)))
-		return -1;
+	ret = attr_path_resolve(pf, vf_num, gt_num, attr, dirfd, attr_path, sizeof(attr_path));
+	if (ret) {
+		close(dirfd);
+		return ret;
+	}
 
-	strncat(path, attr, sizeof(path) - strlen(path));
-
-	debugfs = open(path, mode);
-	igt_debug_on(debugfs < 0);
-
-	return debugfs;
+	attr_fd = openat(dirfd, attr_path, mode);
+	igt_debug_on_f(attr_fd < 0, "Failed to open '%s' (%s)\n",
+		       attr, attr_path);
+	close(dirfd);
+	return attr_fd;
 }
 
 /**
@@ -91,7 +167,7 @@ const char *xe_sriov_debugfs_provisioned_attr_name(enum xe_sriov_shared_res res)
 	case XE_SRIOV_SHARED_RES_GGTT:
 		return "ggtt_provisioned";
 	case XE_SRIOV_SHARED_RES_LMEM:
-		return "lmem_provisioned";
+		return "vram_provisioned";
 	}
 
 	return NULL;
@@ -323,19 +399,6 @@ int xe_sriov_pf_debugfs_read_check_ranges(int pf_fd, enum xe_sriov_shared_res re
 	return ret;
 }
 
-static int xe_sriov_pf_debugfs_path_open(int pf, unsigned int vf_num,
-					 unsigned int gt_num)
-{
-	char path[PATH_MAX];
-
-	if (igt_debug_on_f(!xe_sriov_pf_debugfs_path(pf, vf_num, gt_num, path,
-						     sizeof(path)),
-			   "path: %s\n", path))
-		return -1;
-
-	return open(path, O_RDONLY);
-}
-
 /**
  * DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC - Define a function for accessing debugfs attributes
  * @type: Data type of the value to read or write (e.g., `uint32_t`, `bool`, etc.)
@@ -373,20 +436,27 @@ static int xe_sriov_pf_debugfs_path_open(int pf, unsigned int vf_num,
  * - `0` on success
  * - Negative error code on failure
  */
-#define DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(type, suffix, sysfs_func)		\
-	int __xe_sriov_pf_debugfs_##suffix(int pf, unsigned int vf_num,		\
-					   unsigned int gt_num,			\
-					   const char *attr, type value)	\
-	{									\
-		bool ret;							\
-		int dir = xe_sriov_pf_debugfs_path_open(pf, vf_num, gt_num);	\
-										\
-		if (igt_debug_on(dir < 0))					\
-			return dir;						\
-										\
-		ret = sysfs_func(dir, attr, value);				\
-		close(dir);							\
-		return ret ? 0 : -1;						\
+#define DEFINE_XE_SRIOV_PF_DEBUGFS_FUNC(type, suffix, sysfs_func)\
+	int __xe_sriov_pf_debugfs_##suffix(int pf, unsigned int vf_num,				\
+					   unsigned int gt_num,					\
+					   const char *attr, type value)			\
+	{											\
+		char attr_path[SRIOV_DEBUGFS_PATH_MAX];						\
+		int err, dirfd = igt_debugfs_dir(pf);						\
+		bool ok;									\
+												\
+		if (igt_debug_on(dirfd < 0))							\
+			return dirfd;								\
+		err = attr_path_resolve(pf, vf_num, gt_num, attr,				\
+					dirfd, attr_path, sizeof(attr_path));			\
+		if (err) {									\
+			close(dirfd);								\
+			return err;								\
+		}										\
+												\
+		ok = sysfs_func(dirfd, attr_path, value);					\
+		close(dirfd);									\
+		return ok ? 0 : -1;								\
 	}
 
 /**
