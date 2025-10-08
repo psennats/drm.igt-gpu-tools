@@ -1579,6 +1579,8 @@ restart:
 			igt_require(bo_size < gem_global_aperture_size(drm_fd));
 		else
 			igt_require(bo_size < (1ULL << xe_va_bits(drm_fd)));
+
+		igt_suspend_signal_helper();
 	}
 
 	o->fb_ids[0] = igt_create_fb(drm_fd, o->fb_width, o->fb_height,
@@ -1589,6 +1591,9 @@ restart:
 						  modifier, IGT_COLOR_YCBCR_BT709,
 						  IGT_COLOR_YCBCR_LIMITED_RANGE,
 						  &o->fb_info[1], bo_size, 0);
+
+	if (o->flags & TEST_BO_TOOBIG)
+		igt_resume_signal_helper();
 
 	igt_assert(o->fb_ids[0]);
 	igt_assert(o->fb_ids[1]);
