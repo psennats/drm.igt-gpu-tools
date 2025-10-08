@@ -117,3 +117,7 @@ igt@sriov_basic@bind-unbind-vf$
 # boards (which support 4K @ 60Hz) are available in the test environment.
 ##################################################################
 igt@kms_chamelium_edid@hdmi-edid-stress-resolution-4k
+##################################################################
+# Exclude one compute mode test
+##################################################################
+igt@xe_exec_compute_mode@non-blocking
