@@ -76,19 +76,19 @@
  */
 
 /**
- * SUBTEST: drrs-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: drrs-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  *
- * SUBTEST: fbc-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: fbc-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  *
- * SUBTEST: psr-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: psr-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  *
- * SUBTEST: fbcdrrs-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: fbcdrrs-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  *
- * SUBTEST: fbcpsr-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: fbcpsr-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  *
  * arg[1]:
@@ -104,23 +104,23 @@
  */
 
 /**
- * SUBTEST: drrs-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: drrs-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  * Driver requirement: i915
  *
- * SUBTEST: fbc-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: fbc-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  * Driver requirement: i915
  *
- * SUBTEST: psr-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: psr-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  * Driver requirement: i915
  *
- * SUBTEST: fbcdrrs-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: fbcdrrs-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  * Driver requirement: i915
  *
- * SUBTEST: fbcpsr-1p-offscren-pri-%s-draw-%s
+ * SUBTEST: fbcpsr-1p-offscreen-pri-%s-draw-%s
  * Description: Draw a set of rectangles on the screen using the provided method
  * Driver requirement: i915
  *
@@ -3948,7 +3948,7 @@ static const char *screen_str(int screen)
 	case SCREEN_SCND:
 		return "scndscrn";
 	case SCREEN_OFFSCREEN:
-		return "offscren";
+		return "offscreen";
 	default:
 		igt_assert(false);
 	}
