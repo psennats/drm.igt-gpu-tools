@@ -168,3 +168,9 @@ igt@kms_joiner@.*ultra-joiner.*
 ##############################################################################
 igt@kms_pm_dc@deep-pkgc
 ##############################################################################
+# DRRS not supported on LNL+
+#########################################
+igt@kms_vrr@seamless-rr-switch-drrs
+igt@kms_vrr@seamless-rr-switch-vrr
+igt@kms_dirtyfb@drrs-dirtyfb-ioctl
+igt@kms_frontbuffer_tracking@.*drrs.*
