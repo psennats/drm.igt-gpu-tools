@@ -84,6 +84,16 @@ static int try_commit(igt_display_t *display)
 				       COMMIT_ATOMIC : COMMIT_LEGACY);
 }
 
+/* This helper is used to restrict tests to commonly supported tiling modes
+ * across platforms for simulation.
+ */
+static bool is_basic_tiling_modifier(uint64_t mod)
+{
+	return mod == DRM_FORMAT_MOD_LINEAR ||
+	       mod == I915_FORMAT_MOD_4_TILED ||
+	       mod == I915_FORMAT_MOD_X_TILED;
+}
+
 static uint64_t pageflip_timeout_us(drmModeModeInfo *mode)
 {
 	uint64_t timeout_ns;
@@ -216,6 +226,7 @@ igt_main
 	igt_describe("Check pageflip between modifiers");
 	igt_subtest_with_dynamic("flip-change-tiling") {
 		enum pipe pipe;
+		bool run_in_simulation = igt_run_in_simulation();
 
 		for_each_pipe_with_valid_output(&data.display, pipe, output) {
 			igt_plane_t *plane;
@@ -240,6 +251,11 @@ igt_main
 					};
 
 					if (plane->formats[j] != data.testformat)
+						continue;
+
+					if (run_in_simulation &&
+					    (!is_basic_tiling_modifier(plane->modifiers[i]) ||
+					     !is_basic_tiling_modifier(plane->modifiers[j])))
 						continue;
 
 					igt_dynamic_f("pipe-%s-%s-%s-to-%s",
