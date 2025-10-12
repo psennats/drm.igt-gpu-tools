@@ -6283,6 +6283,8 @@ unsigned int igt_get_pipe_current_bpc(int drmfd, enum pipe pipe)
 		strcpy(debugfs_name, "i915_current_bpc");
 	else if (is_amdgpu_device(drmfd))
 		strcpy(debugfs_name, "amdgpu_current_bpc");
+	else if (is_mtk_device(drmfd))
+		strcpy(debugfs_name, "mtk_current_bpc");
 
 	res = igt_debugfs_simple_read(fd, debugfs_name, buf, sizeof(buf));
 	igt_require(res > 0);
