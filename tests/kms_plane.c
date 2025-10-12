@@ -1256,9 +1256,11 @@ static void test_planar_settings(data_t *data)
 	 * changed to if(..)
 	 */
 	igt_require_f(data->display.is_atomic, "Atomic mode-set not supported\n");
-	igt_require_intel(data->drm_fd);
-	devid = intel_get_drm_devid(data->drm_fd);
-	igt_require(intel_display_ver(devid) >= 9);
+	if (is_intel_device(data->drm_fd)) {
+		igt_require_intel(data->drm_fd);
+		devid = intel_get_drm_devid(data->drm_fd);
+		igt_require(intel_display_ver(devid) >= 9);
+	}
 
 	output = igt_get_single_output_for_pipe(&data->display, pipe);
 	igt_require(output);
