@@ -428,10 +428,16 @@ igt_main_args("e", NULL, help_str, opt_handler, NULL)
 
 				igt_dynamic_f("pipe-%s-%s", kmstest_pipe_name(pipe), output->name) {
 					if (tests[i].flags & TEST_SUSPEND) {
+						enum igt_suspend_test test = SUSPEND_TEST_NONE;
+
 						test_read_crc(&data, pipe, output, 0);
 
+						/* rtcwake cmd is not supported on MTK devices */
+						if (is_mtk_device(data.drm_fd))
+							test = SUSPEND_TEST_DEVICES;
+
 						igt_system_suspend_autoresume(SUSPEND_STATE_MEM,
-									      SUSPEND_TEST_NONE);
+									      test);
 
 						test_read_crc(&data, pipe, output, 0);
 					} else if (tests[i].flags & TEST_HANG) {
