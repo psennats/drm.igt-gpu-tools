@@ -4931,6 +4931,10 @@ exit:
 	if ((oau = oa_unit_by_type(drm_fd, k))) \
 		igt_dynamic_f("%s-%d-%s", oa_unit_name[oau->oa_unit_type], oau->oa_unit_id, str)
 
+#define __for_each_oa_unit(oau) \
+	for_each_oa_unit(oau) \
+		igt_dynamic_f("%s-%d", oa_unit_name[oau->oa_unit_type], oau->oa_unit_id)
+
 static int opt_handler(int opt, int opt_index, void *data)
 {
 	uint32_t tmp;
@@ -5074,6 +5078,16 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
 		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
 			test_non_zero_reason(oau, 0);
+	}
+
+	/**
+	 * SUBTEST: non-zero-reason-all
+	 * Description: Non zero reason over all OA units
+	 */
+	igt_subtest_with_dynamic("non-zero-reason-all") {
+		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
+		__for_each_oa_unit(oau)
+			test_non_zero_reason(oau, SZ_128K);
 	}
 
 	igt_subtest("disabled-read-error")
