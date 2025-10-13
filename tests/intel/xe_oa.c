@@ -493,7 +493,7 @@ static struct drm_xe_engine_class_instance *oa_unit_engine(int fd, int n)
 	return hwe;
 }
 
-static struct drm_xe_oa_unit *nth_oa_unit(int fd, int n)
+static struct drm_xe_oa_unit *oa_unit_by_id(int fd, int id)
 {
 	struct drm_xe_query_oa_units *qoa = xe_oa_units(fd);
 	struct drm_xe_oa_unit *oau;
@@ -502,7 +502,7 @@ static struct drm_xe_oa_unit *nth_oa_unit(int fd, int n)
 	poau = (u8 *)&qoa->oa_units[0];
 	for (int i = 0; i < qoa->num_oa_units; i++) {
 		oau = (struct drm_xe_oa_unit *)poau;
-		if (i == n)
+		if (oau->oa_unit_id == id)
 			return oau;
 		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
 	}
@@ -4348,7 +4348,7 @@ test_oa_unit_concurrent_oa_buffer_read(void)
 		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(drm_fd, child);
 
 		/* No OAM support yet */
-		if (nth_oa_unit(drm_fd, child)->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
+		if (oa_unit_by_id(drm_fd, child)->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
 			exit(0);
 
 		test_blocking(40 * 1000 * 1000, false, 5 * 1000 * 1000, hwe);
@@ -5027,7 +5027,7 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		/* See xe_query_oa_units_new() */
 		igt_require(xe_dev->oa_units);
 		igt_require(xe_dev->oa_units->num_oa_units);
-		oau = nth_oa_unit(drm_fd, 0);
+		oau = oa_unit_by_id(drm_fd, 0);
 
 		devid = intel_get_drm_devid(drm_fd);
 		sysfs = igt_sysfs_open(drm_fd);
