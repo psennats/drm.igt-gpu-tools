@@ -4424,7 +4424,7 @@ static void *map_oa_buffer(u32 *size)
 	return vaddr;
 }
 
-static void invalid_param_map_oa_buffer(const struct drm_xe_engine_class_instance *hwe)
+static void invalid_param_map_oa_buffer(struct drm_xe_oa_unit *oau)
 {
 	void *oa_vaddr = NULL;
 
@@ -4460,7 +4460,7 @@ static void unprivileged_try_to_map_oa_buffer(void)
 	igt_assert_eq(errno, EACCES);
 }
 
-static void unprivileged_map_oa_buffer(const struct drm_xe_engine_class_instance *hwe)
+static void unprivileged_map_oa_buffer(struct drm_xe_oa_unit *oau)
 {
 	igt_fork(child, 1) {
 		igt_drop_root();
@@ -4494,7 +4494,7 @@ static void try_invalid_access(void *vaddr)
 	signal(SIGSEGV, old_sigsegv);
 }
 
-static void map_oa_buffer_unprivilege_access(const struct drm_xe_engine_class_instance *hwe)
+static void map_oa_buffer_unprivilege_access(struct drm_xe_oa_unit *oau)
 {
 	void *vaddr;
 	uint32_t size;
@@ -4510,7 +4510,7 @@ static void map_oa_buffer_unprivilege_access(const struct drm_xe_engine_class_in
 	munmap(vaddr, size);
 }
 
-static void map_oa_buffer_forked_access(const struct drm_xe_engine_class_instance *hwe)
+static void map_oa_buffer_forked_access(struct drm_xe_oa_unit *oau)
 {
 	void *vaddr;
 	uint32_t size;
@@ -4526,10 +4526,10 @@ static void map_oa_buffer_forked_access(const struct drm_xe_engine_class_instanc
 }
 
 static void mmap_wait_for_periodic_reports(void *oa_vaddr, uint32_t n,
-					   const struct drm_xe_engine_class_instance *hwe)
+					   struct drm_xe_oa_unit *oau)
 {
 	uint32_t period_us = oa_exponent_to_ns(oa_exponent_default) / 1000;
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t fmt = test_set->perf_oa_format;
 	uint32_t num_periodic_reports = 0;
 	uint32_t report_words = get_oa_format(fmt).size >> 2;
@@ -4547,9 +4547,9 @@ static void mmap_wait_for_periodic_reports(void *oa_vaddr, uint32_t n,
 }
 
 static void mmap_check_reports(void *oa_vaddr, uint32_t oa_size,
-			       const struct drm_xe_engine_class_instance *hwe)
+			       struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t fmt = test_set->perf_oa_format;
 	struct oa_format format = get_oa_format(fmt);
 	size_t report_words = format.size >> 2;
@@ -4567,22 +4567,22 @@ static void mmap_check_reports(void *oa_vaddr, uint32_t oa_size,
 			sanity_check_reports(reports - 2 * report_words,
 					     reports - report_words, fmt);
 			pec_sanity_check_reports(reports - 2 * report_words,
-						 reports - report_words, metric_set(hwe));
+						 reports - report_words, oa_unit_metric_set(oau));
 		}
 	}
 
 	igt_assert(timer_reports >= 3);
 }
 
-static void check_reports_from_mapped_buffer(const struct drm_xe_engine_class_instance *hwe)
+static void check_reports_from_mapped_buffer(struct drm_xe_oa_unit *oau)
 {
 	void *vaddr;
 	uint32_t size;
 
 	vaddr = map_oa_buffer(&size);
 
-	mmap_wait_for_periodic_reports(vaddr, 10, hwe);
-	mmap_check_reports(vaddr, size, hwe);
+	mmap_wait_for_periodic_reports(vaddr, 10, oau);
+	mmap_check_reports(vaddr, size, oau);
 
 	munmap(vaddr, size);
 }
@@ -4591,13 +4591,14 @@ static void check_reports_from_mapped_buffer(const struct drm_xe_engine_class_in
  * SUBTEST: closed-fd-and-unmapped-access
  * Description: Unmap buffer, close fd and try to access
  */
-static void closed_fd_and_unmapped_access(const struct drm_xe_engine_class_instance *hwe)
+static void closed_fd_and_unmapped_access(struct drm_xe_oa_unit *oau)
 {
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
-		DRM_XE_OA_PROPERTY_OA_METRIC_SET, default_test_set->perf_oa_metrics_set,
-		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(default_test_set->perf_oa_format),
+		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
+		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
 		DRM_XE_OA_PROPERTY_OA_PERIOD_EXPONENT, oa_exponent_default,
 	};
 	struct intel_xe_oa_open_prop param = {
@@ -4610,8 +4611,8 @@ static void closed_fd_and_unmapped_access(const struct drm_xe_engine_class_insta
 	stream_fd = __perf_open(drm_fd, &param, false);
 	vaddr = map_oa_buffer(&size);
 
-	mmap_wait_for_periodic_reports(vaddr, 10, hwe);
-	mmap_check_reports(vaddr, size, hwe);
+	mmap_wait_for_periodic_reports(vaddr, 10, oau);
+	mmap_check_reports(vaddr, size, oau);
 
 	munmap(vaddr, size);
 	__perf_close(stream_fd);
@@ -4688,13 +4689,13 @@ test_tail_address_wrap(struct drm_xe_oa_unit *oau, size_t oa_buffer_size)
  * SUBTEST: privileged-forked-access-vaddr
  * Description: Verify that forked access to mapped buffer fails
  */
-typedef void (*map_oa_buffer_test_t)(const struct drm_xe_engine_class_instance *hwe);
+typedef void (*map_oa_buffer_test_t)(struct drm_xe_oa_unit *oau);
 static void test_mapped_oa_buffer(map_oa_buffer_test_t test_with_fd_open,
-				  const struct drm_xe_engine_class_instance *hwe)
+				  struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
@@ -4708,7 +4709,7 @@ static void test_mapped_oa_buffer(map_oa_buffer_test_t test_with_fd_open,
 	stream_fd = __perf_open(drm_fd, &param, false);
 
 	igt_assert(test_with_fd_open);
-	test_with_fd_open(hwe);
+	test_with_fd_open(oau);
 
 	__perf_close(stream_fd);
 }
@@ -5246,28 +5247,28 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 
 	igt_subtest_group {
 		igt_subtest_with_dynamic("map-oa-buffer")
-			__for_one_hwe_in_oag(hwe)
-				test_mapped_oa_buffer(check_reports_from_mapped_buffer, hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mapped_oa_buffer(check_reports_from_mapped_buffer, oau);
 
 		igt_subtest_with_dynamic("invalid-map-oa-buffer")
-			__for_one_hwe_in_oag(hwe)
-				test_mapped_oa_buffer(invalid_param_map_oa_buffer, hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mapped_oa_buffer(invalid_param_map_oa_buffer, oau);
 
 		igt_subtest_with_dynamic("non-privileged-map-oa-buffer")
-			__for_one_hwe_in_oag(hwe)
-				test_mapped_oa_buffer(unprivileged_map_oa_buffer, hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mapped_oa_buffer(unprivileged_map_oa_buffer, oau);
 
 		igt_subtest_with_dynamic("non-privileged-access-vaddr")
-			__for_one_hwe_in_oag(hwe)
-				test_mapped_oa_buffer(map_oa_buffer_unprivilege_access, hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mapped_oa_buffer(map_oa_buffer_unprivilege_access, oau);
 
 		igt_subtest_with_dynamic("privileged-forked-access-vaddr")
-			__for_one_hwe_in_oag(hwe)
-				test_mapped_oa_buffer(map_oa_buffer_forked_access, hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mapped_oa_buffer(map_oa_buffer_forked_access, oau);
 
 		igt_subtest_with_dynamic("closed-fd-and-unmapped-access")
-			__for_one_hwe_in_oag(hwe)
-				closed_fd_and_unmapped_access(hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				closed_fd_and_unmapped_access(oau);
 	}
 
 	igt_subtest_with_dynamic("tail-address-wrap") {
