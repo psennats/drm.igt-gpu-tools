@@ -1906,9 +1906,9 @@ static bool expected_report_timing_delta(uint32_t delta, uint32_t expected_delta
  * SUBTEST: oa-exponents
  * Description: Test that oa exponent values behave as expected
  */
-static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
+static void test_oa_exponents(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t fmt = test_set->perf_oa_format;
 
 	load_helper_init();
@@ -1920,7 +1920,7 @@ static void test_oa_exponents(const struct drm_xe_engine_class_instance *hwe)
 	 */
 	for (int exponent = min_oa_exponent; exponent < max_oa_exponent; exponent++) {
 		uint64_t properties[] = {
-			DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+			DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 
 			/* Include OA reports in samples */
 			DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
@@ -2536,11 +2536,11 @@ num_valid_reports_captured(struct intel_xe_oa_open_prop *param,
  * Description: Open OA stream twice to verify OA TLB invalidation
  */
 static void
-test_oa_tlb_invalidate(const struct drm_xe_engine_class_instance *hwe)
+test_oa_tlb_invalidate(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
@@ -2594,15 +2594,15 @@ wait_for_oa_buffer_overflow(int fd, int poll_period_us)
  * Description: Test filling and overflow of OA buffer
  */
 static void
-test_buffer_fill(const struct drm_xe_engine_class_instance *hwe)
+test_buffer_fill(struct drm_xe_oa_unit *oau)
 {
 	/* ~5 micro second period */
 	int oa_exponent = max_oa_exponent_for_period_lte(5000);
 	uint64_t oa_period = oa_exponent_to_ns(oa_exponent);
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t fmt = test_set->perf_oa_format;
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 
 		/* Include OA reports in samples */
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
@@ -2734,13 +2734,13 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
  * Description: Test that OA stream enable/disable works as expected
  */
 static void
-test_enable_disable(const struct drm_xe_engine_class_instance *hwe)
+test_enable_disable(struct drm_xe_oa_unit *oau)
 {
 	uint32_t num_reports = 5;
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t fmt = test_set->perf_oa_format;
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
@@ -3515,16 +3515,16 @@ test_rc6_disable(void)
  * Description: Open/close OA streams in a tight loop
  */
 static void
-test_stress_open_close(const struct drm_xe_engine_class_instance *hwe)
+test_stress_open_close(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 
 	load_helper_init();
 	load_helper_run(HIGH);
 
 	igt_until_timeout(2) {
 		uint64_t properties[] = {
-			DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+			DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 
 			/* XXX: even without periodic sampling we have to
 			 * specify at least one sample layout property...
@@ -4623,14 +4623,14 @@ static void closed_fd_and_unmapped_access(const struct drm_xe_engine_class_insta
  * has zeroes in it.
  */
 static void
-test_tail_address_wrap(const struct drm_xe_engine_class_instance *hwe, size_t oa_buffer_size)
+test_tail_address_wrap(struct drm_xe_oa_unit *oau, size_t oa_buffer_size)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	u64 exponent = max_oa_exponent_for_period_lte(20000);
 	u64 buffer_size = oa_buffer_size ?: buffer_fill_size;
 	u64 fmt = test_set->perf_oa_format;
 	u64 properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(fmt),
@@ -5124,13 +5124,13 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		test_invalid_oa_exponent();
 
 	igt_subtest_with_dynamic("oa-exponents")
-		__for_one_hwe_in_oag(hwe)
-			test_oa_exponents(hwe);
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+			test_oa_exponents(oau);
 
 	igt_subtest_with_dynamic("buffer-fill") {
 		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
-		__for_one_hwe_in_oag(hwe)
-			test_buffer_fill(hwe);
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+			test_buffer_fill(oau);
 	}
 
 	/**
@@ -5158,8 +5158,8 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		test_non_sampling_read_error();
 
 	igt_subtest_with_dynamic("enable-disable")
-		__for_one_hwe_in_oag(hwe)
-			test_enable_disable(hwe);
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+			test_enable_disable(oau);
 
 	igt_subtest_with_dynamic("blocking") {
 		igt_require(!igt_run_in_simulation());
@@ -5193,8 +5193,8 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		igt_subtest_with_dynamic("oa-tlb-invalidate") {
 			igt_require(intel_graphics_ver(devid) <= IP_VER(12, 70) &&
 				    intel_graphics_ver(devid) != IP_VER(12, 60));
-			__for_one_hwe_in_oag(hwe)
-				test_oa_tlb_invalidate(hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_oa_tlb_invalidate(oau);
 		}
 
 		igt_subtest_with_dynamic("unprivileged-single-ctx-counters") {
@@ -5223,8 +5223,8 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 	}
 
 	igt_subtest_with_dynamic("stress-open-close") {
-		__for_one_hwe_in_oag(hwe)
-			test_stress_open_close(hwe);
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+			test_stress_open_close(oau);
 	}
 
 	igt_subtest("invalid-create-userspace-config")
@@ -5269,8 +5269,8 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		long k = random() % num_buf_sizes;
 
 		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
-		__for_one_hwe_in_oag_w_arg(hwe, buf_sizes[k].name)
-			test_tail_address_wrap(hwe, buf_sizes[k].size);
+		__for_oa_unit_by_type_w_arg(DRM_XE_OA_UNIT_TYPE_OAG, buf_sizes[k].name)
+			test_tail_address_wrap(oau, buf_sizes[k].size);
 	}
 
 	igt_subtest_group {
