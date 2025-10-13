@@ -72,7 +72,6 @@
  * WMTP - Walker Mid Thread Preemption
  */
 #define TGP_long_kernel_loop_count		10
-#define WMTP_long_kernel_loop_count		1000000
 #define XE2_THREADGROUP_PREEMPT_XDIM		0x4000
 
 struct bo_dict_entry {
@@ -2141,8 +2140,6 @@ static void xe2lpg_compute_preempt_exec(int fd, const unsigned char *long_kernel
 
 	if (threadgroup_preemption)
 		long_kernel_loop_count = TGP_long_kernel_loop_count;
-	else
-		long_kernel_loop_count = WMTP_long_kernel_loop_count;
 
 	for (int i = 0; i < entries; ++i)
 		bo_dict_short[i] = bo_dict_long[i];
