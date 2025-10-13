@@ -346,6 +346,7 @@ igt_main_args("", long_opts, help_str, opts_handler, NULL)
 
 	igt_fixture {
 		pf_fd = drm_open_driver(DRIVER_XE);
+		igt_require(xe_has_vram(pf_fd));
 		igt_require(igt_sriov_is_pf(pf_fd));
 		igt_require(igt_sriov_get_enabled_vfs(pf_fd) == 0);
 		autoprobe = igt_sriov_is_driver_autoprobe_enabled(pf_fd);
