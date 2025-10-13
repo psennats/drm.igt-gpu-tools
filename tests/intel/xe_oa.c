@@ -4776,9 +4776,10 @@ struct oa_sync {
 };
 
 static void
-oa_sync_init(enum oa_sync_type sync_type, const struct drm_xe_engine_class_instance *hwe,
+oa_sync_init(enum oa_sync_type sync_type, struct drm_xe_oa_unit *oau,
 	     struct oa_sync *osync, struct drm_xe_sync *sync)
 {
+	struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oau);
 	uint64_t addr = 0x1a0000;
 
 	osync->sync_type = sync_type;
@@ -4900,15 +4901,15 @@ static void oa_sync_free(struct oa_sync *osync)
  * @wait-cfg:	Exercise reconfig path and wait for syncs to signal
  * @wait:	Don't exercise reconfig path and wait for syncs to signal
  */
-static void test_syncs(const struct drm_xe_engine_class_instance *hwe,
+static void test_syncs(struct drm_xe_oa_unit *oau,
 		       enum oa_sync_type sync_type, int flags)
 {
 	struct drm_xe_ext_set_property extn[XE_OA_MAX_SET_PROPERTIES] = {};
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	struct drm_xe_sync sync = {};
 	struct oa_sync osync = {};
 	uint64_t open_properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
@@ -4939,7 +4940,7 @@ static void test_syncs(const struct drm_xe_engine_class_instance *hwe,
 	if (sync_type == OA_SYNC_TYPE_USERPTR || sync_type == OA_SYNC_TYPE_UFENCE)
 		flags |= WAIT;
 
-	oa_sync_init(sync_type, hwe, &osync, &sync);
+	oa_sync_init(sync_type, oau, &osync, &sync);
 
 	stream_fd = __perf_open(drm_fd, &open_param, false);
 
@@ -4964,25 +4965,6 @@ static void test_syncs(const struct drm_xe_engine_class_instance *hwe,
 exit:
 	__perf_close(stream_fd);
 	oa_sync_free(&osync);
-}
-
-static const char *xe_engine_class_name(uint32_t engine_class)
-{
-	switch (engine_class) {
-		case DRM_XE_ENGINE_CLASS_RENDER:
-			return "rcs";
-		case DRM_XE_ENGINE_CLASS_COPY:
-			return "bcs";
-		case DRM_XE_ENGINE_CLASS_VIDEO_DECODE:
-			return "vcs";
-		case DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE:
-			return "vecs";
-		case DRM_XE_ENGINE_CLASS_COMPUTE:
-			return "ccs";
-		default:
-			igt_warn("Engine class 0x%x unknown\n", engine_class);
-			return "unknown";
-	}
 }
 
 #define __for_one_hwe_in_each_oa_unit(hwe) \
@@ -5065,7 +5047,6 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		{ "ufence-wait", OA_SYNC_TYPE_UFENCE, WAIT },
 		{ NULL },
 	};
-	struct drm_xe_engine_class_instance *hwe = NULL;
 	struct drm_xe_oa_unit *oau;
 	struct xe_device *xe_dev;
 
@@ -5311,8 +5292,8 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 
 		for (const struct sync_section *s = sync_sections; s->name; s++) {
 			igt_subtest_with_dynamic_f("syncs-%s", s->name) {
-				__for_one_hwe_in_oag(hwe)
-					test_syncs(hwe, s->sync_type, s->flags);
+				__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+					test_syncs(oau, s->sync_type, s->flags);
 			}
 		}
 	}
