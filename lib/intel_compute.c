@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 /*
  * Copyright © 2023 Intel Corporation
- *
+ * TODO: Add kernel for PVC for preemption test
  * Authors:
  *    Francois Dugast <francois.dugast@intel.com>
  */
@@ -2199,23 +2199,55 @@ static const struct {
 			     bool threadgroup_preemption,
 			     enum execenv_alloc_prefs alloc_prefs);
 	uint32_t compat;
+	enum xe_compute_preempt_type preempt_type;
 } intel_compute_preempt_batches[] = {
 	{
 		.ip_ver = IP_VER(20, 01),
 		.compute_exec = xe2lpg_compute_preempt_exec,
 		.compat = COMPAT_DRIVER_XE,
+		.preempt_type = PREEMPT_TGP | PREEMPT_WMTP,
 	},
 	{
 		.ip_ver = IP_VER(20, 04),
 		.compute_exec = xe2lpg_compute_preempt_exec,
 		.compat = COMPAT_DRIVER_XE,
+		.preempt_type = PREEMPT_TGP | PREEMPT_WMTP,
 	},
 	{
 		.ip_ver = IP_VER(30, 00),
 		.compute_exec = xe2lpg_compute_preempt_exec,
 		.compat = COMPAT_DRIVER_XE,
+		.preempt_type = PREEMPT_TGP | PREEMPT_WMTP,
 	},
 };
+
+static int find_preempt_batch(unsigned int ip_ver)
+{
+	for (int batch_idx = 0; batch_idx < ARRAY_SIZE(intel_compute_preempt_batches); batch_idx++)
+		if (ip_ver == intel_compute_preempt_batches[batch_idx].ip_ver)
+			return batch_idx;
+	return -1;
+}
+
+static bool is_preemptable(int batch, enum xe_compute_preempt_type required_preempt)
+{
+	if (required_preempt &&
+	    !(intel_compute_preempt_batches[batch].preempt_type & required_preempt))
+		return false;
+	return true;
+}
+
+static const char *xe_preempt_type_to_str(enum xe_compute_preempt_type type)
+{
+	switch (type) {
+	case PREEMPT_TGP:
+		return "PREEMPT_TGP";
+	case PREEMPT_WMTP:
+		return "PREEMPT_WMTP";
+	default:
+		return "UNKNOWN_PREEMPT_TYPE";
+	}
+}
 
 static bool __run_intel_compute_kernel_preempt(int fd,
 		struct drm_xe_engine_class_instance *eci,
@@ -2223,16 +2255,14 @@ static bool __run_intel_compute_kernel_preempt(int fd,
 		enum execenv_alloc_prefs alloc_prefs)
 {
 	unsigned int ip_ver = intel_graphics_ver(intel_get_drm_devid(fd));
-	unsigned int batch;
+	int batch;
 	const struct intel_compute_kernels *kernels = intel_compute_square_kernels;
 	enum intel_driver driver = get_intel_driver(fd);
+	enum xe_compute_preempt_type required_preempt =
+		threadgroup_preemption ? PREEMPT_TGP : PREEMPT_WMTP;
 
-	for (batch = 0; batch < ARRAY_SIZE(intel_compute_preempt_batches); batch++)
-		if (ip_ver == intel_compute_preempt_batches[batch].ip_ver)
-			break;
-
-
-	if (batch == ARRAY_SIZE(intel_compute_preempt_batches)) {
+	batch = find_preempt_batch(ip_ver);
+	if (batch < 0) {
 		igt_debug("GPU version 0x%x not supported\n", ip_ver);
 		return false;
 	}
@@ -2248,6 +2278,12 @@ static bool __run_intel_compute_kernel_preempt(int fd,
 		if (ip_ver == kernels->ip_ver)
 			break;
 		kernels++;
+	}
+
+	if (!is_preemptable(batch, required_preempt)) {
+		igt_debug("Preemption type %s not supported on GPU version 0x%x\n",
+			  xe_preempt_type_to_str(required_preempt), ip_ver);
+		return false;
 	}
 
 	if (!kernels->kernel || !kernels->sip_kernel || !kernels->long_kernel)
@@ -2266,6 +2302,33 @@ static bool __run_intel_compute_kernel_preempt(int fd,
 
 	return true;
 }
+
+/**
+ * xe_kernel_preempt_check - Checks IP version to confirm if provided
+ *			     preempt type is supported.
+ * @fd: file descriptor of the opened DRM Xe device
+ * @required_preempt: Preemption type (WMTP/TGP)
+ *
+ * Returns true on success, false otherwise.
+ */
+bool xe_kernel_preempt_check(int fd, enum xe_compute_preempt_type required_preempt)
+{
+	unsigned int ip_ver = intel_graphics_ver(intel_get_drm_devid(fd));
+	int batch = find_preempt_batch(ip_ver);
+
+	if (batch < 0) {
+		igt_debug("GPU version 0x%x not supported\n", ip_ver);
+		return false;
+	}
+	if (!is_preemptable(batch, required_preempt)) {
+		igt_debug("Preemption type %s not supported on GPU version 0x%x\n",
+			  xe_preempt_type_to_str(required_preempt), ip_ver);
+		return false;
+	}
+
+	return true;
+}
+
 /**
  * run_intel_compute_kernel_preempt - runs compute kernels to
  * exercise preemption scenario.

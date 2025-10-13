@@ -71,6 +71,16 @@ enum execenv_alloc_prefs {
 	EXECENV_PREF_VRAM_IF_POSSIBLE,
 };
 
+/**
+ * enum xe_compute_preempt_type - Types of compute preemption supported.
+ * PREEMPT_TGP: ThreadGroup Preemption
+ * PREEMPT_WMTP: Walker Mid Thread Preemption
+ */
+enum xe_compute_preempt_type {
+	PREEMPT_TGP  = 1 << 0,
+	PREEMPT_WMTP  = 1 << 1,
+};
+
 extern const struct intel_compute_kernels intel_compute_square_kernels[];
 
 bool run_intel_compute_kernel(int fd, struct user_execenv *user,
@@ -81,4 +91,5 @@ bool xe_run_intel_compute_kernel_on_engine(int fd, struct drm_xe_engine_class_in
 bool run_intel_compute_kernel_preempt(int fd, struct drm_xe_engine_class_instance *eci,
 				      bool threadgroup_preemption,
 				      enum execenv_alloc_prefs alloc_prefs);
+bool xe_kernel_preempt_check(int fd, enum xe_compute_preempt_type required_preempt);
 #endif	/* INTEL_COMPUTE_H */
