@@ -3135,12 +3135,14 @@ emit_stall_timestamp_and_rpc(struct intel_bb *ibb,
 	emit_report_perf_count(ibb, dst, report_dst_offset, report_id);
 }
 
-static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
+static void single_ctx_helper(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
+	struct drm_xe_engine_class_instance *hwe =
+		&xe_find_engine_by_class(drm_fd, DRM_XE_ENGINE_CLASS_RENDER)->instance;
 	uint64_t fmt = oar_unit_default_format();
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 
 		/* Have a random value here for the context id, but initialize
 		 * it once you figure out the context ID for the work to be
@@ -3181,6 +3183,8 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
 	};
 	uint32_t ctx_id_offset, counter_offset, dst_buf_size;
 	struct oa_format format = get_oa_format(fmt);
+
+	igt_require_f(hwe, "no render engine\n");
 
 	if (format.report_hdr_64bit) {
 		ctx_id_offset = 4;
@@ -3439,7 +3443,7 @@ static void single_ctx_helper(struct drm_xe_engine_class_instance *hwe)
  * Description: A harder test for OAR/OAC using MI_REPORT_PERF_COUNT
  */
 static void
-test_single_ctx_render_target_writes_a_counter(struct drm_xe_engine_class_instance *hwe)
+test_single_ctx_render_target_writes_a_counter(struct drm_xe_oa_unit *oau)
 {
 	int child_ret;
 	struct igt_helper_process child = {};
@@ -3454,7 +3458,7 @@ test_single_ctx_render_target_writes_a_counter(struct drm_xe_engine_class_instan
 
 			igt_drop_root();
 
-			single_ctx_helper(hwe);
+			single_ctx_helper(oau);
 
 			drm_close_driver(drm_fd);
 		}
@@ -5200,8 +5204,8 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 
 		igt_subtest_with_dynamic("unprivileged-single-ctx-counters") {
 			igt_require_f(render_copy, "no render-copy function\n");
-			__for_one_render_engine(hwe)
-				test_single_ctx_render_target_writes_a_counter(hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_single_ctx_render_target_writes_a_counter(oau);
 		}
 	}
 
