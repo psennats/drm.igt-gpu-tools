@@ -2641,15 +2641,15 @@ test_buffer_fill(struct drm_xe_oa_unit *oau)
  * Description: Test reason field is non-zero. Can also check OA buffer wraparound issues
  */
 static void
-test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_buffer_size)
+test_non_zero_reason(struct drm_xe_oa_unit *oau, size_t oa_buffer_size)
 {
 	/* ~20 micro second period */
 	int oa_exponent = max_oa_exponent_for_period_lte(20000);
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	uint64_t fmt = test_set->perf_oa_format;
 	size_t report_size = get_oa_format(fmt).size;
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 
 		/* Include OA reports in samples */
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
@@ -2720,7 +2720,7 @@ test_non_zero_reason(const struct drm_xe_engine_class_instance *hwe, size_t oa_b
 		 */
 		if (!oa_buffer_size && last_report && (offset / report_size == check_idx)) {
 			sanity_check_reports(last_report, report, fmt);
-			pec_sanity_check_reports(last_report, report, metric_set(hwe));
+			pec_sanity_check_reports(last_report, report, oa_unit_metric_set(oau));
 		}
 
 		last_report = report;
@@ -5141,15 +5141,15 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		long k = random() % num_buf_sizes;
 
 		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
-		__for_one_hwe_in_oag_w_arg(hwe, buf_sizes[k].name)
-			test_non_zero_reason(hwe, buf_sizes[k].size);
+		__for_oa_unit_by_type_w_arg(DRM_XE_OA_UNIT_TYPE_OAG, buf_sizes[k].name)
+			test_non_zero_reason(oau, buf_sizes[k].size);
 	}
 
 	igt_subtest_with_dynamic("non-zero-reason") {
 		igt_require(!igt_run_in_simulation());
 		igt_require(oau->capabilities & DRM_XE_OA_CAPS_OA_BUFFER_SIZE);
-		__for_one_hwe_in_oag(hwe)
-			test_non_zero_reason(hwe, 0);
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+			test_non_zero_reason(oau, 0);
 	}
 
 	igt_subtest("disabled-read-error")
