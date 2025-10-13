@@ -385,48 +385,6 @@ static struct intel_xe_perf_metric_set *oa_unit_metric_set(struct drm_xe_oa_unit
 
 	return test_set;
 }
-
-static struct intel_xe_perf_metric_set *metric_set(const struct drm_xe_engine_class_instance *hwe)
-{
-	const char *test_set_name = NULL;
-	struct intel_xe_perf_metric_set *metric_set_iter;
-	struct intel_xe_perf_metric_set *test_set = NULL;
-
-	if (hwe->engine_class == DRM_XE_ENGINE_CLASS_RENDER ||
-	    hwe->engine_class == DRM_XE_ENGINE_CLASS_COMPUTE)
-		test_set_name = "TestOa";
-	else if ((hwe->engine_class == DRM_XE_ENGINE_CLASS_VIDEO_DECODE ||
-		  hwe->engine_class == DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE) &&
-		 HAS_OAM(devid))
-		test_set_name = "MediaSet1";
-	else
-		igt_assert(!"reached");
-
-	igt_list_for_each_entry(metric_set_iter, &intel_xe_perf->metric_sets, link) {
-		if (strcmp(metric_set_iter->symbol_name, test_set_name) == 0) {
-			test_set = metric_set_iter;
-			break;
-		}
-	}
-
-	igt_assert(test_set);
-
-	/*
-	 * configuration was loaded in init_sys_info() ->
-	 * intel_xe_perf_load_perf_configs(), and test_set->perf_oa_metrics_set
-	 * should point to metric id returned by the config add ioctl. 0 is
-	 * invalid.
-	 */
-	igt_assert_neq_u64(test_set->perf_oa_metrics_set, 0);
-
-	igt_debug("engine %d:%d - %s metric set UUID = %s\n",
-		  hwe->engine_class,
-		  hwe->engine_instance,
-		  test_set->symbol_name,
-		  test_set->hw_config_guid);
-
-	return test_set;
-}
 #define default_test_set oa_unit_metric_set(oa_unit_by_type(drm_fd, DRM_XE_OA_UNIT_TYPE_OAG))
 
 static void set_fd_flags(int fd, int flags)
@@ -4303,8 +4261,8 @@ static void
 test_oa_unit_exclusive_stream(bool exponent)
 {
 	struct drm_xe_query_oa_units *qoa = xe_oa_units(drm_fd);
+	struct drm_xe_engine_class_instance *hwe;
 	struct drm_xe_oa_unit *oau;
-	u8 *poau = (u8 *)&qoa->oa_units[0];
 	uint64_t properties[] = {
 		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
@@ -4325,12 +4283,12 @@ test_oa_unit_exclusive_stream(bool exponent)
 
 	/* for each oa unit, open one random perf stream with sample OA */
 	for (i = 0; i < qoa->num_oa_units; i++) {
-		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oa_unit_by_id(drm_fd, i));
+		oau = oa_unit_by_id(drm_fd, i);
+		hwe = oa_unit_engine(oau);
 
-		oau = (struct drm_xe_oa_unit *)poau;
-		if (oau->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
+		if (!hwe)
 			continue;
-		test_set = metric_set(hwe);
+		test_set = oa_unit_metric_set(oau);
 
 		igt_debug("opening OA buffer with c:i %d:%d\n",
 			  hwe->engine_class, hwe->engine_instance);
@@ -4346,7 +4304,6 @@ test_oa_unit_exclusive_stream(bool exponent)
 		properties[9] = hwe->engine_instance;
 		perf_fd[i] = intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &param);
 		igt_assert(perf_fd[i] >= 0);
-		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
 	}
 
 	/* Xe KMD holds reference to the exec_q's so they shouldn't be really destroyed */
@@ -4355,15 +4312,15 @@ test_oa_unit_exclusive_stream(bool exponent)
 			xe_exec_queue_destroy(drm_fd, exec_q[i]);
 
 	/* for each oa unit make sure no other streams can be opened */
-	poau = (u8 *)&qoa->oa_units[0];
 	for (i = 0; i < qoa->num_oa_units; i++) {
-		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oa_unit_by_id(drm_fd, i));
 		int err;
 
-		oau = (struct drm_xe_oa_unit *)poau;
-		if (oau->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
+		oau = oa_unit_by_id(drm_fd, i);
+		hwe = oa_unit_engine(oau);
+
+		if (!hwe)
 			continue;
-		test_set = metric_set(hwe);
+		test_set = oa_unit_metric_set(oau);
 
 		igt_debug("try with exp with c:i %d:%d\n",
 			  hwe->engine_class, hwe->engine_instance);
@@ -4386,7 +4343,6 @@ test_oa_unit_exclusive_stream(bool exponent)
 		err = intel_xe_perf_ioctl(drm_fd, DRM_XE_OBSERVATION_OP_STREAM_OPEN, &param);
 		igt_assert_lt(err, 0);
 		igt_assert(errno == EBUSY || errno == ENODEV);
-		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
 	}
 
 	for (i = 0; i < qoa->num_oa_units; i++) {
@@ -4966,28 +4922,6 @@ exit:
 	__perf_close(stream_fd);
 	oa_sync_free(&osync);
 }
-
-#define __for_one_hwe_in_each_oa_unit(hwe) \
-	for (int m = 0; !m || hwe; m++) \
-		for_each_if(hwe = oa_unit_engine(oa_unit_by_id(drm_fd, m))) \
-			igt_dynamic_f("%s-%d", xe_engine_class_name(hwe->engine_class), \
-				      hwe->engine_instance)
-
-/* Only OAG (not OAM) is currently supported */
-#define __for_one_hwe_in_oag(hwe) \
-	if ((hwe = oa_unit_engine(oa_unit_by_type(drm_fd, DRM_XE_OA_UNIT_TYPE_OAG)))) \
-		igt_dynamic_f("%s-%d", xe_engine_class_name(hwe->engine_class), \
-			      hwe->engine_instance)
-
-#define __for_one_hwe_in_oag_w_arg(hwe, str) \
-	if ((hwe = oa_unit_engine(oa_unit_by_type(drm_fd, DRM_XE_OA_UNIT_TYPE_OAG)))) \
-		igt_dynamic_f("%s-%d-%s", xe_engine_class_name(hwe->engine_class), \
-			      hwe->engine_instance, str)
-
-#define __for_one_render_engine(hwe) \
-	hwe = &xe_find_engine_by_class(drm_fd, DRM_XE_ENGINE_CLASS_RENDER)->instance; \
-	igt_require_f(hwe, "no render engine\n"); \
-	igt_dynamic_f("rcs-%d", hwe->engine_instance)
 
 #define __for_oa_unit_by_type(k) \
 	if ((oau = oa_unit_by_type(drm_fd, k))) \
