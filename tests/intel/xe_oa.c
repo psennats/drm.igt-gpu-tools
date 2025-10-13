@@ -4002,11 +4002,12 @@ static u32 oa_get_mmio_base(const struct drm_xe_engine_class_instance *hwe)
  * SUBTEST: oa-regs-whitelisted
  * Description: Verify that OA registers are whitelisted
  */
-static void test_oa_regs_whitelist(const struct drm_xe_engine_class_instance *hwe)
+static void test_oa_regs_whitelist(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
+	struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oau);
 	uint64_t properties[] = {
-		DRM_XE_OA_PROPERTY_OA_UNIT_ID, 0,
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
@@ -4020,8 +4021,7 @@ static void test_oa_regs_whitelist(const struct drm_xe_engine_class_instance *hw
 	u32 mmio_base;
 
 	/* FIXME: Add support for OAM whitelist testing */
-	if (hwe->engine_class != DRM_XE_ENGINE_CLASS_RENDER &&
-	    hwe->engine_class != DRM_XE_ENGINE_CLASS_COMPUTE)
+	if (oau->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
 		return;
 
 	mmio_base = oa_get_mmio_base(hwe);
@@ -4049,10 +4049,12 @@ static void test_oa_regs_whitelist(const struct drm_xe_engine_class_instance *hw
 }
 
 static void
-__test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
+__test_mmio_triggered_reports(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = default_test_set;
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
+	struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oau);
 	uint64_t properties[] = {
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
@@ -4154,10 +4156,12 @@ __test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe)
 }
 
 static void
-__test_mmio_triggered_reports_read(struct drm_xe_engine_class_instance *hwe)
+__test_mmio_triggered_reports_read(struct drm_xe_oa_unit *oau)
 {
-	struct intel_xe_perf_metric_set *test_set = default_test_set;
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
+	struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oau);
 	uint64_t properties[] = {
+		DRM_XE_OA_PROPERTY_OA_UNIT_ID, oau->oa_unit_id,
 		DRM_XE_OA_PROPERTY_SAMPLE_OA, true,
 		DRM_XE_OA_PROPERTY_OA_METRIC_SET, test_set->perf_oa_metrics_set,
 		DRM_XE_OA_PROPERTY_OA_FORMAT, __ff(test_set->perf_oa_format),
@@ -4250,8 +4254,7 @@ __test_mmio_triggered_reports_read(struct drm_xe_engine_class_instance *hwe)
  * Description: Test MMIO trigger functionality with read system call
  */
 static void
-test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe,
-			    bool with_read)
+test_mmio_triggered_reports(struct drm_xe_oa_unit *oau, bool with_read)
 {
 	struct igt_helper_process child = {};
 	int ret;
@@ -4261,9 +4264,9 @@ test_mmio_triggered_reports(struct drm_xe_engine_class_instance *hwe,
 		igt_drop_root();
 
 		if (with_read)
-			__test_mmio_triggered_reports_read(hwe);
+			__test_mmio_triggered_reports_read(oau);
 		else
-			__test_mmio_triggered_reports(hwe);
+			__test_mmio_triggered_reports(oau);
 	}
 	ret = igt_wait_helper(&child);
 	write_u64_file("/proc/sys/dev/xe/observation_paranoid", 1);
@@ -5285,19 +5288,19 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 		}
 
 		igt_subtest_with_dynamic("oa-regs-whitelisted")
-			__for_one_hwe_in_oag(hwe)
-				test_oa_regs_whitelist(hwe);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_oa_regs_whitelist(oau);
 
 		igt_subtest_with_dynamic("mmio-triggered-reports") {
 			igt_require(HAS_OA_MMIO_TRIGGER(devid));
-			__for_one_hwe_in_oag(hwe)
-				test_mmio_triggered_reports(hwe, false);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mmio_triggered_reports(oau, false);
 		}
 
 		igt_subtest_with_dynamic("mmio-triggered-reports-read") {
 			igt_require(HAS_OA_MMIO_TRIGGER(devid));
-			__for_one_hwe_in_oag(hwe)
-				test_mmio_triggered_reports(hwe, true);
+			__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
+				test_mmio_triggered_reports(oau, true);
 		}
 	}
 
