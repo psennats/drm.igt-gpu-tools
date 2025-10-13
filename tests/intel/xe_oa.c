@@ -242,6 +242,18 @@ static struct oa_format mtl_oa_formats[XE_OA_FORMAT_MAX] = {
 };
 
 static struct oa_format lnl_oa_formats[XE_OA_FORMAT_MAX] = {
+	[XE_OAM_FORMAT_MPEC8u64_B8_C8] = {
+		"MPEC8u64_B8_C8", .size = 192,
+		.oa_type = DRM_XE_OA_FMT_TYPE_OAM_MPEC,
+		.report_hdr_64bit = true,
+		.counter_select = 1,
+	},
+	[XE_OAM_FORMAT_MPEC8u32_B8_C8] = {
+		"MPEC8u32_B8_C8", .size = 128,
+		.oa_type = DRM_XE_OA_FMT_TYPE_OAM_MPEC,
+		.report_hdr_64bit = true,
+		.counter_select = 2,
+	},
 	[XE_OA_FORMAT_PEC64u64] = {
 		"PEC64u64", .size = 576,
 		.oa_type = DRM_XE_OA_FMT_TYPE_PEC,
