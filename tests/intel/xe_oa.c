@@ -2109,7 +2109,7 @@ get_time(void)
 static void test_blocking(uint64_t requested_oa_period,
 			  bool set_kernel_hrtimer,
 			  uint64_t kernel_hrtimer,
-			  const struct drm_xe_engine_class_instance *hwe)
+			  struct drm_xe_oa_unit *oau)
 {
 	int oa_exponent = max_oa_exponent_for_period_lte(requested_oa_period);
 	uint64_t oa_period = oa_exponent_to_ns(oa_exponent);
@@ -2138,7 +2138,7 @@ static void test_blocking(uint64_t requested_oa_period,
 	int min_iterations = (test_duration_ns / (oa_period + kernel_hrtimer + kernel_hrtimer / 5));
 	int64_t start, end;
 	int n = 0;
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	size_t format_size = get_oa_format(test_set->perf_oa_format).size;
 
 	ADD_PROPS(props, idx, SAMPLE_OA, true);
@@ -2146,7 +2146,7 @@ static void test_blocking(uint64_t requested_oa_period,
 	ADD_PROPS(props, idx, OA_FORMAT, __ff(test_set->perf_oa_format));
 	ADD_PROPS(props, idx, OA_PERIOD_EXPONENT, oa_exponent);
 	ADD_PROPS(props, idx, OA_DISABLED, true);
-	ADD_PROPS(props, idx, OA_UNIT_ID, 0);
+	ADD_PROPS(props, idx, OA_UNIT_ID, oau->oa_unit_id);
 
 	param.num_properties = (idx - props) / 2;
 	param.properties_ptr = to_user_pointer(props);
@@ -2252,7 +2252,7 @@ static void test_blocking(uint64_t requested_oa_period,
 static void test_polling(uint64_t requested_oa_period,
 			 bool set_kernel_hrtimer,
 			 uint64_t kernel_hrtimer,
-			 const struct drm_xe_engine_class_instance *hwe)
+			 struct drm_xe_oa_unit *oau)
 {
 	int oa_exponent = max_oa_exponent_for_period_lte(requested_oa_period);
 	uint64_t oa_period = oa_exponent_to_ns(oa_exponent);
@@ -2282,7 +2282,7 @@ static void test_polling(uint64_t requested_oa_period,
 	int min_iterations = (test_duration_ns / (oa_period + (kernel_hrtimer + kernel_hrtimer / 5)));
 	int64_t start, end;
 	int n = 0;
-	struct intel_xe_perf_metric_set *test_set = metric_set(hwe);
+	struct intel_xe_perf_metric_set *test_set = oa_unit_metric_set(oau);
 	size_t format_size = get_oa_format(test_set->perf_oa_format).size;
 
 	ADD_PROPS(props, idx, SAMPLE_OA, true);
@@ -2290,7 +2290,7 @@ static void test_polling(uint64_t requested_oa_period,
 	ADD_PROPS(props, idx, OA_FORMAT, __ff(test_set->perf_oa_format));
 	ADD_PROPS(props, idx, OA_PERIOD_EXPONENT, oa_exponent);
 	ADD_PROPS(props, idx, OA_DISABLED, true);
-	ADD_PROPS(props, idx, OA_UNIT_ID, 0);
+	ADD_PROPS(props, idx, OA_UNIT_ID, oau->oa_unit_id);
 
 	param.num_properties = (idx - props) / 2;
 	param.properties_ptr = to_user_pointer(props);
@@ -4399,13 +4399,13 @@ test_oa_unit_concurrent_oa_buffer_read(void)
 	struct drm_xe_query_oa_units *qoa = xe_oa_units(drm_fd);
 
 	igt_fork(child, qoa->num_oa_units) {
-		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oa_unit_by_id(drm_fd, child));
+		struct drm_xe_oa_unit *oau = oa_unit_by_id(drm_fd, child);
 
 		/* No OAM support yet */
-		if (oa_unit_by_id(drm_fd, child)->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
+		if (oau->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
 			exit(0);
 
-		test_blocking(40 * 1000 * 1000, false, 5 * 1000 * 1000, hwe);
+		test_blocking(40 * 1000 * 1000, false, 5 * 1000 * 1000, oau);
 	}
 	igt_waitchildren();
 }
@@ -5163,20 +5163,20 @@ igt_main_args("b:t", long_options, help_str, opt_handler, NULL)
 
 	igt_subtest_with_dynamic("blocking") {
 		igt_require(!igt_run_in_simulation());
-		__for_one_hwe_in_oag(hwe)
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
 			test_blocking(40 * 1000 * 1000 /* 40ms oa period */,
 				      false /* set_kernel_hrtimer */,
 				      5 * 1000 * 1000 /* default 5ms/200Hz hrtimer */,
-				      hwe);
+				      oau);
 	}
 
 	igt_subtest_with_dynamic("polling") {
 		igt_require(!igt_run_in_simulation());
-		__for_one_hwe_in_oag(hwe)
+		__for_oa_unit_by_type(DRM_XE_OA_UNIT_TYPE_OAG)
 			test_polling(40 * 1000 * 1000 /* 40ms oa period */,
 				     false /* set_kernel_hrtimer */,
 				     5 * 1000 * 1000 /* default 5ms/200Hz hrtimer */,
-				     hwe);
+				     oau);
 	}
 
 	igt_subtest("polling-small-buf")
