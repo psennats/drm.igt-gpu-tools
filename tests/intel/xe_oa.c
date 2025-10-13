@@ -477,18 +477,34 @@ static struct drm_xe_engine_class_instance *oa_unit_engine(struct drm_xe_oa_unit
 	return !oau ? NULL : oau->num_engines ? &oau->eci[random() % oau->num_engines] : NULL;
 }
 
+static int __first_and_num_oa_units(struct drm_xe_oa_unit **oau)
+{
+	struct drm_xe_query_oa_units *qoa = xe_oa_units(drm_fd);
+
+	*oau = (struct drm_xe_oa_unit *)&qoa->oa_units[0];
+
+	return qoa->num_oa_units;
+}
+
+static struct drm_xe_oa_unit *__next_oa_unit(struct drm_xe_oa_unit *oau)
+{
+	u8 *poau = (u8 *)oau;
+
+	return (struct drm_xe_oa_unit *)(poau + sizeof(*oau) +
+					 oau->num_engines * sizeof(oau->eci[0]));
+}
+
+#define for_each_oa_unit(oau) \
+	for (int _i = 0, _num_oa_units = __first_and_num_oa_units(&oau); \
+	     _i < _num_oa_units; oau = __next_oa_unit(oau), _i++)
+
 static struct drm_xe_oa_unit *oa_unit_by_id(int fd, int id)
 {
-	struct drm_xe_query_oa_units *qoa = xe_oa_units(fd);
 	struct drm_xe_oa_unit *oau;
-	u8 *poau;
 
-	poau = (u8 *)&qoa->oa_units[0];
-	for (int i = 0; i < qoa->num_oa_units; i++) {
-		oau = (struct drm_xe_oa_unit *)poau;
+	for_each_oa_unit(oau) {
 		if (oau->oa_unit_id == id)
 			return oau;
-		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
 	}
 
 	return NULL;
@@ -496,16 +512,11 @@ static struct drm_xe_oa_unit *oa_unit_by_id(int fd, int id)
 
 static struct drm_xe_oa_unit *oa_unit_by_type(int fd, int t)
 {
-	struct drm_xe_query_oa_units *qoa = xe_oa_units(fd);
 	struct drm_xe_oa_unit *oau;
-	u8 *poau;
 
-	poau = (u8 *)&qoa->oa_units[0];
-	for (int i = 0; i < qoa->num_oa_units; i++) {
-		oau = (struct drm_xe_oa_unit *)poau;
+	for_each_oa_unit(oau) {
 		if (oau->oa_unit_type == t)
 			return oau;
-		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
 	}
 
 	return NULL;
