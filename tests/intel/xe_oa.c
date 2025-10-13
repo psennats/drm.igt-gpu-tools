@@ -472,25 +472,9 @@ static u64 oa_format_fields(u64 name)
 }
 #define __ff oa_format_fields
 
-static struct drm_xe_engine_class_instance *oa_unit_engine(int fd, int n)
+static struct drm_xe_engine_class_instance *oa_unit_engine(struct drm_xe_oa_unit *oau)
 {
-	struct drm_xe_query_oa_units *qoa = xe_oa_units(fd);
-	struct drm_xe_engine_class_instance *hwe = NULL;
-	struct drm_xe_oa_unit *oau;
-	u8 *poau;
-
-	poau = (u8 *)&qoa->oa_units[0];
-	for (int i = 0; i < qoa->num_oa_units; i++) {
-		oau = (struct drm_xe_oa_unit *)poau;
-
-		if (i == n) {
-			hwe = oau->num_engines ? &oau->eci[random() % oau->num_engines] : NULL;
-			break;
-		}
-		poau += sizeof(*oau) + oau->num_engines * sizeof(oau->eci[0]);
-	}
-
-	return hwe;
+	return !oau ? NULL : oau->num_engines ? &oau->eci[random() % oau->num_engines] : NULL;
 }
 
 static struct drm_xe_oa_unit *oa_unit_by_id(int fd, int id)
@@ -4263,7 +4247,7 @@ test_oa_unit_exclusive_stream(bool exponent)
 
 	/* for each oa unit, open one random perf stream with sample OA */
 	for (i = 0; i < qoa->num_oa_units; i++) {
-		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(drm_fd, i);
+		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oa_unit_by_id(drm_fd, i));
 
 		oau = (struct drm_xe_oa_unit *)poau;
 		if (oau->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
@@ -4295,7 +4279,7 @@ test_oa_unit_exclusive_stream(bool exponent)
 	/* for each oa unit make sure no other streams can be opened */
 	poau = (u8 *)&qoa->oa_units[0];
 	for (i = 0; i < qoa->num_oa_units; i++) {
-		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(drm_fd, i);
+		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oa_unit_by_id(drm_fd, i));
 		int err;
 
 		oau = (struct drm_xe_oa_unit *)poau;
@@ -4345,7 +4329,7 @@ test_oa_unit_concurrent_oa_buffer_read(void)
 	struct drm_xe_query_oa_units *qoa = xe_oa_units(drm_fd);
 
 	igt_fork(child, qoa->num_oa_units) {
-		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(drm_fd, child);
+		struct drm_xe_engine_class_instance *hwe = oa_unit_engine(oa_unit_by_id(drm_fd, child));
 
 		/* No OAM support yet */
 		if (oa_unit_by_id(drm_fd, child)->oa_unit_type != DRM_XE_OA_UNIT_TYPE_OAG)
@@ -4924,18 +4908,18 @@ static const char *xe_engine_class_name(uint32_t engine_class)
 
 #define __for_one_hwe_in_each_oa_unit(hwe) \
 	for (int m = 0; !m || hwe; m++) \
-		for_each_if(hwe = oa_unit_engine(drm_fd, m)) \
+		for_each_if(hwe = oa_unit_engine(oa_unit_by_id(drm_fd, m))) \
 			igt_dynamic_f("%s-%d", xe_engine_class_name(hwe->engine_class), \
 				      hwe->engine_instance)
 
 /* Only OAG (not OAM) is currently supported */
 #define __for_one_hwe_in_oag(hwe) \
-	if ((hwe = oa_unit_engine(drm_fd, 0))) \
+	if ((hwe = oa_unit_engine(oa_unit_by_id(drm_fd, 0)))) \
 		igt_dynamic_f("%s-%d", xe_engine_class_name(hwe->engine_class), \
 			      hwe->engine_instance)
 
 #define __for_one_hwe_in_oag_w_arg(hwe, str) \
-	if ((hwe = oa_unit_engine(drm_fd, 0))) \
+	if ((hwe = oa_unit_engine(oa_unit_by_id(drm_fd, 0)))) \
 		igt_dynamic_f("%s-%d-%s", xe_engine_class_name(hwe->engine_class), \
 			      hwe->engine_instance, str)
 
