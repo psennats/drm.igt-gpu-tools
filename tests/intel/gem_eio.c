@@ -1022,6 +1022,9 @@ static void display_helper(igt_display_t *dpy, int *done)
 	const int commit = dpy->is_atomic ? COMMIT_ATOMIC : COMMIT_LEGACY;
 	struct igt_fb fb = {};
 
+	igt_install_exit_handler(igt_drm_debug_mask_reset_exit_handler);
+	igt_drm_debug_mask_update(DRM_UT_DRIVER);
+
 	while (!READ_ONCE(*done)) {
 		drmModeModeInfoPtr mode;
 		igt_plane_t *primary;
