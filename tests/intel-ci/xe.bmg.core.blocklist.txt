@@ -18,13 +18,6 @@ igt@xe_media_fill@media-fill
 ##################################################################
 igt@xe_pat@pat-index-xe3p-xpc
 ##################################################################
-# Expected skip on single card machines
-##################################################################
-igt@xe_peer2peer@.*
-igt@xe_query@multigpu-query-.*
-igt@xe_create@multigpu-create-massive-size
-igt@xe_exec_basic@.*multigpu.*
-##################################################################
 # Expected skip - small bar not supported
 ##################################################################
 igt@xe_mmap@small-bar
