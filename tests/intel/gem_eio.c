@@ -409,8 +409,10 @@ static void check_wait_elapsed(const char *prefix, int fd, igt_stats_t *st)
 		 igt_stats_get_median(st)*1e-6,
 		 igt_stats_get_max(st)*1e-6);
 
-	if (st->n_values < 9)
-		return; /* too few for stable median */
+#define NUMER_OF_MEASURED_CYCLES_NEEDED 9
+	igt_require_f(st->n_values >= NUMER_OF_MEASURED_CYCLES_NEEDED,
+		      "at least %d completed resets are needed for stable median calculation, %d is too few\n",
+		      NUMER_OF_MEASURED_CYCLES_NEEDED, st->n_values);
 
 	/*
 	 * Older platforms need to reset the display (incl. modeset to off,
