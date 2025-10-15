@@ -930,7 +930,7 @@ static void reset_stress(int fd, uint64_t ahnd, const intel_ctx_t *ctx0,
 	gem_write(fd, obj.handle, 0, &bbe, sizeof(bbe));
 
 	igt_stats_init(&stats);
-	igt_until_timeout(5) {
+	igt_until_timeout(20) {
 		const intel_ctx_t *ctx = context_create_safe(fd);
 		igt_spin_t *hang;
 		unsigned int i;
@@ -979,6 +979,9 @@ static void reset_stress(int fd, uint64_t ahnd, const intel_ctx_t *ctx0,
 		gem_sync(fd, obj.handle);
 		igt_spin_free(fd, hang);
 		intel_ctx_destroy(fd, ctx);
+
+		if (stats.n_values >= NUMER_OF_MEASURED_CYCLES_NEEDED)
+			break;
 	}
 	check_wait_elapsed(name, fd, &stats);
 	igt_stats_fini(&stats);
