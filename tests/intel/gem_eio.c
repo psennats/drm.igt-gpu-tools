@@ -997,7 +997,7 @@ static void test_reset_stress(int fd, unsigned int flags)
 	const intel_ctx_t *ctx0 = context_create_safe(fd);
 	uint64_t ahnd = get_reloc_ahnd(fd, ctx0->id);
 
-	for_each_ring(e, fd) {
+	for_each_physical_ring(e, fd) {
 		struct intel_execution_engine2 engine;
 
 		engine = gem_eb_flags_to_engine(eb_ring(e));
