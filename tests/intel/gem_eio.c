@@ -139,7 +139,7 @@ static bool i915_reset_control(int fd, bool enable)
 	return igt_params_set(fd, "reset", "%d", enable);
 }
 
-static void trigger_reset(int fd)
+static void trigger_reset(int fd, bool dump)
 {
 	struct timespec ts = { };
 
@@ -159,7 +159,8 @@ static void trigger_reset(int fd)
 	igt_kmsg(KMSG_DEBUG "Checking that the GPU recovered\n");
 	gem_test_all_engines(fd);
 
-	igt_debugfs_dump(fd, "i915_engine_info");
+	if (dump)
+		igt_debugfs_dump(fd, "i915_engine_info");
 	igt_drop_caches_set(fd, DROP_ACTIVE);
 
 	/* We expect the health check to be quick! */
@@ -199,7 +200,7 @@ static void test_throttle(int fd)
 
 	igt_assert_eq(__gem_throttle(fd), -EIO);
 
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 }
 
 static void test_create(int fd)
@@ -208,7 +209,7 @@ static void test_create(int fd)
 
 	gem_close(fd, gem_create(fd, 4096));
 
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 }
 
 static void test_create_ext(int fd)
@@ -233,7 +234,7 @@ static void test_create_ext(int fd)
 		gem_close(fd, handle);
 	}
 
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 }
 
 static void test_context_create(int fd)
@@ -246,7 +247,7 @@ static void test_context_create(int fd)
 
 	igt_assert_eq(__gem_context_create(fd, &ctx), -EIO);
 
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 }
 
 static void test_execbuf(int fd)
@@ -269,7 +270,7 @@ static void test_execbuf(int fd)
 	igt_assert_eq(__gem_execbuf(fd, &execbuf), -EIO);
 	gem_close(fd, exec.handle);
 
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 }
 
 static int __gem_wait(int fd, uint32_t handle, int64_t timeout)
@@ -476,7 +477,7 @@ static void __test_banned(int fd)
 		/* Trigger a reset, making sure we are detected as guilty */
 		ahnd = get_reloc_ahnd(fd, 0);
 		hang = spin_sync(fd, ahnd, intel_ctx_0(fd), 0);
-		trigger_reset(fd);
+		trigger_reset(fd, false);
 		igt_spin_free(fd, hang);
 		put_ahnd(ahnd);
 
@@ -563,7 +564,7 @@ static void test_wait(int fd, unsigned int flags, unsigned int wait)
 
 	igt_require(i915_reset_control(fd, true));
 
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 	drm_close_driver(fd);
 }
 
@@ -581,7 +582,7 @@ static void test_suspend(int fd, int state)
 	igt_system_suspend_autoresume(state, SUSPEND_TEST_DEVICES);
 
 	igt_require(i915_reset_control(fd, true));
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 	drm_close_driver(fd);
 }
 
@@ -643,7 +644,7 @@ static void test_inflight(int fd, unsigned int wait)
 		put_ahnd(ahnd);
 
 		igt_assert(i915_reset_control(fd, true));
-		trigger_reset(fd);
+		trigger_reset(fd, true);
 
 		gem_close(fd, obj[1].handle);
 		drm_close_driver(fd);
@@ -706,7 +707,7 @@ static void test_inflight_suspend(int fd)
 	put_ahnd(ahnd);
 
 	igt_assert(i915_reset_control(fd, true));
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 	drm_close_driver(fd);
 }
 
@@ -792,7 +793,7 @@ static void test_inflight_contexts(int fd, unsigned int wait)
 		put_ahnd(ahnd);
 
 		igt_assert(i915_reset_control(fd, true));
-		trigger_reset(fd);
+		trigger_reset(fd, true);
 
 		for (unsigned int n = 0; n < ARRAY_SIZE(ctx); n++)
 			intel_ctx_destroy(fd, ctx[n]);
@@ -852,7 +853,7 @@ static void test_inflight_external(int fd)
 	igt_spin_free(fd, hang);
 	put_ahnd(ahnd);
 	igt_assert(i915_reset_control(fd, true));
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 	drm_close_driver(fd);
 }
 
@@ -902,7 +903,7 @@ static void test_inflight_internal(int fd, unsigned int wait)
 	put_ahnd(ahnd);
 
 	igt_assert(i915_reset_control(fd, true));
-	trigger_reset(fd);
+	trigger_reset(fd, true);
 	drm_close_driver(fd);
 }
 
@@ -960,7 +961,7 @@ static void reset_stress(int fd, uint64_t ahnd, const intel_ctx_t *ctx0,
 
 		/* Unwedge by forcing a reset. */
 		igt_assert(i915_reset_control(fd, true));
-		trigger_reset(fd);
+		trigger_reset(fd, false);
 
 		gem_quiescent_gpu(fd);
 
