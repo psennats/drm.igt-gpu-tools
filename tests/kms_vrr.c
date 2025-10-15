@@ -870,6 +870,8 @@ static void
 test_lobf(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 {
 	uint64_t rate[] = {0};
+	uint32_t step_size, vrefresh;
+	bool lobf_enabled = false;
 
 	rate[0] = igt_kms_frame_time_from_vrefresh(data->switch_modes[HIGH_RR_MODE].vrefresh);
 	prepare_test(data, output, pipe);
@@ -879,11 +881,24 @@ test_lobf(data_t *data, enum pipe pipe, igt_output_t *output, uint32_t flags)
 
 	igt_output_override_mode(output, &data->switch_modes[HIGH_RR_MODE]);
 	flip_and_measure(data, output, pipe, rate, 1, TEST_DURATION_NS);
-	igt_output_override_mode(output, &data->switch_modes[LOW_RR_MODE]);
-	rate[0] = igt_kms_frame_time_from_vrefresh(data->switch_modes[LOW_RR_MODE].vrefresh);
-	flip_and_measure(data, output, pipe, rate, 1, NSECS_PER_SEC);
-	igt_assert_f(igt_get_i915_edp_lobf_status(data->drm_fd, output->name),
-		     "LOBF not enabled\n");
+
+	step_size = (data->range.max - data->range.min) / 5;
+
+	for (vrefresh = data->range.max - step_size;
+	     vrefresh >= data->range.min; vrefresh -= step_size) {
+		rate[0] = igt_kms_frame_time_from_vrefresh(vrefresh);
+		flip_and_measure(data, output, pipe, rate, 1, NSECS_PER_SEC);
+
+		if (igt_get_i915_edp_lobf_status(data->drm_fd, output->name)) {
+			lobf_enabled = true;
+			break;
+		}
+
+		if (vrefresh == data->range.min)
+			break;
+	}
+
+	igt_assert_f(lobf_enabled, "LOBF not enabled\n");
 }
 
 static void
