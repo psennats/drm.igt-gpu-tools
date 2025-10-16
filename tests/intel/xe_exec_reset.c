@@ -445,8 +445,10 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 		xe_exec(fd, &exec);
 	}
 
-	if (flags & GT_RESET)
+	if (flags & GT_RESET) {
+		xe_spin_wait_started(&data[0].spin);
 		xe_force_gt_reset_sync(fd, eci->gt_id);
+	}
 
 	if (flags & CLOSE_FD) {
 		if (flags & CLOSE_EXEC_QUEUES) {
