@@ -1015,7 +1015,7 @@ static void unprovision_and_disable_vfs(int fd)
 			xe_sriov_set_exec_quantum_ms(fd, fn, gt, 0);
 	}
 
-	igt_sriov_disable_vfs(fd);
+	xe_sriov_disable_vfs_restore_auto_provisioning(fd);
 	/* abort to avoid execution of next tests with enabled VFs */
 	igt_abort_on_f(igt_sriov_get_enabled_vfs(fd) > 0,
 		       "Failed to disable VF(s)");
