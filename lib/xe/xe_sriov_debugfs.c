@@ -620,3 +620,43 @@ uint64_t xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res
 
 	return value;
 }
+
+/**
+ * xe_sriov_pf_debugfs_supports_restore_auto_provisioning - Check if PF
+ * supports restoring the default auto-provisioning state via debugfs.
+ * @pf: PF device file descriptor
+ *
+ * The helper probes for a writable
+ * <debugfs>/sriov/restore_auto_provisioning attribute on the PF.
+ *
+ * Return: true if the attribute exists and is writable, false otherwise.
+ */
+bool xe_sriov_pf_debugfs_supports_restore_auto_provisioning(int pf)
+{
+	return igt_debugfs_exists(pf, "sriov/restore_auto_provisioning", O_WRONLY);
+}
+
+/**
+ * xe_sriov_pf_debugfs_restore_auto_provisioning - Request PF to restore the
+ * default auto-provisioning state after VF teardown.
+ * @pf: PF device file descriptor
+ *
+ * This helper writes "1" to <debugfs>/sriov/restore_auto_provisioning.
+ * Intended for use in test teardown after disabling VFs, so future
+ * provisioning starts from a clean, default state.
+ *
+ * Return: 0 on success, or a negative errno on failure.
+ */
+int xe_sriov_pf_debugfs_restore_auto_provisioning(int pf)
+{
+	int dirfd = igt_debugfs_dir(pf);
+	int ret;
+
+	igt_assert_fd(dirfd);
+
+	ret = igt_sysfs_write(dirfd, "sriov/restore_auto_provisioning", "1", 1);
+
+	close(dirfd);
+
+	return ret == 1 ? 0 : ret;
+}

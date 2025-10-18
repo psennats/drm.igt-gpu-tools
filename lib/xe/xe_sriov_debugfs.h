@@ -43,5 +43,7 @@ int __xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
 					 unsigned int gt_num, uint64_t *value);
 uint64_t xe_sriov_vf_debugfs_get_selfconfig(int vf, enum xe_sriov_shared_res res,
 					    unsigned int gt_num);
+bool xe_sriov_pf_debugfs_supports_restore_auto_provisioning(int pf);
+int xe_sriov_pf_debugfs_restore_auto_provisioning(int pf);
 
 #endif /* __XE_SRIOV_DEBUGFS_H__ */
