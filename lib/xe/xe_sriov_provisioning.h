@@ -148,5 +148,6 @@ int __xe_sriov_set_sched_priority(int pf, unsigned int vf_num, unsigned int gt_n
 void xe_sriov_set_sched_priority(int pf, unsigned int vf_num, unsigned int gt_num,
 				 enum xe_sriov_sched_priority value);
 void xe_sriov_require_default_scheduling_attributes(int pf);
+void xe_sriov_disable_vfs_restore_auto_provisioning(int pf);
 
 #endif /* __XE_SRIOV_PROVISIONING_H__ */

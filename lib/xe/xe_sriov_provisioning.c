@@ -763,3 +763,19 @@ void xe_sriov_require_default_scheduling_attributes(int pf)
 		}
 	}
 }
+
+/**
+ * xe_sriov_disable_vfs_restore_auto_provisioning - Disable all VFs and
+ * request PF to restore its default auto-provisioning state.
+ * @pf: PF device file descriptor.
+ *
+ * Convenience wrapper combining igt_sriov_disable_vfs() and
+ * xe_sriov_pf_debugfs_restore_auto_provisioning(). Ensures that after
+ * VF teardown the PF is reset to a clean provisioning state.
+ */
+void xe_sriov_disable_vfs_restore_auto_provisioning(int pf)
+{
+	igt_sriov_disable_vfs(pf);
+	if (xe_sriov_pf_debugfs_supports_restore_auto_provisioning(pf))
+		xe_sriov_pf_debugfs_restore_auto_provisioning(pf);
+}
