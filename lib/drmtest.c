@@ -324,6 +324,8 @@ static void log_opened_device_path(const char *device_path)
  * A special case is the use of the IGT_FORCE_DRIVER environment variable. In
  * such case, even if opened device is compatible with given @chipset flag, the
  * function returns error if forced driver is not compatible with @chipset.
+ * In case of DRIVER_ANY in @chipset, it is treated as compatible with forced
+ * name, even when driver was excluded by ANY or is not listed in known drivers.
  *
  * Returns: DRM file descriptor or -1 on error
  */
@@ -341,19 +343,30 @@ int __drm_open_device(const char *name, unsigned int chipset)
 	if (__get_drm_device_name(fd, dev_name, sizeof(dev_name) - 1) == -1)
 		goto err;
 
+	/*
+	 * When using forced driver with DRIVER_ANY honor any driver name,
+	 * also those excluded from DRIVER_ANY or those that are not listed
+	 * in known modules.
+	 */
 	forced = forced_driver();
-	if (forced && chipset == DRIVER_ANY && strcmp(forced, dev_name)) {
-		igt_debug("Expected driver \"%s\" but got \"%s\"\n",
+	if (forced && chipset == DRIVER_ANY) {
+		if (strcmp(forced, dev_name)) {
+			igt_debug("Expected driver \"%s\" but got \"%s\"\n",
 				  forced, dev_name);
-		goto err;
+			goto err;
+		} else {
+			goto opened;
+		}
 	}
 
 	modulename_to_chipset(dev_name, &chip);
 
-	if ((chipset & chip) == chip) {
-		log_opened_device_path(name);
-		return fd;
-	}
+	if ((chipset & chip) != chip)
+		goto err;
+
+opened:
+	log_opened_device_path(name);
+	return fd;
 
 err:
 	close(fd);
