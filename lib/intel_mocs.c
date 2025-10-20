@@ -13,6 +13,18 @@ struct drm_intel_mocs_index {
 	uint8_t defer_to_pat_index;
 };
 
+/**
+ * SECTION:intel_mocs
+ * @short_description: Intel Memory Object Control State (MOCS) helpers
+ * @title: Intel MOCS helpers
+ * @include: igt.h
+ *
+ * Memory Object Control State (MOCS) defines the behaviour of memory accesses
+ * beyond the graphics core, including encryption, graphics data types that
+ * allow selective flushing of data from outer caches, and controlling
+ * cacheability in the outer caches.
+ */
+
 static void get_mocs_index(int fd, struct drm_intel_mocs_index *mocs)
 {
 	uint16_t devid = intel_get_drm_devid(fd);
@@ -53,6 +65,13 @@ static void get_mocs_index(int fd, struct drm_intel_mocs_index *mocs)
 	}
 }
 
+/**
+ * intel_get_wb_mocs_index:
+ * @fd: the DRM file descriptor
+ *
+ * Returns: The MOCS index corresponding to the basic write-back behaviour for
+ * the open Intel DRM device.
+ */
 uint8_t intel_get_wb_mocs_index(int fd)
 {
 	struct drm_intel_mocs_index mocs;
@@ -62,6 +81,13 @@ uint8_t intel_get_wb_mocs_index(int fd)
 	return mocs.wb_index;
 }
 
+/**
+ * intel_get_uc_mocs_index:
+ * @fd: the DRM file descriptor
+ *
+ * Returns: The MOCS index corresponding to the uncached behaviour for the open
+ * Intel DRM device.
+ */
 uint8_t intel_get_uc_mocs_index(int fd)
 {
 	struct drm_intel_mocs_index mocs;
@@ -71,6 +97,14 @@ uint8_t intel_get_uc_mocs_index(int fd)
 	return mocs.uc_index;
 }
 
+/**
+ * intel_get_displayable_mocs_index:
+ * @fd: the DRM file descriptor
+ *
+ * Returns: The MOCS index corresponding to the uncached displayable behaviour
+ * for the open Intel DRM device. This should be used for buffers which may be
+ * simultaneously displayed and rendered to.
+ */
 uint8_t intel_get_displayable_mocs_index(int fd)
 {
 	struct drm_intel_mocs_index mocs;
@@ -80,6 +114,13 @@ uint8_t intel_get_displayable_mocs_index(int fd)
 	return mocs.displayable_index;
 }
 
+/**
+ * intel_get_defer_to_pat_mocs_index:
+ * @fd: the DRM file descriptor
+ *
+ * Returns: The MOCS index corresponding to the "defer to PAT" caching
+ * behaviour, or asserts if the platform does not support this mode.
+ */
 uint8_t intel_get_defer_to_pat_mocs_index(int fd)
 {
 	struct drm_intel_mocs_index mocs;
