@@ -510,6 +510,8 @@ static bool sink_hdcp_capable(igt_output_t *output)
 	 */
 	if (is_intel_device(data.drm_fd))
 		debugfs_read(fd, "i915_hdcp_sink_capability", buf);
+	else if (is_mtk_device(data.drm_fd))
+		debugfs_read(fd, "mtk_hdcp_sink_capability", buf);
 	else
 		debugfs_read(fd, "hdcp_sink_capability", buf);
 
@@ -532,6 +534,8 @@ static bool sink_hdcp2_capable(igt_output_t *output)
 	/* FIXME: XE specific debugfs as mentioned above. */
 	if (is_intel_device(data.drm_fd))
 		debugfs_read(fd, "i915_hdcp_sink_capability", buf);
+	else if (is_mtk_device(data.drm_fd))
+		debugfs_read(fd, "mtk_hdcp_sink_capability", buf);
 	else
 		debugfs_read(fd, "hdcp_sink_capability", buf);
 
