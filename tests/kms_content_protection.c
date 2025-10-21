@@ -141,6 +141,7 @@ __u8 facsimile_srm[] = {
  */
 static const char *const hdcp_blocklist[] = {
 	"DPF90435", /* Example monitor name */
+	"SDC",
 	/* Add more monitor names here as needed */
 };
 
