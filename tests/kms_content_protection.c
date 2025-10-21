@@ -618,6 +618,12 @@ static bool is_output_hdcp_test_exempt(igt_output_t *output)
 
 	drmModeFreePropertyBlob(edid_blob);
 
+	/* Not all monitors have sink names */
+	if (sink_name[0] == '\0') {
+		igt_debug("no sink name\n");
+		return true;
+	}
+
 	return igt_is_panel_blocked(sink_name, hdcp_blocklist, ARRAY_SIZE(hdcp_blocklist));
 }
 
