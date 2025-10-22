@@ -79,3 +79,4 @@ After each binding operation, the test verifies the operation succeeded by check
 - `tests/intel/xe_fault_injection.c` - Test implementation
 - `lib/igt_kmod.c` - Kernel module management functions
 - `lib/igt_device_scan.c` - Device scanning and filtering
+
