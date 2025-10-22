@@ -9,6 +9,18 @@
  * Mega feature: General Core features
  * Sub-category: driver
  * Test category: fault injection
+ *
+ * Fault injection tests operate at the driver level. If more than one GPU is
+ * bound to the Xe driver, the fault injection tests will affect all of them,
+ * which can cause strange failures and essentially ignores the GPU selection
+ * with --device.
+ *
+ * This test includes logic to:
+ * 1. Check if there is only one Xe GPU in the system, or if the user has
+ *    selected a specific GPU with --device
+ * 2. If multiple Xe GPUs are bound and the user selected one with --device,
+ *    unbind all other Xe GPUs, leaving only the selected one bound
+ * 3. After the tests, rebind all GPUs that were unbound before the tests
  */
 
 #include <dirent.h>
@@ -101,8 +113,6 @@ static bool is_device_bound(const char *pci_slot)
  */
 static void xe_device_context_init(struct xe_device_context *ctx)
 {
-	struct igt_device_card *cards = NULL;
-	int num_cards;
 	char sysfs_path[PATH_MAX];
 	DIR *dir;
 	struct dirent *de;
@@ -130,19 +140,20 @@ static void xe_device_context_init(struct xe_device_context *ctx)
 	/* Scan for all devices in the xe driver directory */
 	while ((de = readdir(dir)) && ctx->count < MAX_XE_DEVICES) {
 		struct igt_device_card card;
+		struct xe_device_info *dev;
+		char filter[256];
 		
 		/* Skip if not a PCI device link (format: 0000:00:00.0) */
 		if (de->d_type != DT_LNK || !isdigit(de->d_name[0]))
 			continue;
 		
 		/* This is a device bound to xe, record it */
-		struct xe_device_info *dev = &ctx->devices[ctx->count];
+		dev = &ctx->devices[ctx->count];
 		strncpy(dev->pci_slot, de->d_name, NAME_MAX - 1);
 		dev->pci_slot[NAME_MAX - 1] = '\0';
 		dev->is_bound = true;
 		
 		/* Try to get card information using PCI slot filter */
-		char filter[256];
 		snprintf(filter, sizeof(filter), "pci:slot=%s", de->d_name);
 		if (igt_device_card_match_pci(filter, &card)) {
 			memcpy(&dev->card, &card, sizeof(struct igt_device_card));
