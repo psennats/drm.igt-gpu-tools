@@ -239,8 +239,18 @@ static bool xe_device_context_check_and_prepare(struct xe_device_context *ctx,
 		return false;
 	}
 	
-	/* Multiple devices are bound - need to unbind non-selected ones */
+	/* Multiple devices are bound - check if user explicitly selected one */
 	if (bound_count > 1) {
+		int filter_count = igt_device_filter_count();
+		
+		if (filter_count == 0) {
+			igt_warn("Multiple Xe devices bound to driver, but no device selected with --device\n");
+			igt_warn("Fault injection affects all devices bound to the driver.\n");
+			igt_warn("Please use --device to select exactly one GPU.\n");
+			return false;
+		}
+		
+		/* User selected a device, unbind the others */
 		igt_info("Multiple Xe devices bound, unbinding non-selected devices\n");
 		
 		for (int i = 0; i < ctx->count; i++) {
