@@ -11,10 +11,12 @@
  * Test category: fault injection
  */
 
+#include <dirent.h>
 #include <limits.h>
 
 #include "igt.h"
 #include "igt_device.h"
+#include "igt_device_scan.h"
 #include "igt_kmod.h"
 #include "igt_sriov_device.h"
 #include "igt_sysfs.h"
@@ -29,6 +31,7 @@
 #define BO_SIZE		(1024*1024)
 #define MAX_INJECT_ITERATIONS	100
 #define MAX_INJECTIONS_PER_ITER	100
+#define MAX_XE_DEVICES	16
 
 int32_t inject_iters_raw;
 struct fault_injection_params {
@@ -44,6 +47,265 @@ struct fault_injection_params {
 	 */
 	uint32_t space;
 };
+
+/**
+ * struct xe_device_info - Information about an Xe GPU device
+ * @pci_slot: PCI slot name (e.g., "0000:03:00.0")
+ * @is_bound: Whether the device is currently bound to the Xe driver
+ * @card: Device card structure
+ */
+struct xe_device_info {
+	char pci_slot[NAME_MAX];
+	bool is_bound;
+	struct igt_device_card card;
+};
+
+/**
+ * struct xe_device_context - Context for managing Xe devices
+ * @devices: Array of all Xe devices found in the system
+ * @count: Number of Xe devices found
+ * @selected_index: Index of the device selected by user (via --device filter)
+ * @unbound_devices: Array of devices we unbound (for rebinding later)
+ * @unbound_count: Number of devices we unbound
+ */
+struct xe_device_context {
+	struct xe_device_info devices[MAX_XE_DEVICES];
+	int count;
+	int selected_index;
+	int unbound_devices[MAX_XE_DEVICES];
+	int unbound_count;
+};
+
+/* Forward declarations */
+static void xe_device_context_cleanup(struct xe_device_context *ctx);
+
+/**
+ * is_device_bound - Check if a device is bound to the Xe driver
+ * @pci_slot: PCI slot name to check
+ *
+ * Returns: true if device is bound to Xe driver, false otherwise
+ */
+static bool is_device_bound(const char *pci_slot)
+{
+	char path[PATH_MAX];
+	
+	snprintf(path, sizeof(path), "/sys/module/xe/drivers/pci:xe/%s", pci_slot);
+	return access(path, F_OK) == 0;
+}
+
+/**
+ * xe_device_context_init - Initialize device context by scanning all Xe GPUs
+ * @ctx: Context structure to populate
+ *
+ * Scans the system for all Xe-compatible GPUs and records their state.
+ */
+static void xe_device_context_init(struct xe_device_context *ctx)
+{
+	struct igt_device_card *cards = NULL;
+	int num_cards;
+	char sysfs_path[PATH_MAX];
+	DIR *dir;
+	struct dirent *de;
+	
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->selected_index = -1;
+	
+	/* First, check if xe module is loaded */
+	if (access("/sys/module/xe", F_OK) != 0) {
+		igt_debug("Xe module not loaded\n");
+		return;
+	}
+	
+	/* 
+	 * Enumerate all devices bound to the Xe driver by reading
+	 * /sys/bus/pci/drivers/xe/ directory 
+	 */
+	snprintf(sysfs_path, sizeof(sysfs_path), "/sys/bus/pci/drivers/xe");
+	dir = opendir(sysfs_path);
+	if (!dir) {
+		igt_debug("Cannot open %s\n", sysfs_path);
+		return;
+	}
+	
+	/* Scan for all devices in the xe driver directory */
+	while ((de = readdir(dir)) && ctx->count < MAX_XE_DEVICES) {
+		struct igt_device_card card;
+		
+		/* Skip if not a PCI device link (format: 0000:00:00.0) */
+		if (de->d_type != DT_LNK || !isdigit(de->d_name[0]))
+			continue;
+		
+		/* This is a device bound to xe, record it */
+		struct xe_device_info *dev = &ctx->devices[ctx->count];
+		strncpy(dev->pci_slot, de->d_name, NAME_MAX - 1);
+		dev->pci_slot[NAME_MAX - 1] = '\0';
+		dev->is_bound = true;
+		
+		/* Try to get card information using PCI slot filter */
+		char filter[256];
+		snprintf(filter, sizeof(filter), "pci:slot=%s", de->d_name);
+		if (igt_device_card_match_pci(filter, &card)) {
+			memcpy(&dev->card, &card, sizeof(struct igt_device_card));
+		} else {
+			/* If we can't get card info, just store the PCI slot */
+			memset(&dev->card, 0, sizeof(struct igt_device_card));
+			strncpy(dev->card.pci_slot_name, de->d_name, PCI_SLOT_NAME_SIZE);
+		}
+		
+		igt_debug("Found Xe device %d: %s (bound: yes)\n",
+			  ctx->count, dev->pci_slot);
+		ctx->count++;
+	}
+	
+	closedir(dir);
+	
+	igt_info("Found %d device(s) bound to Xe driver\n", ctx->count);
+}
+
+/**
+ * xe_device_context_find_selected - Find which device was selected by user
+ * @ctx: Device context
+ * @selected_pci_slot: PCI slot of the device that was selected (opened)
+ *
+ * Identifies which device in our context matches the one selected by the user.
+ * Returns: index in devices array, or -1 if not found
+ */
+static int xe_device_context_find_selected(struct xe_device_context *ctx,
+					   const char *selected_pci_slot)
+{
+	for (int i = 0; i < ctx->count; i++) {
+		if (strcmp(ctx->devices[i].pci_slot, selected_pci_slot) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+/**
+ * xe_device_context_check_and_prepare - Validate device selection and prepare for testing
+ * @ctx: Device context
+ * @selected_pci_slot: PCI slot of the device that was selected (opened)
+ *
+ * Checks if the device configuration is valid for fault injection testing.
+ * If multiple devices are bound, unbinds all except the selected one.
+ *
+ * Returns: true if ready to run tests, false if tests should be skipped
+ */
+static bool xe_device_context_check_and_prepare(struct xe_device_context *ctx,
+						const char *selected_pci_slot)
+{
+	int bound_count = 0;
+	int selected_idx;
+	
+	/* Find which device was selected */
+	selected_idx = xe_device_context_find_selected(ctx, selected_pci_slot);
+	if (selected_idx < 0) {
+		igt_warn("Selected device %s not found in Xe device list\n",
+			 selected_pci_slot);
+		return false;
+	}
+	ctx->selected_index = selected_idx;
+	
+	/* Count how many devices are currently bound */
+	for (int i = 0; i < ctx->count; i++) {
+		if (ctx->devices[i].is_bound)
+			bound_count++;
+	}
+	
+	igt_info("Found %d Xe device(s), %d bound to Xe driver\n",
+		 ctx->count, bound_count);
+	
+	/* If only one device is bound and it's the selected one, we're good */
+	if (bound_count == 1 && ctx->devices[selected_idx].is_bound) {
+		igt_info("Only one Xe device bound (the selected one), proceeding with tests\n");
+		return true;
+	}
+	
+	/* If the selected device is not bound, we can't proceed */
+	if (!ctx->devices[selected_idx].is_bound) {
+		igt_warn("Selected device %s is not bound to Xe driver\n",
+			 selected_pci_slot);
+		return false;
+	}
+	
+	/* Multiple devices are bound - need to unbind non-selected ones */
+	if (bound_count > 1) {
+		igt_info("Multiple Xe devices bound, unbinding non-selected devices\n");
+		
+		for (int i = 0; i < ctx->count; i++) {
+			if (i == selected_idx || !ctx->devices[i].is_bound)
+				continue;
+				
+			igt_info("Unbinding device %s\n", ctx->devices[i].pci_slot);
+			
+			/* Attempt to unbind */
+			if (igt_kmod_unbind("xe", ctx->devices[i].pci_slot) != 0) {
+				igt_warn("Failed to unbind device %s\n",
+					 ctx->devices[i].pci_slot);
+				/* Try to rebind devices we've already unbound */
+				xe_device_context_cleanup(ctx);
+				return false;
+			}
+			
+			/* Verify it was unbound */
+			if (is_device_bound(ctx->devices[i].pci_slot)) {
+				igt_warn("Device %s still bound after unbind attempt\n",
+					 ctx->devices[i].pci_slot);
+				/* Try to rebind devices we've already unbound */
+				xe_device_context_cleanup(ctx);
+				return false;
+			}
+			
+			/* Record that we unbound this device */
+			ctx->unbound_devices[ctx->unbound_count++] = i;
+			ctx->devices[i].is_bound = false;
+			
+			igt_info("Successfully unbound device %s\n", ctx->devices[i].pci_slot);
+		}
+		
+		igt_info("Successfully prepared system with only selected device bound\n");
+		return true;
+	}
+	
+	return true;
+}
+
+/**
+ * xe_device_context_cleanup - Rebind any devices that were unbound
+ * @ctx: Device context
+ *
+ * Rebinds all devices that were unbound during preparation.
+ */
+static void xe_device_context_cleanup(struct xe_device_context *ctx)
+{
+	if (ctx->unbound_count == 0)
+		return;
+		
+	igt_info("Rebinding %d device(s) that were unbound\n", ctx->unbound_count);
+	
+	for (int i = 0; i < ctx->unbound_count; i++) {
+		int dev_idx = ctx->unbound_devices[i];
+		const char *pci_slot = ctx->devices[dev_idx].pci_slot;
+		
+		igt_info("Rebinding device %s\n", pci_slot);
+		
+		if (igt_kmod_bind("xe", pci_slot) != 0) {
+			igt_warn("Failed to rebind device %s\n", pci_slot);
+			continue;
+		}
+		
+		/* Verify it was rebound */
+		if (!is_device_bound(pci_slot)) {
+			igt_warn("Device %s not bound after bind attempt\n", pci_slot);
+			continue;
+		}
+		
+		ctx->devices[dev_idx].is_bound = true;
+		igt_info("Successfully rebound device %s\n", pci_slot);
+	}
+	
+	ctx->unbound_count = 0;
+}
 
 static int fail_function_open(void)
 {
@@ -561,6 +823,7 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 	static uint32_t devid;
 	char pci_slot[NAME_MAX];
 	bool is_vf_device;
+	struct xe_device_context dev_ctx;
 	const struct section {
 		const char *name;
 		unsigned int flags;
@@ -628,10 +891,21 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 
 	igt_fixture {
 		igt_require(fail_function_injection_enabled());
+		
+		/* Initialize device context and scan for all Xe GPUs */
+		xe_device_context_init(&dev_ctx);
+		
+		/* Open the Xe device (this will use --device filter if provided) */
 		fd = drm_open_driver(DRIVER_XE);
 		devid = intel_get_drm_devid(fd);
 		sysfs = igt_sysfs_open(fd);
 		igt_device_get_pci_slot_name(fd, pci_slot);
+		
+		/* Validate device selection and prepare for testing */
+		igt_require_f(xe_device_context_check_and_prepare(&dev_ctx, pci_slot),
+			      "Fault injection requires exactly one Xe GPU bound, "
+			      "or user selection of one GPU with --device\n");
+		
 		setup_injection_fault(&default_fault_params);
 		igt_install_exit_handler(cleanup_injection_fault);
 		is_vf_device = intel_is_vf_device(fd);
@@ -689,5 +963,8 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 		close(sysfs);
 		drm_close_driver(fd);
 		igt_kmod_bind("xe", pci_slot);
+		
+		/* Rebind any devices that were unbound for testing */
+		xe_device_context_cleanup(&dev_ctx);
 	}
 }
