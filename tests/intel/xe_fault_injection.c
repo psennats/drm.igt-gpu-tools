@@ -688,6 +688,7 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 	igt_fixture {
 		close(sysfs);
 		drm_close_driver(fd);
+		injection_list_clear();
 		igt_kmod_bind("xe", pci_slot);
 	}
 }
