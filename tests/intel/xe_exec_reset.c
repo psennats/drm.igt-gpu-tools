@@ -445,8 +445,10 @@ test_compute_mode(int fd, struct drm_xe_engine_class_instance *eci,
 		xe_exec(fd, &exec);
 	}
 
-	if (flags & GT_RESET)
+	if (flags & GT_RESET) {
+		xe_spin_wait_started(&data[0].spin);
 		xe_force_gt_reset_sync(fd, eci->gt_id);
+	}
 
 	if (flags & CLOSE_FD) {
 		if (flags & CLOSE_EXEC_QUEUES) {
@@ -719,7 +721,7 @@ static void threads(int fd, int n_exec_queues, int n_execs, unsigned int flags)
 	struct drm_xe_engine_class_instance *hwe;
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
-	int n_engines = 0, i;
+	int n_engines = 0, i = 0;
 	bool go = false;
 
 	xe_for_each_engine(fd, hwe) {

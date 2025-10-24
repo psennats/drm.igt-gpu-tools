@@ -141,6 +141,7 @@ __u8 facsimile_srm[] = {
  */
 static const char *const hdcp_blocklist[] = {
 	"DPF90435", /* Example monitor name */
+	"SDC",
 	/* Add more monitor names here as needed */
 };
 
@@ -509,6 +510,8 @@ static bool sink_hdcp_capable(igt_output_t *output)
 	 */
 	if (is_intel_device(data.drm_fd))
 		debugfs_read(fd, "i915_hdcp_sink_capability", buf);
+	else if (is_mtk_device(data.drm_fd))
+		debugfs_read(fd, "mtk_hdcp_sink_capability", buf);
 	else
 		debugfs_read(fd, "hdcp_sink_capability", buf);
 
@@ -531,6 +534,8 @@ static bool sink_hdcp2_capable(igt_output_t *output)
 	/* FIXME: XE specific debugfs as mentioned above. */
 	if (is_intel_device(data.drm_fd))
 		debugfs_read(fd, "i915_hdcp_sink_capability", buf);
+	else if (is_mtk_device(data.drm_fd))
+		debugfs_read(fd, "mtk_hdcp_sink_capability", buf);
 	else
 		debugfs_read(fd, "hdcp_sink_capability", buf);
 
@@ -616,6 +621,12 @@ static bool is_output_hdcp_test_exempt(igt_output_t *output)
 	edid_get_monitor_name(edid, sink_name, ARRAY_SIZE(sink_name));
 
 	drmModeFreePropertyBlob(edid_blob);
+
+	/* Not all monitors have sink names */
+	if (sink_name[0] == '\0') {
+		igt_debug("no sink name\n");
+		return true;
+	}
 
 	return igt_is_panel_blocked(sink_name, hdcp_blocklist, ARRAY_SIZE(hdcp_blocklist));
 }

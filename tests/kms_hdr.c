@@ -257,7 +257,11 @@ static void test_bpc_switch_on_output(data_t *data, enum pipe pipe,
 	 * smaller plane size in following tests.
 	 */
 	igt_plane_set_fb(data->primary, &afb);
-	igt_plane_set_size(data->primary, data->w, data->h);
+	if (get_num_scalers(display, pipe) >= 1)
+		igt_plane_set_size(data->primary, data->w, data->h);
+	else
+		igt_plane_set_size(data->primary, 512, 512);
+
 	ret = igt_display_try_commit_atomic(display, DRM_MODE_ATOMIC_TEST_ONLY, NULL);
 	if (!ret) {
 		data->w = afb.width;
