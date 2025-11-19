@@ -110,9 +110,8 @@ static int scan_xe_devices(struct xe_device_context *ctx)
 			break;
 		}
 
-		strncpy(ctx->devices[ctx->device_count].pci_slot,
-			entry->d_name, NAME_MAX - 1);
-		ctx->devices[ctx->device_count].pci_slot[NAME_MAX - 1] = '\0';
+		snprintf(ctx->devices[ctx->device_count].pci_slot,
+			 NAME_MAX, "%s", entry->d_name);
 		ctx->devices[ctx->device_count].was_bound = true;
 		ctx->device_count++;
 
