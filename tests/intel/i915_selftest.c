@@ -646,15 +646,15 @@ igt_main
 	igt_assert(snprintf(opts, sizeof(opts),
 			    "mock_selftests=-1 disable_display=1 st_filter=%s",
 			    env) < sizeof(opts));
-	igt_kselftests("i915", opts, NULL, "mock");
+	igt_kselftests("i915", opts, NULL, "mock", NULL);
 
 	igt_assert(snprintf(opts, sizeof(opts),
 			    "live_selftests=-1 disable_display=1 st_filter=%s",
 			    env) < sizeof(opts));
-	igt_kselftests("i915", opts, "live_selftests", "live");
+	igt_kselftests("i915", opts, "live_selftests", "live", NULL);
 
 	igt_assert(snprintf(opts, sizeof(opts),
 			    "perf_selftests=-1 disable_display=1 st_filter=%s",
 			    env) < sizeof(opts));
-	igt_kselftests("i915", opts, "perf_selftests", "perf");
+	igt_kselftests("i915", opts, "perf_selftests", "perf", NULL);
 }

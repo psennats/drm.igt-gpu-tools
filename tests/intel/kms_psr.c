@@ -720,10 +720,9 @@ static void test_setup(data_t *data)
 	igt_require_f(data->output,
 		      "No available output found\n");
 
-	/* FBC disabled: Wa_16023588340 */
-	igt_skip_on_f(data->op_fbc_mode == FBC_ENABLED &&
-		      intel_is_fbc_disabled_by_wa(data->drm_fd),
-		      "WA has disabled FBC on BMG\n");
+
+	igt_skip_on_f(IS_BATTLEMAGE(data->devid) && data->op_fbc_mode == FBC_ENABLED,
+		      "FBC isn't supported on BMG\n");
 
 	if (data->op_fbc_mode == FBC_ENABLED)
 		igt_require_f(data->fbc_flag,

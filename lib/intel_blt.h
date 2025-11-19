@@ -263,6 +263,9 @@ int blt_ctrl_surf_copy(int fd,
 		       uint64_t ahnd,
 		       const struct blt_ctrl_surf_copy_data *surf);
 
+uint64_t emit_xe_flush_dw(int fd, const struct blt_copy_data *blt,
+			  uint64_t bb_pos);
+
 uint64_t emit_blt_fast_copy(int fd,
 			    uint64_t ahnd,
 			    const struct blt_copy_data *blt,

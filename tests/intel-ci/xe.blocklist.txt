@@ -7,6 +7,7 @@ igt@amdgpu.*
 igt@msm.*
 igt@nouveau_.*
 igt@panfrost.*
+igt@panthor.*
 igt@v3d.*
 igt@vc4.*
 igt@vgem_.*

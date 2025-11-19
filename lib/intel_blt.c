@@ -1290,9 +1290,9 @@ uint64_t emit_blt_ctrl_surf_copy(int fd,
 	size_t data_sz;
 	uint64_t dst_offset, src_offset, bb_offset, alignment;
 	uint32_t bbe = MI_BATCH_BUFFER_END;
-	uint32_t *bb;
 	uint32_t ccs_per_page, max_blocks, src_step, dst_step;
 	int32_t left_blocks;
+	uint8_t *bb;
 
 	igt_assert_f(ahnd, "ctrl-surf-copy supports softpin only\n");
 	igt_assert_f(surf, "ctrl-surf-copy requires data to do ctrl-surf-copy blit\n");
@@ -1408,9 +1408,9 @@ uint64_t emit_blt_ctrl_surf_copy(int fd,
 	}
 
 	if (emit_bbe) {
-		igt_assert(bb_pos + sizeof(uint32_t) < surf->bb.size);
+		igt_assert(bb_pos + sizeof(bbe) < surf->bb.size);
 		memcpy(bb + bb_pos, &bbe, sizeof(bbe));
-		bb_pos += sizeof(uint32_t);
+		bb_pos += sizeof(bbe);
 	}
 
 	munmap(bb, surf->bb.size);
@@ -1629,6 +1629,60 @@ static void dump_bb_fast_cmd(struct gen12_fast_copy_data *data)
 		 cmd[9], data->dw09.src_address_hi);
 }
 
+struct xe_flush_dw_cmd {
+	struct {
+		uint32_t length:	BITRANGE(0, 5);
+		uint32_t rsvd0:		BITRANGE(6, 7);
+		uint32_t notify_en: 	BITRANGE(8, 8);
+		uint32_t flush_llc:	BITRANGE(9, 9);
+		uint32_t rsvd1:		BITRANGE(10, 13);
+		uint32_t postsync:	BITRANGE(14, 15);
+		uint32_t flush_ccs:	BITRANGE(16, 16);
+		uint32_t rsvd2:		BITRANGE(17, 17);
+		uint32_t tlb_inval:	BITRANGE(18, 18);
+		uint32_t rsvd3:		BITRANGE(19, 20);
+		uint32_t store_index:	BITRANGE(21, 21);
+		uint32_t rsvd4:		BITRANGE(22, 22);
+		uint32_t opcode:	BITRANGE(23, 28);
+		uint32_t client:	BITRANGE(29, 31);
+	} dw00;
+
+	uint32_t dw01;
+	uint32_t dw02;
+	uint32_t dw03;
+	uint32_t dw04;
+};
+
+/**
+ * emit_xe_flush_dw:
+ * @fd: drm fd
+ * @blt: blitter data which provides the BB pointer
+ * @bb_pos: position at which to insert the flush command
+ *
+ * Function emits a flush instruction to the BB
+ *
+ * Returns:
+ * Next write position in batch.
+ */
+uint64_t emit_xe_flush_dw(int fd, const struct blt_copy_data *blt,
+			  uint64_t bb_pos)
+{
+	uint8_t *bb;
+	struct xe_flush_dw_cmd data = {};
+
+	igt_assert(bb_pos + sizeof(data) < blt->bb.size);
+
+	bb = bo_map(fd, blt->bb.handle, blt->bb.size, blt->driver);
+	data.dw00.opcode = 0x26;
+	data.dw00.length = 3;
+	memcpy(bb + bb_pos, &data, sizeof(data));
+	bb_pos += sizeof(data);
+
+	munmap(bb, blt->bb.size);
+
+	return bb_pos;
+}
+
 /**
  * emit_blt_fast_copy:
  * @fd: drm fd
@@ -1655,7 +1709,7 @@ uint64_t emit_blt_fast_copy(int fd,
 	struct gen12_fast_copy_data data = {};
 	uint64_t dst_offset, src_offset, bb_offset;
 	uint32_t bbe = MI_BATCH_BUFFER_END;
-	uint32_t *bb;
+	uint8_t *bb;
 
 	data.dw00.client = 0x2;
 	data.dw00.opcode = 0x42;
@@ -1717,9 +1771,9 @@ uint64_t emit_blt_fast_copy(int fd,
 	bb_pos += sizeof(data);
 
 	if (emit_bbe) {
-		igt_assert(bb_pos + sizeof(uint32_t) < blt->bb.size);
+		igt_assert(bb_pos + sizeof(bbe) < blt->bb.size);
 		memcpy(bb + bb_pos, &bbe, sizeof(bbe));
-		bb_pos += sizeof(uint32_t);
+		bb_pos += sizeof(bbe);
 	}
 
 	if (blt->print_bb) {
@@ -1971,8 +2025,8 @@ static uint64_t emit_blt_mem_copy(int fd, uint64_t ahnd,
 	uint64_t dst_offset, src_offset, shift;
 	uint32_t width, height, width_max, height_max, remain;
 	uint32_t bbe = MI_BATCH_BUFFER_END;
-	uint32_t *bb;
 	uint32_t devid = intel_get_drm_devid(fd);
+	uint8_t *bb;
 
 	if (mem->mode == MODE_BYTE) {
 		data.dw01.byte_copy.width = -1;
@@ -2083,9 +2137,9 @@ static uint64_t emit_blt_mem_copy(int fd, uint64_t ahnd,
 	}
 
 	if (emit_bbe) {
-		igt_assert(bb_pos + sizeof(uint32_t) < mem->bb.size);
+		igt_assert(bb_pos + sizeof(bbe) < mem->bb.size);
 		memcpy(bb + bb_pos, &bbe, sizeof(bbe));
-		bb_pos += sizeof(uint32_t);
+		bb_pos += sizeof(bbe);
 	}
 
 	munmap(bb, mem->bb.size);

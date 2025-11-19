@@ -25,6 +25,7 @@ void xe_mmio_vf_access_init(int pf_fd, int vf_id, struct xe_mmio *mmio)
 
 	intel_register_access_init(&mmio->intel_mmio, pci_dev, false);
 	mmio->fd = pf_fd;
+	mmio->init = true;
 }
 
 /**
@@ -40,6 +41,18 @@ void xe_mmio_access_init(int pf_fd, struct xe_mmio *mmio)
 }
 
 /**
+ * xe_mmio_is_initialized:
+ * @mmio: xe mmio structure for IO operations
+ *
+ * Returns:
+ * Non-zero if the xe mmio structure is initialized.
+ */
+bool xe_mmio_is_initialized(const struct xe_mmio *mmio)
+{
+	return mmio->init;
+}
+
+/**
  * xe_mmio_access_fini:
  * @mmio: xe mmio structure for IO operations
  *
@@ -49,6 +62,7 @@ void xe_mmio_access_init(int pf_fd, struct xe_mmio *mmio)
 void xe_mmio_access_fini(struct xe_mmio *mmio)
 {
 	intel_register_access_fini(&mmio->intel_mmio);
+	mmio->init = false;
 }
 
 /**
@@ -107,94 +121,88 @@ void xe_mmio_write64(struct xe_mmio *mmio, uint32_t offset, uint64_t val)
 	return iowrite64(mmio->intel_mmio.igt_mmio, offset, val);
 }
 
-/**
- * xe_mmio_gt_read32:
+/** xe_mmio_tile_read32:
  * @mmio: xe mmio structure for IO operations
- * @gt: gt id
- * @offset: mmio register offset in tile to which @gt belongs
+ * @tile: tile id
+ * @offset: mmio register offset in the tile
  *
- * 32-bit read of the register at @offset in tile to which @gt belongs.
+ * 32-bit read of the register at @offset in the specified @tile
  *
- * Returns:
- * The value read from the register.
+ * Returns: The value read from the register.
  */
-uint32_t xe_mmio_gt_read32(struct xe_mmio *mmio, int gt, uint32_t offset)
+uint32_t xe_mmio_tile_read32(struct xe_mmio *mmio, uint8_t tile, uint32_t offset)
 {
-	return xe_mmio_read32(mmio, offset + (TILE_MMIO_SIZE * xe_gt_get_tile_id(mmio->fd, gt)));
+	return xe_mmio_read32(mmio, offset + (TILE_MMIO_SIZE * tile));
+}
+
+/** xe_mmio_tile_read64:
+ * @mmio: xe mmio structure for IO operations
+ * @tile: tile id
+ * @offset: mmio register offset in the @tile
+ *
+ * 64-bit read of the register at @offset in the specified @tile
+ *
+ * Returns: The value read from the register.
+ */
+uint64_t xe_mmio_tile_read64(struct xe_mmio *mmio, uint8_t tile, uint32_t offset)
+{
+	return xe_mmio_read64(mmio, offset + (TILE_MMIO_SIZE * tile));
 }
 
 /**
- * xe_mmio_gt_read64:
+ * xe_mmio_tile_write32:
  * @mmio: xe mmio structure for IO operations
- * @gt: gt id
- * @offset: mmio register offset in tile to which @gt belongs
- *
- * 64-bit read of the register at @offset in tile to which @gt belongs.
- *
- * Returns:
- * The value read from the register.
- */
-uint64_t xe_mmio_gt_read64(struct xe_mmio *mmio, int gt, uint32_t offset)
-{
-	return xe_mmio_read64(mmio, offset + (TILE_MMIO_SIZE * xe_gt_get_tile_id(mmio->fd, gt)));
-}
-
-/**
- * xe_mmio_gt_write32:
- * @mmio: xe mmio structure for IO operations
- * @gt: gt id
- * @offset: mmio register offset
+ * @tile: tile id
+ * @offset: mmio register offset in the @tile
  * @val: value to write
  *
- * 32-bit write to the register at @offset in tile to which @gt belongs.
+ * 32-bit write to the register at @offset in the specified @tile
  */
-void xe_mmio_gt_write32(struct xe_mmio *mmio, int gt, uint32_t offset, uint32_t val)
+void xe_mmio_tile_write32(struct xe_mmio *mmio, uint8_t tile, uint32_t offset, uint32_t val)
 {
-	return xe_mmio_write32(mmio, offset + (TILE_MMIO_SIZE * xe_gt_get_tile_id(mmio->fd, gt)),
-			       val);
+	xe_mmio_write32(mmio, offset + (TILE_MMIO_SIZE * tile), val);
 }
 
 /**
- * xe_mmio_gt_write64:
+ * xe_mmio_tile_write64:
  * @mmio: xe mmio structure for IO operations
- * @gt: gt id
- * @offset: mmio register offset
+ * @tile: tile id
+ * @offset: mmio register offset in the @tile
  * @val: value to write
  *
- * 64-bit write to the register at @offset in tile to which @gt belongs.
+ * 64-bit write to the register at @offset in the specified @tile
  */
-void xe_mmio_gt_write64(struct xe_mmio *mmio, int gt, uint32_t offset, uint64_t val)
+void xe_mmio_tile_write64(struct xe_mmio *mmio, uint8_t tile, uint32_t offset, uint64_t val)
 {
-	return xe_mmio_write64(mmio, offset + (TILE_MMIO_SIZE * xe_gt_get_tile_id(mmio->fd, gt)),
-			       val);
+	xe_mmio_write64(mmio, offset + (TILE_MMIO_SIZE * tile), val);
 }
 
 /**
  * xe_mmio_ggtt_read:
  * @mmio: xe mmio structure for IO operations
- * @gt: gt id
- * @offset: PTE offset from the beginning of GGTT, in tile to which @gt belongs
+ * @tile: tile id
+ * @offset: PTE offset from the beginning of GGTT in @tile
  *
- * Read of GGTT PTE at GGTT @offset in tile to which @gt belongs.
+ * Read of GGTT PTE at GGTT @offset in the @tile.
  *
  * Returns:
  * The value read from the register.
  */
-xe_ggtt_pte_t xe_mmio_ggtt_read(struct xe_mmio *mmio, int gt, uint32_t offset)
+xe_ggtt_pte_t xe_mmio_ggtt_read(struct xe_mmio *mmio, uint8_t tile, uint32_t offset)
 {
-	return xe_mmio_gt_read64(mmio, gt, offset + GGTT_OFFSET_IN_TILE);
+	return xe_mmio_tile_read64(mmio, tile, offset + GGTT_OFFSET_IN_TILE);
 }
 
 /**
  * xe_mmio_ggtt_write:
  * @mmio: xe mmio structure for IO operations
- * @gt: gt id
- * @offset: PTE offset from the beginning of GGTT, in tile to which @gt belongs
+ * @tile: tile id
+ * @offset: PTE offset from the beginning of GGTT in @tile
  * @pte: PTE value to write
  *
- * Write PTE value at GGTT @offset in tile to which @gt belongs.
+ * Write PTE value at GGTT @offset in the @tile.
  */
-void xe_mmio_ggtt_write(struct xe_mmio *mmio, int gt, uint32_t offset, xe_ggtt_pte_t pte)
+void xe_mmio_ggtt_write(struct xe_mmio *mmio, uint8_t tile, uint32_t offset, xe_ggtt_pte_t pte)
 {
-	return xe_mmio_gt_write64(mmio, gt, offset + GGTT_OFFSET_IN_TILE, pte);
+	return xe_mmio_tile_write64(mmio, tile, offset + GGTT_OFFSET_IN_TILE, pte);
 }

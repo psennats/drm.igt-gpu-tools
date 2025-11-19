@@ -262,6 +262,9 @@ bool chamelium_frame_match_or_dump_frame_pair(struct chamelium *chamelium,
 					      const struct chamelium_frame_dump *frame0,
 					      const struct chamelium_frame_dump *frame1,
 					      enum chamelium_check check);
+bool chamelium_frame_eq_or_dump_frame_pair(const struct chamelium *chamelium,
+			                   const struct chamelium_frame_dump *frame0,
+			                   const struct chamelium_frame_dump *frame1);
 void chamelium_crop_analog_frame(struct chamelium_frame_dump *dump, int width,
 				 int height);
 void chamelium_destroy_frame_dump(struct chamelium_frame_dump *dump);

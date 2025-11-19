@@ -16,24 +16,22 @@ is available at the Linux Kernel since 2009.
 
 Enabling GCOV at the Linux Kernel requires two steps:
 
-1. Enable GCOV_KERNEL:
+ 1. Enable GCOV_KERNEL:
 
    ```
    ./scripts/config -e DEBUG_FS -e GCOV_KERNEL
    ```
+ 2. Enable per-driver or per-makefile GCOV support. In order to enable support
+    for all DRM drivers:
 
+    ```
+    for i in $(find drivers/gpu/drm/ -name Makefile); do
+        sed '1 a GCOV_PROFILE := y' -i $i
+    done
+    ```
 
-2. Enable per-driver or per-makefile GCOV support. In order to enable support
-   for all DRM drivers:
-
-   ```
-   for i in $(find drivers/gpu/drm/ -name Makefile); do
-       sed '1 a GCOV_PROFILE := y' -i $i
-   done
-   ```
-
-When gcov is enabled for a given driver or directory, GCC will generate
-some special object files, like:
+    When gcov is enabled for a given driver or directory, GCC will generate
+    some special object files, like:
 
 ```
 ...
@@ -96,16 +94,16 @@ and store on some file.
 Enabling code coverage data collect can be done either per test or as
 a hole for an entire test list, by using those command line options:
 
-- `--collect-code-cov`
+`--collect-code-cov`
 
   Enables gcov-based collect of code coverage for tests.
 
-- `--coverage-per-test`
+`--coverage-per-test`
 
   Stores code coverage results per each test. This option implies
   `--collect-code-cov`.
 
-For those options to work, it is mandatory to specifiy what script will
+For those options to work, it is mandatory to specify what script will
 be used to collect the data with `--collect-script` _file_name_.
 
 ### calling `./scripts/run-tests.sh` script
@@ -113,15 +111,15 @@ be used to collect the data with `--collect-script` _file_name_.
 The `run-tests.sh` script can used instead as a frontend for igt_runner.
 It has the following options:
 
-- `-c <capture_script>`
+`-c <capture_script>`
 
   Capture gcov code coverage using the _capture_script_
 
-- `-P`
+`-P`
 
   Store code coverage results per each test.
 
-- `-k` _kernel_dir_
+`-k` _kernel_dir_
 
   Linux Kernel source code directory used to generate code coverage builds.
   This is passed through the capture script via the `IGT_KERNEL_TREE`
@@ -155,7 +153,7 @@ under the IGT's `scripts/` source directory:
   Generates a gzipped tarbal with the code coverage counters in
   binary format. Such kind of output should then be parsed at
   the same machine where the Kernel as built, as its content is not
-  ony dependent on the Kernel source, but also on the Kernel output
+  only dependent on the Kernel source, but also on the Kernel output
   objects.
 
 For each script, the igt_runner passes just one parameter: the results
@@ -199,7 +197,7 @@ The `code_cov_parse_info` script has some logic on it that allows
 printing the called functions stored inside the `*.info` file. It can also
 optionally apply the following filters. Its main options are:
 
-- `--stat` or `--statistics`
+`--stat` or `--statistics`
 
   Prints code coverage statistics.
 
@@ -207,7 +205,7 @@ optionally apply the following filters. Its main options are:
 
   The statistics report is affected by the applied filters.
 
-- `--print-coverage`, `--print` or `-p`
+`--print-coverage`, `--print` or `-p`
 
 
   Prints the functions that were executed in runtime and how many times
@@ -215,29 +213,29 @@ optionally apply the following filters. Its main options are:
 
   The function coverage report is affected by the applied filters.
 
-- `--print-unused` or `-u`
+`--print-unused` or `-u`
 
   Prints the functions that were never reached.
 
   The function coverage report is affected by the applied filters.
 
-- `--show-lines` or `--show_lines`
+`--show-lines` or `--show_lines`
 
   When printing per-function code coverage data, always output the source
   file and the line number where the function is defined.
 
-- `--output` *output file* or `-o` *output file*
+`--output` *output file* or `-o` *output file*
 
   Produces an output file merging all input files.
 
   The generated output file is affected by the applied filters.
 
-- `--show-files` or `--show_files`
+`--show-files` or `--show_files`
 
    Shows the list of files that were useed to produce the code coverage
    results.
 
-- It also has a set of parameters that filters the code coverage results:
+  It also has a set of parameters that filters the code coverage results:
   `--only-drm`, `--only-i915`, `--func-filters`, `--source-filters`,
   `--ignore-unused`.
   When used, all coverage displayed reports, and the stored output file
@@ -323,39 +321,39 @@ used when generating the HTML reports.
 
 It requires the following arguments:
 
-- `--read`  _file or dir_ (or `-r` _file or dir_)
+`--read`  _file or dir_ (or `-r` _file or dir_)
 
   File or directory where the code coverage capture file(s) is(are) located.
 
-- `--kernel-source` _dir_ (or `-k` _dir_)
+`--kernel-source` _dir_ (or `-k` _dir_)
 
   Kernel source directory.
 
-- `--kernel-object` _dir_ (or `-O` _dir_)
+`--kernel-object` _dir_ (or `-O` _dir_)
 
   Kernel object directory. Only needed when Kernel was built with `make O=dir`.
 
-- `--output-dir` _dir_ (or `-o` _dir)
+`--output-dir` _dir_ (or `-o` _dir)
 
   Directory where the html output will be stored. By default, the script
   won't let re-use an already existing directory.
 
-- `--info`
+`--info`
 
   The files specified by `--read` parameter are at lcov's `*.info` format.
 
-- `--tar`
+`--tar`
 
   The files specified by `--read` are gzipped tarballs containing all
   `*.gcno` files and all `*.gcda` softlinks from the `/sys/kernel/debug/gcov/`
   directory at the test machine, created by `code_cov_gather_on_test` script.
 
-- `--force-override`
+`--force-override`
 
   Allow using a non-empty directory for `--output-dir`.
 
-- It also accepts `--print`, `--only-drm`, `--only-i915` and `--ignore-unused`
-  options from `code_cov_parse_info`.
+It also accepts `--print`, `--only-drm`, `--only-i915` and `--ignore-unused`
+options from `code_cov_parse_info`.
 
 `--info` and `--tar` are mutually exclusive and at least one of them should
 be specified.

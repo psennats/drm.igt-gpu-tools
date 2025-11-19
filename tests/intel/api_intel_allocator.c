@@ -487,7 +487,8 @@ static void fork_simple_stress(int fd, bool two_level_inception)
 	uint64_t ahnd0, ahnd1;
 	bool are_empty;
 
-	__intel_allocator_multiprocess_prepare();
+	igt_require_f(__intel_allocator_multiprocess_prepare(),
+		      "System does not support SYSVIPC, multiprocess mode unsupported\n");
 
 	igt_fork(child, 8) {
 		if (two_level_inception) {

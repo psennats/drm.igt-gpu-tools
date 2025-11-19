@@ -8,6 +8,7 @@
 #include <xe_drm.h>
 #include <xe_drm_eudebug.h>
 
+#include "igt_core.h"
 #include "igt_list.h"
 
 struct xe_eudebug_event_log {
@@ -90,11 +91,49 @@ typedef void (*xe_eudebug_trigger_fn)(struct xe_eudebug_debugger *,
 		if (hwe__->engine_class == DRM_XE_ENGINE_CLASS_RENDER || \
 		    hwe__->engine_class == DRM_XE_ENGINE_CLASS_COMPUTE)
 
-#define xe_eudebug_for_each_event(_e, _log) \
-	for ((_e) = (_e) ? (void *)(uint8_t *)(_e) + (_e)->len : \
-		    (void *)(_log)->log; \
-	    (uint8_t *)(_e) < (_log)->log + (_log)->head; \
-	    (_e) = (void *)(uint8_t *)(_e) + (_e)->len)
+#define MAX_EVENT_SIZE (32 * 1024)
+
+static inline struct drm_xe_eudebug_event *
+next_event(struct drm_xe_eudebug_event *e, struct xe_eudebug_event_log *l)
+{
+	uint8_t *start;
+	uint8_t *end;
+
+	igt_assert(l);
+	igt_assert(l->log);
+	igt_assert(l->max_size);
+	igt_assert(l->head <= l->max_size);
+
+	if (!l->head)
+		return NULL;
+
+	if (!e)
+		return (struct drm_xe_eudebug_event *)l->log;
+
+	start = (uint8_t *)e;
+
+	if (start == l->log + l->head)
+		return NULL;
+
+	igt_assert(start >= l->log);
+	igt_assert(start < l->log + l->head);
+	igt_assert(e->len);
+	igt_assert(e->len <= MAX_EVENT_SIZE);
+
+	end = (uint8_t *)e + e->len;
+
+	if (end == l->log + l->head)
+		return NULL;
+
+	igt_assert(end < l->log + l->head);
+
+	return (struct drm_xe_eudebug_event *)end;
+}
+
+#define xe_eudebug_for_each_event(_e, _log)	\
+    for ((_e) = next_event((_e), (_log)); \
+         (_e); \
+         (_e) = next_event((_e), (_log)))
 
 #define xe_eudebug_assert(d, c)						\
 	do {								\
@@ -155,7 +194,7 @@ xe_eudebug_debugger_create(int xe, uint64_t flags, void *data);
 void xe_eudebug_debugger_destroy(struct xe_eudebug_debugger *d);
 int xe_eudebug_debugger_attach(struct xe_eudebug_debugger *d, struct xe_eudebug_client *c);
 void xe_eudebug_debugger_start_worker(struct xe_eudebug_debugger *d);
-void xe_eudebug_debugger_stop_worker(struct xe_eudebug_debugger *d, int timeout_s);
+void xe_eudebug_debugger_stop_worker(struct xe_eudebug_debugger *d);
 void xe_eudebug_debugger_detach(struct xe_eudebug_debugger *d);
 void xe_eudebug_debugger_set_data(struct xe_eudebug_debugger *c, void *ptr);
 void xe_eudebug_debugger_add_trigger(struct xe_eudebug_debugger *d, int type,

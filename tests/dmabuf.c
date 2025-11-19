@@ -42,7 +42,57 @@
 
 IGT_TEST_DESCRIPTION("Kernel selftests for the dmabuf API");
 
+static unsigned int bogomips(void)
+{
+	unsigned int bogomips, ret = 0;
+	char *line = NULL;
+	size_t size = 0;
+	FILE *cpuinfo;
+
+	cpuinfo = fopen("/proc/cpuinfo", "r");
+	if (igt_debug_on(!cpuinfo))
+		return UINT_MAX;
+
+	while (getline(&line, &size, cpuinfo) != -1) {
+		char *colon;
+
+		if (strncmp(line, "bogomips", 8))
+			continue;
+
+		colon = strchr(line, ':');
+		if (igt_debug_on(!colon))
+			bogomips = 0;
+		else
+			bogomips = atoi(colon + 1);
+
+		if (igt_debug_on(!bogomips))
+			break;
+
+		ret += bogomips;
+	}
+	free(line);
+	fclose(cpuinfo);
+
+	return igt_debug_on(!bogomips) ? UINT_MAX : ret;
+}
+
+static int wrapper(const char *dynamic_name,
+		   struct igt_ktest *tst,
+		   struct igt_kselftest_list *tl)
+{
+	/*
+	 * Test case wait-backward of dma_fence_chain selftest can trigger soft
+	 * lockups on slow machines.  Since that slowness is not recognized as
+	 * a bug on the kernel side, the issue is not going to be fixed.  Based
+	 * on analysis of CI results, skip that selftest on machines slower than
+	 * 25000 BogoMIPS to avoid ever returning CI reports on that failure.
+	 */
+	igt_skip_on(!strcmp(dynamic_name, "dma_fence_chain") && bogomips() < 25000);
+
+	return igt_kselftest_execute(tst, tl, NULL, NULL);
+}
+
 igt_main
 {
-	igt_kselftests("dmabuf_selftests", NULL, NULL, NULL);
+	igt_kselftests("dmabuf_selftests", NULL, NULL, NULL, wrapper);
 }

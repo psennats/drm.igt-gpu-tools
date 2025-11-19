@@ -1898,6 +1898,44 @@ static void compared_frames_dump(cairo_surface_t *reference,
 }
 
 /**
+ * chamelium_frame_eq_or_dump_frame_pair:
+ * @chamelium: The chamelium instance the frame dump belongs to
+ * @frame0: The chamelium frame dump to check
+ * @frame1: The chamelium frame dump to check
+ *
+ * Returns true if frames are identical. If they are not, saves the frames
+ * to a png file and returns false.
+ */
+bool chamelium_frame_eq_or_dump_frame_pair(const struct chamelium *chamelium,
+			                   const struct chamelium_frame_dump *frame0,
+			                   const struct chamelium_frame_dump *frame1)
+{
+	cairo_surface_t *reference;
+	cairo_surface_t *capture;
+	bool eq;
+
+	/* Grab the captured reference frame from chamelium */
+	reference = convert_frame_dump_argb32(frame0);
+
+	/* Grab the captured frame from chamelium */
+	capture = convert_frame_dump_argb32(frame1);
+
+	if (frame0->size != frame1->size)
+		return false;
+
+	/* Now do the actual comparison */
+	eq = memcmp(frame0->bgr, frame1->bgr, frame0->size) == 0;
+
+	if (!eq && igt_frame_dump_is_enabled())
+		compared_frames_dump(reference, capture, 0, 0);
+
+	cairo_surface_destroy(reference);
+	cairo_surface_destroy(capture);
+
+	return eq;
+}
+
+/**
  * chamelium_assert_frame_eq:
  * @chamelium: The chamelium instance the frame dump belongs to
  * @dump: The chamelium frame dump to check

@@ -396,7 +396,8 @@ igt_main_args("", long_options, help_str, opt_handler, NULL)
 		igt_require(data.display.is_atomic);
 		igt_display_require_output(&data.display);
 		if (is_intel_device(data.drm_fd))
-			intel_allocator_multiprocess_start();
+			igt_require_f(intel_allocator_multiprocess_start(),
+				      "Allocator failure, no SYSV IPC\n");
 	}
 
 	run_tests_for_pipe(&data);

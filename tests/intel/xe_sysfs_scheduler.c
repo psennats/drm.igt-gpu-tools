@@ -6,7 +6,7 @@
 /**
  * TEST: xe sysfs scheduler
  * Category: Core
- * Mega feature: SysMan
+ * Mega feature: General Core features
  * Sub-category: SysMan tests
  * Functionality: scheduler control interface
  *

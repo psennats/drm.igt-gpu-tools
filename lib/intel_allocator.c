@@ -250,6 +250,20 @@ static struct allocator *__allocator_find(int fd, uint32_t ctx, uint32_t vm)
 	return igt_map_search(map, &al);
 }
 
+/**
+ * Checks if the current system supports SYSVIPC by verifying the existence and accessibility
+ * of the /proc/sysvipc directory.
+ * Returns: true if accessible for read and write, false otherwise.
+ */
+static bool system_supports_sysvipc(void)
+{
+	if (access("/proc/sysvipc", R_OK | W_OK) == 0)
+		return true;
+
+	alloc_debug("SYSVIPC not supported, cannot access /proc/sysvipc\n");
+	return false;
+}
+
 static struct allocator *__allocator_find_by_handle(uint64_t handle)
 {
 	struct handle_entry *h, he = { .handle = handle };
@@ -803,12 +817,16 @@ static void *allocator_thread_loop(void *data)
  * How to separate initialization steps take a look into api_intel_allocator.c
  * fork_simple_stress() function.
  */
-void __intel_allocator_multiprocess_prepare(void)
+bool __intel_allocator_multiprocess_prepare(void)
 {
 	intel_allocator_init();
 
+	if (!channel)
+		return false;
+
 	multiprocess = true;
 	channel->init(channel);
+	return true;
 }
 
 #define START_TIMEOUT_MS 100
@@ -839,14 +857,21 @@ void __intel_allocator_multiprocess_start(void)
  *
  * Note. This destroys all previously created allocators and theirs content.
  */
-void intel_allocator_multiprocess_start(void)
+bool intel_allocator_multiprocess_start(void)
 {
 	alloc_info("allocator multiprocess start\n");
 
 	igt_assert_f(child_pid == -1,
 		     "Allocator thread can be spawned only in main IGT process\n");
-	__intel_allocator_multiprocess_prepare();
+
+	if (!__intel_allocator_multiprocess_prepare()) {
+		igt_warn("System does not support multiprocess mode\n");
+		return false;
+	}
+
 	__intel_allocator_multiprocess_start();
+
+	return true;
 }
 
 /**
@@ -1677,6 +1702,12 @@ void intel_allocator_init(void)
 	__free_maps(ctx_map, false);
 	__free_maps(vm_map, false);
 	__free_ahnd_map();
+
+	if (!system_supports_sysvipc()) {
+		alloc_debug("System doesn't support SysV IPC\n");
+		channel = NULL;
+		return;
+	}
 
 	atomic_init(&next_handle, 1);
 	handles = igt_map_create(hash_handles, equal_handles);

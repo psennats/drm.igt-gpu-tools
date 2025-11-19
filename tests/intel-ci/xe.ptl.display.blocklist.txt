@@ -1,7 +1,7 @@
 ##############################################################################
 # non-KMS tests
 ##############################################################################
-igt@(?!.*kms|testdisplay|.*display-vs-wb-transient)(.*)
+igt@(?!.*kms|testdisplay|fbdev|.*display-vs-wb-transient)(.*)
 ##############################################################################
 # Valid skip :- HDMI not enabled in VBT
 ##############################################################################
@@ -153,12 +153,10 @@ igt@kms_pipe_stress@stress-xrgb8888-xtiled
 ##############################################################################
 igt@kms_bw@.*4-displays.*
 ##############################################################################
-# Expected skip on PTL, FBC + PSR is unsupported
+# Expected skip on PTL, FBC + PSR2 is unsupported
 ##############################################################################
-igt@kms_front_buffer_tracking@fbcpsr-.*
-igt@kms_psr@fbc-(psr|psr2|pr)-.*
+igt@kms_psr@fbc-psr2-.*
 igt@kms_psr2_sf@fbc-(psr2|pr)-.*
-igt@kms_front_buffer_tracking@plane-fbc-rte
 ##############################################################################
 # Expected skip on PTL, UJ not supported
 ##############################################################################

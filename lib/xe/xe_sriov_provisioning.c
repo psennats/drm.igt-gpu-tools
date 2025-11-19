@@ -90,7 +90,7 @@ static int append_range(struct xe_sriov_provisioned_range **ranges,
 /**
  * xe_sriov_find_ggtt_provisioned_pte_offsets - Find GGTT provisioned PTE offsets
  * @pf_fd: File descriptor for the Physical Function
- * @gt: GT identifier
+ * @tile: Tile id
  * @mmio: Pointer to the MMIO structure
  * @ranges: Pointer to the array of provisioned ranges
  * @nr_ranges: Pointer to the number of provisioned ranges
@@ -106,7 +106,7 @@ static int append_range(struct xe_sriov_provisioned_range **ranges,
  *
  * Returns 0 on success, or a negative error code on failure.
  */
-int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio *mmio,
+int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, uint8_t tile, struct xe_mmio *mmio,
 					       struct xe_sriov_provisioned_range **ranges,
 					       unsigned int *nr_ranges)
 {
@@ -122,7 +122,7 @@ int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio
 
 	for (uint32_t offset = START_PTE_OFFSET; offset < MAX_PTE_OFFSET;
 	     offset += sizeof(xe_ggtt_pte_t)) {
-		pte = xe_mmio_ggtt_read(mmio, gt, offset);
+		pte = xe_mmio_ggtt_read(mmio, tile, offset);
 		vf_id = (pte & vfid_mask) >> GGTT_PTE_VFID_SHIFT;
 
 		if (vf_id != current_vf_id) {

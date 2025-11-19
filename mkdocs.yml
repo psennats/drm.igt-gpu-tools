@@ -1,0 +1,177 @@
+# Project information
+site_name: "IGT GPU Tools"
+site_description: 'Documentation about IGT GPU Tools'
+site_author: 'IGT Team'
+site_url: 'https://drm.pages.freedesktop.org/igt-gpu-tools'
+docs_dir: 'docs'
+site_dir: 'site'
+# Repo information
+repo_name: 'igt-gpu-tools'
+repo_url: 'https://gitlab.freedesktop.org/drm/igt-gpu-tools'
+
+# Navigation bar
+nav:
+  - Overview:
+    - How to start: 'index.md'
+  - Installation:
+    - How to install: 'building.md'
+    - How to cross build: 'cross-building.md'
+  - Usage:
+    - How to run tests: 'running_tests.md'
+    - What HW/SW could be used: 'platforms.md'
+  - Code:
+    - How to use the code: 'api.md'
+    - How to track/submit changes: 'patchwork.md'
+  - External tools:
+    - Chamelium: 'chamelium.md'
+  - Contributing:
+    - How to contribute: 'CONTRIBUTING.md'
+    - How to document tests: 'test_documentation.md'
+    - How to categorize tests: 'test_categories.md'
+    - How to blocklist tests: 'blocklists.md'
+    - How to get code coverage: 'code_coverage.md'
+    - How to port new IGT driver: 'new_driver.md'
+    - How to plan a new test: 'test_plan.md'
+    - How to build this documentation: 'how_to_build_docs.md'
+    - Maintainers: 'MAINTAINERS.md'
+  - Issues:
+    - How to view/report an issue: 'issues.md'
+  - CI:
+    - CI infrastructure: "ci_infrastructure.md"
+    - Links to CI for a specific HW platform:
+      - Intel GFX CI: https://intel-gfx-ci.01.org
+  - Download: 'download.md'
+  - API Reference: 'api_reference/index.html'
+  - News: 'NEWS.md'
+  - FAQ: 'faq.md'
+
+extra:
+  repo_icon: 'gitlab'
+
+# Theme
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      primary: custom
+      accent: blue
+      toggle:
+        icon: material/link
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to light mode
+  # Font configuration
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+  # Logo and favicon
+  repo: fontawesome/brands/gitlab
+  # Features
+  features:
+    # Navigation
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.prune
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.tabs
+    - navigation.tabs.sticky
+
+    # Table of contents
+    - toc.follow
+    - toc.integrate
+
+    # Search
+    - search.suggest
+    - search.highlight
+    - search.share
+
+    # Header
+    - header.autohide
+
+    # Content
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+
+# Plugins
+plugins:
+  - search
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+
+extra_css:
+  - css/extra.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      title: On this page
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      auto_append:
+        - includes/abbreviations.md
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.blocks.caption
+  - pymdownx.blocks.details
+
+copyright: 'Made by IGT GPU Developers . SPDX-License-Identifier: MIT'

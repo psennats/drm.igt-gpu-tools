@@ -1,8 +1,7 @@
 #########################################
 # non-KMS tests
 #########################################
-igt@(?!.*kms|testdisplay|.*display-vs-wb-transient)(.*)
-
+igt@(?!.*kms|testdisplay|fbdev|.*display-vs-wb-transient)(.*)
 #########################################
 # Valid skip :- Y and Yf-Tiling are not supported
 #########################################
@@ -163,12 +162,10 @@ igt@kms_chamelium_hpd@dp-hpd-for-each-pipe
 #########################################
 igt@kms_joiner@basic-max-non-joiner
 #########################################
-# FBC with PR/PSR2 is a valid skip
+# FBC with PSR2 is a valid skip
 #########################################
-igt@kms_psr2_sf@fbc-pr-.*
-igt@kms_psr2_sf@fbc-psr2.*
-igt@kms_psr@fbc-psr2.*
-igt@kms_psr@fbc-pr.*
+igt@kms_psr@fbc-psr2-.*
+igt@kms_psr2_sf@fbc-(psr2|pr)-.*
 #########################################
 # DRRS not supported on LNL+
 #########################################

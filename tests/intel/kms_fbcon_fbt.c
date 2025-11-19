@@ -40,7 +40,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "i915/intel_fbc.h"
 
 /**
  * SUBTEST: fbc
@@ -462,8 +461,7 @@ igt_main
 	igt_describe("Test the relationship between fbcon and the frontbuffer "
 		     "tracking infrastructure with fbc enabled.");
 	igt_subtest("fbc") {
-		/* FBC disabled: Wa_16023588340 */
-		igt_skip_on_f(intel_is_fbc_disabled_by_wa(drm.fd), "WA has disabled FBC on BMG\n");
+		igt_require_f(!IS_BATTLEMAGE(drm.devid), "FBC isn't supported on BMG\n");
 		subtest(&drm, &fbc, false);
 	}
 
@@ -475,8 +473,7 @@ igt_main
 	igt_describe("Suspend test to validate  the relationship between fbcon and the frontbuffer "
 		     "tracking infrastructure with fbc enabled.");
 	igt_subtest("fbc-suspend") {
-		/* FBC disabled: Wa_16023588340 */
-		igt_skip_on_f(intel_is_fbc_disabled_by_wa(drm.fd), "WA has disabled FBC on BMG\n");
+		igt_require_f(!IS_BATTLEMAGE(drm.devid), "FBC isn't supported on BMG\n");
 		subtest(&drm, &fbc, true);
 	}
 

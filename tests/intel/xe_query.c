@@ -184,7 +184,7 @@ const char *get_topo_name(int value)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-engines
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Display engine classes available for all Xe devices.
  * Test category: functionality test
  */
@@ -211,7 +211,7 @@ test_query_engines(int fd)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-mem-usage
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Display memory information for all Xe devices.
  * Test category: functionality test
  */
@@ -275,7 +275,7 @@ test_query_mem_regions(int fd)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-gt-list
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Display information about GT components for all Xe devices.
  * Test category: functionality test
  */
@@ -350,7 +350,7 @@ test_query_gt_list(int fd)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-topology
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Display topology information of GT for all Xe devices.
  * Test category: functionality test
  */
@@ -414,7 +414,7 @@ test_query_gt_topology(int fd)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-topology-l3-bank-mask
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Check the value of the l3 bank mask for all Xe devices.
  * Test category: functionality test
  */
@@ -486,7 +486,7 @@ test_query_gt_topology_l3_bank_mask(int fd)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-config
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Display config information for all Xe devices.
  * Test category: functionality test
  */
@@ -543,7 +543,7 @@ test_query_config(int fd)
  * Test category: functionality test
  *
  * SUBTEST: multigpu-query-hwconfig
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Display hardware configuration for all Xe devices.
  * Test category: functionality test
  */
@@ -582,7 +582,7 @@ test_query_hwconfig(int fd)
  * Test category: negative test
  *
  * SUBTEST: multigpu-query-invalid-query
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Check query with invalid arguments for all Xe devices.
  * Test category: negative test
  */
@@ -605,7 +605,7 @@ test_query_invalid_query(int fd)
  * Test category: negative test
  *
  * SUBTEST: multigpu-query-invalid-size
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Check query with invalid size for all Xe devices.
  * Test category: negative test
  */
@@ -628,7 +628,7 @@ test_query_invalid_size(int fd)
  * Test category: negative test
  *
  * SUBTEST: multigpu-query-invalid-extension
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Description: Check query with invalid extension for all Xe devices.
  * Test category: negative test
  */
@@ -793,8 +793,7 @@ __engine_cycles(int fd, struct drm_xe_engine_class_instance *hwe)
  * SUBTEST: multigpu-query-cs-cycles
  * Description: Query CPU-GPU timestamp correlation for all Xe devices.
  * Category: Core
- * Mega feature: General Core features
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  */
 static void test_query_engine_cycles(int fd)
 {
@@ -815,8 +814,7 @@ static void test_query_engine_cycles(int fd)
  * SUBTEST: multigpu-query-invalid-cs-cycles
  * Description: Check query with invalid arguments for all Xe devices.
  * Category: Core
- * Mega feature: General Core features
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  */
 static void test_engine_cycles_invalid(int fd)
 {
@@ -929,8 +927,7 @@ test_query_uc_fw_version(int fd, uint32_t uc_type)
  *
  * SUBTEST: multigpu-query-uc-fw-version-guc
  * Description: Display GuC firmware submission version for all Xe devices.
- * Mega feature: General Core features
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Test category: functionality test
  */
 static void
@@ -946,8 +943,7 @@ test_query_uc_fw_version_guc(int fd)
  *
  * SUBTEST: multigpu-query-invalid-uc-fw-version-mbz
  * Description: Check query with invalid arguments for all Xe devices.
- * Mega feature: General Core features
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Test category: functionality test
  */
 static void
@@ -996,7 +992,7 @@ test_query_uc_fw_version_invalid_mbz(int fd)
  *
  * SUBTEST: multigpu-query-uc-fw-version-huc
  * Description: Display HuC firmware version for all Xe devices.
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Test category: functionality test
  */
 static void
@@ -1011,7 +1007,7 @@ test_query_uc_fw_version_huc(int fd)
  *
  * SUBTEST: multigpu-query-oa-units
  * Description: Display fields for OA unit query for all GPU devices
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  */
 static void test_query_oa_units(int fd)
 {
@@ -1063,7 +1059,7 @@ static void test_query_oa_units(int fd)
  *
  * SUBTEST: multigpu-query-pxp-status
  * Description: Display fields for PXP unit query for all Xe devices
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  */
 static void test_query_pxp_status(int fd)
 {

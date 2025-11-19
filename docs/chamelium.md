@@ -41,7 +41,7 @@ While the FPGA is used for logic control, the CPU runs daemons that allow the
 board to be controlled over the network via a XMLRPC interface.
 
 [Current limitation] Cv3 hardware uses an ITE chip which allows only 1 port to
-be plugged in a time. This limitation will be fixed in the upcoming iteration. 
+be plugged in a time. This limitation will be fixed in the upcoming iteration.
 
 Chamelium V2 Documentation
 --------------------------

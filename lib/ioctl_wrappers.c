@@ -1140,6 +1140,33 @@ int prime_handle_to_fd_for_mmap(int fd, uint32_t handle)
 }
 
 /**
+ * __prime_fd_to_handle:
+ * @fd: open drm file descriptor
+ * @dma_buf_fd: dma-buf fd handle
+ * @handle: output handle
+ *
+ * This wraps the PRIME_FD_TO_HANDLE ioctl, which is used to import a dma-buf
+ * file-descriptor into a gem buffer object.
+ *
+ * Returns: Zero on success, error code otherwise
+ */
+int __prime_fd_to_handle(int fd, int dma_buf_fd, uint32_t *handle)
+{
+	struct drm_prime_handle args;
+
+	memset(&args, 0, sizeof(args));
+	args.fd = dma_buf_fd;
+	args.flags = 0;
+	args.handle = 0;
+
+	if (igt_ioctl(fd, DRM_IOCTL_PRIME_FD_TO_HANDLE, &args))
+		return -errno;
+
+	*handle = args.handle;
+	return 0;
+}
+
+/**
  * prime_fd_to_handle:
  * @fd: open i915 drm file descriptor
  * @dma_buf_fd: dma-buf fd handle
@@ -1151,16 +1178,11 @@ int prime_handle_to_fd_for_mmap(int fd, uint32_t handle)
  */
 uint32_t prime_fd_to_handle(int fd, int dma_buf_fd)
 {
-	struct drm_prime_handle args;
+	uint32_t handle;
 
-	memset(&args, 0, sizeof(args));
-	args.fd = dma_buf_fd;
-	args.flags = 0;
-	args.handle = 0;
+	igt_assert_eq(__prime_fd_to_handle(fd, dma_buf_fd, &handle), 0);
 
-	do_ioctl(fd, DRM_IOCTL_PRIME_FD_TO_HANDLE, &args);
-
-	return args.handle;
+	return handle;
 }
 
 /**

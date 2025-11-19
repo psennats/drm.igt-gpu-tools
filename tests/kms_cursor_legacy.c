@@ -294,7 +294,7 @@ static void stress(igt_display_t *display,
 		}
 	} else {
 		num_crtcs = 1;
-		if(display->pipes[pipe].enabled) {
+		if(display->pipes[pipe].valid) {
 			arg.crtc_id = crtc_id[0] = display->pipes[pipe].crtc_id;
 			do_ioctl(display->drm_fd, DRM_IOCTL_MODE_CURSOR, &arg);
 		}

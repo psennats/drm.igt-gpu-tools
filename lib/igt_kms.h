@@ -143,6 +143,7 @@ const char *kmstest_encoder_type_str(int type);
 const char *kmstest_connector_status_str(int status);
 const char *kmstest_connector_type_str(int type);
 const char *kmstest_scaling_filter_str(int filter);
+const char *kmstest_scaling_mode_str(int mode);
 const char *kmstest_dsc_output_format_str(int output_format);
 
 void kmstest_dump_mode(drmModeModeInfo *mode);
@@ -165,6 +166,7 @@ enum igt_atomic_crtc_properties {
        IGT_CRTC_OUT_FENCE_PTR,
        IGT_CRTC_VRR_ENABLED,
        IGT_CRTC_SCALING_FILTER,
+       IGT_CRTC_SHARPNESS_STRENGTH,
        IGT_NUM_CRTC_PROPS
 };
 
@@ -455,8 +457,15 @@ struct igt_pipe {
 	igt_display_t *display;
 	/* ID of a hardware pipe */
 	enum pipe pipe;
-	/* pipe is enabled or not */
-	bool enabled;
+
+        /*
+         * Indicates whether this pipe struct is valid and can be used. This can
+         * be false when the pipe is allocated as part of an array indexed by
+         * enum pipe, but the respective pipe is not reported by DRM, meaning
+         * that the pipe could not exist in the underlying hardware, could have
+         * been fused off, etc.
+         */
+        bool valid;
 
 	int n_planes;
 	int num_primary_planes;
@@ -694,7 +703,7 @@ static inline bool igt_output_is_connected(igt_output_t *output)
  */
 #define for_each_pipe(display, pipe) \
 	for_each_pipe_static(pipe) \
-		for_each_if((display)->pipes[(pipe)].enabled)
+		for_each_if((display)->pipes[(pipe)].valid)
 
 /**
  * for_each_pipe_with_valid_output:
@@ -713,7 +722,7 @@ static inline bool igt_output_is_connected(igt_output_t *output)
 	for (int con__ = (pipe) = 0; \
 	     assert(igt_can_fail()), (pipe) < igt_display_get_n_pipes((display)) && con__ < (display)->n_outputs; \
 	     con__ = (con__ + 1 < (display)->n_outputs) ? con__ + 1 : (pipe = pipe + 1, 0)) \
-		 for_each_if((display)->pipes[pipe].enabled) \
+		 for_each_if((display)->pipes[pipe].valid) \
 			for_each_if ((((output) = &(display)->outputs[con__]), \
 						igt_pipe_connector_valid((pipe), (output))))
 
@@ -1220,10 +1229,10 @@ uint32_t igt_reduce_format(uint32_t format);
  * @display: pointer to igt_display_t
  * @pipe: pipe which need to check
  *
- * Skip a (sub-)test if the pipe not enabled.
+ * Skip a (sub-)test if the pipe not valid.
  *
  * Should be used everywhere where a test checks pipe and skip
- * test when pipe is not enabled.
+ * test when pipe is not valid.
  */
 void igt_require_pipe(igt_display_t *display,
 		enum pipe pipe);

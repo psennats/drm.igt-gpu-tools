@@ -288,6 +288,7 @@ libexecdir = join_paths(get_option('libexecdir'), 'igt-gpu-tools')
 amdgpudir = join_paths(libexecdir, 'amdgpu')
 msmdir = join_paths(libexecdir, 'msm')
 panfrostdir = join_paths(libexecdir, 'panfrost')
+panthordir = join_paths(libexecdir, 'panthor')
 v3ddir = join_paths(libexecdir, 'v3d')
 vc4dir = join_paths(libexecdir, 'vc4')
 vkmsdir = join_paths(libexecdir, 'vkms')
@@ -341,6 +342,12 @@ if get_option('use_rpath')
 	endforeach
 	panfrost_rpathdir = join_paths(panfrost_rpathdir, libdir)
 
+	panthor_rpathdir = '$ORIGIN'
+	foreach p : panthordir.split('/')
+		panthor_rpathdir = join_paths(panthor_rpathdir, '..')
+	endforeach
+	panthor_rpathdir = join_paths(panthor_rpathdir, libdir)
+
 	v3d_rpathdir = '$ORIGIN'
 	foreach p : v3ddir.split('/')
 		v3d_rpathdir = join_paths(v3d_rpathdir, '..')
@@ -370,6 +377,7 @@ else
 	amdgpudir_rpathdir = ''
 	msm_rpathdir = ''
 	panfrost_rpathdir = ''
+	panthor_rpathdir = ''
 	v3d_rpathdir = ''
 	vc4_rpathdir = ''
 	vkms_rpathdir = ''

@@ -516,6 +516,22 @@ unsigned int xe_dev_max_gt(int fd)
 }
 
 /**
+ * xe_tiles_count:
+ * @fd: xe device fd
+ *
+ * Return number of tiles for xe device fd.
+ */
+uint8_t xe_tiles_count(int fd)
+{
+	struct xe_device *xe_dev;
+
+	xe_dev = find_in_cache(fd);
+	igt_assert(xe_dev);
+
+	return igt_hweight(xe_dev->tile_mask);
+}
+
+/**
  * all_memory_regions:
  * @fd: xe device fd
  *
@@ -993,6 +1009,35 @@ uint16_t xe_gt_get_tile_id(int fd, int gt)
 	igt_assert(gt < xe_number_gt(fd));
 
 	return xe_dev->gt_list->gt_list[gt].tile_id;
+}
+
+/**
+ * xe_tile_get_main_gt_id:
+ * @fd: xe device fd
+ * @tile: tile id
+ *
+ * Returns main GT ID for given @tile.
+ */
+uint16_t xe_tile_get_main_gt_id(int fd, uint8_t tile)
+{
+	struct xe_device *xe_dev;
+	int gt_id = -1;
+
+	xe_dev = find_in_cache(fd);
+	igt_assert(xe_dev);
+
+	for (int i = 0; i < xe_dev->gt_list->num_gt; i++) {
+		const struct drm_xe_gt *gt_data = &xe_dev->gt_list->gt_list[i];
+
+		if (gt_data->tile_id == tile && gt_data->type == DRM_XE_QUERY_GT_TYPE_MAIN) {
+			gt_id = gt_data->gt_id;
+			break;
+		}
+	}
+
+	igt_assert_f(gt_id >= 0, "No main GT found for tile %d\n", tile);
+
+	return gt_id;
 }
 
 /**

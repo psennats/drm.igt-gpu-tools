@@ -7,7 +7,7 @@
  * TEST: xe sysfs defaults
  * Description: check if the sysfs engine .defaults node has all values.
  * Category: Core
- * Mega feature: SysMan
+ * Mega feature: General Core features
  * Sub-category: SysMan tests
  * Functionality: sysman defaults
  * Test category: functionality test

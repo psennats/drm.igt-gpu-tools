@@ -118,7 +118,7 @@ static int get_frequency(struct freq_info *freq_info)
 }
 
 static void __attribute__((noreturn))
-usage(const char *prog)
+usage(const char *prog, int err)
 {
 	printf("%s A program to manipulate Intel GPU frequencies.\n\n", prog);
 	printf("Usage: %s [-e] [--min | --max] [--get] [--set frequency_mhz]\n\n", prog);
@@ -139,7 +139,7 @@ usage(const char *prog)
 	printf("   intel_gpu_frequency --custom max=750\tSet the max frequency to 750MHz\n");
 	printf("\n");
 	printf("Report bugs to https://gitlab.freedesktop.org/drm/igt-gpu-tools/-/issues\n");
-	exit(EXIT_FAILURE);
+	exit(err);
 }
 
 static void
@@ -147,6 +147,31 @@ version(const char *prog)
 {
 	printf("%s: %s\n", prog, VERSION);
 	printf("Copyright © 2015,2018 Intel Corporation\n");
+}
+
+static void
+parse_version_or_help(int argc, char *argv[])
+{
+	char *s;
+	int c;
+
+	if (argc == 1) /* No args */
+		return;
+
+	s = argv[1];
+	c = *s++;
+	if (c == '-')
+		c = *s++;
+	if (c == '-')
+		c = *s++;
+
+	if (c == 'v') {
+		version(argv[0]);
+		exit(EXIT_SUCCESS);
+	}
+
+	if (c == 'h')
+		usage(argv[0], EXIT_SUCCESS);
 }
 
 /* Returns read or write operation */
@@ -192,7 +217,7 @@ parse(int argc, char *argv[], bool *act_upon, size_t act_upon_n, int *new_freq)
 			break;
 		case 's':
 			if (!optarg)
-				usage(argv[0]);
+				usage(argv[0], EXIT_FAILURE);
 
 			if (write == true) {
 				fprintf(stderr, "Only one write may be specified at a time\n");
@@ -207,7 +232,7 @@ parse(int argc, char *argv[], bool *act_upon, size_t act_upon_n, int *new_freq)
 			break;
 		case 'c':
 			if (!optarg)
-				usage(argv[0]);
+				usage(argv[0], EXIT_FAILURE);
 
 			if (write == true) {
 				fprintf(stderr, "Only one write may be specified at a time\n");
@@ -264,12 +289,9 @@ parse(int argc, char *argv[], bool *act_upon, size_t act_upon_n, int *new_freq)
 			act_upon[MAX] = true;
 			write = true;
 			break;
-		case 'v':
-			version(argv[0]);
-			exit(0);
-		case 'h':
 		default:
-			usage(argv[0]);
+			fprintf(stderr, "Error: unknown option\n");
+			usage(argv[0], EXIT_FAILURE);
 		}
 	}
 
@@ -282,6 +304,8 @@ int main(int argc, char *argv[])
 
 	bool write, fail, targets[MAX+1] = {false};
 	int i, fd, try = 1, set_freq[MAX+1] = {0};
+
+	parse_version_or_help(argc, argv);
 
 	fd = __drm_open_driver(DRIVER_INTEL);
 	devid = intel_get_drm_devid(fd);

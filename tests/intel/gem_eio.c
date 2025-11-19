@@ -1032,7 +1032,7 @@ static void display_helper(igt_display_t *dpy, int *done)
 		int pipe;
 
 		pipe = rand() % dpy->n_pipes;
-		if (!dpy->pipes[pipe].enabled)
+		if (!dpy->pipes[pipe].valid)
 			continue;
 		output = igt_get_single_output_for_pipe(dpy, pipe);
 		if (!output)

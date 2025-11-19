@@ -932,11 +932,13 @@ static void test_read_event(int fd)
  *	partial unbind, unbind and unbind all operations.
  *
  * SUBTEST: multigpu-basic-client
+ * Mega feature: MultiGPU
  * Functionality: attach multiGPU
  * Description:
  *	Attach the debugger to process which opens and closes xe drm client on all Xe devices.
  *
  * SUBTEST: multigpu-basic-client-many
+ * Mega feature: MultiGPU
  * Functionality: attach multiGPU
  * Description:
  *	Simultaneously attach many debuggers to many processes on all Xe devices.
@@ -1015,7 +1017,7 @@ static void test_basic_discovery(int fd, unsigned int flags, bool match_opposite
 
 	xe_eudebug_client_wait_done(c);
 
-	xe_eudebug_debugger_stop_worker(d, 1);
+	xe_eudebug_debugger_stop_worker(d);
 
 	xe_eudebug_event_log_print(d->log, true);
 	xe_eudebug_event_log_print(c->log, true);
@@ -1155,7 +1157,7 @@ static void *discovery_race_thread(void *data)
 			igt_assert(READ_ONCE(s->debugger->event_count));
 			}
 
-			xe_eudebug_debugger_stop_worker(s->debugger, 1);
+			xe_eudebug_debugger_stop_worker(s->debugger);
 
 			igt_debug("Resources discovered: %" PRIu64 "\n", s->debugger->event_count);
 			if (!s->client->done) {
@@ -1225,7 +1227,7 @@ static void *discovery_race_thread(void *data)
 		if (READ_ONCE(s->debugger->event_count) != expected)
 			sleep(5);
 
-		xe_eudebug_debugger_stop_worker(s->debugger, 1);
+		xe_eudebug_debugger_stop_worker(s->debugger);
 		xe_eudebug_debugger_detach(s->debugger);
 	}
 
@@ -1304,7 +1306,7 @@ static void *attach_dettach_thread(void *data)
 
 		if (random() % 2 == 0) {
 			xe_eudebug_debugger_start_worker(s->debugger);
-			xe_eudebug_debugger_stop_worker(s->debugger, 1);
+			xe_eudebug_debugger_stop_worker(s->debugger);
 		}
 
 		xe_eudebug_debugger_detach(s->debugger);
@@ -1343,7 +1345,7 @@ static void test_empty_discovery(int fd, unsigned int flags, int clients)
 		igt_assert_eq(xe_eudebug_debugger_attach(s[i]->debugger, s[i]->client), 0);
 
 		xe_eudebug_debugger_start_worker(s[i]->debugger);
-		xe_eudebug_debugger_stop_worker(s[i]->debugger, 5);
+		xe_eudebug_debugger_stop_worker(s[i]->debugger);
 		xe_eudebug_debugger_detach(s[i]->debugger);
 
 		igt_assert_eq(s[i]->debugger->event_count, expected);
@@ -2190,7 +2192,7 @@ static void test_basic_ufence(int fd, unsigned int flags)
 	}
 
 	xe_eudebug_client_wait_done(c);
-	xe_eudebug_debugger_stop_worker(d, 1);
+	xe_eudebug_debugger_stop_worker(d);
 
 	xe_eudebug_event_log_print(d->log, true);
 	xe_eudebug_event_log_print(c->log, true);
@@ -2485,7 +2487,7 @@ static void test_vm_bind_clear(int fd, uint32_t flags)
 	xe_eudebug_client_start(s->client);
 
 	xe_eudebug_client_wait_done(s->client);
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	igt_assert_eq(priv->bind_count, priv->unbind_count);
 	igt_assert_eq(priv->sum * 2, priv->bind_count);
@@ -2715,7 +2717,7 @@ static void test_vma_ufence(int fd, unsigned int flags)
 	xe_eudebug_client_start(s->client);
 
 	xe_eudebug_client_wait_done(s->client);
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	xe_eudebug_event_log_print(s->debugger->log, true);
 	xe_eudebug_event_log_print(s->client->log, true);

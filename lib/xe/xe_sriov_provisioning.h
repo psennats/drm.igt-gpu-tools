@@ -92,7 +92,7 @@ struct xe_sriov_provisioned_range {
 
 const char *xe_sriov_shared_res_to_string(enum xe_sriov_shared_res res);
 bool xe_sriov_is_shared_res_provisionable(int pf, enum xe_sriov_shared_res res, unsigned int gt);
-int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, int gt, struct xe_mmio *mmio,
+int xe_sriov_find_ggtt_provisioned_pte_offsets(int pf_fd, uint8_t tile, struct xe_mmio *mmio,
 					       struct xe_sriov_provisioned_range **ranges,
 					       unsigned int *nr_ranges);
 const char *xe_sriov_shared_res_attr_name(enum xe_sriov_shared_res res,

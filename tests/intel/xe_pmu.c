@@ -912,6 +912,7 @@ static void test_gt_frequency(int fd, struct drm_xe_engine_class_instance *eci)
 	/*
 	 * Set GPU to min frequency and read PMU counters.
 	 */
+	igt_assert(xe_gt_set_freq(fd, gt, "min", orig_min) > 0);
 	igt_assert(xe_gt_set_freq(fd, gt, "max", orig_min) > 0);
 	igt_assert(xe_gt_get_freq(fd, gt, "max") == orig_min);
 

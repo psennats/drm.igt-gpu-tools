@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include <assert.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
@@ -215,22 +216,33 @@ void edid_get_monitor_name(const struct edid *edid, char *name, size_t name_size
 	const struct detailed_timing *dt;
 	const struct detailed_non_pixel *np;
 	const struct detailed_data_string *ds;
-	size_t i;
+	size_t i, n;
 
-	assert(name_size > 0);
+	/* need one char for '\0' */
+	assert(name_size > 1);
 	name[0] = '\0';
 
 	for (i = 0; i < DETAILED_TIMINGS_LEN; i++) {
 		dt = &edid->detailed_timings[i];
 		np = &dt->data.other_data;
 
-		if (np->type != EDID_DETAIL_MONITOR_NAME)
+		if (np->type != EDID_DETAIL_MONITOR_NAME &&
+		    np->type != EDID_DETAIL_MONITOR_STRING)
 			continue;
 
 		ds = &np->data.string;
 		strncpy(name, ds->str, name_size - 1);
 		name[name_size - 1] = '\0';
-		igt_debug("Monitor name: %s\n", name);
+
+		/* remove the padding space from EDID */
+		for (n = name_size - 1; n > 0; ) {
+			if (!isspace(name[--n]))
+				break;
+
+			name[n] = '\0';
+		}
+
+		igt_debug("Monitor name: %s\n", name[0] ? name : "(empty)");
 		return;
 	}
 	igt_debug("No monitor name found in EDID\n");

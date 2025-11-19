@@ -582,7 +582,7 @@ int amdgpu_timeline_syncobj_wait(amdgpu_device_handle device_handle,
 	return r;
 }
 
-static void
+static int
 user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_context *ring_context,
 			      unsigned int ip_type, uint64_t mc_address)
 {
@@ -591,12 +591,12 @@ user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_context *ring_
 	uint32_t syncarray[1];
 	struct drm_amdgpu_userq_signal signal_data;
 	uint64_t timeout = ring_context->time_out ? ring_context->time_out : INT64_MAX;
-
-	amdgpu_pkt_begin();
+	unsigned int nop_count;
 
 	if (ip_type == AMD_IP_DMA) {
+		amdgpu_sdma_pkt_begin();
 		/* For SDMA, we need to align the IB to 8 DW boundary */
-		unsigned int nop_count = (2 - lower_32_bits(*ring_context->wptr_cpu)) & 7;
+		nop_count = (2 - lower_32_bits(*ring_context->wptr_cpu)) & 7;
 		for (unsigned int i = 0; i < nop_count; i++)
 			amdgpu_pkt_add_dw(SDMA_PKT_HEADER_OP(SDMA_NOP));
 		amdgpu_pkt_add_dw(SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT));
@@ -606,7 +606,13 @@ user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_context *ring_
 		amdgpu_pkt_add_dw(lower_32_bits(ring_context->csa.mc_addr)); // CSA MC address low
 		amdgpu_pkt_add_dw(upper_32_bits(ring_context->csa.mc_addr)); // CSA MC address high
 		amdgpu_pkt_add_dw(SDMA_PACKET(SDMA_OP_PROTECTED_FENCE, SDMA_SUB_OP_PROTECTED_FENCE, 0));
+#if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
+		asm volatile ("mfence" : : : "memory");
+#endif
+		/* Below call update the wptr address so will wait till all writes are completed */
+		amdgpu_sdma_pkt_end();
 	} else {
+		amdgpu_pkt_begin();
 		/* Prepare the Indirect IB to submit the IB to user queue */
 		amdgpu_pkt_add_dw(PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 		amdgpu_pkt_add_dw(lower_32_bits(mc_address));
@@ -622,21 +628,16 @@ user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_context *ring_
 
 		/* empty dword is needed for fence signal pm4 */
 		amdgpu_pkt_add_dw(0);
+#if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
+	asm volatile ("mfence" : : : "memory");
+#endif
+		/* Below call update the wptr address so will wait till all writes are completed */
+		amdgpu_pkt_end();
 	}
-#if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
-	asm volatile ("mfence" : : : "memory");
-#endif
-
-	/* Below call update the wptr address so will wait till all writes are completed */
-	amdgpu_pkt_end();
 
 #if DETECT_CC_GCC && (DETECT_ARCH_X86 || DETECT_ARCH_X86_64)
 	asm volatile ("mfence" : : : "memory");
 #endif
-
-	if (ip_type == AMD_IP_DMA)
-		*ring_context->wptr_cpu = *ring_context->wptr_cpu <<2;
-	/* Update the door bell */
 	ring_context->doorbell_cpu[DOORBELL_INDEX] = *ring_context->wptr_cpu;
 
 	/* Add a fence packet for signal */
@@ -653,8 +654,8 @@ user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_context *ring_
 	igt_assert_eq(r, 0);
 
 	r = amdgpu_cs_syncobj_wait(device, &ring_context->timeline_syncobj_handle, 1, timeout,
-				   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, NULL);
-	igt_assert_eq(r, 0);
+				DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, NULL);
+	return r;
 }
 
 static void
@@ -869,7 +870,6 @@ user_queue_create(amdgpu_device_handle device_handle, struct amdgpu_ring_context
 			      AMDGPU_GEM_DOMAIN_DOORBELL);
 
 	ctxt->doorbell_cpu = (uint64_t *)ctxt->doorbell.ptr;
-
 	ctxt->wptr_cpu = (uint64_t *)ctxt->wptr.ptr;
 	ctxt->rptr_cpu = (uint64_t *)ctxt->rptr.ptr;
 
@@ -932,10 +932,11 @@ amdgpu_timeline_syncobj_wait(amdgpu_device_handle device_handle,
 	return 0;
 }
 
-static void
+static int
 user_queue_submit(amdgpu_device_handle device, struct amdgpu_ring_context *ring_context,
 	unsigned int ip_type, uint64_t mc_address)
 {
+	return 0;
 }
 
 static void

@@ -1,0 +1,323 @@
+/* Clean MkDocs Material Theme - Colorblind Friendly */
+
+:root {
+  /* Blue-based color scheme (colorblind safe) */
+  --primary-blue: #2196f3;
+  --primary-blue-dark: #1976d2;
+  --primary-blue-light: #64b5f6;
+  --accent-blue: #42a5f5;
+
+  /* Gradients (keeping as requested) */
+  --gradient-primary: linear-gradient(135deg, #111111 0%, #1142ff 100%);
+  --gradient-accent: linear-gradient(135deg, #42a5f5 0%, #1142ff 100%);
+
+  /* Neutral colors */
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --border-light: rgba(0, 0, 0, 0.12);
+  --background-light: #fafafa;
+}
+
+/* Dark theme colors */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #1e1e1e;
+  --md-default-fg-color: #ffffff;
+  --md-code-bg-color: #0d0d0d;
+  --md-code-fg-color: #f5f5f5;
+}
+
+/* Typography - Clean and spacious */
+.md-typeset h1 {
+  color: var(--primary-blue);
+  font-weight: 600;
+  font-size: 1.6rem;
+  margin: 0 0 2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border-light);
+}
+
+.md-typeset h2 {
+  color: var(--primary-blue-dark);
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin: 2.5rem 0 1.5rem;
+}
+
+.md-typeset h3 {
+  color: var(--primary-blue-light);
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 2rem 0 1rem;
+}
+
+.md-typeset p {
+  line-height: 1.7;
+  margin-bottom: 1.2rem;
+  margin-left: 0.5rem;
+}
+
+/* Header - Gradient for both themes */
+.md-header {
+  background: var(--gradient-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure white text on gradient header for both themes */
+.md-header-nav__button,
+.md-header-nav__title,
+.md-header__title,
+.md-header__button {
+  color: white;
+}
+
+/* Tabs - Black background for light theme */
+.md-tabs {
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-light);
+}
+
+[data-md-color-scheme="default"] .md-tabs {
+  background: #eeeeee;
+}
+
+[data-md-color-scheme="default"] .md-tabs__link {
+  color: rgba(0, 0, 0, 0.9);
+}
+
+[data-md-color-scheme="default"] .md-tabs__link--active,
+[data-md-color-scheme="default"] .md-tabs__link:hover {
+  color: var(--primary-blue);
+}
+
+/* Dark theme tabs */
+[data-md-color-scheme="slate"] .md-tabs {
+  background: #1e1e1e;
+}
+
+[data-md-color-scheme="slate"] .md-tabs__link {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-md-color-scheme="slate"] .md-tabs__link--active,
+[data-md-color-scheme="slate"] .md-tabs__link:hover {
+  color: white;
+}
+
+/* Navigation - Simple active states */
+.md-nav__item .md-nav__link--active {
+  color: var(--primary-blue);
+  font-weight: 600;
+}
+
+.md-nav__item .md-nav__link:hover {
+  color: var(--primary-blue-light);
+}
+
+/* Code - High contrast */
+.md-typeset code {
+  background: rgba(33, 150, 243, 0.1);
+  color: var(--primary-blue-dark);
+  padding: 0.125em 0.25em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.md-typeset pre code {
+  background: transparent;
+  padding: 1rem;
+  display: block;
+}
+
+.md-typeset .highlight {
+  margin: 1.5rem 0;
+  border-left: 3px solid var(--primary-blue);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Admonitions - Simple with left border */
+.md-typeset .admonition {
+  margin: 1.5rem 0rem;
+  padding: 0;
+  border-left: 4px solid;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+}
+
+.md-typeset .admonition.note {
+  border-color: var(--primary-blue);
+  background: rgba(33, 150, 243, 0.05);
+}
+
+.md-typeset .admonition.tip {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.md-typeset .admonition.warning {
+  border-color: #ff9800;
+  background: rgba(255, 152, 0, 0.05);
+}
+
+.md-typeset .admonition > .admonition-title {
+  margin: 0px;
+  padding: 0rem 0.6rem -1rem 0rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Links - Underlined for accessibility */
+.md-typeset a {
+  color: var(--primary-blue);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.md-typeset a:hover {
+  color: var(--primary-blue-dark);
+  text-decoration-thickness: 2px;
+}
+
+/* Tables - Clean borders */
+.md-typeset table {
+  margin: 1.5rem 0;
+}
+
+.md-typeset table th {
+  background: var(--background-light);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-light);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table th {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.md-typeset table td {
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Lists - Simple bullets */
+.md-typeset ul {
+  margin: 1rem 0;
+}
+
+.md-typeset ul li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.md-typeset ol li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+/* Buttons - Clean and simple */
+.md-button {
+  background: var(--primary-blue);
+  color: white;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.md-button:hover {
+  background: var(--primary-blue-dark);
+}
+
+/* Focus states for accessibility */
+*:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* Search - Clean style */
+.md-search__input {
+  border-radius: 4px;
+}
+
+.md-search__input::placeholder {
+  opacity: 0.7;
+}
+
+/* Footer */
+.md-footer {
+  border-top: 1px solid var(--border-light);
+}
+
+/* Grid cards - Simple */
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid.cards > ul > li {
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+.md-typeset .grid.cards > ol > li:hover,
+.md-typeset .grid.cards > ul > li:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Horizontal rule */
+.md-typeset hr {
+  border: none;
+  height: 1px;
+  background: var(--border-light);
+  margin: 2rem 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-light);
+}
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-blue);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-blue-dark);
+}
+
+/* Print styles */
+@media print {
+  .md-header,
+  .md-tabs,
+  .md-nav,
+  .md-footer {
+    display: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .md-typeset code {
+    border: 1px solid var(--primary-blue);
+  }
+
+  .md-typeset a {
+    text-decoration-thickness: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1033,6 +1033,20 @@ print_percentage_bar(double percent, double max, int max_len, bool numeric)
 
 #define DEFAULT_PERIOD_MS (1000)
 
+static void show_help_screen(void)
+{
+	printf("Help for interactive commands:\n\n"
+"    '1'    Toggle between aggregated engine class and physical engine mode.\n"
+"    'n'    Toggle display of numeric client busyness overlay.\n"
+"    's'    Toggle between sort modes (runtime, total runtime, pid, client id).\n"
+"    'i'    Toggle display of clients which used no GPU time.\n"
+"    'H'    Toggle between per PID aggregation and individual clients.\n"
+"    'm'    Toggle between aggregated memory regions and full breakdown.\n"
+"\n"
+"    'h' or 'q'    Exit interactive help.\n"
+"\n");
+}
+
 static void
 usage(const char *appname)
 {
@@ -1053,6 +1067,8 @@ usage(const char *appname)
 		"\t[-m]            Default to showing all memory regions.\n"
 		"\n",
 		appname, DEFAULT_PERIOD_MS);
+	printf("To access interactive help, press 'h' while the application is running.\n");
+	show_help_screen();
 	igt_device_print_filter_types();
 }
 
@@ -2380,6 +2396,12 @@ static void process_help_stdin(void)
 	}
 }
 
+static void toggle_flag_and_set_msg(bool *flag, const char *msg_on, const char *msg_off)
+{
+	*flag ^= true;
+	header_msg = *flag ? msg_on : msg_off;
+}
+
 static void process_normal_stdin(void)
 {
 	for (;;) {
@@ -2395,18 +2417,14 @@ static void process_normal_stdin(void)
 			stop_top = true;
 			break;
 		case '1':
-			class_view ^= true;
-			if (class_view)
-				header_msg = "Aggregating engine classes.";
-			else
-				header_msg = "Showing physical engines.";
+			toggle_flag_and_set_msg(&class_view,
+						"Aggregating engine classes.",
+						"Showing physical engines.");
 			break;
 		case 'i':
-			filter_idle ^= true;
-			if (filter_idle)
-				header_msg = "Hiding inactive clients.";
-			else
-				header_msg = "Showing inactive clients.";
+			toggle_flag_and_set_msg(&filter_idle,
+						"Hiding inactive clients.",
+						"Showing inactive clients.");
 			break;
 		case 'n':
 			numeric_clients ^= true;
@@ -2418,18 +2436,14 @@ static void process_normal_stdin(void)
 			in_help = true;
 			break;
 		case 'H':
-			aggregate_pids ^= true;
-			if (aggregate_pids)
-				header_msg = "Aggregating clients.";
-			else
-				header_msg = "Showing individual clients.";
+			toggle_flag_and_set_msg(&aggregate_pids,
+						"Aggregating clients.",
+						"Showing individual clients.");
 			break;
 		case 'm':
-			aggregate_regions ^= true;
-			if (aggregate_regions)
-				header_msg = "Aggregating memory regions.";
-			else
-				header_msg = "Showing memory regions.";
+			toggle_flag_and_set_msg(&aggregate_regions,
+						"Aggregating memory regions.",
+						"Showing memory regions.");
 			break;
 		};
 	}
@@ -2468,21 +2482,6 @@ static bool has_drm_fdinfo(const struct igt_device_card *card)
 	close(fd);
 
 	return cnt > 0;
-}
-
-static void show_help_screen(void)
-{
-	printf(
-"Help for interactive commands:\n\n"
-"    '1'    Toggle between aggregated engine class and physical engine mode.\n"
-"    'n'    Toggle display of numeric client busyness overlay.\n"
-"    's'    Toggle between sort modes (runtime, total runtime, pid, client id).\n"
-"    'i'    Toggle display of clients which used no GPU time.\n"
-"    'H'    Toggle between per PID aggregation and individual clients.\n"
-"    'm'    Toggle between aggregated memory regions and full breakdown.\n"
-"\n"
-"    'h' or 'q'    Exit interactive help.\n"
-"\n");
 }
 
 static int gettime(struct timespec *ts)

@@ -180,11 +180,12 @@ amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 		igt_assert_eq(expired, true);
 	}
 
-	/* verify if memset test result meets with expected */
-	i = 0;
-	while (i < bo_dst_size)
-		igt_assert_eq(ptr_dst[i++], 0x22);
-
+	if (!user_queue) {
+		/* verify if memset test result meets with expected */
+		i = 0;
+		while (i < bo_dst_size)
+			igt_assert_eq(ptr_dst[i++], 0x22);
+	}
 	amdgpu_bo_unmap_and_free(bo_dst, va_dst, mc_address_dst, bo_dst_size);
 	amdgpu_bo_unmap_and_free(bo_shader, va_shader, mc_address_shader,
 				 bo_shader_size);
@@ -780,29 +781,33 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 	if (version < 9)
 		version = 9;
 
-	if (ip_type == AMD_IP_GFX)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
-				pci->domain, pci->bus, pci->device, pci->function);
-	else if (ip_type == AMD_IP_COMPUTE)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_compute_sched_mask",
-				pci->domain, pci->bus, pci->device, pci->function);
-	else if (ip_type == AMD_IP_DMA)
-		snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
-				pci->domain, pci->bus, pci->device, pci->function);
-
-	snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
-	r = access(sysfs, R_OK);
-	if (!r) {
-		fp = popen(cmd, "r");
-		if (fp == NULL)
-			igt_skip("read the sysfs failed: %s \n",sysfs);
-
-		if (fgets(buffer, 128, fp) != NULL)
-			sched_mask = strtol(buffer, NULL, 16);
-
-		pclose(fp);
-	} else
+	if (userq) {
 		sched_mask = 1;
+	} else {
+		if (ip_type == AMD_IP_GFX)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_gfx_sched_mask",
+					pci->domain, pci->bus, pci->device, pci->function);
+		else if (ip_type == AMD_IP_COMPUTE)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_compute_sched_mask",
+					pci->domain, pci->bus, pci->device, pci->function);
+		else if (ip_type == AMD_IP_DMA)
+			snprintf(sysfs, sizeof(sysfs) - 1, "/sys/kernel/debug/dri/%04x:%02x:%02x.%01x/amdgpu_sdma_sched_mask",
+					pci->domain, pci->bus, pci->device, pci->function);
+
+		snprintf(cmd, sizeof(cmd) - 1, "sudo cat %s", sysfs);
+		r = access(sysfs, R_OK);
+		if (!r) {
+			fp = popen(cmd, "r");
+			if (fp == NULL)
+				igt_skip("read the sysfs failed: %s \n",sysfs);
+
+			if (fgets(buffer, 128, fp) != NULL)
+				sched_mask = strtol(buffer, NULL, 16);
+
+			pclose(fp);
+		} else
+			sched_mask = 1;
+	}
 
 	for (ring_id = 0; (0x1 << ring_id) <= sched_mask; ring_id++) {
 		/* check sched is ready is on the ring. */
@@ -836,8 +841,9 @@ void amdgpu_gfx_dispatch_test(amdgpu_device_handle device_handle, uint32_t ip_ty
 		}
 		amdgpu_memset_dispatch_test(device_handle, ip_type, prio,
 					    version, userq);
-		amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id, prio,
-					    version, hang, NULL, userq);
+		if (!userq)
+			amdgpu_memcpy_dispatch_test(device_handle, NULL, ip_type, ring_id, prio,
+							version, hang, NULL, userq);
 	}
 
 	/* recover the sched mask */

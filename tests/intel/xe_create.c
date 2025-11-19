@@ -383,7 +383,7 @@ static void create_execqueues(int fd, enum exec_queue_destroy ed,
  *              buffer sizes.
  *
  * SUBTEST: multigpu-create-massive-size
- * Sub-category: MultiGPU
+ * Mega feature: MultiGPU
  * Functionality: ioctl
  * Test category: functionality test
  * Feature: multigpu

@@ -1712,7 +1712,7 @@ static void test_preemption(int fd, struct drm_xe_engine_class_instance *hwe)
 	xe_eudebug_client_wait_done(s->client);
 	xe_eudebug_client_wait_done(other);
 
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	xe_eudebug_session_destroy(s);
 	xe_eudebug_client_destroy(other);
@@ -1831,7 +1831,7 @@ static void test_interrupt_all(int fd, struct drm_xe_engine_class_instance *hwe,
 
 	xe_eudebug_client_wait_done(s->client);
 
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	xe_eudebug_event_log_print(s->debugger->log, true);
 	xe_eudebug_event_log_print(s->client->log, true);
@@ -1938,7 +1938,7 @@ static void test_interrupt_other(int fd, struct drm_xe_engine_class_instance *hw
 	xe_force_gt_reset_async(s->debugger->master_fd, debugee_data->hwe.gt_id);
 
 	xe_eudebug_client_wait_done(debugee);
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	xe_eudebug_event_log_print(s->debugger->log, true);
 	xe_eudebug_event_log_print(debugee->log, true);
@@ -2052,7 +2052,7 @@ static void test_tdctl_parameters(int fd, struct drm_xe_engine_class_instance *h
 
 	xe_eudebug_client_wait_done(s->client);
 
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	xe_eudebug_event_log_print(s->debugger->log, true);
 	xe_eudebug_event_log_print(s->client->log, true);
@@ -2163,7 +2163,7 @@ static void test_interrupt_reconnect(int fd, struct drm_xe_engine_class_instance
 
 	xe_eudebug_client_wait_done(s->client);
 
-	xe_eudebug_debugger_stop_worker(s->debugger, 1);
+	xe_eudebug_debugger_stop_worker(s->debugger);
 
 	xe_eudebug_event_log_print(s->debugger->log, true);
 	xe_eudebug_event_log_print(s->client->log, true);
@@ -2497,7 +2497,7 @@ static void test_many_sessions_on_tiles(int fd, bool multi_tile)
 
 	for (i = 0; i < n; i++) {
 		xe_eudebug_client_wait_done(s[i]->client);
-		xe_eudebug_debugger_stop_worker(s[i]->debugger, 1);
+		xe_eudebug_debugger_stop_worker(s[i]->debugger);
 
 		xe_eudebug_event_log_print(s[i]->debugger->log, true);
 		online_session_check(s[i], flags);

@@ -57,6 +57,7 @@ int __get_drm_device_name(int fd, char *name, int name_size);
 #define DRIVER_VMWGFX   (1 << 8)
 #define DRIVER_VKMS	(1 << 9)
 #define DRIVER_VIRTIO	(1 << 10)
+#define DRIVER_PANTHOR	(1 << 11)
 
 /*
  * Exclude DRIVER_VGEM and DRIVER_VIRTIO from DRIVER_ANY since if you run

@@ -103,6 +103,14 @@ static int fast_copy_one_bb(int xe,
 	blt_tmp.print_bb = blt->print_bb;
 	bb_pos = emit_blt_fast_copy(xe, ahnd, &blt_tmp, bb_pos, false);
 
+	/*
+	 * Bspec asks to insert a flush between two BLIT instructions to resolve
+	 * BLIT level dependency. Though the spec is not clear in explaining
+	 * it, HW team requested for a flush instuction between these two BLIT
+	 * instuctions as they have a dependency.
+	 */
+	bb_pos = emit_xe_flush_dw(xe, &blt_tmp, bb_pos);
+
 	/* Second blit */
 	blt_copy_init(xe, &blt_tmp);
 	blt_tmp.src = blt->mid;

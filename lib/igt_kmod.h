@@ -28,6 +28,13 @@
 
 #include "igt_list.h"
 
+struct igt_ktest;
+struct igt_kselftest_list;
+
+typedef int (*igt_kselftest_wrap_t)(const char *dynamic_name,
+				    struct igt_ktest *tst,
+				    struct igt_kselftest_list *tl);
+
 bool igt_kmod_is_loaded(const char *mod_name);
 void igt_kmod_list_loaded(void);
 
@@ -79,7 +86,8 @@ void igt_kunit(const char *module_name, const char *name, const char *opts);
 void igt_kselftests(const char *module_name,
 		    const char *module_options,
 		    const char *result_option,
-		    const char *filter);
+		    const char *filter,
+		    igt_kselftest_wrap_t wrapper);
 
 struct igt_ktest {
 	struct kmod_module *kmod;

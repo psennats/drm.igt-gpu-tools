@@ -70,6 +70,7 @@ igt@xe_evict@evict-(beng-)?large-multi-vm-cm$
 # pxp support not available for BMG
 ##################################################################
 igt@xe_pxp@(?!pxp-bo-alloc$|pxp-queue-alloc$).*
+igt@xe_fault_injection@exec-queue-create-fail-xe_pxp_exec_queue_add
 ##################################################################
 # I2c tests needs AMC capable BMG in CI
 ##################################################################

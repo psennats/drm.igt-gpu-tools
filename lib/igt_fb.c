@@ -3029,7 +3029,8 @@ static void setup_context_and_memory_region(const struct igt_fb *fb, uint32_t *c
 						  ALLOC_STRATEGY_LOW_TO_HIGH, 0);
 
 		*bb_size = xe_bb_size(fb->fd, *bb_size);
-		*bb = xe_bo_create(fb->fd, 0, *bb_size, *mem_region, 0);
+		*bb = xe_bo_create(fb->fd, 0, *bb_size, *mem_region,
+				   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM);
 	}
 }
 

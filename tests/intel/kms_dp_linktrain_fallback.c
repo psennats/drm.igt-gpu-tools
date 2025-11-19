@@ -400,6 +400,11 @@ static void test_fallback(data_t *data, bool is_mst)
 		curr_link_rate = igt_get_current_link_rate(data->drm_fd, data->output);
 		curr_lane_count = igt_get_current_lane_count(data->drm_fd, data->output);
 
+		igt_debug("Fallback state: prev %dx%d, curr %dx%d, max %dx%d, retries=%u\n",
+			  prev_link_rate, prev_lane_count,
+			  curr_link_rate, curr_lane_count,
+			  max_link_rate,  max_lane_count,
+			  retries);
 		igt_assert_f((curr_link_rate < prev_link_rate ||
 			     curr_lane_count < prev_lane_count) ||
 			     ((curr_link_rate == max_link_rate && curr_lane_count == max_lane_count) && --retries),

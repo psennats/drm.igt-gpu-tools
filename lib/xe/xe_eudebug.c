@@ -41,6 +41,7 @@ struct match_dto {
 	uint64_t *bind_op_seqno;
 };
 
+#define TOKEN_NONE  0
 #define CLIENT_PID  1
 #define CLIENT_RUN  2
 #define CLIENT_FINI 3
@@ -51,6 +52,7 @@ struct match_dto {
 static const char *token_to_str(uint64_t token)
 {
 	static const char * const s[] = {
+		"none",
 		"client pid",
 		"client run",
 		"client fini",
@@ -59,8 +61,12 @@ static const char *token_to_str(uint64_t token)
 		"debugger stage",
 	};
 
-	if (token >= ARRAY_SIZE(s))
+	igt_assert(token);
+
+	if (token >= ARRAY_SIZE(s)) {
+		igt_warn("token outside of bounds %ld\n", token);
 		return "unknown";
+	}
 
 	return s[token];
 }
@@ -254,7 +260,7 @@ static int safe_pipe_read(int pipe[2], void *buf, int nbytes, int timeout_ms)
 {
 	int ret;
 	int t = 0;
-	struct pollfd fd = {
+	struct pollfd r = {
 		.fd = pipe[0],
 		.events = POLLIN,
 		.revents = 0
@@ -266,9 +272,9 @@ static int safe_pipe_read(int pipe[2], void *buf, int nbytes, int timeout_ms)
 	do {
 		const int interval_ms = 1000;
 
-		ret = poll(&fd, 1, interval_ms);
-
+		ret = poll(&r, 1, interval_ms);
 		if (!ret) {
+			igt_debug("poll: timeout\n");
 			catch_child_failure();
 			t += interval_ms;
 		} else if (ret == -1) {
@@ -278,10 +284,20 @@ static int safe_pipe_read(int pipe[2], void *buf, int nbytes, int timeout_ms)
 			}
 			return -errno;
 		}
-	} while (!ret && t < timeout_ms);
 
-	if (ret > 0)
-		return read(pipe[0], buf, nbytes);
+		if (ret == 1) {
+			if (r.revents == POLLIN)
+				return read(pipe[0], buf, nbytes);
+
+			if (r.revents & ~POLLIN) {
+				igt_debug("pipe read failed: %s%s (0x%x)\n",
+					  r.revents & POLLHUP ? "pipe closed" : "",
+					  r.revents & POLLERR ? "poll error" : "",
+					  r.revents);
+				return -EIO;
+			}
+		}
+	} while (!ret && t < timeout_ms);
 
 	return -ETIMEDOUT;
 }
@@ -334,8 +350,11 @@ static uint64_t __wait_token(int pipe[2], const uint64_t token, int timeout_ms)
 
 static uint64_t client_wait_token(struct xe_eudebug_client *c, const uint64_t token)
 {
-	uint64_t ret = __wait_token(c->p_in, token, c->timeout_ms);
+	uint64_t ret = 0;
 
+	igt_debug("client: %d waiting for token '%s'\n", getpid(), token_to_str(token));
+
+	ret = __wait_token(c->p_in, token, c->timeout_ms);
 	if (ret == DEAD_CLIENT)
 		igt_assert(c->allow_dead_client);
 
@@ -344,8 +363,11 @@ static uint64_t client_wait_token(struct xe_eudebug_client *c, const uint64_t to
 
 static uint64_t wait_from_client(struct xe_eudebug_client *c, const uint64_t token)
 {
-	uint64_t ret = __wait_token(c->p_out, token, c->timeout_ms);
+	uint64_t ret = 0;
 
+	igt_debug("debugger: %d waiting for token '%s'\n", getpid(), token_to_str(token));
+
+	ret = __wait_token(c->p_out, token, c->timeout_ms);
 	if (ret == DEAD_CLIENT)
 		igt_assert(c->allow_dead_client);
 
@@ -354,6 +376,9 @@ static uint64_t wait_from_client(struct xe_eudebug_client *c, const uint64_t tok
 
 static void token_signal(int pipe[2], const uint64_t token, const uint64_t value)
 {
+	igt_debug("%d signalling token '%s' with value '%ld'\n",
+		  getpid(), token_to_str(token), value);
+
 	pipe_signal(pipe, token);
 	pipe_signal(pipe, value);
 }
@@ -843,6 +868,9 @@ static void event_log_sort(struct xe_eudebug_event_log *l)
 		events++;
 	}
 
+	if (!events)
+		return;
+
 	tmp = xe_eudebug_event_log_create("tmp", l->max_size);
 
 	for (i = first_seqno; i <= last_seqno; i++) {
@@ -1061,7 +1089,6 @@ static void debugger_run_triggers(struct xe_eudebug_debugger *d,
 	}
 }
 
-#define MAX_EVENT_SIZE (32 * 1024)
 static int
 xe_eudebug_read_event(int fd, struct drm_xe_eudebug_event *event)
 {
@@ -1223,7 +1250,7 @@ static void debugger_destroy_triggers(struct xe_eudebug_debugger *d)
 void xe_eudebug_debugger_destroy(struct xe_eudebug_debugger *d)
 {
 	if (d->worker_state != DEBUGGER_WORKER_INACTIVE)
-		xe_eudebug_debugger_stop_worker(d, 1);
+		xe_eudebug_debugger_stop_worker(d);
 
 	if (d->target_pid)
 		xe_eudebug_debugger_detach(d);
@@ -1360,9 +1387,9 @@ void xe_eudebug_debugger_start_worker(struct xe_eudebug_debugger *d)
  *
  * Stops the debugger worker. Event log is sorted by seqno after closure.
  */
-void xe_eudebug_debugger_stop_worker(struct xe_eudebug_debugger *d,
-				     int timeout_s)
+void xe_eudebug_debugger_stop_worker(struct xe_eudebug_debugger *d)
 {
+	const int timeout_s = 3;
 	struct timespec t = {};
 	int ret;
 
@@ -1486,8 +1513,11 @@ struct xe_eudebug_client *xe_eudebug_client_create(int master_fd, xe_eudebug_cli
 
 		c->pid = client_wait_token(c, CLIENT_RUN);
 		igt_assert_eq(c->pid, mypid);
-		if (work)
-			work(c);
+		igt_assert(work);
+
+		igt_debug("client: work start\n");
+		work(c);
+		igt_debug("client: work end\n");
 
 		client_signal(c, CLIENT_FINI, c->seqno);
 
@@ -1588,9 +1618,9 @@ void xe_eudebug_client_start(struct xe_eudebug_client *c)
 void xe_eudebug_client_wait_done(struct xe_eudebug_client *c)
 {
 	if (!c->done) {
-		c->done = 1;
 		c->seqno = wait_from_client(c, CLIENT_FINI);
 		event_log_read_from_fd(c->log, c->p_out[0]);
+		c->done = 1;
 	}
 }
 
@@ -1683,7 +1713,7 @@ void xe_eudebug_session_run(struct xe_eudebug_session *s)
 	xe_eudebug_client_start(client);
 	xe_eudebug_client_wait_done(client);
 
-	xe_eudebug_debugger_stop_worker(debugger, 1);
+	xe_eudebug_debugger_stop_worker(debugger);
 
 	xe_eudebug_event_log_print(debugger->log, true);
 	xe_eudebug_event_log_print(client->log, true);
