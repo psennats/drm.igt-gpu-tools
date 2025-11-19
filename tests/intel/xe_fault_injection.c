@@ -16,6 +16,7 @@
 
 #include "igt.h"
 #include "igt_device.h"
+#include "igt_device_scan.h"
 #include "igt_kmod.h"
 #include "igt_sriov_device.h"
 #include "igt_sysfs.h"
@@ -204,34 +205,46 @@ static int unbind_other_devices(struct xe_device_context *ctx)
 }
 
 /**
- * rebind_devices - Rebind all devices that were unbound
+ * cleanup_device_context - Cleanup device context after tests
  * @ctx: Device context
  *
- * Rebinds all devices that were unbound during test setup.
- * Called during cleanup to restore the system to its original state.
+ * Reloads the xe module if any devices were unbound during test setup.
+ * This is safer than rebinding individual devices as it avoids issues
+ * with module dependencies (e.g., audio modules).
  */
-static void rebind_devices(struct xe_device_context *ctx)
+static void cleanup_device_context(struct xe_device_context *ctx)
 {
+	bool any_unbound = false;
 	int i;
 
 	if (!ctx->multi_gpu_system)
 		return;
 
-	igt_info("Rebinding Xe devices...\n");
-
+	/* Check if any devices were unbound */
 	for (i = 0; i < ctx->device_count; i++) {
-		if (!ctx->devices[i].needs_rebind)
-			continue;
-
-		igt_info("Rebinding device: %s\n", ctx->devices[i].pci_slot);
-
-		if (igt_kmod_bind("xe", ctx->devices[i].pci_slot) != 0) {
-			igt_warn("Failed to rebind device %s\n",
-				 ctx->devices[i].pci_slot);
+		if (ctx->devices[i].needs_rebind) {
+			any_unbound = true;
+			break;
 		}
-
-		ctx->devices[i].needs_rebind = false;
 	}
+
+	if (!any_unbound)
+		return;
+
+	igt_info("Reloading xe module to restore all devices...\n");
+
+	/* Unload and reload the xe module */
+	if (igt_xe_driver_unload() != 0) {
+		igt_warn("Failed to unload xe driver\n");
+		return;
+	}
+
+	if (igt_xe_driver_load(NULL) != 0) {
+		igt_warn("Failed to reload xe driver\n");
+		return;
+	}
+
+	igt_info("Xe module reloaded successfully\n");
 }
 
 /**
@@ -248,10 +261,18 @@ static void rebind_devices(struct xe_device_context *ctx)
  */
 static int validate_device_context(struct xe_device_context *ctx, int fd)
 {
+	bool device_filter_used;
+
 	if (scan_xe_devices(ctx) != 0) {
 		igt_warn("Failed to scan Xe devices\n");
 		return -1;
 	}
+
+	/* Check if --device filter was explicitly used */
+	device_filter_used = (igt_device_filter_count() > 0);
+
+	igt_debug("Xe devices found: %d, --device filter used: %s\n",
+		  ctx->device_count, device_filter_used ? "yes" : "no");
 
 	if (!ctx->multi_gpu_system) {
 		igt_info("Single Xe device detected, proceeding normally\n");
@@ -261,10 +282,16 @@ static int validate_device_context(struct xe_device_context *ctx, int fd)
 	/* Multiple GPUs detected */
 	igt_info("Multiple Xe devices detected (%d devices)\n", ctx->device_count);
 
-	if (!get_selected_device(ctx, fd)) {
+	if (!device_filter_used) {
 		igt_warn("Multiple Xe devices bound to driver, but no device selected with --device\n");
 		igt_warn("Fault injection affects all devices bound to the driver.\n");
 		igt_warn("Please use --device to select exactly one GPU.\n");
+		return -1;
+	}
+
+	/* Device filter was used, find which device was selected */
+	if (!get_selected_device(ctx, fd)) {
+		igt_warn("Could not determine selected device from --device filter\n");
 		return -1;
 	}
 
@@ -944,8 +971,8 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 		}
 
 	igt_fixture {
-		/* Rebind any devices that were unbound for multi-GPU handling */
-		rebind_devices(&device_ctx);
+		/* Cleanup: reload xe module if any devices were unbound */
+		cleanup_device_context(&device_ctx);
 
 		close(sysfs);
 		drm_close_driver(fd);

@@ -19,7 +19,7 @@ When multiple Xe GPUs are present in a system:
 The test automatically detects and manages multiple Xe GPUs:
 
 1. **Single GPU System**: Tests run normally without any modifications
-2. **Multiple GPUs with `--device` Selection**: Automatically unbinds non-selected GPUs, runs tests on the selected GPU, then rebinds all GPUs
+2. **Multiple GPUs with `--device` Selection**: Automatically unbinds non-selected GPUs, runs tests on the selected GPU, then reloads the xe module
 3. **Multiple GPUs without `--device`**: Skips all tests with a warning message
 
 ## Usage
@@ -60,24 +60,25 @@ Running without `--device` will skip all tests:
 
 The test maintains a `struct xe_device_context` that tracks:
 - All Xe devices bound to the driver
-- Which device was selected via `--device`
-- Which devices need to be rebound after tests
+- Whether `--device` filter was explicitly used
+- Which devices need to be managed after tests
 
 ### Device Scanning
 
-At test startup, the test scans `/sys/bus/pci/drivers/xe/` to enumerate all PCI devices currently bound to the xe driver.
+At test startup, the test scans `/sys/bus/pci/drivers/xe/` to enumerate all PCI devices currently bound to the xe driver. It also checks `igt_device_filter_count()` to determine if the `--device` flag was actually used.
 
-### Unbind/Rebind Operations
+### Unbind/Module Reload Operations
 
 - **Before Tests**: Non-selected devices are unbound from the xe driver
-- **After Tests**: All unbound devices are rebound in the cleanup fixture
-- **Failure Handling**: Cleanup runs even if tests fail, ensuring devices are restored
+- **After Tests**: If any devices were unbound, the xe module is reloaded to restore all devices
+- **Failure Handling**: Cleanup runs even if tests fail, ensuring the system is restored
+- **Why Module Reload**: Reloading the module is safer than rebinding individual devices as it avoids issues with module dependencies (e.g., audio modules that depend on the GPU driver)
 
 ### Validation Logic
 
 The test enforces these rules:
 1. If only one GPU is bound → proceed normally
-2. If multiple GPUs and `--device` specified → unbind others, proceed
+2. If multiple GPUs and `--device` explicitly specified → unbind others, proceed
 3. If multiple GPUs and no `--device` → skip all tests with warning
 
 ## Benefits
@@ -85,11 +86,14 @@ The test enforces these rules:
 - **Test Isolation**: Fault injection only affects the selected GPU
 - **System Stability**: Other GPUs remain functional during testing
 - **Predictable Results**: Tests produce consistent results regardless of system configuration
-- **Safe Cleanup**: Automatic rebinding ensures system is restored even on test failure
+- **Safe Cleanup**: Module reload ensures system is restored even on test failure
+- **Dependency Safety**: Module reload avoids issues with interdependent modules (e.g., audio)
 
 ## Technical Notes
 
-- Device unbind/rebind uses the IGT `igt_kmod_unbind()` and `igt_kmod_bind()` functions
+- Device unbind uses `igt_kmod_unbind()` function
+- Module reload uses `igt_xe_driver_unload()` and `igt_xe_driver_load()` functions
+- The `--device` filter detection uses `igt_device_filter_count()` to check if filter was explicitly provided
 - PCI slot names are matched against the device opened with `drm_open_driver()`
 - The device context is cleaned up in the test fixture teardown, guaranteeing cleanup
 - Maximum of 16 Xe devices are supported (defined by `MAX_XE_DEVICES`)
@@ -114,7 +118,7 @@ If device unbind or rebind fails:
 
 ### Cleanup Issues
 
-If devices are not automatically rebound:
-- Manually rebind with: `echo "0000:03:00.0" > /sys/bus/pci/drivers/xe/bind`
-- Check system logs for errors
+If the xe module is not automatically reloaded:
+- Manually reload with: `sudo rmmod xe && sudo modprobe xe`
+- Check system logs for errors with: `dmesg | tail -50`
 - Reboot if necessary to restore driver state
