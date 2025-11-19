@@ -12,9 +12,11 @@
  */
 
 #include <limits.h>
+#include <dirent.h>
 
 #include "igt.h"
 #include "igt_device.h"
+#include "igt_device_scan.h"
 #include "igt_kmod.h"
 #include "igt_sriov_device.h"
 #include "igt_sysfs.h"
@@ -44,6 +46,265 @@ struct fault_injection_params {
 	 */
 	uint32_t space;
 };
+
+#define MAX_XE_DEVICES 16
+
+/**
+ * struct xe_device_info - Information about a single Xe device
+ * @pci_slot: PCI slot name (e.g., "0000:03:00.0")
+ * @is_selected: Whether this device was selected via --device filter
+ * @was_bound: Whether this device was originally bound to xe driver
+ * @needs_rebind: Whether this device needs to be rebound on cleanup
+ */
+struct xe_device_info {
+	char pci_slot[NAME_MAX];
+	bool is_selected;
+	bool was_bound;
+	bool needs_rebind;
+};
+
+/**
+ * struct xe_device_context - Context for managing multiple Xe devices
+ * @devices: Array of detected Xe devices
+ * @device_count: Number of devices detected
+ * @selected_device: Pointer to the selected device (NULL if none)
+ * @multi_gpu_system: Whether multiple GPUs are bound to xe driver
+ */
+struct xe_device_context {
+	struct xe_device_info devices[MAX_XE_DEVICES];
+	int device_count;
+	struct xe_device_info *selected_device;
+	bool multi_gpu_system;
+};
+
+/**
+ * scan_xe_devices - Scan for Xe devices bound to the driver
+ * @ctx: Device context to populate
+ *
+ * Scans /sys/bus/pci/drivers/xe/ to find all PCI devices currently bound
+ * to the xe driver. Records each device's PCI slot name.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+static int scan_xe_devices(struct xe_device_context *ctx)
+{
+	DIR *dir;
+	struct dirent *entry;
+	const char *xe_driver_path = "/sys/bus/pci/drivers/xe";
+
+	memset(ctx, 0, sizeof(*ctx));
+
+	dir = opendir(xe_driver_path);
+	if (!dir) {
+		igt_debug("Could not open %s: %s\n", xe_driver_path, strerror(errno));
+		return 0; /* Not an error - driver might not be loaded */
+	}
+
+	while ((entry = readdir(dir)) != NULL) {
+		/* PCI device entries are symlinks that start with a digit */
+		if (entry->d_type != DT_LNK || !isdigit(entry->d_name[0]))
+			continue;
+
+		if (ctx->device_count >= MAX_XE_DEVICES) {
+			igt_warn("Found more than %d Xe devices, ignoring extras\n",
+				 MAX_XE_DEVICES);
+			break;
+		}
+
+		snprintf(ctx->devices[ctx->device_count].pci_slot,
+			 NAME_MAX, "%s", entry->d_name);
+		ctx->devices[ctx->device_count].was_bound = true;
+		ctx->device_count++;
+
+		igt_debug("Found Xe device: %s\n", entry->d_name);
+	}
+
+	closedir(dir);
+
+	ctx->multi_gpu_system = (ctx->device_count > 1);
+
+	igt_debug("Detected %d Xe device%s\n", ctx->device_count,
+		  ctx->device_count == 1 ? "" : "s");
+
+	return 0;
+}
+
+/**
+ * get_selected_device - Determine which device was selected via --device
+ * @ctx: Device context
+ * @fd: Open file descriptor to the selected device
+ *
+ * Compares the PCI slot of the open device fd with the scanned devices
+ * to determine which device the user selected with the --device filter.
+ * If found, marks that device as selected.
+ *
+ * Returns: Pointer to selected device info, or NULL if not found
+ */
+static struct xe_device_info *get_selected_device(struct xe_device_context *ctx, int fd)
+{
+	char selected_pci_slot[NAME_MAX];
+	int i;
+
+	igt_device_get_pci_slot_name(fd, selected_pci_slot);
+	igt_debug("Device selected via --device filter: %s\n", selected_pci_slot);
+
+	for (i = 0; i < ctx->device_count; i++) {
+		if (strcmp(ctx->devices[i].pci_slot, selected_pci_slot) == 0) {
+			ctx->devices[i].is_selected = true;
+			ctx->selected_device = &ctx->devices[i];
+			return &ctx->devices[i];
+		}
+	}
+
+	igt_warn("Selected device %s not found in scanned devices\n",
+		 selected_pci_slot);
+	return NULL;
+}
+
+/**
+ * unbind_other_devices - Unbind all non-selected Xe devices
+ * @ctx: Device context
+ *
+ * Unbinds all Xe devices except the selected one from the xe driver.
+ * Marks devices as needing rebind for cleanup.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+static int unbind_other_devices(struct xe_device_context *ctx)
+{
+	int i;
+	int ret = 0;
+
+	if (!ctx->multi_gpu_system)
+		return 0;
+
+	if (!ctx->selected_device) {
+		igt_warn("No selected device, cannot unbind others\n");
+		return -1;
+	}
+
+	igt_info("Unbinding non-selected Xe devices...\n");
+
+	for (i = 0; i < ctx->device_count; i++) {
+		if (ctx->devices[i].is_selected)
+			continue;
+
+		igt_info("Unbinding device: %s\n", ctx->devices[i].pci_slot);
+
+		if (igt_kmod_unbind("xe", ctx->devices[i].pci_slot) != 0) {
+			igt_warn("Failed to unbind device %s\n",
+				 ctx->devices[i].pci_slot);
+			ret = -1;
+			continue;
+		}
+
+		ctx->devices[i].needs_rebind = true;
+	}
+
+	return ret;
+}
+
+/**
+ * cleanup_device_context - Cleanup device context after tests
+ * @ctx: Device context
+ *
+ * Reloads the xe module if any devices were unbound during test setup.
+ * This is safer than rebinding individual devices as it avoids issues
+ * with module dependencies (e.g., audio modules).
+ */
+static void cleanup_device_context(struct xe_device_context *ctx)
+{
+	bool any_unbound = false;
+	int i;
+
+	if (!ctx->multi_gpu_system)
+		return;
+
+	/* Check if any devices were unbound */
+	for (i = 0; i < ctx->device_count; i++) {
+		if (ctx->devices[i].needs_rebind) {
+			any_unbound = true;
+			break;
+		}
+	}
+
+	if (!any_unbound)
+		return;
+
+	igt_info("Reloading xe module to restore all devices...\n");
+
+	/* Unload and reload the xe module */
+	if (igt_xe_driver_unload() != 0) {
+		igt_warn("Failed to unload xe driver\n");
+		return;
+	}
+
+	if (igt_xe_driver_load(NULL) != 0) {
+		igt_warn("Failed to reload xe driver\n");
+		return;
+	}
+
+	igt_info("Xe module reloaded successfully\n");
+}
+
+/**
+ * validate_device_context - Validate device setup and apply policy
+ * @ctx: Device context
+ * @fd: Open file descriptor to device
+ *
+ * Validates the device setup according to the test's requirements:
+ * - Single GPU: Tests run normally
+ * - Multiple GPUs with --device: Unbind non-selected devices
+ * - Multiple GPUs without --device: Skip all tests with warning
+ *
+ * Returns: 0 if tests should proceed, -1 if tests should be skipped
+ */
+static int validate_device_context(struct xe_device_context *ctx, int fd)
+{
+	bool device_filter_used;
+
+	if (scan_xe_devices(ctx) != 0) {
+		igt_warn("Failed to scan Xe devices\n");
+		return -1;
+	}
+
+	/* Check if --device filter was explicitly used */
+	device_filter_used = (igt_device_filter_count() > 0);
+
+	igt_debug("Xe devices found: %d, --device filter used: %s\n",
+		  ctx->device_count, device_filter_used ? "yes" : "no");
+
+	if (!ctx->multi_gpu_system) {
+		igt_info("Single Xe device detected, proceeding normally\n");
+		return 0;
+	}
+
+	/* Multiple GPUs detected */
+	igt_info("Multiple Xe devices detected (%d devices)\n", ctx->device_count);
+
+	if (!device_filter_used) {
+		igt_warn("Multiple Xe devices bound to driver, but no device selected with --device\n");
+		igt_warn("Fault injection affects all devices bound to the driver.\n");
+		igt_warn("Please use --device to select exactly one GPU.\n");
+		return -1;
+	}
+
+	/* Device filter was used, find which device was selected */
+	if (!get_selected_device(ctx, fd)) {
+		igt_warn("Could not determine selected device from --device filter\n");
+		return -1;
+	}
+
+	igt_info("Device %s selected, unbinding other devices\n",
+		 ctx->selected_device->pci_slot);
+
+	if (unbind_other_devices(ctx) != 0) {
+		igt_warn("Failed to unbind other devices\n");
+		return -1;
+	}
+
+	return 0;
+}
 
 static int fail_function_open(void)
 {
@@ -561,6 +822,8 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 	static uint32_t devid;
 	char pci_slot[NAME_MAX];
 	bool is_vf_device;
+	struct xe_device_context device_ctx;
+	bool device_validation_passed = false;
 	const struct section {
 		const char *name;
 		unsigned int flags;
@@ -635,33 +898,51 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 		setup_injection_fault(&default_fault_params);
 		igt_install_exit_handler(cleanup_injection_fault);
 		is_vf_device = intel_is_vf_device(fd);
+
+		/* Validate device setup for multi-GPU systems */
+		if (validate_device_context(&device_ctx, fd) == 0) {
+			device_validation_passed = true;
+		} else {
+			igt_info("Skipping all tests due to multi-GPU validation failure\n");
+			device_validation_passed = false;
+		}
 	}
 
 	for (const struct section *s = vm_create_fail_functions; s->name; s++)
-		igt_subtest_f("vm-create-fail-%s", s->name)
+		igt_subtest_f("vm-create-fail-%s", s->name) {
+			igt_skip_on(!device_validation_passed);
 			vm_create_fail(fd, pci_slot, s->name, s->flags);
+		}
 
 	for (const struct section *s = vm_bind_fail_functions; s->name; s++)
-		igt_subtest_f("vm-bind-fail-%s", s->name)
+		igt_subtest_f("vm-bind-fail-%s", s->name) {
+			igt_skip_on(!device_validation_passed);
 			vm_bind_fail(fd, pci_slot, s->name);
+		}
 
 	for (const struct section *s = exec_queue_create_fail_functions; s->name; s++)
-		igt_subtest_f("exec-queue-create-fail-%s", s->name)
+		igt_subtest_f("exec-queue-create-fail-%s", s->name) {
+			igt_skip_on(!device_validation_passed);
 			xe_for_each_engine(fd, hwe)
 				if (hwe->engine_class != DRM_XE_ENGINE_CLASS_VM_BIND)
 					exec_queue_create_fail(fd, hwe, pci_slot,
 							       s->name, s->flags);
+		}
 
 	for (const struct section *s = exec_queue_create_vmbind_fail_functions; s->name; s++)
-		igt_subtest_f("exec-queue-create-fail-%s", s->name)
+		igt_subtest_f("exec-queue-create-fail-%s", s->name) {
+			igt_skip_on(!device_validation_passed);
 			xe_for_each_engine(fd, hwe)
 				if (hwe->engine_class == DRM_XE_ENGINE_CLASS_VM_BIND)
 					exec_queue_create_fail(fd, hwe, pci_slot,
 							       s->name, s->flags);
+		}
 
 	for (const struct section *s = oa_add_config_fail_functions; s->name; s++)
-		igt_subtest_f("oa-add-config-fail-%s", s->name)
+		igt_subtest_f("oa-add-config-fail-%s", s->name) {
+			igt_skip_on(!device_validation_passed);
 			oa_add_config_fail(fd, sysfs, devid, pci_slot, s->name);
+		}
 
 	igt_fixture {
 		igt_kmod_unbind("xe", pci_slot);
@@ -672,6 +953,8 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 			bool should_pass = s->pf_only && is_vf_device;
 			int err;
 
+			igt_skip_on(!device_validation_passed);
+
 			err = inject_fault_probe(fd, pci_slot, s->name);
 
 			igt_assert_eq(should_pass ? 0 : INJECT_ERRNO, err);
@@ -680,12 +963,17 @@ igt_main_args("I:", NULL, help_str, opt_handler, NULL)
 
 	for (const struct section *s = guc_fail_functions; s->name; s++)
 		igt_subtest_f("probe-fail-guc-%s", s->name) {
+			igt_skip_on(!device_validation_passed);
+
 			memcpy(&fault_params, &default_fault_params,
 					sizeof(struct fault_injection_params));
 			probe_fail_guc(fd, pci_slot, s->name, &fault_params);
 		}
 
 	igt_fixture {
+		/* Cleanup: reload xe module if any devices were unbound */
+		cleanup_device_context(&device_ctx);
+
 		close(sysfs);
 		drm_close_driver(fd);
 		injection_list_clear();
